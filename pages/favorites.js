@@ -1,79 +1,61 @@
-// pages/favorites.js
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { useUser } from '@supabase/auth-helpers-react';
-import Link from 'next/link';
-import Image from 'next/image';
+import PropertyCard from '../components/PropertyCard';
 
-export default function FavoritesPage() {
-  const user = useUser();
+export default function Favorites() {
   const [favorites, setFavorites] = useState([]);
-  const [images, setImages] = useState({});
+  const [loading, setLoading] = useState(true);
+  const user = useUser();
 
   useEffect(() => {
-    if (user) {
-      fetchFavorites();
-    }
+    if (user) fetchFavorites();
   }, [user]);
 
   async function fetchFavorites() {
-    const { data, error } = await supabase
+    const { data: favs, error } = await supabase
       .from('favorites')
-      .select('property_id, properties (*)')
+      .select('property_id')
       .eq('user_id', user.id);
 
     if (error) {
-      console.error('Error fetching favorites:', error);
+      console.error('加载收藏失败:', error);
+      return;
+    }
+
+    const ids = favs.map((f) => f.property_id);
+    if (ids.length === 0) {
+      setFavorites([]);
+      setLoading(false);
+      return;
+    }
+
+    const { data: properties, error: propErr } = await supabase
+      .from('properties')
+      .select('*')
+      .in('id', ids);
+
+    if (propErr) {
+      console.error('加载房产失败:', propErr);
     } else {
-      const properties = data.map((f) => f.properties);
       setFavorites(properties);
-      preloadImages(properties);
     }
+    setLoading(false);
   }
 
-  function preloadImages(properties) {
-    const imageMap = {};
-    for (const property of properties) {
-      if (property.image_urls && property.image_urls.length > 0) {
-        imageMap[property.id] = property.image_urls[0];
-      }
-    }
-    setImages(imageMap);
-  }
-
-  if (!user) return <div className="p-4">请先登录</div>;
+  if (!user) return <div className="p-4">请先登录查看收藏房源</div>;
+  if (loading) return <div className="p-4">加载中...</div>;
 
   return (
-    <div className="p-4 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">我的收藏</h1>
+    <div className="p-4 space-y-4">
+      <h1 className="text-2xl font-bold mb-4">❤️ 我的收藏</h1>
       {favorites.length === 0 ? (
-        <p>您还没有收藏任何房源</p>
+        <p>你还没有收藏任何房源</p>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {favorites.map((property) => (
-            <Link
-              key={property.id}
-              href={`/property/${property.id}`}
-              className="border p-2 rounded block"
-            >
-              <div className="relative w-full h-48 mb-2">
-                {images[property.id] && (
-                  <Image
-                    src={images[property.id]}
-                    alt={property.title}
-                    layout="fill"
-                    objectFit="cover"
-                    className="rounded"
-                  />
-                )}
-              </div>
-              <h3 className="font-bold">{property.title}</h3>
-              <p className="text-sm text-gray-600">RM {property.price}</p>
-            </Link>
-          ))}
-        </div>
+        favorites.map((property) => (
+          <PropertyCard key={property.id} property={property} />
+        ))
       )}
     </div>
   );
 }
-
