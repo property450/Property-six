@@ -1,114 +1,189 @@
-// pages/edit-property/[id].js
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import { supabase } from '../../supabaseClient';
 import { useUser } from '@supabase/auth-helpers-react';
+import dynamic from 'next/dynamic';
+import TypeSelector from '../../components/TypeSelector';
 
-export default function EditPropertyPage() {
+const MapPicker = dynamic(() => import('../../components/MapPicker'), { ssr: false });
+
+export default function EditProperty() {
   const router = useRouter();
   const { id } = router.query;
   const user = useUser();
 
   const [property, setProperty] = useState(null);
+  const [images, setImages] = useState([]);
+  const [newImages, setNewImages] = useState([]);
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
-    if (id) {
-      fetchProperty();
-    }
+    if (id) fetchProperty();
   }, [id]);
 
   async function fetchProperty() {
-    const { data, error } = await supabase
-      .from('properties')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (error) {
-      console.error('Error fetching property:', error);
-    } else {
+    const { data, error } = await supabase.from('properties').select('*').eq('id', id).single();
+    if (data) {
       setProperty(data);
+      setImages(data.image_urls || []);
+    } else {
+      alert('无法加载房源');
     }
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault();
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setProperty((prev) => ({ ...prev, [name]: value }));
+  };
 
-    const { error } = await supabase
+  const handleImageChange = (e) => {
+    setNewImages([...e.target.files]);
+  };
+
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    setUpdating(true);
+
+    const uploaded = [...images]; // 保留原图
+    for (const file of newImages) {
+      const ext = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random()}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from('property-images')
+        .upload(fileName, file);
+
+      if (uploadError) {
+        alert('上传图片失败：' + uploadError.message);
+        setUpdating(false);
+        return;
+      }
+
+      const url = supabase.storage
+        .from('property-images')
+        .getPublicUrl(fileName).data.publicUrl;
+      uploaded.push(url);
+    }
+
+    const { error: updateError } = await supabase
       .from('properties')
-      .update(property)
+      .update({
+        ...property,
+        price: Number(property.price),
+        bedrooms: Number(property.bedrooms),
+        bathrooms: Number(property.bathrooms),
+        carparks: Number(property.carparks),
+        storerooms: Number(property.storerooms),
+        image_urls: uploaded,
+      })
       .eq('id', id);
 
-    if (error) {
-      alert('更新失败');
-      console.error(error);
+    if (updateError) {
+      alert('更新失败：' + updateError.message);
     } else {
-      router.push(`/property/${id}`);
+      alert('房源已更新');
+      router.push('/');
     }
-  }
 
-  function handleChange(e) {
-    setProperty({ ...property, [e.target.name]: e.target.value });
-  }
+    setUpdating(false);
+  };
 
-  if (!property) return <div>加载中...</div>;
+  if (!user || !property) return <div className="p-4">加载中...</div>;
+  if (user.id !== property.user_id) return <div className="p-4 text-red-600">你没有权限编辑此房源</div>;
 
   return (
     <div className="p-4 max-w-2xl mx-auto">
-      <h1 className="text-xl font-bold mb-4">编辑房产信息</h1>
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <h1 className="text-2xl font-bold mb-4">编辑房源</h1>
+      <form onSubmit={handleUpdate} className="space-y-4">
         <input
-          type="text"
           name="title"
           value={property.title || ''}
           onChange={handleChange}
-          placeholder="房产标题"
           className="border p-2 w-full"
+          placeholder="房产标题"
         />
         <textarea
           name="description"
           value={property.description || ''}
           onChange={handleChange}
-          placeholder="描述"
           className="border p-2 w-full"
+          placeholder="描述"
         />
         <input
-          type="number"
           name="price"
           value={property.price || ''}
           onChange={handleChange}
+          type="number"
+          className="border p-2 w-full"
           placeholder="价格"
-          className="border p-2 w-full"
         />
         <input
-          type="number"
-          name="bedrooms"
-          value={property.bedrooms || ''}
-          onChange={handleChange}
-          placeholder="房间数量"
-          className="border p-2 w-full"
-        />
-        <input
-          type="number"
-          name="bathrooms"
-          value={property.bathrooms || ''}
-          onChange={handleChange}
-          placeholder="浴室数量"
-          className="border p-2 w-full"
-        />
-        <input
-          type="text"
           name="location"
           value={property.location || ''}
           onChange={handleChange}
-          placeholder="地点"
           className="border p-2 w-full"
+          placeholder="地点"
         />
+
+        <TypeSelector
+          value={property.type}
+          onChange={(val) => setProperty((p) => ({ ...p, type: val }))}
+        />
+
+        <div className="grid grid-cols-2 gap-4">
+          <input
+            name="bedrooms"
+            value={property.bedrooms || ''}
+            onChange={handleChange}
+            type="number"
+            className="border p-2"
+            placeholder="房间数"
+          />
+          <input
+            name="bathrooms"
+            value={property.bathrooms || ''}
+            onChange={handleChange}
+            type="number"
+            className="border p-2"
+            placeholder="浴室数"
+          />
+          <input
+            name="carparks"
+            value={property.carparks || ''}
+            onChange={handleChange}
+            type="number"
+            className="border p-2"
+            placeholder="车位数"
+          />
+          <input
+            name="storerooms"
+            value={property.storerooms || ''}
+            onChange={handleChange}
+            type="number"
+            className="border p-2"
+            placeholder="储藏室数"
+          />
+        </div>
+
+        <MapPicker
+          lat={property.lat}
+          lng={property.lng}
+          onPick={(lat, lng) => setProperty((p) => ({ ...p, lat, lng }))}
+        />
+
+        <input type="file" accept="image/*" multiple onChange={handleImageChange} />
+
+        <div className="grid grid-cols-2 gap-2">
+          {images.map((url, i) => (
+            <img key={i} src={url} className="w-full h-32 object-cover rounded" />
+          ))}
+        </div>
+
         <button
           type="submit"
-          className="bg-green-600 text-white px-4 py-2 rounded"
+          disabled={updating}
+          className="bg-blue-600 text-white px-4 py-2 w-full rounded"
         >
-          保存修改
+          {updating ? '更新中...' : '保存更改'}
         </button>
       </form>
     </div>
