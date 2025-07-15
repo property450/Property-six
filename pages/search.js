@@ -1,61 +1,45 @@
-// pages/search.js
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
 import { supabase } from '../supabaseClient';
-import dynamic from 'next/dynamic';
-import FilterPanel from '../components/FilterPanel';
-
-const MapWithNoSSR = dynamic(() => import('../components/MapWithMarkers'), { ssr: false });
+import PropertyCard from '../components/PropertyCard';
 
 export default function SearchPage() {
-  const [filters, setFilters] = useState({
-    keyword: '',
-    type: '',
-    priceRange: [0, 1000000],
-    distance: [0, 50],
-  });
+  const router = useRouter();
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const [properties, setProperties] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const { keyword = '' } = router.query;
 
   useEffect(() => {
-    fetchFilteredProperties();
-  }, [filters]);
+    if (keyword) fetchResults(keyword);
+  }, [keyword]);
 
-  async function fetchFilteredProperties() {
+  async function fetchResults(q) {
     setLoading(true);
-    let query = supabase.from('properties').select('*');
+    const { data, error } = await supabase
+      .from('properties')
+      .select('*')
+      .ilike('title', `%${q}%`);
 
-    if (filters.keyword) {
-      query = query.ilike('title', `%${filters.keyword}%`);
-    }
-    if (filters.type) {
-      query = query.eq('type', filters.type);
-    }
-    if (filters.priceRange) {
-      const [min, max] = filters.priceRange;
-      query = query.gte('price', min).lte('price', max);
-    }
-
-    const { data, error } = await query.order('created_at', { ascending: false });
-
-    if (!error) {
-      setProperties(data);
+    if (error) {
+      console.error('搜索失败:', error);
     } else {
-      console.error(error);
+      setResults(data);
     }
     setLoading(false);
   }
 
   return (
-    <div className="p-4 max-w-7xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">房产搜索</h1>
-
-      <FilterPanel filters={filters} setFilters={setFilters} />
-
+    <div className="p-4 space-y-4 max-w-5xl mx-auto">
+      <h1 className="text-2xl font-bold mb-4">🔍 搜索结果</h1>
       {loading ? (
         <p>加载中...</p>
+      ) : results.length === 0 ? (
+        <p>未找到与 "{keyword}" 匹配的房源</p>
       ) : (
-        <MapWithNoSSR properties={properties} />
+        results.map((property) => (
+          <PropertyCard key={property.id} property={property} />
+        ))
       )}
     </div>
   );
