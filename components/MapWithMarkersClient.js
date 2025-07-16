@@ -1,9 +1,13 @@
-// components/MapWithMarkersClient.js
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+'use client';
+
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { useEffect } from 'react';
 
+// 解决默认图标问题（Leaflet 默认图标在 Webpack 中路径错误）
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl:
@@ -15,11 +19,17 @@ L.Icon.Default.mergeOptions({
 });
 
 export default function MapWithMarkersClient({ properties }) {
+  useEffect(() => {
+    // 避免 Map 在 SSR 阶段报错
+    if (typeof window === 'undefined') return;
+  }, []);
+
   return (
     <MapContainer
-      center={[3.139, 101.6869]}
+      center={[3.139, 101.6869]} // 默认中心点吉隆坡
       zoom={12}
-      style={{ height: '600px', width: '100%' }}
+      scrollWheelZoom={true}
+      style={{ height: '600px', width: '100%', borderRadius: '12px' }}
     >
       <TileLayer
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
