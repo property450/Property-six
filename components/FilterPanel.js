@@ -3,16 +3,16 @@ import RangeSelector from './RangeSelector';
 import SearchSuggestions from './SearchSuggestions';
 import TypeSelector from './TypeSelector';
 
-export default function FilterPanel({ filters, setFilters }) {
+export default function FilterPanel({ filters = {}, setFilters }) {
   return (
     <div className="p-4 border rounded mb-6 space-y-4 bg-gray-50">
       <SearchSuggestions
-        value={filters.keyword}
+        value={filters.keyword || ''}
         onChange={(val) => setFilters((f) => ({ ...f, keyword: val }))}
       />
 
       <TypeSelector
-        value={filters.type}
+        value={filters.type || ''}
         onChange={(val) => setFilters((f) => ({ ...f, type: val }))}
       />
 
@@ -20,7 +20,7 @@ export default function FilterPanel({ filters, setFilters }) {
         label="价格范围 (RM)"
         min={0}
         max={10000000}
-        value={filters.priceRange}
+        value={filters.priceRange || [0, 10000000]}
         onChange={(val) => setFilters((f) => ({ ...f, priceRange: val }))}
       />
 
@@ -28,7 +28,7 @@ export default function FilterPanel({ filters, setFilters }) {
         label="距离 (KM)"
         min={0}
         max={100}
-        value={filters.distance}
+        value={filters.distance || [0, 100]}
         onChange={(val) => setFilters((f) => ({ ...f, distance: val }))}
       />
 
