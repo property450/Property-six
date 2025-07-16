@@ -3,12 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev --turbo",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {
+    "@react-leaflet/core": "^3.0.0",
+    "@supabase/auth-helpers-react": "^0.5.0",
     "leaflet": "^1.9.4",
     "next": "15.3.5",
     "react": "^19.0.0",
