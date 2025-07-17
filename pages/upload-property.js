@@ -5,7 +5,7 @@ import { useRouter } from 'next/router';
 import { supabase } from '../supabaseClient';
 import dynamic from 'next/dynamic';
 import TypeSelector from '../components/TypeSelector';
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import Header from '../components/Header';
 
 const MapPicker = dynamic(() => import('../components/MapPicker'), { ssr: false });
