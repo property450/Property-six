@@ -1,8 +1,8 @@
-@import "tailwindcss/base";
-@import "tailwindcss/components";
-@import "tailwindcss/utilities";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-/* 定义浅色模式默认颜色 */
+/* 浅色模式默认颜色 */
 :root {
   --background: #ffffff;
   --foreground: #171717;
