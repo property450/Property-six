@@ -1,4 +1,3 @@
-// pages/index.js
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import Header from '../components/Header';
@@ -19,8 +18,12 @@ export default function Home() {
       .from('properties')
       .select('*')
       .order('created_at', { ascending: false });
-    if (error) console.error('加载失败:', error);
-    setProperties(data || []);
+
+    if (error) {
+      console.error('加载失败:', error);
+    } else {
+      setProperties(data || []);
+    }
     setLoading(false);
   }
 
@@ -29,19 +32,29 @@ export default function Home() {
       <Header />
       <main className="max-w-7xl mx-auto p-4 space-y-6">
         <h1 className="text-3xl font-bold">🏠 最新房源 / Latest Listings</h1>
+
         <FilterPanel setProperties={setProperties} />
+
         {loading ? (
-          <p>加载中...</p>
+          <p>加载中 / Loading...</p>
         ) : properties.length === 0 ? (
-          <p>暂无房源 / No listings</p>
+          <p>暂无房源 / No listings found</p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {properties.map((property) => (
-              <PropertyCard key={property.id} property={property} />
-            ))}
-          </div>
+          <>
+            {/* 房源列表 */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {properties.map((property) => (
+                <PropertyCard key={property.id} property={property} />
+              ))}
+            </div>
+
+            {/* 房源地图 */}
+            <div className="mt-8">
+              <h2 className="text-2xl font-semibold mb-2">🗺 地图查看 / View on Map</h2>
+              <MapWithMarkers properties={properties} />
+            </div>
+          </>
         )}
-        <MapWithMarkers properties={properties} />
       </main>
     </div>
   );
