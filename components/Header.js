@@ -21,8 +21,8 @@ export default function Header() {
 
       <nav className="space-x-4">
         <Link href="/">主页</Link>
-        <Link href="/upload-property">上传房产</Link>
-        <Link href="/favorites">收藏夹</Link>
+        <Link href="/upload-property">上传房源</Link>
+        <Link href="/favorites">我的收藏</Link>
         {user ? (
           <>
             <Link href="/my-profile">我的主页</Link>
@@ -30,7 +30,7 @@ export default function Header() {
           </>
         ) : (
           <>
-            <Link href="/login">登录</Link>
+            <Link href="/login">登入</Link>
             <Link href="/register">注册</Link>
           </>
         )}
