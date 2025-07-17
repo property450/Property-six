@@ -4,23 +4,23 @@
 
 /* 强制浅色模式颜色 */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #ffffff;
+  --foreground: #171717;
 }
 
 /* 移除 prefers-color-scheme 的自动切换 */
 /*
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
 }
 */
 
 body {
-  background-color: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
