@@ -1,6 +1,6 @@
-@import "tailwindcss/base";
-@import "tailwindcss/components";
-@import "tailwindcss/utilities";
+@tailwind "tailwindcss/base";
+@tailwind "tailwindcss/components";
+@tailwind "tailwindcss/utilities";
 
 /* 强制浅色模式颜色 */
 :root {
