@@ -7,8 +7,10 @@ import '../styles/globals.css';
 function MyApp({ Component, pageProps }) {
   return (
     <SessionContextProvider supabaseClient={supabase}>
-      <Header />
-      <Component {...pageProps} />
+      <div>
+        <Header />
+        <Component {...pageProps} />
+      </div>
     </SessionContextProvider>
   );
 }
