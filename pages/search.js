@@ -43,11 +43,11 @@ export default function SearchPage() {
 
     // 过滤出圆圈范围内房源
     const filtered = allProperties.filter((p) => {
-      if (!p.latitude || !p.longitude) return false;
+      if (!p.lat || !p.lng) return false;
 
       const R = 6371; // 地球半径 (km)
-      const dLat = ((p.latitude - latNum) * Math.PI) / 180;
-      const dLon = ((p.longitude - lonNum) * Math.PI) / 180;
+      const dLat = ((p.lat - latNum) * Math.PI) / 180;
+      const dLon = ((p.lng - lonNum) * Math.PI) / 180;
       const a =
         Math.sin(dLat / 2) * Math.sin(dLat / 2) +
         Math.cos((latNum * Math.PI) / 180) *
