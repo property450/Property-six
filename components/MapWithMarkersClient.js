@@ -1,98 +1,93 @@
 'use client';
 
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
-import { useRouter } from 'next/router';
-import Image from 'next/image';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+import { useEffect, useState } from 'react';
+import 'leaflet-defaulticon-compatibility';
+import 'leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css';
 
-// 修复 Leaflet 默认图标路径问题
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
+// 默认地图中心点（吉隆坡）
+const defaultCenter = [3.139, 101.6869];
+const defaultRadius = 5000;
 
-export default function MapWithMarkersClient({
-  properties = [],
-  centerLat,
-  centerLng,
-  radiusKm = 5
-}) {
-  const router = useRouter();
+export default function MapWithMarkersClient({ properties }) {
+  const [center, setCenter] = useState(defaultCenter);
+  const [radius, setRadius] = useState(defaultRadius);
+  const [address, setAddress] = useState('');
+  const [filteredProperties, setFilteredProperties] = useState(properties);
 
-  // 合法中心点判断
-  const isValidLat = typeof centerLat === 'number' && !isNaN(centerLat);
-  const isValidLng = typeof centerLng === 'number' && !isNaN(centerLng);
-  const center = {
-    lat: isValidLat ? centerLat : 3.139,
-    lng: isValidLng ? centerLng : 101.6869,
+  const handleSearch = async () => {
+    if (!address) return;
+
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`
+    );
+    const data = await res.json();
+
+    if (data && data[0]) {
+      const { lat, lon } = data[0];
+      const newCenter = [parseFloat(lat), parseFloat(lon)];
+      setCenter(newCenter);
+    } else {
+      alert('Address not found!');
+    }
   };
 
+  useEffect(() => {
+    const filtered = properties.filter((p) => {
+      if (!p.latitude || !p.longitude) return false;
+
+      const distance = L.latLng(center).distanceTo([p.latitude, p.longitude]);
+      return distance <= radius;
+    });
+
+    setFilteredProperties(filtered);
+  }, [center, radius, properties]);
+
   return (
-    <MapContainer
-      center={[center.lat, center.lng]}
-      zoom={13}
-      scrollWheelZoom={true}
-      style={{ height: '600px', width: '100%', borderRadius: '12px' }}
-    >
-      <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution="&copy; OpenStreetMap contributors"
-      />
+    <div>
+      <div className="flex gap-2 mb-4">
+        <input
+          type="text"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          placeholder="Enter address"
+          className="border p-2 rounded w-full"
+        />
+        <button
+          onClick={handleSearch}
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+        >
+          Search
+        </button>
+      </div>
 
-      {/* 显示圆圈 */}
-      <Circle
-        center={[center.lat, center.lng]}
-        radius={radiusKm * 1000}
-        pathOptions={{ color: 'blue', fillOpacity: 0.1 }}
-      />
+      <MapContainer
+        center={center}
+        zoom={13}
+        scrollWheelZoom={true}
+        style={{ height: '600px', width: '100%', borderRadius: '12px' }}
+      >
+        <TileLayer
+          attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
 
-      {/* 中心点 Marker（可选） */}
-      <Marker position={[center.lat, center.lng]}>
-        <Popup>搜索中心</Popup>
-      </Marker>
+        <Circle center={center} radius={radius} pathOptions={{ color: 'blue' }} />
 
-      {/* 显示房源标记 */}
-      {properties
-        .filter(
-          (property) =>
-            typeof property.latitude === 'number' &&
-            typeof property.longitude === 'number' &&
-            !isNaN(property.latitude) &&
-            !isNaN(property.longitude)
-        )
-        .map((property) => {
-          const firstImage = property.images?.[0]?.url || '/no-image.jpg';
-          return (
-            <Marker
-              key={property.id}
-              position={[property.latitude, property.longitude]}
-            >
-              <Popup maxWidth={260} minWidth={200}>
-                <div className="space-y-2 text-sm">
-                  <Image
-                    src={firstImage}
-                    alt={property.title}
-                    width={240}
-                    height={160}
-                    className="rounded-lg object-cover w-full h-32"
-                  />
-                  <div className="font-semibold truncate">{property.title}</div>
-                  <div className="text-red-500 font-bold">RM {property.price}</div>
-                  <div className="text-gray-500">{property.location}</div>
-                  <button
-                    onClick={() => router.push(`/property/${property.id}`)}
-                    className="mt-1 bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-xs"
-                  >
-                    查看更多
-                  </button>
-                </div>
-              </Popup>
-            </Marker>
-          );
-        })}
-    </MapContainer>
+        {filteredProperties.map((property) => (
+          <Marker key={property.id} position={[property.latitude, property.longitude]}>
+            <Popup>
+              <div>
+                <strong>{property.title}</strong>
+                <br />
+                {property.address}
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+      </MapContainer>
+    </div>
   );
 }
