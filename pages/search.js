@@ -14,7 +14,7 @@ export default function SearchPage() {
   const [filteredProperties, setFilteredProperties] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [center, setCenter] = useState(null);
-  const [radius, setRadius] = useState(5000); // 默认 5km
+  const [radius, setRadius] = useState(5000); // 单位: 米
 
   // 地址转坐标
   const geocodeAddress = async (address) => {
@@ -43,11 +43,45 @@ export default function SearchPage() {
       const { data, error } = await supabase.from('properties').select('*');
       if (!error) {
         setAllProperties(data);
-        setFilteredProperties(data);
+        setFilteredProperties(data); // 默认先显示全部
       }
     };
     fetchProperties();
   }, []);
+
+  // 计算两点之间距离（单位：米）
+  const haversineDistance = (coord1, coord2) => {
+    const toRad = (x) => (x * Math.PI) / 180;
+    const R = 6371000; // 地球半径（米）
+
+    const dLat = toRad(coord2.lat - coord1.lat);
+    const dLon = toRad(coord2.lng - coord1.lng);
+    const lat1 = toRad(coord1.lat);
+    const lat2 = toRad(coord2.lat);
+
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.sin(dLon / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c;
+  };
+
+  // ✅ 当中心点或距离变化时，自动筛选房源
+  useEffect(() => {
+    if (!center || allProperties.length === 0) return;
+
+    const filtered = allProperties.filter((property) => {
+      if (!property.latitude || !property.longitude) return false;
+      const distance = haversineDistance(center, {
+        lat: property.latitude,
+        lng: property.longitude,
+      });
+      return distance <= radius;
+    });
+
+    setFilteredProperties(filtered);
+  }, [center, radius, allProperties]);
 
   return (
     <div className="p-4">
@@ -75,7 +109,7 @@ export default function SearchPage() {
 
       {center && (
         <MapWithMarkers
-          properties={allProperties}
+          properties={filteredProperties}
           centerLat={center.lat}
           centerLng={center.lng}
           radiusKm={radius / 1000}
