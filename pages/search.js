@@ -1,105 +1,95 @@
-// pages/search.js
-import { useState, useEffect } from 'react';
-import Head from 'next/head';
+import { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
+import PropertyCard from '../components/PropertyCard';
 import FilterPanel from '../components/FilterPanel';
-import dynamic from 'next/dynamic';
-
-const MapWithMarkers = dynamic(() => import('../components/MapWithMarkers'), {
-  ssr: false,
-});
 
 export default function SearchPage() {
+  const [properties, setProperties] = useState([]);
   const [filters, setFilters] = useState({
     keyword: '',
-    priceRange: [0, 10000000],
-    distance: [0, 100],
-    type: '',
+    minPrice: '',
+    maxPrice: '',
+    minDistance: '',
+    maxDistance: ''
   });
-
-  const [center, setCenter] = useState(null); // 地图中心点
-  const [properties, setProperties] = useState([]);
+  const [center, setCenter] = useState([3.139, 101.6869]); // 默认吉隆坡
 
   useEffect(() => {
-    fetchProperties();
+    const timer = setTimeout(() => {
+      fetchProperties();
+    }, 300); // 延迟300毫秒执行，避免输入框卡顿
+
+    return () => clearTimeout(timer); // 清除旧的 timer
   }, [filters]);
 
-  async function fetchProperties() {
-    const { keyword, priceRange, distance, type } = filters;
-
+  const fetchProperties = async () => {
     let query = supabase.from('properties').select('*');
 
-    // 价格范围筛选
-    query = query.gte('price', priceRange[0]).lte('price', priceRange[1]);
-
-    // 类型筛选
-    if (type) query = query.ilike('type', `%${type}%`);
-
     // 关键词筛选
-    if (keyword) {
-      query = query.or(`title.ilike.%${keyword}%,description.ilike.%${keyword}%,location.ilike.%${keyword}%`);
-      const geo = await geocodeAddress(keyword);
-      if (geo) setCenter(geo);
+    if (filters.keyword) {
+      query = query.ilike('address', `%${filters.keyword}%`);
+    }
+
+    // 价格筛选
+    if (filters.minPrice) {
+      query = query.gte('price', filters.minPrice);
+    }
+    if (filters.maxPrice) {
+      query = query.lte('price', filters.maxPrice);
     }
 
     const { data, error } = await query;
 
     if (error) {
-      console.error('Supabase Error:', error);
+      console.error('加载房源失败:', error);
     } else {
-      let results = data;
+      // 距离筛选
+      const filtered = data.filter(property => {
+        if (filters.minDistance || filters.maxDistance) {
+          const distance = calculateDistance(
+            center[0], center[1],
+            property.latitude, property.longitude
+          );
+          if (
+            (filters.minDistance && distance < filters.minDistance) ||
+            (filters.maxDistance && distance > filters.maxDistance)
+          ) {
+            return false;
+          }
+        }
+        return true;
+      });
 
-      // 距离筛选（需要中心点）
-      if (center && distance[1]) {
-        results = results.filter((item) => {
-          if (!item.latitude || !item.longitude) return false;
-          const d = calcDistance(center.lat, center.lng, item.latitude, item.longitude);
-          return d >= distance[0] && d <= distance[1];
-        });
-      }
-
-      setProperties(results);
+      setProperties(filtered);
     }
-  }
+  };
 
-  // 地址转经纬度（关键词）
-  async function geocodeAddress(address) {
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`);
-      const json = await res.json();
-      if (json.length > 0) {
-        return {
-          lat: parseFloat(json[0].lat),
-          lng: parseFloat(json[0].lon),
-        };
-      }
-    } catch (err) {
-      console.error('Geocode failed:', err);
-    }
-    return null;
-  }
-
-  // 计算两点间距离（km）
-  function calcDistance(lat1, lng1, lat2, lng2) {
-    const toRad = (v) => (v * Math.PI) / 180;
+  // 计算距离的函数（单位：公里）
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
     const R = 6371; // 地球半径
-    const dLat = toRad(lat2 - lat1);
-    const dLng = toRad(lng2 - lng1);
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
-  }
+  };
 
   return (
-    <>
-      <Head><title>搜索房源</title></Head>
-      <div className="max-w-5xl mx-auto p-4">
-        <FilterPanel filters={filters} setFilters={setFilters} />
-        <MapWithMarkers properties={properties} center={center} />
+    <div className="p-4">
+      <h1 className="text-xl font-bold mb-4">搜索结果</h1>
+
+      <FilterPanel filters={filters} setFilters={setFilters} />
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {properties.map(property => (
+          <PropertyCard key={property.id} property={property} />
+        ))}
       </div>
-    </>
+    </div>
   );
 }
