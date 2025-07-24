@@ -1,6 +1,5 @@
 'use client';
 
-import dynamic from 'next/dynamic';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
@@ -15,34 +14,13 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-// 计算两个坐标点之间的距离（单位：km）
-function getDistanceFromLatLng(lat1, lng1, lat2, lng2) {
-  const toRad = (value) => (value * Math.PI) / 180;
-  const R = 6371; // 地球半径 (km)
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-    Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-
 export default function MapWithMarkersClient({
-  properties,
+  properties = [],
   centerLat = 3.139,
   centerLng = 101.6869,
   radiusKm = 5
 }) {
   const router = useRouter();
-
-  // 过滤掉超出距离范围的房源
-  const filteredProperties = properties.filter((property) => {
-    if (!property.lat || !property.lng) return false;
-    const distance = getDistanceFromLatLng(centerLat, centerLng, property.lat, property.lng);
-    return distance <= radiusKm;
-  });
 
   return (
     <MapContainer
@@ -56,14 +34,15 @@ export default function MapWithMarkersClient({
         attribution="&copy; OpenStreetMap contributors"
       />
 
-      {/* 圆圈范围 */}
+      {/* 显示搜索范围的圆圈 */}
       <Circle
         center={[centerLat, centerLng]}
         radius={radiusKm * 1000}
         pathOptions={{ color: 'blue', fillOpacity: 0.1 }}
       />
 
-      {filteredProperties.map((property) => {
+      {/* 显示房源 Marker */}
+      {properties.map((property) => {
         const firstImage = property.images?.[0]?.url || '/no-image.jpg';
 
         return (
