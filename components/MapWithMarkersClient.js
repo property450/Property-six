@@ -1,67 +1,103 @@
-// components/MapWithMarkersClient.js
-'use client';
+import { useEffect, useState } from "react";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  Circle,
+} from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
+import { supabase } from "@/supabaseClient";
 
-import { useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Circle, Popup } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+// Fix: Leaflet icon bug in Next.js
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconUrl: "https://unpkg.com/leaflet@1.9.3/dist/images/marker-icon.png",
+  iconRetinaUrl:
+    "https://unpkg.com/leaflet@1.9.3/dist/images/marker-icon-2x.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.3/dist/images/marker-shadow.png",
+});
 
-export default function MapWithMarkersClient({ center, properties, radius }) {
+const defaultCenter = { lat: 3.139, lng: 101.6869 }; // Kuala Lumpur
+
+export default function MapWithMarkersClient({ searchLocation, radius = 5 }) {
+  const [properties, setProperties] = useState([]);
+
+  const center = searchLocation || defaultCenter;
+
   useEffect(() => {
-    delete L.Icon.Default.prototype._getIconUrl;
+    const fetchProperties = async () => {
+      const { data, error } = await supabase.from("properties").select("*");
+      if (error) {
+        console.error("Error fetching properties:", error);
+      } else {
+        setProperties(data);
+      }
+    };
 
-    L.Icon.Default.mergeOptions({
-      iconRetinaUrl:
-        'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-      iconUrl:
-        'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-      shadowUrl:
-        'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-    });
+    fetchProperties();
   }, []);
 
-  if (!center) {
-    return (
-      <div className="text-center mt-10 text-gray-500">Enter an address to view map.</div>
-    );
-  }
+  const isWithinRadius = (property) => {
+    if (!property.latitude || !property.longitude) return false;
+
+    const toRad = (value) => (value * Math.PI) / 180;
+    const R = 6371;
+
+    const dLat = toRad(property.latitude - center.lat);
+    const dLng = toRad(property.longitude - center.lng);
+
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRad(center.lat)) *
+        Math.cos(toRad(property.latitude)) *
+        Math.sin(dLng / 2) ** 2;
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c;
+
+    return distance <= radius;
+  };
 
   return (
     <MapContainer
       center={[center.lat, center.lng]}
       zoom={13}
       scrollWheelZoom={true}
-      style={{ height: '600px', width: '100%' }}
+      style={{ height: "80vh", width: "100%" }}
     >
       <TileLayer
-        attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a>'
+        attribution='&copy; <a href="https://osm.org">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
 
-      {/* 中心点圆圈 */}
-      <Circle
-        center={[center.lat, center.lng]}
-        radius={radius * 1000}
-        pathOptions={{ fillColor: 'blue', color: 'blue', fillOpacity: 0.2 }}
-      />
+      {searchLocation && (
+        <Circle
+          center={[center.lat, center.lng]}
+          radius={radius * 1000}
+          pathOptions={{
+            fillColor: "blue",
+            fillOpacity: 0.2,
+            color: "blue",
+          }}
+        />
+      )}
 
-      {/* 房源标记 */}
-      {properties.map((property) => (
-        <Marker
-          key={property.id}
-          position={[property.latitude, property.longitude]}
-        >
-          <Popup>
-            <div>
+      {properties
+        .filter((p) => isWithinRadius(p))
+        .map((property) => (
+          <Marker
+            key={property.id}
+            position={[property.latitude, property.longitude]}
+          >
+            <Popup>
               <strong>{property.title}</strong>
               <br />
               {property.address}
-              <br />
-              RM {property.price}
-            </div>
-          </Popup>
-        </Marker>
-      ))}
+            </Popup>
+          </Marker>
+        ))}
     </MapContainer>
   );
 }
