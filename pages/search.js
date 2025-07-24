@@ -1,77 +1,74 @@
 // pages/search.js
-import { useEffect, useState } from 'react';
-import dynamic from 'next/dynamic';
+import { useState } from 'react';
 import { supabase } from '../supabaseClient';
+import dynamic from 'next/dynamic';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useTranslation } from 'next-i18next';
 
 const MapWithMarkers = dynamic(() => import('@/components/MapWithMarkers'), { ssr: false });
 
 export default function SearchPage() {
-  const { t } = useTranslation();
-  const [address, setAddress] = useState('');
-  const [center, setCenter] = useState(null);
-  const [radius, setRadius] = useState(5000);
-  const [properties, setProperties] = useState([]);
+  const [address, setAddress] = useState('');
+  const [center, setCenter] = useState([3.139, 101.6869]); // default KL
+  const [radius, setRadius] = useState(5000);
+  const [properties, setProperties] = useState([]);
 
-  const handleSearch = async () => {
-    if (!address) return;
+  const handleSearch = async () => {
+    if (!address) return;
 
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`
-      );
-      const data = await response.json();
-      if (data && data.length > 0) {
-        const lat = parseFloat(data[0].lat);
-        const lon = parseFloat(data[0].lon);
-        setCenter([lat, lon]);
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${address}`);
+      const data = await res.json();
 
-        const { data: allProperties, error } = await supabase.from('properties').select('*');
-        if (error) throw error;
+      if (data && data[0]) {
+        const lat = parseFloat(data[0].lat);
+        const lon = parseFloat(data[0].lon);
+        setCenter([lat, lon]);
 
-        const filtered = allProperties.filter((property) => {
-          const distance = getDistanceFromLatLonInKm(
-            lat,
-            lon,
-            property.latitude,
-            property.longitude
-          );
-          return distance <= radius / 1000;
-        });
+        // 获取房源
+        const { data: allProperties, error } = await supabase.from('properties').select('*');
+        if (error) throw error;
 
-        setProperties(filtered);
-      }
-    } catch (err) {
-      console.error('Search error:', err);
-    }
-  };
+        const filtered = allProperties.filter((prop) => {
+          const d = getDistanceFromLatLonInKm(lat, lon, prop.latitude, prop.longitude);
+          return d <= radius / 1000;
+        });
 
-  const getDistanceFromLatLonInKm = (lat1, lon1, lat2, lon2) => {
-    const toRad = (value) => (value * Math.PI) / 180;
-    const R = 6371;
-    const dLat = toRad(lat2 - lat1);
-    const dLon = toRad(lon2 - lon1);
-    const a =
-      Math.sin(dLat / 2) ** 2 +
-      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  };
+        setProperties(filtered);
+      }
+    } catch (err) {
+      console.error('Search failed:', err);
+    }
+  };
 
-  return (
-    <div className="p-4 space-y-4">
-      <div className="flex flex-col sm:flex-row gap-2">
-        <Input
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          placeholder={t('Enter address')}
-        />
-        <Button onClick={handleSearch}>{t('Search')}</Button>
-      </div>
+  function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = deg2rad(lat2 - lat1);
+    const dLon = deg2rad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
 
-      <MapWithMarkers center={center} radius={radius} properties={properties} />
-    </div>
-  );
+  function deg2rad(deg) {
+    return deg * (Math.PI / 180);
+  }
+
+  return (
+    <div className="p-4 space-y-4">
+      <div className="flex gap-2">
+        <Input
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          placeholder="Enter address"
+          className="w-full"
+        />
+        <Button onClick={handleSearch}>Search</Button>
+      </div>
+      <MapWithMarkers properties={properties} center={center} radius={radius} />
+    </div>
+  );
 }
