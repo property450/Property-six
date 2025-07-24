@@ -6,39 +6,25 @@ import L from 'leaflet';
 import { useEffect, useState } from 'react';
 import 'leaflet-defaulticon-compatibility';
 import 'leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css';
+import Image from 'next/image';
 
-// 默认地图中心点（吉隆坡）
-const defaultCenter = [3.139, 101.6869];
-const defaultRadius = 5000;
+export default function MapWithMarkersClient({ properties = [], centerLat, centerLng, radiusKm = 5 }) {
+  const [filteredProperties, setFilteredProperties] = useState([]);
 
-export default function MapWithMarkersClient({ properties }) {
-  const [center, setCenter] = useState(defaultCenter);
-  const [radius, setRadius] = useState(defaultRadius);
-  const [address, setAddress] = useState('');
-  const [filteredProperties, setFilteredProperties] = useState(properties);
+  const isValidLat = typeof centerLat === 'number' && !isNaN(centerLat);
+  const isValidLng = typeof centerLng === 'number' && !isNaN(centerLng);
 
-  const handleSearch = async () => {
-    if (!address) return;
-
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`
-    );
-    const data = await res.json();
-
-    if (data && data[0]) {
-      const { lat, lon } = data[0];
-      const newCenter = [parseFloat(lat), parseFloat(lon)];
-      setCenter(newCenter);
-    } else {
-      alert('Address not found!');
-    }
+  const center = {
+    lat: isValidLat ? centerLat : 3.139,
+    lng: isValidLng ? centerLng : 101.6869
   };
+
+  const radius = radiusKm * 1000;
 
   useEffect(() => {
     const filtered = properties.filter((p) => {
       if (!p.latitude || !p.longitude) return false;
-
-      const distance = L.latLng(center).distanceTo([p.latitude, p.longitude]);
+      const distance = L.latLng(center.lat, center.lng).distanceTo([p.latitude, p.longitude]);
       return distance <= radius;
     });
 
@@ -46,48 +32,34 @@ export default function MapWithMarkersClient({ properties }) {
   }, [center, radius, properties]);
 
   return (
-    <div>
-      <div className="flex gap-2 mb-4">
-        <input
-          type="text"
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          placeholder="Enter address"
-          className="border p-2 rounded w-full"
-        />
-        <button
-          onClick={handleSearch}
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-        >
-          Search
-        </button>
-      </div>
+    <MapContainer
+      center={[center.lat, center.lng]}
+      zoom={13}
+      scrollWheelZoom={true}
+      style={{ height: '600px', width: '100%', borderRadius: '12px' }}
+    >
+      <TileLayer
+        attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
 
-      <MapContainer
-        center={center}
-        zoom={13}
-        scrollWheelZoom={true}
-        style={{ height: '600px', width: '100%', borderRadius: '12px' }}
-      >
-        <TileLayer
-          attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+      <Circle center={[center.lat, center.lng]} radius={radius} pathOptions={{ color: 'blue', fillOpacity: 0.1 }} />
 
-        <Circle center={center} radius={radius} pathOptions={{ color: 'blue' }} />
-
-        {filteredProperties.map((property) => (
+      {filteredProperties.map((property) => {
+        const image = property.images?.[0]?.url || '/no-image.jpg';
+        return (
           <Marker key={property.id} position={[property.latitude, property.longitude]}>
             <Popup>
-              <div>
-                <strong>{property.title}</strong>
-                <br />
-                {property.address}
+              <div className="text-sm space-y-2">
+                <Image src={image} alt={property.title} width={200} height={120} className="rounded-md object-cover" />
+                <div className="font-semibold">{property.title}</div>
+                <div className="text-red-600 font-bold">RM {property.price}</div>
+                <div className="text-gray-500">{property.address}</div>
               </div>
             </Popup>
           </Marker>
-        ))}
-      </MapContainer>
-    </div>
+        );
+      })}
+    </MapContainer>
   );
 }
