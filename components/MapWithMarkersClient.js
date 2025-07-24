@@ -22,13 +22,12 @@ export default function MapWithMarkersClient({
 }) {
   const router = useRouter();
 
-  // 防止 undefined 导致 Map 崩溃
+  // 合法中心点判断
   const isValidLat = typeof centerLat === 'number' && !isNaN(centerLat);
   const isValidLng = typeof centerLng === 'number' && !isNaN(centerLng);
-
   const center = {
-    lat: isValidLat ? centerLat : 3.139,      // 吉隆坡默认值
-    lng: isValidLng ? centerLng : 101.6869
+    lat: isValidLat ? centerLat : 3.139,
+    lng: isValidLng ? centerLng : 101.6869,
   };
 
   return (
@@ -43,43 +42,57 @@ export default function MapWithMarkersClient({
         attribution="&copy; OpenStreetMap contributors"
       />
 
+      {/* 显示圆圈 */}
       <Circle
         center={[center.lat, center.lng]}
         radius={radiusKm * 1000}
         pathOptions={{ color: 'blue', fillOpacity: 0.1 }}
       />
 
-      {properties.map((property) => {
-        const firstImage = property.images?.[0]?.url || '/no-image.jpg';
+      {/* 中心点 Marker（可选） */}
+      <Marker position={[center.lat, center.lng]}>
+        <Popup>搜索中心</Popup>
+      </Marker>
 
-        return (
-          <Marker
-            key={property.id}
-            position={[property.latitude, property.longitude]}
-          >
-            <Popup maxWidth={260} minWidth={200}>
-              <div className="space-y-2 text-sm">
-                <Image
-                  src={firstImage}
-                  alt={property.title}
-                  width={240}
-                  height={160}
-                  className="rounded-lg object-cover w-full h-32"
-                />
-                <div className="font-semibold truncate">{property.title}</div>
-                <div className="text-red-500 font-bold">RM {property.price}</div>
-                <div className="text-gray-500">{property.location}</div>
-                <button
-                  onClick={() => router.push(`/property/${property.id}`)}
-                  className="mt-1 bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-xs"
-                >
-                  查看更多
-                </button>
-              </div>
-            </Popup>
-          </Marker>
-        );
-      })}
+      {/* 显示房源标记 */}
+      {properties
+        .filter(
+          (property) =>
+            typeof property.latitude === 'number' &&
+            typeof property.longitude === 'number' &&
+            !isNaN(property.latitude) &&
+            !isNaN(property.longitude)
+        )
+        .map((property) => {
+          const firstImage = property.images?.[0]?.url || '/no-image.jpg';
+          return (
+            <Marker
+              key={property.id}
+              position={[property.latitude, property.longitude]}
+            >
+              <Popup maxWidth={260} minWidth={200}>
+                <div className="space-y-2 text-sm">
+                  <Image
+                    src={firstImage}
+                    alt={property.title}
+                    width={240}
+                    height={160}
+                    className="rounded-lg object-cover w-full h-32"
+                  />
+                  <div className="font-semibold truncate">{property.title}</div>
+                  <div className="text-red-500 font-bold">RM {property.price}</div>
+                  <div className="text-gray-500">{property.location}</div>
+                  <button
+                    onClick={() => router.push(`/property/${property.id}`)}
+                    className="mt-1 bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-xs"
+                  >
+                    查看更多
+                  </button>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
     </MapContainer>
   );
 }
