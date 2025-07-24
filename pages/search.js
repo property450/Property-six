@@ -1,144 +1,77 @@
+// pages/search.js
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { supabase } from '../supabaseClient';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from 'next-i18next';
-import PropertyCard from '@/components/PropertyCard';
 
 const MapWithMarkers = dynamic(() => import('@/components/MapWithMarkers'), { ssr: false });
 
 export default function SearchPage() {
   const { t } = useTranslation();
-  const [allProperties, setAllProperties] = useState([]);
-  const [filteredProperties, setFilteredProperties] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [address, setAddress] = useState('');
   const [center, setCenter] = useState(null);
-  const [radius, setRadius] = useState(5000); // 单位: 米
+  const [radius, setRadius] = useState(5000);
+  const [properties, setProperties] = useState([]);
 
-  // 地址转坐标
-  const geocodeAddress = async (address) => {
+  const handleSearch = async () => {
+    if (!address) return;
+
     try {
-      const res = await fetch(
+      const response = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`
       );
-      const data = await res.json();
-      if (data.length > 0) {
-        const { lat, lon } = data[0];
-        const location = {
-          lat: parseFloat(lat),
-          lng: parseFloat(lon),
-        };
-        setCenter(location);
+      const data = await response.json();
+      if (data && data.length > 0) {
+        const lat = parseFloat(data[0].lat);
+        const lon = parseFloat(data[0].lon);
+        setCenter([lat, lon]);
+
+        const { data: allProperties, error } = await supabase.from('properties').select('*');
+        if (error) throw error;
+
+        const filtered = allProperties.filter((property) => {
+          const distance = getDistanceFromLatLonInKm(
+            lat,
+            lon,
+            property.latitude,
+            property.longitude
+          );
+          return distance <= radius / 1000;
+        });
+
+        setProperties(filtered);
       }
-    } catch (error) {
-      console.error('Geocoding error:', error);
+    } catch (err) {
+      console.error('Search error:', err);
     }
   };
 
-  const handleSearchClick = () => {
-    if (searchTerm.trim().length > 2) {
-      geocodeAddress(searchTerm);
-    }
-  };
-
-  // 获取所有房源
-  useEffect(() => {
-    const fetchProperties = async () => {
-      const { data, error } = await supabase.from('properties').select('*');
-      if (!error) {
-        setAllProperties(data);
-        setFilteredProperties(data); // 默认先显示全部
-      }
-    };
-    fetchProperties();
-  }, []);
-
-  // 计算两点之间距离（单位：米）
-  const haversineDistance = (coord1, coord2) => {
-    const toRad = (x) => (x * Math.PI) / 180;
-    const R = 6371000;
-
-    const dLat = toRad(coord2.lat - coord1.lat);
-    const dLon = toRad(coord2.lng - coord1.lng);
-    const lat1 = toRad(coord1.lat);
-    const lat2 = toRad(coord2.lat);
-
+  const getDistanceFromLatLonInKm = (lat1, lon1, lat2, lon2) => {
+    const toRad = (value) => (value * Math.PI) / 180;
+    const R = 6371;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
     const a =
       Math.sin(dLat / 2) ** 2 +
-      Math.sin(dLon / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
     return R * c;
   };
 
-  // 自动筛选在 radius 范围内的房源
-  useEffect(() => {
-    if (!center || allProperties.length === 0) return;
-
-    const filtered = allProperties.filter((property) => {
-      const lat = property.latitude;
-      const lng = property.longitude;
-      const isValid =
-        typeof lat === 'number' &&
-        !isNaN(lat) &&
-        typeof lng === 'number' &&
-        !isNaN(lng);
-
-      if (!isValid) return false;
-
-      const distance = haversineDistance(center, { lat, lng });
-      return distance <= radius;
-    });
-
-    setFilteredProperties(filtered);
-  }, [center, radius, allProperties]);
-
   return (
-    <div className="p-4">
-      <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center">
+    <div className="p-4 space-y-4">
+      <div className="flex flex-col sm:flex-row gap-2">
         <Input
-          type="text"
-          placeholder={t('Enter address') || 'Enter address'}
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full md:w-1/2"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          placeholder={t('Enter address')}
         />
-        <Button onClick={handleSearchClick} className="bg-blue-600 hover:bg-blue-700 text-white px-4">
-          🔍 {t('Search') || 'Search'}
-        </Button>
-        <select
-          value={radius}
-          onChange={(e) => setRadius(parseInt(e.target.value))}
-          className="border rounded-md p-2"
-        >
-          {[5000, 10000, 20000, 50000, 100000].map((r) => (
-            <option key={r} value={r}>
-              {r / 1000} km
-            </option>
-          ))}
-        </select>
+        <Button onClick={handleSearch}>{t('Search')}</Button>
       </div>
 
-      {center ? (
-        <MapWithMarkers
-          properties={filteredProperties}
-          centerLat={center.lat}
-          centerLng={center.lng}
-          radiusKm={radius / 1000}
-        />
-      ) : (
-        <p className="text-gray-500 italic text-sm">🗺️ {t('Enter address to show map')}</p>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
-        {filteredProperties.map((property) => (
-          <PropertyCard key={property.id} property={property} />
-        ))}
-        {filteredProperties.length === 0 && (
-          <p className="text-gray-500">{t('No properties found')}</p>
-        )}
-      </div>
+      <MapWithMarkers center={center} radius={radius} properties={properties} />
     </div>
   );
 }
