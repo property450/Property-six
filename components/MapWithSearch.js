@@ -9,6 +9,7 @@ import {
 } from "react-leaflet";
 import L from "leaflet";
 import { OpenStreetMapProvider } from "leaflet-geosearch";
+import FilterPanel from "./FilterPanel";
 
 // 自定义图标（解决默认图标不显示问题）
 const customIcon = new L.Icon({
@@ -25,17 +26,22 @@ function FlyToLocation({ position }) {
   return null;
 }
 
-export default function MapWithSearch({ properties }) {
-  const [address, setAddress] = useState("");
+export default function MapWithSearch({ properties, filters, setFilters }) {
   const [center, setCenter] = useState(null);
-  const [radius, setRadius] = useState(5000); // 默认 5km
+  const radius = (filters?.distance || 5) * 1000; // 单位 km -> m
 
   const handleSearch = async () => {
+    if (!filters?.keyword) return;
     const provider = new OpenStreetMapProvider();
-    const results = await provider.search({ query: address });
+    const results = await provider.search({ query: filters.keyword });
     if (results.length > 0) {
       const { x, y } = results[0];
-      setCenter([y, x]);
+      const newCenter = [y, x];
+      setCenter(newCenter);
+      setFilters((prev) => ({
+        ...prev,
+        location: { lat: y, lng: x },
+      }));
     }
   };
 
@@ -53,31 +59,43 @@ export default function MapWithSearch({ properties }) {
 
   return (
     <div>
-      <div className="flex gap-2 p-2">
-        <input
-          type="text"
-          placeholder="Enter address"
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          className="border px-2 py-1 rounded w-full"
-        />
-        <select
-          value={radius}
-          onChange={(e) => setRadius(Number(e.target.value))}
-          className="border px-2 py-1 rounded"
-        >
-          <option value={1000}>1km</option>
-          <option value={3000}>3km</option>
-          <option value={5000}>5km</option>
-          <option value={10000}>10km</option>
-        </select>
-        <button onClick={handleSearch} className="bg-blue-500 text-white px-4 py-1 rounded">
-          搜索
-        </button>
+      <div className="p-4">
+        {/* 筛选面板 */}
+        <FilterPanel filters={filters} setFilters={setFilters} />
+
+        <div className="flex gap-2 mt-2">
+          <input
+            type="text"
+            placeholder="请输入地址 / Enter address"
+            value={filters.keyword || ""}
+            onChange={(e) =>
+              setFilters((f) => ({ ...f, keyword: e.target.value }))
+            }
+            className="border px-2 py-1 rounded w-full"
+          />
+          <select
+            value={filters.distance || 5}
+            onChange={(e) =>
+              setFilters((f) => ({ ...f, distance: Number(e.target.value) }))
+            }
+            className="border px-2 py-1 rounded"
+          >
+            <option value={1}>1km</option>
+            <option value={3}>3km</option>
+            <option value={5}>5km</option>
+            <option value={10}>10km</option>
+          </select>
+          <button
+            onClick={handleSearch}
+            className="bg-blue-500 text-white px-4 py-1 rounded"
+          >
+            搜索
+          </button>
+        </div>
       </div>
 
       <MapContainer
-        center={center || [3.139, 101.6869]} // Default: KL
+        center={center || [3.139, 101.6869]} // Default to KL
         zoom={13}
         style={{ height: "500px", width: "100%" }}
       >
@@ -89,9 +107,13 @@ export default function MapWithSearch({ properties }) {
           <>
             <FlyToLocation position={center} />
             <Marker position={center} icon={customIcon}>
-              <Popup>中心点</Popup>
+              <Popup>搜索中心</Popup>
             </Marker>
-            <Circle center={center} radius={radius} pathOptions={{ fillColor: "blue", fillOpacity: 0.2 }} />
+            <Circle
+              center={center}
+              radius={radius}
+              pathOptions={{ fillColor: "blue", fillOpacity: 0.2 }}
+            />
           </>
         )}
 
