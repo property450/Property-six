@@ -1,4 +1,5 @@
-import RangeSelector from './RangeSelector';
+import PriceRangeSelector from './PriceRangeSelector';
+import DistanceSelector from './DistanceSelector';
 import SearchSuggestions from './SearchSuggestions';
 import TypeSelector from './TypeSelector';
 
@@ -15,18 +16,12 @@ export default function FilterPanel({ filters = {}, setFilters = () => {} }) {
         onChange={(val) => setFilters((f) => ({ ...f, type: val }))}
       />
 
-      <RangeSelector
-        label="价格范围 (RM)"
-        min={0}
-        max={10000000}
+      <PriceRangeSelector
         value={filters.priceRange || [0, 10000000]}
         onChange={(val) => setFilters((f) => ({ ...f, priceRange: val }))}
       />
 
-      <RangeSelector
-        label="距离 (KM)"
-        min={0}
-        max={100}
+      <DistanceSelector
         value={filters.distance || [0, 100]}
         onChange={(val) => setFilters((f) => ({ ...f, distance: val }))}
       />
