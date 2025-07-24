@@ -1,4 +1,22 @@
-export default function RangeSelector({ label, min, max, value, onChange }) {
+export default function RangeSelector({
+  label,
+  min = 0,
+  max = 10000000,
+  value = [0, 0],
+  onChange = () => {},
+}) {
+  const [minVal, maxVal] = Array.isArray(value) ? value : [0, 0];
+
+  const handleMinChange = (e) => {
+    const newMin = Number(e.target.value) || 0;
+    onChange([newMin, maxVal]);
+  };
+
+  const handleMaxChange = (e) => {
+    const newMax = Number(e.target.value) || 0;
+    onChange([minVal, newMax]);
+  };
+
   return (
     <div className="space-y-2">
       <label className="block font-medium">{label}</label>
@@ -6,8 +24,8 @@ export default function RangeSelector({ label, min, max, value, onChange }) {
         <input
           type="number"
           className="border p-2 w-full"
-          value={value[0]}
-          onChange={(e) => onChange([Number(e.target.value), value[1]])}
+          value={minVal}
+          onChange={handleMinChange}
           min={min}
           max={max}
         />
@@ -15,8 +33,8 @@ export default function RangeSelector({ label, min, max, value, onChange }) {
         <input
           type="number"
           className="border p-2 w-full"
-          value={value[1]}
-          onChange={(e) => onChange([value[0], Number(e.target.value)])}
+          value={maxVal}
+          onChange={handleMaxChange}
           min={min}
           max={max}
         />
