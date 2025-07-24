@@ -1,50 +1,48 @@
 // components/MapWithMarkersClient.js
-import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
-import L from 'leaflet';
+import { useEffect, useRef } from 'react';
+import { MapContainer, TileLayer, Marker, Circle, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
 import 'leaflet-defaulticon-compatibility';
 import 'leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css';
 
-export default function MapWithMarkersClient({
-  properties = [],
-  center = [3.139, 101.6869], // 默认吉隆坡
-  radius = 0,
-}) {
-  const [mapCenter, setMapCenter] = useState(center);
+function ChangeView({ center, zoom }) {
+  const map = useMap();
+  useEffect(() => {
+    if (center) {
+      map.setView(center, zoom);
+    }
+  }, [center, zoom, map]);
+  return null;
+}
 
-  useEffect(() => {
-    if (center[0] !== undefined && center[1] !== undefined) {
-      setMapCenter(center);
-    }
-  }, [center]);
+export default function MapWithMarkersClient({ properties, center, radius }) {
+  const mapRef = useRef();
 
-  return (
-    <MapContainer center={mapCenter} zoom={13} style={{ height: '500px', width: '100%' }}>
-      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-
-      {radius > 0 && (
-        <Circle center={mapCenter} radius={radius} pathOptions={{ color: 'blue' }} />
-      )}
-
-      {properties.map((property) => {
-        const lat = property.latitude;
-        const lng = property.longitude;
-
-        if (!lat || !lng) return null;
-
-        return (
-          <Marker key={property.id} position={[lat, lng]}>
-            <Popup>
-              <div>
-                <strong>{property.title}</strong>
-                <br />
-                {property.address}
-              </div>
-            </Popup>
-          </Marker>
-        );
-      })}
-    </MapContainer>
-  );
+  return (
+    <MapContainer
+      center={center || [3.139, 101.6869]} // Default: Kuala Lumpur
+      zoom={13}
+      scrollWheelZoom={true}
+      style={{ height: '500px', width: '100%' }}
+      ref={mapRef}
+    >
+      <ChangeView center={center} zoom={13} />
+      <TileLayer
+        attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+      {center && radius && (
+        <Circle center={center} radius={radius} pathOptions={{ color: 'blue', fillOpacity: 0.2 }} />
+      )}
+      {properties?.map((property) => (
+        <Marker key={property.id} position={[property.latitude, property.longitude]}>
+          <Popup>
+            <strong>{property.title}</strong><br />
+            {property.address}
+          </Popup>
+        </Marker>
+      ))}
+    </MapContainer>
+  );
 }
