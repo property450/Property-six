@@ -1,73 +1,49 @@
 // components/MapWithMarkersClient.js
-import { useEffect, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup, Circle } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
-import L from "leaflet";
-import { supabase } from "../supabaseClient";
+'use client';
 
+import { MapContainer, TileLayer, Marker, Circle } from 'react-leaflet';
+import { useEffect, useState } from 'react';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+
+// 默认 Marker icon 修复
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
-  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.3/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.3/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.3/dist/images/marker-shadow.png',
 });
 
-export default function MapWithMarkers({ center, radius }) {
-  const [properties, setProperties] = useState([]);
+export default function MapWithMarkers({ center, radius, properties }) {
+  const [map, setMap] = useState(null);
 
   useEffect(() => {
-    const fetchProperties = async () => {
-      let { data, error } = await supabase.from("properties").select("*");
-      if (data) setProperties(data);
-    };
-    fetchProperties();
-  }, []);
-
-  const getDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371;
-    const dLat = ((lat2 - lat1) * Math.PI) / 180;
-    const dLon = ((lon2 - lon1) * Math.PI) / 180;
-    const a =
-      Math.sin(dLat / 2) ** 2 +
-      Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) ** 2;
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  };
-
-  const filtered = center
-    ? properties.filter((p) => {
-        if (!p.lat || !p.lng) return false;
-        return getDistance(center.lat, center.lng, p.lat, p.lng) <= radius;
-      })
-    : properties;
+    if (map && center) {
+      map.setView([center.lat, center.lng], 14);
+    }
+  }, [center, map]);
 
   return (
-    <div className="w-full h-[600px]">
-      <MapContainer
-        center={center || [3.139, 101.6869]}
-        zoom={center ? 13 : 11}
-        scrollWheelZoom={true}
-        className="h-full w-full rounded-xl z-0"
-      >
+    <div className="h-[600px] w-full">
+      <MapContainer center={center || [3.139, 101.6869]} zoom={13} scrollWheelZoom style={{ height: '100%', width: '100%' }} whenCreated={setMap}>
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'
+          attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+
         {center && (
-          <Circle center={center} radius={radius * 1000} pathOptions={{ color: "blue" }} />
+          <Circle
+            center={[center.lat, center.lng]}
+            radius={radius * 1000}
+            pathOptions={{ color: 'blue', fillColor: 'blue', fillOpacity: 0.2 }}
+          />
         )}
-        {filtered.map((p) => (
-          <Marker key={p.id} position={[p.lat, p.lng]}>
-            <Popup>
-              <div>
-                <strong>{p.title}</strong>
-                <br />
-                {p.address}
-              </div>
-            </Popup>
-          </Marker>
+
+        {properties.map((property, index) => (
+          <Marker
+            key={index}
+            position={[property.lat, property.lng]}
+          />
         ))}
       </MapContainer>
     </div>
