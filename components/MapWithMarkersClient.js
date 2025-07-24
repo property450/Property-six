@@ -40,7 +40,7 @@ export default function MapWithMarkersClient({ center, properties, radiusKm }) {
         properties.map((property) => (
           <Marker
             key={property.id}
-            position={[property.latitude, property.longitude]}
+            position={[property.lat, property.lng]}
           >
             <Popup>
               <strong>{property.title}</strong>
