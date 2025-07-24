@@ -1,94 +1,66 @@
-// pages/search.js
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { supabase } from '../supabaseClient';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { useTranslation } from 'next-i18next';
 
 const MapWithMarkersClient = dynamic(() => import('@/components/MapWithMarkersClient'), {
   ssr: false,
 });
 
 export default function SearchPage() {
-  const [address, setAddress] = useState('');
-  const [coordinates, setCoordinates] = useState(null);
-  const [radiusKm, setRadiusKm] = useState(5); // 默认 5km
+  const { t } = useTranslation();
+  const [searchAddress, setSearchAddress] = useState('');
+  const [searchCenter, setSearchCenter] = useState(null); // { lat, lng }
+  const [radiusKm, setRadiusKm] = useState(5); // 默认5km
   const [properties, setProperties] = useState([]);
 
+  const fetchProperties = async () => {
+    const { data, error } = await supabase.from('properties').select('*');
+    if (!error && data) {
+      setProperties(data);
+    }
+  };
+
+  useEffect(() => {
+    fetchProperties();
+  }, []);
+
   const handleSearch = async () => {
-    if (!address) return;
+    if (!searchAddress) return;
 
-    // 地理编码
-    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`);
-    const data = await response.json();
-
-    if (data.length === 0) {
-      alert('未找到地址');
-      return;
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${searchAddress}`);
+    const result = await res.json();
+    if (result && result.length > 0) {
+      const { lat, lon } = result[0];
+      setSearchCenter({ lat: parseFloat(lat), lng: parseFloat(lon) });
     }
-
-    const { lat, lon } = data[0];
-    const latNum = parseFloat(lat);
-    const lonNum = parseFloat(lon);
-
-    setCoordinates({ lat: latNum, lng: lonNum });
-
-    // 搜索房源
-    const { data: allProperties, error } = await supabase.from('properties').select('*');
-
-    if (error) {
-      console.error('Supabase 查询失败:', error);
-      return;
-    }
-
-    // 过滤出圆圈范围内房源
-    const filtered = allProperties.filter((p) => {
-      if (!p.lat || !p.lng) return false;
-
-      const R = 6371; // 地球半径 (km)
-      const dLat = ((p.lat - latNum) * Math.PI) / 180;
-      const dLon = ((p.lng - lonNum) * Math.PI) / 180;
-      const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos((latNum * Math.PI) / 180) *
-          Math.cos((p.latitude * Math.PI) / 180) *
-          Math.sin(dLon / 2) *
-          Math.sin(dLon / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      const d = R * c;
-
-      return d <= radiusKm;
-    });
-
-    setProperties(filtered);
   };
 
   return (
     <div className="p-4 space-y-4">
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col md:flex-row items-center gap-4">
         <Input
-          placeholder="输入地址"
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          className="w-[250px]"
+          type="text"
+          placeholder={t('Search by address')}
+          value={searchAddress}
+          onChange={(e) => setSearchAddress(e.target.value)}
         />
         <Input
           type="number"
+          placeholder={t('Distance in km')}
           value={radiusKm}
-          onChange={(e) => setRadiusKm(parseFloat(e.target.value))}
-          placeholder="半径 (km)"
-          className="w-[120px]"
+          onChange={(e) => setRadiusKm(Number(e.target.value))}
         />
-        <Button onClick={handleSearch}>搜索</Button>
+        <Button onClick={handleSearch}>{t('Search')}</Button>
       </div>
 
-      <div className="h-[80vh]">
-        <MapWithMarkersClient
-          center={coordinates}
-          properties={properties}
-          radiusKm={radiusKm}
-        />
-      </div>
+      <MapWithMarkersClient
+        properties={properties}
+        center={searchCenter}
+        radiusKm={radiusKm}
+      />
     </div>
   );
 }
