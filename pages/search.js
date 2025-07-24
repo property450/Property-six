@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { supabase } from '../supabaseClient';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { useTranslation } from 'next-i18next';
 import PropertyCard from '@/components/PropertyCard';
 
@@ -30,6 +31,12 @@ export default function SearchPage() {
     }
   };
 
+  const handleSearchClick = () => {
+    if (searchTerm.length > 2) {
+      geocodeAddress(searchTerm);
+    }
+  };
+
   // 获取所有房源
   useEffect(() => {
     const fetchProperties = async () => {
@@ -42,14 +49,6 @@ export default function SearchPage() {
     fetchProperties();
   }, []);
 
-  const handleSearch = (e) => {
-    const value = e.target.value;
-    setSearchTerm(value);
-    if (value.length > 2) {
-      geocodeAddress(value);
-    }
-  };
-
   return (
     <div className="p-4">
       <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center">
@@ -57,9 +56,12 @@ export default function SearchPage() {
           type="text"
           placeholder={t('Enter address') || 'Enter address'}
           value={searchTerm}
-          onChange={handleSearch}
+          onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full md:w-1/2"
         />
+        <Button onClick={handleSearchClick} className="bg-blue-600 hover:bg-blue-700 text-white px-4">
+          🔍 {t('Search') || 'Search'}
+        </Button>
         <select
           value={radius}
           onChange={(e) => setRadius(parseInt(e.target.value))}
