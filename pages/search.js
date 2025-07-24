@@ -1,25 +1,41 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { supabase } from '../supabaseClient';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useTranslation } from 'next-i18next';
 
-const MapWithMarkersClient = dynamic(() => import('@/components/MapWithMarkersClient'), {
-  ssr: false,
-});
+const MapWithMarkersClient = dynamic(() => import('@/components/MapWithMarkersClient'), { ssr: false });
 
 export default function SearchPage() {
-  const { t } = useTranslation();
-  const [searchAddress, setSearchAddress] = useState('');
-  const [searchCenter, setSearchCenter] = useState(null); // { lat, lng }
-  const [radiusKm, setRadiusKm] = useState(5); // 默认5km
   const [properties, setProperties] = useState([]);
+  const [address, setAddress] = useState('');
+  const [center, setCenter] = useState([3.139, 101.6869]); // 默认 Kuala Lumpur
+  const [radius, setRadius] = useState(5); // 公里
+  const [loading, setLoading] = useState(false);
 
   const fetchProperties = async () => {
+    setLoading(true);
     const { data, error } = await supabase.from('properties').select('*');
-    if (!error && data) {
+    if (error) {
+      console.error('Fetch error:', error.message);
+    } else {
       setProperties(data);
+    }
+    setLoading(false);
+  };
+
+  const geocodeAddress = async () => {
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`);
+      const data = await res.json();
+      if (data && data.length > 0) {
+        const { lat, lon } = data[0];
+        setCenter([parseFloat(lat), parseFloat(lon)]);
+      } else {
+        alert('Address not found.');
+      }
+    } catch (err) {
+      console.error('Geocode error:', err);
     }
   };
 
@@ -27,40 +43,14 @@ export default function SearchPage() {
     fetchProperties();
   }, []);
 
-  const handleSearch = async () => {
-    if (!searchAddress) return;
-
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${searchAddress}`);
-    const result = await res.json();
-    if (result && result.length > 0) {
-      const { lat, lon } = result[0];
-      setSearchCenter({ lat: parseFloat(lat), lng: parseFloat(lon) });
-    }
-  };
-
   return (
-    <div className="p-4 space-y-4">
-      <div className="flex flex-col md:flex-row items-center gap-4">
-        <Input
-          type="text"
-          placeholder={t('Search by address')}
-          value={searchAddress}
-          onChange={(e) => setSearchAddress(e.target.value)}
-        />
-        <Input
-          type="number"
-          placeholder={t('Distance in km')}
-          value={radiusKm}
-          onChange={(e) => setRadiusKm(Number(e.target.value))}
-        />
-        <Button onClick={handleSearch}>{t('Search')}</Button>
+    <div className="p-4">
+      <div className="flex flex-col md:flex-row gap-4 mb-4">
+        <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Enter address..." />
+        <Input type="number" value={radius} onChange={(e) => setRadius(e.target.value)} placeholder="Radius (km)" />
+        <Button onClick={geocodeAddress}>Search</Button>
       </div>
-
-      <MapWithMarkersClient
-        properties={properties}
-        center={searchCenter}
-        radiusKm={radiusKm}
-      />
+      <MapWithMarkersClient properties={properties} center={center} radius={radius} />
     </div>
   );
 }
