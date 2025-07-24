@@ -18,7 +18,7 @@ export default function MapWithMarkersClient({
   properties = [],
   centerLat = 3.139,
   centerLng = 101.6869,
-  radiusKm = 5,
+  radiusKm = 5
 }) {
   const router = useRouter();
 
