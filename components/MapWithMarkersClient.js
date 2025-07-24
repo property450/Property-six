@@ -1,85 +1,60 @@
-'use client';
-
-import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
+import { MapContainer, TileLayer, Marker, Circle, Popup } from 'react-leaflet';
 import { useEffect, useState } from 'react';
+import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { supabase } from '../supabaseClient';
 
-const defaultCenter = [3.139, 101.6869]; // 吉隆坡
-const defaultZoom = 13;
-
-const markerIcon = new L.Icon({
-  iconUrl: 'https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/images/marker-icon.png',
+const icon = new L.Icon({
+  iconUrl: 'https://unpkg.com/leaflet@1.9.3/dist/images/marker-icon.png',
   iconSize: [25, 41],
   iconAnchor: [12, 41],
   popupAnchor: [1, -34],
 });
 
-export default function MapWithMarkersClient({ searchLat, searchLng, radius = 5 }) {
-  const [properties, setProperties] = useState([]);
+function isWithinRadius(property, center, radius) {
+  if (!property.lat || !property.lng) return false;
+  const toRad = (val) => (val * Math.PI) / 180;
+  const [clat, clng] = center;
+  const dLat = toRad(property.lat - clat);
+  const dLng = toRad(property.lng - clng);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(clat)) * Math.cos(toRad(property.lat)) * Math.sin(dLng / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distance = 6371 * c; // 地球半径 km
+  return distance <= radius;
+}
+
+export default function MapWithMarkersClient({ properties, center, radius }) {
+  const [visibleProperties, setVisibleProperties] = useState([]);
 
   useEffect(() => {
-    const fetchProperties = async () => {
-      const { data, error } = await supabase.from('properties').select('*');
-      if (error) {
-        console.error('Failed to fetch properties:', error.message);
-        return;
-      }
-      setProperties(data);
-    };
-    fetchProperties();
-  }, []);
+    if (center && radius && properties.length) {
+      const filtered = properties.filter((p) => isWithinRadius(p, center, radius));
+      setVisibleProperties(filtered);
+    }
+  }, [center, radius, properties]);
 
-  const center = searchLat && searchLng ? [searchLat, searchLng] : defaultCenter;
-
-  const filteredProperties = properties.filter((property) => {
-    const lat = property.lat || property.latitude;
-    const lng = property.lng || property.longitude;
-    if (lat == null || lng == null) return false;
-
-    if (!searchLat || !searchLng) return true;
-
-    const distance = L.latLng(searchLat, searchLng).distanceTo([lat, lng]) / 1000;
-    return distance <= radius;
-  });
+  if (!center || center.length !== 2 || center.includes(undefined)) return <div>Invalid center</div>;
 
   return (
-    <MapContainer center={center} zoom={defaultZoom} style={{ height: '600px', width: '100%' }}>
+    <MapContainer center={center} zoom={13} style={{ height: '80vh', width: '100%' }}>
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        attribution='&copy; OpenStreetMap contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-
-      {searchLat && searchLng && (
-        <Circle
-          center={[searchLat, searchLng]}
-          radius={radius * 1000}
-          pathOptions={{ color: 'blue', fillOpacity: 0.2 }}
-        />
-      )}
-
-      {filteredProperties.map((property) => {
-        const lat = property.lat || property.latitude;
-        const lng = property.lng || property.longitude;
-        if (lat == null || lng == null) return null;
-
-        return (
-          <Marker
-            key={property.id}
-            position={[lat, lng]}
-            icon={markerIcon}
-          >
-            <Popup>
-              <div>
-                <strong>{property.title}</strong><br />
-                {property.address || 'No address'}<br />
-                Price: {property.price || 'N/A'}
-              </div>
-            </Popup>
-          </Marker>
-        );
-      })}
+      <Circle center={center} radius={radius * 1000} pathOptions={{ color: 'blue' }} />
+      {visibleProperties.map((property) => (
+        <Marker
+          key={property.id}
+          position={[property.lat, property.lng]}
+          icon={icon}
+        >
+          <Popup>
+            <strong>{property.title}</strong><br />
+            Price: {property.price}
+          </Popup>
+        </Marker>
+      ))}
     </MapContainer>
   );
 }
