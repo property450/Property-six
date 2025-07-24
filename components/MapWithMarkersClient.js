@@ -1,62 +1,67 @@
-'use client';
-
-import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
+// components/MapWithMarkersClient.js
+import { useEffect, useState, useRef } from 'react';
+import { MapContainer, TileLayer, Marker, Circle, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { useEffect, useState } from 'react';
-import 'leaflet-defaulticon-compatibility';
-import 'leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css';
-import Image from 'next/image';
 
-export default function MapWithMarkersClient({ properties = [], centerLat, centerLng, radiusKm = 5 }) {
-  const [mapCenter, setMapCenter] = useState({ lat: 3.139, lng: 101.6869 });
-  const [filteredProperties, setFilteredProperties] = useState([]);
+const centerDefault = [3.139, 101.6869]; // 吉隆坡默认坐标
 
-  useEffect(() => {
-    if (typeof centerLat === 'number' && typeof centerLng === 'number' && !isNaN(centerLat) && !isNaN(centerLng)) {
-      setMapCenter({ lat: centerLat, lng: centerLng });
-    }
-  }, [centerLat, centerLng]);
+function Recenter({ center }) {
+  const map = useMap();
+  useEffect(() => {
+    if (center) {
+      map.setView(center, 14);
+    }
+  }, [center]);
+  return null;
+}
 
-  useEffect(() => {
-    const radius = radiusKm * 1000;
-    const filtered = properties.filter((p) => {
-      if (!p.latitude || !p.longitude) return false;
-      const distance = L.latLng(mapCenter.lat, mapCenter.lng).distanceTo([p.latitude, p.longitude]);
-      return distance <= radius;
-    });
-    setFilteredProperties(filtered);
-  }, [properties, mapCenter, radiusKm]);
+const customIcon = new L.Icon({
+  iconUrl: 'https://unpkg.com/leaflet@1.9.3/dist/images/marker-icon.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+});
 
-  return (
-    <MapContainer
-      center={[mapCenter.lat, mapCenter.lng]}
-      zoom={13}
-      scrollWheelZoom={true}
-      style={{ height: '600px', width: '100%', borderRadius: '12px' }}
-    >
-      <TileLayer
-        attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
+export default function MapWithMarkersClient({ center, radius = 5000, properties = [] }) {
+  const mapRef = useRef();
 
-      <Circle center={[mapCenter.lat, mapCenter.lng]} radius={radiusKm * 1000} pathOptions={{ color: 'blue', fillOpacity: 0.1 }} />
+  return (
+    <MapContainer
+      center={center || centerDefault}
+      zoom={13}
+      scrollWheelZoom={true}
+      style={{ height: '500px', width: '100%' }}
+      ref={mapRef}
+    >
+      <TileLayer
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution="© OpenStreetMap contributors"
+      />
 
-      {filteredProperties.map((property) => {
-        const image = property.images?.[0]?.url || '/no-image.jpg';
-        return (
-          <Marker key={property.id} position={[property.latitude, property.longitude]}>
-            <Popup>
-              <div className="text-sm space-y-2">
-                <Image src={image} alt={property.title} width={200} height={120} className="rounded-md object-cover" />
-                <div className="font-semibold">{property.title}</div>
-                <div className="text-red-600 font-bold">RM {property.price}</div>
-                <div className="text-gray-500">{property.address}</div>
-              </div>
-            </Popup>
-          </Marker>
-        );
-      })}
-    </MapContainer>
-  );
+      {center && (
+        <>
+          <Marker position={center} icon={customIcon}>
+            <Popup>{`Search Center`}</Popup>
+          </Marker>
+          <Circle center={center} radius={radius} pathOptions={{ color: 'blue' }} />
+        </>
+      )}
+
+      {properties.map((property) => (
+        <Marker
+          key={property.id}
+          position={[property.latitude, property.longitude]}
+          icon={customIcon}
+        >
+          <Popup>
+            <div>
+              <strong>{property.title}</strong>
+              <p>{property.description}</p>
+            </div>
+          </Popup>
+        </Marker>
+      ))}
+
+      <Recenter center={center} />
+    </MapContainer>
+  );
 }
