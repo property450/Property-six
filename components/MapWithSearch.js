@@ -120,7 +120,7 @@ export default function MapWithSearch({ properties, filters, setFilters }) {
         {propertiesWithinRadius.map((property, index) => (
           <Marker
             key={index}
-            position={[property.latitude, property.longitude]}
+            position={[property.lat, property.lng]}
             icon={customIcon}
           >
             <Popup>
