@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+
 export default function RangeSelector({
   label,
   min = 0,
@@ -5,11 +7,18 @@ export default function RangeSelector({
   value = [min, max],
   onChange = () => {},
 }) {
-  const [minVal, maxVal] = Array.isArray(value) ? value : [min, max];
+  const [minVal, setMinVal] = useState(value[0]);
+  const [maxVal, setMaxVal] = useState(value[1]);
+
+  useEffect(() => {
+    setMinVal(value[0]);
+    setMaxVal(value[1]);
+  }, [value]);
 
   const handleMinChange = (e) => {
     const newMin = Number(e.target.value);
     if (!isNaN(newMin)) {
+      setMinVal(newMin);
       onChange([newMin, maxVal]);
     }
   };
@@ -17,6 +26,7 @@ export default function RangeSelector({
   const handleMaxChange = (e) => {
     const newMax = Number(e.target.value);
     if (!isNaN(newMax)) {
+      setMaxVal(newMax);
       onChange([minVal, newMax]);
     }
   };
