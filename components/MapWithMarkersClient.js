@@ -24,7 +24,7 @@ export default function MapWithMarkersClient({
 
   return (
     <MapContainer
-      center={[centerLat, centerLng]}
+      center={[center.lat, center.lng]}
       zoom={12}
       scrollWheelZoom={true}
       style={{ height: '600px', width: '100%', borderRadius: '12px' }}
@@ -36,7 +36,7 @@ export default function MapWithMarkersClient({
 
       {/* 显示搜索范围的圆圈 */}
       <Circle
-        center={[centerLat, centerLng]}
+        center={[center.lat, center.lng]}
         radius={radiusKm * 1000}
         pathOptions={{ color: 'blue', fillOpacity: 0.1 }}
       />
