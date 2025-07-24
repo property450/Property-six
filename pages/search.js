@@ -1,62 +1,97 @@
-// pages/search.js
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
+import { supabase } from '../supabaseClient';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { supabase } from '../supabaseClient';
+import { useTranslation } from 'next-i18next';
 
-const MapWithMarkers = dynamic(() => import('@/components/MapWithMarkersClient'), { ssr: false });
+const MapWithMarkers = dynamic(() => import('@/components/MapWithMarkersClient'), {
+  ssr: false,
+});
 
 export default function SearchPage() {
+  const { t } = useTranslation();
   const [address, setAddress] = useState('');
-  const [center, setCenter] = useState(null); // { lat, lng }
-  const [radius, setRadius] = useState(5); // km
+  const [radius, setRadius] = useState(5); // in km
+  const [center, setCenter] = useState(null);
   const [properties, setProperties] = useState([]);
 
   const handleSearch = async () => {
-    try {
-      const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${address}`);
-      const geoData = await geoRes.json();
+    if (!address) return;
 
-      if (geoData.length > 0) {
-        const lat = parseFloat(geoData[0].lat);
-        const lng = parseFloat(geoData[0].lon);
-        setCenter({ lat, lng });
-
-        // 获取房源数据
-        const { data, error } = await supabase.from('properties').select('*');
-        if (error) throw error;
-
-        // 过滤在圆圈范围内的房源
-        const withinRadius = data.filter((property) => {
-          const dLat = (property.lat - lat) * (Math.PI / 180);
-          const dLng = (property.lng - lng) * (Math.PI / 180);
-          const a =
-            Math.sin(dLat / 2) ** 2 +
-            Math.cos(lat * Math.PI / 180) * Math.cos(property.lat * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
-          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-          const distance = 6371 * c; // 地球半径 km
-          return distance <= radius;
-        });
-
-        setProperties(withinRadius);
-      }
-    } catch (err) {
-      console.error('Search error:', err);
+    // Use Nominatim for address → lat/lng
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
+        address
+      )}&format=json&limit=1`
+    );
+    const data = await res.json();
+    if (data?.[0]) {
+      const lat = parseFloat(data[0].lat);
+      const lng = parseFloat(data[0].lon);
+      setCenter({ lat, lng });
     }
   };
 
+  useEffect(() => {
+    const fetchProperties = async () => {
+      const { data, error } = await supabase.from('properties').select('*');
+      if (error) {
+        console.error(error);
+        return;
+      }
+
+      if (!center) {
+        setProperties(data);
+        return;
+      }
+
+      const withinRadius = data.filter((property) => {
+        const lat = parseFloat(property.lat);
+        const lng = parseFloat(property.lng);
+        if (isNaN(lat) || isNaN(lng)) return false;
+
+        const dist = getDistanceFromLatLng(center.lat, center.lng, lat, lng);
+        return dist <= radius;
+      });
+
+      setProperties(withinRadius);
+    };
+
+    fetchProperties();
+  }, [center, radius]);
+
+  function getDistanceFromLatLng(lat1, lng1, lat2, lng2) {
+    const R = 6371;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLng = ((lng2 - lng1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLng / 2) ** 2;
+    return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+  }
+
   return (
-    <div>
-      <div className="p-4 space-y-2">
+    <div className="p-4 space-y-4">
+      <div className="flex flex-col gap-2 sm:flex-row items-center">
         <Input
+          placeholder={t('Enter an address')}
           value={address}
           onChange={(e) => setAddress(e.target.value)}
-          placeholder="Enter address"
         />
-        <Button onClick={handleSearch}>Search</Button>
+        <Input
+          type="number"
+          value={radius}
+          onChange={(e) => setRadius(e.target.value)}
+          className="w-28"
+        />
+        <Button onClick={handleSearch}>{t('Search')}</Button>
       </div>
-      <MapWithMarkers center={center} radius={radius} properties={properties} />
+      <div className="h-[75vh]">
+        <MapWithMarkers center={center} radius={radius} properties={properties} />
+      </div>
     </div>
   );
 }
