@@ -2,19 +2,23 @@ export default function RangeSelector({
   label,
   min = 0,
   max = 10000000,
-  value = [0, 0],
+  value = [min, max],
   onChange = () => {},
 }) {
-  const [minVal, maxVal] = Array.isArray(value) ? value : [0, 0];
+  const [minVal, maxVal] = Array.isArray(value) ? value : [min, max];
 
   const handleMinChange = (e) => {
-    const newMin = Number(e.target.value) || 0;
-    onChange([newMin, maxVal]);
+    const newMin = Number(e.target.value);
+    if (!isNaN(newMin)) {
+      onChange([newMin, maxVal]);
+    }
   };
 
   const handleMaxChange = (e) => {
-    const newMax = Number(e.target.value) || 0;
-    onChange([minVal, newMax]);
+    const newMax = Number(e.target.value);
+    if (!isNaN(newMax)) {
+      onChange([minVal, newMax]);
+    }
   };
 
   return (
