@@ -1,6 +1,4 @@
 // components/PriceRangeSelector.js
-import { useState } from 'react';
-
 export default function PriceRangeSelector({ minPrice, maxPrice, setMinPrice, setMaxPrice }) {
   const priceOptions = [
     10000, 50000, 100000, 200000, 500000,
@@ -9,7 +7,7 @@ export default function PriceRangeSelector({ minPrice, maxPrice, setMinPrice, se
   ];
 
   const formatPrice = (price) => {
-    if (price >= 10000000) return (price / 10000000) + '千万';
+    if (price >= 10000000) return (price / 10000) + '万'; // 更精确显示
     if (price >= 10000) return (price / 10000) + '万';
     return price;
   };
