@@ -1,6 +1,9 @@
+// pages/search.js
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { supabase } from '../supabaseClient';
+import PriceRangeSelector from '@/components/PriceRangeSelector';
+import TypeSelector from '@/components/TypeSelector';
 
 const MapWithMarkers = dynamic(() => import('../components/MapWithMarkersClient'), { ssr: false });
 
@@ -66,19 +69,37 @@ export default function SearchPage() {
   return (
     <div style={{ padding: '20px' }}>
       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '20px' }}>
-        <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="地址" style={{ padding: '6px', width: '200px' }} />
-        <input type="number" value={distance} onChange={(e) => setDistance(Number(e.target.value))} placeholder="距离 (km)" style={{ padding: '6px', width: '100px' }} />
-        <input type="number" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} placeholder="最低价格" style={{ padding: '6px', width: '120px' }} />
-        <input type="number" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} placeholder="最高价格" style={{ padding: '6px', width: '120px' }} />
-        <select value={propertyType} onChange={(e) => setPropertyType(e.target.value)} style={{ padding: '6px', width: '140px' }}>
-          <option value="">全部类型</option>
-          <option value="住宅">住宅</option>
-          <option value="公寓">公寓</option>
-          <option value="商用">商用</option>
-          <option value="工业">工业</option>
-          <option value="土地">土地</option>
-        </select>
-        <button onClick={handleSearch} style={{ padding: '6px 12px' }}>搜索</button>
+        <input
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          placeholder="地址"
+          style={{ padding: '6px', width: '200px' }}
+        />
+        <input
+          type="number"
+          value={distance}
+          onChange={(e) => setDistance(Number(e.target.value))}
+          placeholder="距离 (km)"
+          style={{ padding: '6px', width: '100px' }}
+        />
+
+        <PriceRangeSelector
+          minPrice={minPrice}
+          setMinPrice={setMinPrice}
+          maxPrice={maxPrice}
+          setMaxPrice={setMaxPrice}
+        />
+
+        <div style={{ minWidth: '250px' }}>
+          <TypeSelector
+            selectedType={propertyType}
+            setSelectedType={setPropertyType}
+          />
+        </div>
+
+        <button onClick={handleSearch} style={{ padding: '6px 12px' }}>
+          搜索
+        </button>
       </div>
 
       <MapWithMarkers center={center} radius={distance} properties={properties} />
