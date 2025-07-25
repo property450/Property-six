@@ -65,7 +65,7 @@ export default function Home() {
           value={priceRange}
           onChange={setPriceRange}
         />
-        <TypeSelector selected={selectedTypes} setSelected={setSelectedTypes} />
+        <TypeSelector selectedType={selectedTypes} setSelectedType={setSelectedTypes} />
         <Button onClick={handleSearch}>Search</Button>
       </div>
 
