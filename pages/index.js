@@ -1,71 +1,66 @@
 // pages/index.js
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { supabase } from '../supabaseClient';
 import { useRouter } from 'next/router';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import TypeSelector from '@/components/TypeSelector';
+import PriceRangeSelector from '@/components/PriceRangeSelector';
 
-const MapWithMarkers = dynamic(() => import('@/components/MapWithMarkersClient'), { ssr: false });
+const MapWithMarkers = dynamic(() => import('@/components/MapWithMarkersClient'), {
+  ssr: false,
+});
 
 export default function Home() {
-  const [properties, setProperties] = useState([]);
-  const [center, setCenter] = useState(null);
-  const [radius, setRadius] = useState(5); // 公里
-  const [address, setAddress] = useState('');
   const router = useRouter();
+  const [properties, setProperties] = useState([]);
+  const [searchAddress, setSearchAddress] = useState('');
+  const [priceRange, setPriceRange] = useState([10000, 50000000]);
+  const [selectedTypes, setSelectedTypes] = useState([]);
+  const [circleCenter, setCircleCenter] = useState(null);
+  const [circleRadius, setCircleRadius] = useState(0);
 
   useEffect(() => {
+    const fetchProperties = async () => {
+      const { data, error } = await supabase.from('properties').select('*');
+      if (!error) setProperties(data);
+    };
     fetchProperties();
   }, []);
 
-  const fetchProperties = async () => {
-    const { data, error } = await supabase.from('properties').select('*');
-    if (error) console.error(error);
-    else setProperties(data);
-  };
-
-  const handleSearch = async () => {
-    if (!address) return;
-    try {
-      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`);
-      const data = await response.json();
-      if (data.length > 0) {
-        const { lat, lon } = data[0];
-        setCenter({ lat: parseFloat(lat), lng: parseFloat(lon) });
-      }
-    } catch (error) {
-      console.error('Geocoding failed:', error);
-    }
+  const handleSearch = () => {
+    // Pass parameters to MapWithMarkers via state
   };
 
   return (
-    <div className="p-4 space-y-4">
-      <header className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">🏠 Real Estate Search</h1>
-        <div className="space-x-2">
-          <Button onClick={() => router.push('/my-profile')}>我的房源</Button>
-          <Button onClick={() => router.push('/favorites')}>收藏</Button>
-        </div>
-      </header>
-
-      <div className="flex flex-col sm:flex-row gap-2">
+    <div className="flex flex-col md:flex-row">
+      <div className="w-full md:w-1/3 p-4 space-y-4">
         <Input
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          placeholder="请输入地址"
+          type="text"
+          placeholder="Enter address..."
+          value={searchAddress}
+          onChange={(e) => setSearchAddress(e.target.value)}
         />
-        <Input
-          type="number"
-          value={radius}
-          onChange={(e) => setRadius(Number(e.target.value))}
-          placeholder="范围（公里）"
+        <PriceRangeSelector
+          min={10000}
+          max={50000000}
+          value={priceRange}
+          onChange={setPriceRange}
         />
-        <Button onClick={handleSearch}>搜索</Button>
+        <TypeSelector selected={selectedTypes} setSelected={setSelectedTypes} />
+        <Button onClick={handleSearch}>Search</Button>
       </div>
-
-      <div className="h-[600px]">
-        <MapWithMarkers center={center} properties={properties} radius={radius} />
+      <div className="w-full md:w-2/3 h-[600px]">
+        <MapWithMarkers
+          properties={properties}
+          center={circleCenter}
+          radius={circleRadius}
+          priceRange={priceRange}
+          selectedTypes={selectedTypes}
+          setCircleCenter={setCircleCenter}
+          setCircleRadius={setCircleRadius}
+        />
       </div>
     </div>
   );
