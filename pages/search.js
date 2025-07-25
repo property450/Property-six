@@ -1,19 +1,16 @@
-// pages/search.js
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { supabase } from '../supabaseClient';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 
-const MapWithMarkers = dynamic(() => import('@/components/MapWithMarkersClient'), {
+const MapWithMarkers = dynamic(() => import('../components/MapWithMarkersClient'), {
   ssr: false,
 });
 
 export default function SearchPage() {
   const [address, setAddress] = useState('');
-  const [distance, setDistance] = useState(5); // 默认 5km
-  const [properties, setProperties] = useState([]);
+  const [distance, setDistance] = useState(5);
   const [center, setCenter] = useState(null);
+  const [properties, setProperties] = useState([]);
 
   const handleSearch = async () => {
     if (!address) return;
@@ -23,47 +20,45 @@ export default function SearchPage() {
       const data = await res.json();
       if (data.length === 0) return alert('地址未找到');
 
-      const { lat, lon } = data[0];
-      const centerPoint = { lat: parseFloat(lat), lng: parseFloat(lon) };
+      const lat = parseFloat(data[0].lat);
+      const lng = parseFloat(data[0].lon);
+      const centerPoint = { lat, lng };
       setCenter(centerPoint);
 
-      // 计算范围内房源
-      const { data: allProperties, error } = await supabase.from('properties').select('*');
-      if (error) throw error;
+      const { data: allProperties } = await supabase.from('properties').select('*');
 
-      const withinDistance = allProperties.filter((property) => {
-        const dx = (property.lat - centerPoint.lat) * 111;
-        const dy = (property.lng - centerPoint.lng) * 111 * Math.cos((centerPoint.lat * Math.PI) / 180);
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        return dist <= distance;
+      const within = allProperties.filter((p) => {
+        if (!p.lat || !p.lng) return false;
+        const dx = (p.lat - lat) * 111;
+        const dy = (p.lng - lng) * 111 * Math.cos((lat * Math.PI) / 180);
+        return Math.sqrt(dx * dx + dy * dy) <= distance;
       });
 
-      setProperties(withinDistance);
-    } catch (err) {
-      console.error('搜索错误:', err);
-      alert('搜索失败');
+      setProperties(within);
+    } catch (error) {
+      console.error('搜索失败:', error);
+      alert('搜索失败，请检查网络或 Supabase 设置');
     }
   };
 
   return (
-    <div className="p-4 space-y-4">
-      <div className="flex gap-2 items-center">
-        <Input
+    <div style={{ padding: '20px' }}>
+      <div style={{ marginBottom: '10px' }}>
+        <input
           value={address}
           onChange={(e) => setAddress(e.target.value)}
-          placeholder="输入地址"
-          className="w-1/2"
+          placeholder="请输入地址"
+          style={{ padding: '6px', marginRight: '10px', width: '300px' }}
         />
-        <Input
+        <input
           type="number"
           value={distance}
           onChange={(e) => setDistance(Number(e.target.value))}
-          placeholder="距离 (km)"
-          className="w-32"
+          placeholder="距离(km)"
+          style={{ padding: '6px', marginRight: '10px', width: '100px' }}
         />
-        <Button onClick={handleSearch}>搜索</Button>
+        <button onClick={handleSearch} style={{ padding: '6px 12px' }}>搜索</button>
       </div>
-
       <MapWithMarkers center={center} radius={distance} properties={properties} />
     </div>
   );
