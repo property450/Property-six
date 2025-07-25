@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
+import { useEffect, useRef, useState } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import PropertyCard from './PropertyCard';
@@ -29,6 +29,18 @@ function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
+// 地图中心更新器组件
+function RecenterMap({ center }) {
+  const map = useMap();
+  useEffect(() => {
+    if (center?.lat && center?.lng) {
+      console.log('地图渲染的 center:', center);
+      map.setView([center.lat, center.lng], 14);
+    }
+  }, [center]);
+  return null;
+}
+
 export default function MapWithMarkersClient({
   properties = [],
   center,
@@ -53,15 +65,26 @@ export default function MapWithMarkersClient({
       return inPriceRange && inType && inCircle;
     });
 
+    console.log('接收到的 properties:', properties);
     setFilteredProperties(filtered);
   }, [properties, center, radius, priceRange, selectedTypes]);
 
   return (
     <div className="w-full h-full">
       {center ? (
-        <MapContainer center={[center.lat, center.lng]} zoom={14} scrollWheelZoom style={{ height: '100%', width: '100%' }}>
+        <MapContainer
+          center={[center.lat, center.lng]}
+          zoom={14}
+          scrollWheelZoom
+          style={{ height: '100%', width: '100%' }}
+        >
+          <RecenterMap center={center} />
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          <Circle center={[center.lat, center.lng]} radius={radius} pathOptions={{ color: 'blue', fillOpacity: 0.1 }} />
+          <Circle
+            center={[center.lat, center.lng]}
+            radius={radius}
+            pathOptions={{ color: 'blue', fillOpacity: 0.1 }}
+          />
           {filteredProperties.map((property) => (
             <Marker key={property.id} position={[property.lat, property.lng]}>
               <Popup>
