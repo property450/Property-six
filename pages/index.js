@@ -25,7 +25,7 @@ export default function Home() {
     const fetchProperties = async () => {
       const { data, error } = await supabase.from('properties').select('*');
       if (error) {
-        console.error('Error fetching properties:', error);
+        console.error('Error fetching properties:', error.message);
       } else {
         setProperties(data);
       }
@@ -42,28 +42,29 @@ export default function Home() {
       );
       const data = await res.json();
 
-      if (data.length > 0) {
+      if (data && data.length > 0) {
         const { lat, lon } = data[0];
-        const latNum = parseFloat(lat);
-        const lonNum = parseFloat(lon);
+        const latFloat = parseFloat(lat);
+        const lonFloat = parseFloat(lon);
 
-        if (!isNaN(latNum) && !isNaN(lonNum)) {
-          setCircleCenter({ lat: latNum, lng: lonNum });
-          setCircleRadius(5000); // 默认搜索半径 5 公里
+        if (!isNaN(latFloat) && !isNaN(lonFloat)) {
+          setCircleCenter({ lat: latFloat, lng: lonFloat });
+          setCircleRadius(5000); // 半径5公里
         } else {
-          alert('Invalid location coordinates.');
+          alert('Invalid coordinates.');
         }
       } else {
-        alert('Address not found!');
+        alert('Address not found.');
       }
     } catch (error) {
-      console.error('Error fetching coordinates:', error);
-      alert('Error fetching address coordinates.');
+      console.error('Search error:', error);
+      alert('Search failed.');
     }
   };
 
   return (
     <div className="flex flex-col md:flex-row">
+      {/* 左侧筛选栏 */}
       <div className="w-full md:w-1/3 p-4 space-y-4">
         <Input
           type="text"
@@ -77,20 +78,30 @@ export default function Home() {
           value={priceRange}
           onChange={setPriceRange}
         />
-        <TypeSelector selected={selectedTypes} setSelected={setSelectedTypes} />
+        <TypeSelector
+          selectedType={selectedTypes}
+          setSelectedType={setSelectedTypes}
+        />
         <Button onClick={handleSearch}>Search</Button>
       </div>
 
+      {/* 右侧地图 */}
       <div className="w-full md:w-2/3 h-[600px]">
-        <MapWithMarkers
-          properties={properties}
-          center={circleCenter}
-          radius={circleRadius}
-          priceRange={priceRange}
-          selectedTypes={selectedTypes}
-          setCircleCenter={setCircleCenter}
-          setCircleRadius={setCircleRadius}
-        />
+        {circleCenter ? (
+          <MapWithMarkers
+            properties={properties}
+            center={circleCenter}
+            radius={circleRadius}
+            priceRange={priceRange}
+            selectedTypes={selectedTypes}
+            setCircleCenter={setCircleCenter}
+            setCircleRadius={setCircleRadius}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-gray-500">
+            Please search for an address to view properties on map.
+          </div>
+        )}
       </div>
     </div>
   );
