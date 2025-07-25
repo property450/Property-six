@@ -70,7 +70,7 @@ export default function MapWithMarkersClient({
   }, [properties, center, radius, priceRange, selectedTypes]);
 
   return (
-    <div className="w-full h-full">
+    <div className="w-full h-[600px]">
       {center ? (
         <MapContainer
           center={[center.lat, center.lng]}
