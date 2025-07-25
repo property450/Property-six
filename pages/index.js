@@ -1,92 +1,73 @@
-// pages/index.js
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { supabase } from '../supabaseClient';
-import { useRouter } from 'next/router';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import TypeSelector from '@/components/TypeSelector';
 import PriceRangeSelector from '@/components/PriceRangeSelector';
+import TypeSelector from '@/components/TypeSelector';
 
-const MapWithMarkers = dynamic(() => import('@/components/MapWithMarkersClient'), {
-  ssr: false,
-  loading: () => <p>Loading map...</p>,
-});
+const MapWithMarkersClient = dynamic(() => import('@/components/MapWithMarkersClient'), { ssr: false });
 
 export default function Home() {
-  const router = useRouter();
   const [properties, setProperties] = useState([]);
-  const [searchAddress, setSearchAddress] = useState('');
+  const [address, setAddress] = useState('');
+  const [center, setCenter] = useState(null);
+  const [radius] = useState(5000);
   const [priceRange, setPriceRange] = useState([10000, 50000000]);
   const [selectedTypes, setSelectedTypes] = useState([]);
-  const [circleCenter, setCircleCenter] = useState(null);
-  const [circleRadius, setCircleRadius] = useState(null); // 默认 null，地图组件负责判断
-
-  useEffect(() => {
-    const fetchProperties = async () => {
-      const { data, error } = await supabase.from('properties').select('*');
-      if (!error) setProperties(data);
-      else console.error('Error fetching properties:', error);
-    };
-    fetchProperties();
-  }, []);
 
   const handleSearch = async () => {
-    if (!searchAddress) return;
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchAddress)}`
-      );
-      const data = await res.json();
-      if (data.length > 0) {
-        const { lat, lon } = data[0];
-        const parsedLat = parseFloat(lat);
-        const parsedLng = parseFloat(lon);
-        console.log('Found coordinates:', parsedLat, parsedLng);
-        setCircleCenter({ lat: parsedLat, lng: parsedLng });
-        setCircleRadius(5000);
-      } else {
-        alert('Address not found!');
-      }
-    } catch (error) {
-      console.error('Geocoding failed:', error);
-      alert('Error fetching location.');
+    if (!address) return;
+
+    // 调用 Nominatim 将地址转换为经纬度
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${address}`);
+    const data = await res.json();
+
+    if (data.length === 0) {
+      alert('地址无效');
+      return;
+    }
+
+    const lat = parseFloat(data[0].lat);
+    const lng = parseFloat(data[0].lon);
+    setCenter({ lat, lng });
+
+    // 获取 Supabase 中所有房源
+    const { data: propertiesData, error } = await supabase.from('properties').select('*');
+    if (error) {
+      console.error('获取房源失败:', error);
+    } else {
+      setProperties(propertiesData);
     }
   };
 
   return (
-    <div className="flex flex-col md:flex-row">
-      {/* 左侧搜索栏 */}
-      <div className="w-full md:w-1/3 p-4 space-y-4">
+    <div className="w-full h-screen flex flex-col md:flex-row">
+      {/* 左侧筛选栏 */}
+      <div className="w-full md:w-1/3 p-4 bg-white overflow-y-auto max-h-screen border-r">
+        <h2 className="text-xl font-semibold mb-4">搜索房源</h2>
         <Input
           type="text"
-          placeholder="Enter address..."
-          value={searchAddress}
-          onChange={(e) => setSearchAddress(e.target.value)}
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          placeholder="请输入地址"
+          className="mb-4"
         />
-        <PriceRangeSelector
-          min={10000}
-          max={50000000}
-          value={priceRange}
-          onChange={setPriceRange}
-        />
-        <TypeSelector
-          selectedType={selectedTypes}
-          setSelectedType={setSelectedTypes}
-        />
-        <Button onClick={handleSearch}>Search</Button>
+        <PriceRangeSelector value={priceRange} onChange={setPriceRange} />
+        <TypeSelector selected={selectedTypes} setSelected={setSelectedTypes} />
+        <Button onClick={handleSearch} className="mt-4 w-full">
+          搜索
+        </Button>
       </div>
 
       {/* 右侧地图 */}
-      <div className="w-full md:w-2/3 h-[600px]">
-        <MapWithMarkers
+      <div className="w-full md:w-2/3 h-full">
+        <MapWithMarkersClient
+          center={center}
+          radius={radius}
           properties={properties}
-          center={circleCenter}
-          radius={circleRadius}
           priceRange={priceRange}
           selectedTypes={selectedTypes}
-          setCircleCenter={setCircleCenter}
-          setCircleRadius={setCircleRadius}
         />
       </div>
     </div>
