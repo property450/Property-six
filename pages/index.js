@@ -1,4 +1,3 @@
-// pages/index.js
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { supabase } from '../supabaseClient';
@@ -24,7 +23,7 @@ export default function Home() {
   useEffect(() => {
     const fetchProperties = async () => {
       const { data, error } = await supabase.from('properties').select('*');
-      if (!error) setProperties(data);
+      if (!error) setProperties(data || []);
     };
     fetchProperties();
   }, []);
@@ -52,6 +51,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col md:flex-row">
+      {/* 左侧筛选栏 */}
       <div className="w-full md:w-1/3 p-4 space-y-4">
         <Input
           type="text"
@@ -59,16 +59,23 @@ export default function Home() {
           value={searchAddress}
           onChange={(e) => setSearchAddress(e.target.value)}
         />
+
         <PriceRangeSelector
           min={10000}
           max={50000000}
           value={priceRange}
-          onChange={setPriceRange}
+          onChange={(range) => setPriceRange(range)}
         />
-        <TypeSelector selectedType={selectedTypes} setSelectedType={setSelectedTypes} />
+
+        <TypeSelector
+          selectedType={selectedTypes}
+          setSelectedType={setSelectedTypes}
+        />
+
         <Button onClick={handleSearch}>Search</Button>
       </div>
 
+      {/* 右侧地图显示 */}
       <div className="w-full md:w-2/3 h-[600px]">
         <MapWithMarkers
           properties={properties}
