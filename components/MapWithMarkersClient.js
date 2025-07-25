@@ -1,49 +1,41 @@
-import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
+// components/MapWithMarkersClient.js
+'use client';
+import { MapContainer, TileLayer, Marker, Circle, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import { useEffect } from 'react';
-
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
-});
+import 'leaflet/dist/leaflet.css';
 
 export default function MapWithMarkers({ center, radius, properties }) {
-  const defaultPosition = center || { lat: 3.139, lng: 101.6869 }; // Kuala Lumpur fallback
+  useEffect(() => {
+    // 修复默认图标不显示的问题
+    delete L.Icon.Default.prototype._getIconUrl;
+    L.Icon.Default.mergeOptions({
+      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    });
+  }, []);
+
+  if (!center) return <div className="text-center text-gray-500">请输入地址后查看地图</div>;
 
   return (
-    <MapContainer center={defaultPosition} zoom={13} scrollWheelZoom style={{ height: '100%' }}>
+    <MapContainer center={center} zoom={14} scrollWheelZoom style={{ height: '500px', width: '100%' }}>
       <TileLayer
-        attribution='&copy; OpenStreetMap contributors'
+        attribution='&copy; OpenStreetMap'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-
-      {center && (
-        <Circle
-          center={center}
-          radius={radius * 1000}
-          pathOptions={{ fillColor: 'blue', fillOpacity: 0.2, color: 'blue' }}
-        />
-      )}
-
-      {properties.map((property) => {
-        const lat = parseFloat(property.lat);
-        const lng = parseFloat(property.lng);
-        if (isNaN(lat) || isNaN(lng)) return null;
-
-        return (
-          <Marker key={property.id} position={[lat, lng]}>
-            <Popup>
-              <div>
-                <h2>{property.title}</h2>
-                <p>{property.description}</p>
-              </div>
-            </Popup>
-          </Marker>
-        );
-      })}
+      <Circle center={center} radius={radius * 1000} pathOptions={{ color: 'blue' }} />
+      {properties.map((property) => (
+        <Marker key={property.id} position={[property.lat, property.lng]}>
+          <Popup>
+            <div>
+              <strong>{property.title}</strong><br />
+              {property.price ? `RM${property.price}` : ''}<br />
+              {property.address}
+            </div>
+          </Popup>
+        </Marker>
+      ))}
     </MapContainer>
   );
 }
