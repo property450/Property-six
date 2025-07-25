@@ -2,8 +2,8 @@
 import { SessionContextProvider } from '@supabase/auth-helpers-react';
 import { supabase } from '../supabaseClient';
 import Header from '../components/Header';
-import '../styles/globals.css';
-import 'leaflet/dist/leaflet.css'; // ✅ 加上这行以加载地图样式
+import 'leaflet/dist/leaflet.css';
+import '@/styles/globals.css'; // 你自己的样式文件
 
 function MyApp({ Component, pageProps }) {
   return (
