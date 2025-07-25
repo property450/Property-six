@@ -38,6 +38,8 @@ export default function Home() {
 
     try {
       const { lat, lng } = await geocodeAddress(searchAddress);
+      console.log('经纬度', lat, lng);
+console.log('设置 center:', { lat, lng });
       setCenter({ lat, lng });
     } catch (error) {
       console.error('地址转经纬度失败:', error);
