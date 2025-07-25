@@ -66,12 +66,12 @@ export default function Home() {
 
       <div className="h-[600px] w-full rounded shadow">
         <MapWithMarkers
-          properties={properties}
-          center={center}
-          minPrice={minPrice}
-          maxPrice={maxPrice}
-          selectedTypes={selectedTypes}
-        />
+  properties={properties}
+  center={center}
+  radius={5000} // 新增，单位是米
+  priceRange={[Number(minPrice || 0), Number(maxPrice || Infinity)]} // 确保是数字数组
+  selectedTypes={selectedTypes}
+/>
       </div>
     </div>
   );
