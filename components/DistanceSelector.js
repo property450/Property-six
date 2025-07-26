@@ -1,13 +1,19 @@
-import RangeSelector from './RangeSelector';
+import React from 'react';
+import { Input } from '@/components/ui/input';
 
-export default function DistanceSelector({ value, onChange }) {
-  return (
-    <RangeSelector
-      label="距离范围 (KM)"
-      min={0}
-      max={100}
-      value={value}
-      onChange={onChange}
-    />
-  );
+export default function DistanceSelector({ distance, setDistance }) {
+  return (
+    <div className="mb-4">
+      <label className="block mb-1 font-medium text-sm">Search Radius (km)</label>
+      <Input
+        type="number"
+        value={distance}
+        min={1}
+        max={100}
+        step={1}
+        onChange={(e) => setDistance(Number(e.target.value))}
+        className="w-full"
+      />
+    </div>
+  );
 }
