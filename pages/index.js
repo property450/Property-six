@@ -7,49 +7,53 @@ import TypeSelector from '@/components/TypeSelector';
 import PriceRangeSelector from '@/components/PriceRangeSelector';
 import Geocode from 'react-geocode';
 
+// 设置 Google Maps API Key（确保 .env 文件正确）
 Geocode.setApiKey(process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY);
 
 const MapWithMarkersClient = dynamic(() => import('@/components/MapWithMarkersClient'), {
-  ssr: false,
+  ssr: false,
 });
 
 export default function HomePage() {
-  const [address, setAddress] = useState('');
-  const [center, setCenter] = useState(null);
-  const [distance, setDistance] = useState(5); // in km
-  const [typeFilter, setTypeFilter] = useState('');
-  const [priceRange, setPriceRange] = useState({ min: 0, max: 10000000 });
+  const [address, setAddress] = useState('');
+  const [center, setCenter] = useState({ lat: 3.139, lng: 101.6869 }); // 默认 Kuala Lumpur
+  const [distance, setDistance] = useState(5); // km
+  const [typeFilter, setTypeFilter] = useState('');
+  const [priceRange, setPriceRange] = useState({ min: 0, max: 10000000 });
 
-  const handleSearch = async () => {
-    try {
-      const response = await Geocode.fromAddress(address);
-      const { lat, lng } = response.results[0].geometry.location;
-      setCenter({ lat, lng });
-    } catch (error) {
-      console.error('Geocoding error:', error);
-    }
-  };
+  const handleSearch = async () => {
+    try {
+      const response = await Geocode.fromAddress(address);
+      const { lat, lng } = response.results[0].geometry.location;
+      setCenter({ lat, lng });
+    } catch (error) {
+      console.error('Geocoding error:', error);
+    }
+  };
 
-  return (
-    <div className="p-4">
-      <div className="grid md:grid-cols-4 gap-4 mb-4">
-        <Input
-          placeholder="Enter area (e.g. Kuala Lumpur)"
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-        />
-        <DistanceSelector distance={distance} setDistance={setDistance} />
-        <TypeSelector value={typeFilter} onChange={setTypeFilter} />
-        <PriceRangeSelector priceRange={priceRange} setPriceRange={setPriceRange} />
-        <Button onClick={handleSearch}>Search</Button>
-      </div>
+  return (
+    <div className="p-4">
+      <div className="grid md:grid-cols-4 gap-4 mb-4">
+        <Input
+          placeholder="Enter area (e.g. Kuala Lumpur)"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+        />
+        <DistanceSelector distance={distance} setDistance={setDistance} />
+        <TypeSelector value={typeFilter} onChange={setTypeFilter} />
+        <PriceRangeSelector priceRange={priceRange} setPriceRange={setPriceRange} />
+      </div>
 
-      <MapWithMarkersClient
-        center={center}
-        distance={distance}
-        typeFilter={typeFilter}
-        priceRange={priceRange}
-      />
-    </div>
-  );
+      <div className="mb-4">
+        <Button onClick={handleSearch}>Search</Button>
+      </div>
+
+      <MapWithMarkersClient
+        center={center}
+        distance={distance}
+        typeFilter={typeFilter}
+        priceRange={priceRange}
+      />
+    </div>
+  );
 }
