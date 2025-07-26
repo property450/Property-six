@@ -18,7 +18,7 @@ export default function TypeSelector({ selectedType, setSelectedType }) {
       const selected = subType === 'Custom' || subType === 'Others'
         ? `${mainType} > ${customSubType}`
         : `${mainType} > ${subType}`;
-      setSelectedType(selected);
+      setTypeSelected(selected);
     }
   }, [mainType, subType, customSubType]);
 
