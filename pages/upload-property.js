@@ -5,7 +5,7 @@ import { supabase } from '../supabaseClient';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import TypeSelector from '@/components/TypeSelector';
-import ImageUploader from '@/components/ImageUploader';
+import ImageUploader from '@/components/ImageUpload';
 import MapSelector from '@/components/MapSelector';
 import NumberInputSelector from '@/components/NumberInputSelector';
 import { useUser } from '@supabase/auth-helpers-react';
