@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import TypeSelector from '@/components/TypeSelector';
 import ImageUploader from '@/components/ImageUpload';
 import MapPicker from '@/components/MapPicker';
-import NumberInputSelector from '@/components/NumberInputSelector';
+import RoomCountSelector from '@/components/RoomCountSelector'; // ✅ 你已有的组件
 import { useUser } from '@supabase/auth-helpers-react';
 
 export default function UploadPropertyPage() {
