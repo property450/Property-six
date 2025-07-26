@@ -1,10 +1,12 @@
+// components/MapWithMarkersClient.js
 'use client';
-import { useEffect, useState, useMemo } from 'react';
+
+import { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-const defaultIcon = new L.Icon({
+const markerIcon = new L.Icon({
   iconUrl: 'https://unpkg.com/leaflet@1.9.3/dist/images/marker-icon.png',
   iconSize: [25, 41],
   iconAnchor: [12, 41],
@@ -15,88 +17,58 @@ export default function MapWithMarkersClient({
   properties = [],
   location,
   distance = 5,
-  priceRange = { min: 0, max: Infinity },
+  priceRange = { min: 0, max: 50000000 },
   selectedType = '',
 }) {
-  const [center, setCenter] = useState([3.139, 101.686]); // Kuala Lumpur default
+  const [filtered, setFiltered] = useState([]);
 
   useEffect(() => {
-    if (location?.lat && location?.lng) {
-      setCenter([location.lat, location.lng]);
+    if (!location) {
+      setFiltered([]);
+      return;
     }
-  }, [location]);
 
-  const filtered = useMemo(() => {
-    return properties.filter((property) => {
-      const lat = parseFloat(property.lat);
-      const lng = parseFloat(property.lng);
-      const price = parseFloat(property.price);
+    const filteredData = properties.filter((property) => {
+      if (!property.lat || !property.lng) return false;
 
-      if (
-        isNaN(lat) ||
-        isNaN(lng) ||
-        isNaN(price) ||
-        lat === 0 ||
-        lng === 0
-      ) return false;
+      const distanceToProperty = L.latLng(location.lat, location.lng).distanceTo(
+        L.latLng(property.lat, property.lng)
+      ) / 1000;
 
-      const d = location?.lat
-        ? getDistanceFromLatLngInKm(lat, lng, location.lat, location.lng)
-        : 0;
-
-      const withinDistance = d <= distance;
+      const withinDistance = distanceToProperty <= distance;
       const withinPrice =
-        (!priceRange.min || price >= priceRange.min) &&
-        (!priceRange.max || price <= priceRange.max);
-      const matchesType = !selectedType || property.type === selectedType;
+        property.price >= (priceRange.min || 0) &&
+        property.price <= (priceRange.max || 50000000);
+      const matchesType =
+        !selectedType || property.type?.toLowerCase().includes(selectedType.toLowerCase());
 
       return withinDistance && withinPrice && matchesType;
     });
+
+    setFiltered(filteredData);
   }, [properties, location, distance, priceRange, selectedType]);
 
+  if (!location) return <p className="p-4">🗺️ 请输入地址后显示地图。</p>;
+
   return (
-    <MapContainer center={center} zoom={13} scrollWheelZoom style={{ height: '500px', width: '100%' }}>
-      <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution='&copy; OpenStreetMap contributors'
+    <MapContainer center={[location.lat, location.lng]} zoom={13} style={{ height: '500px', width: '100%' }}>
+      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+      <Circle
+        center={[location.lat, location.lng]}
+        radius={distance * 1000}
+        pathOptions={{ fillColor: 'blue', color: 'blue', opacity: 0.2, fillOpacity: 0.1 }}
       />
-      {location?.lat && location?.lng && (
-        <Circle
-          center={[location.lat, location.lng]}
-          radius={distance * 1000}
-          pathOptions={{ color: 'blue', fillOpacity: 0.1 }}
-        />
-      )}
       {filtered.map((property) => (
-        <Marker
-          key={property.id}
-          position={[parseFloat(property.lat), parseFloat(property.lng)]}
-          icon={defaultIcon}
-        >
+        <Marker key={property.id} position={[property.lat, property.lng]} icon={markerIcon}>
           <Popup>
-            <strong>{property.title}</strong><br />
-            RM {property.price}<br />
+            <strong>{property.title}</strong>
+            <br />
+            RM {property.price?.toLocaleString?.()}
+            <br />
             {property.type}
           </Popup>
         </Marker>
       ))}
     </MapContainer>
   );
-}
-
-function getDistanceFromLatLngInKm(lat1, lng1, lat2, lng2) {
-  const R = 6371;
-  const dLat = deg2rad(lat2 - lat1);
-  const dLng = deg2rad(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(deg2rad(lat1)) *
-    Math.cos(deg2rad(lat2)) *
-    Math.sin(dLng / 2) *
-    Math.sin(dLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-function deg2rad(deg) {
-  return deg * (Math.PI / 180);
 }
