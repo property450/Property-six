@@ -5,55 +5,69 @@ import { Button } from '@/components/ui/button';
 import DistanceSelector from '@/components/DistanceSelector';
 import TypeSelector from '@/components/TypeSelector';
 import PriceRangeSelector from '@/components/PriceRangeSelector';
-import Geocode from 'react-geocode';
-
-// 设置 Google Maps API Key（确保 .env 文件正确）
-Geocode.setApiKey(process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY);
+import { Loader } from '@googlemaps/js-api-loader';
 
 const MapWithMarkersClient = dynamic(() => import('@/components/MapWithMarkersClient'), {
-  ssr: false,
+  ssr: false,
 });
 
 export default function HomePage() {
-  const [address, setAddress] = useState('');
-  const [center, setCenter] = useState({ lat: 3.139, lng: 101.6869 }); // 默认 Kuala Lumpur
-  const [distance, setDistance] = useState(5); // km
-  const [typeFilter, setTypeFilter] = useState('');
-  const [priceRange, setPriceRange] = useState({ min: 0, max: 10000000 });
+  const [address, setAddress] = useState('');
+  const [center, setCenter] = useState(null);
+  const [distance, setDistance] = useState(5); // in km
+  const [typeFilter, setTypeFilter] = useState('');
+  const [priceRange, setPriceRange] = useState({ min: 0, max: 10000000 });
 
-  const handleSearch = async () => {
-    try {
-      const response = await Geocode.fromAddress(address);
-      const { lat, lng } = response.results[0].geometry.location;
-      setCenter({ lat, lng });
-    } catch (error) {
-      console.error('Geocoding error:', error);
-    }
-  };
+  const handleSearch = async () => {
+    if (!address) return;
 
-  return (
-    <div className="p-4">
-      <div className="grid md:grid-cols-4 gap-4 mb-4">
-        <Input
-          placeholder="Enter area (e.g. Kuala Lumpur)"
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-        />
-        <DistanceSelector distance={distance} setDistance={setDistance} />
-        <TypeSelector value={typeFilter} onChange={setTypeFilter} />
-        <PriceRangeSelector priceRange={priceRange} setPriceRange={setPriceRange} />
-      </div>
+    try {
+      const loader = new Loader({
+        apiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+        version: 'weekly',
+        libraries: ['places'],
+      });
 
-      <div className="mb-4">
-        <Button onClick={handleSearch}>Search</Button>
-      </div>
+      const google = await loader.load();
 
-      <MapWithMarkersClient
-        center={center}
-        distance={distance}
-        typeFilter={typeFilter}
-        priceRange={priceRange}
-      />
-    </div>
-  );
+      const geocoder = new google.maps.Geocoder();
+      geocoder.geocode({ address }, (results, status) => {
+        if (status === 'OK' && results[0]) {
+          const location = results[0].geometry.location;
+          setCenter({
+            lat: location.lat(),
+            lng: location.lng(),
+          });
+        } else {
+          console.error('Geocode failed:', status);
+          alert('Address not found.');
+        }
+      });
+    } catch (error) {
+      console.error('Geocoding error:', error);
+    }
+  };
+
+  return (
+    <div className="p-4">
+      <div className="grid md:grid-cols-5 gap-4 mb-4">
+        <Input
+          placeholder="Enter area (e.g. Kuala Lumpur)"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+        />
+        <DistanceSelector distance={distance} setDistance={setDistance} />
+        <TypeSelector value={typeFilter} onChange={setTypeFilter} />
+        <PriceRangeSelector priceRange={priceRange} setPriceRange={setPriceRange} />
+        <Button onClick={handleSearch}>Search</Button>
+      </div>
+
+      <MapWithMarkersClient
+        center={center}
+        distance={distance}
+        typeFilter={typeFilter}
+        priceRange={priceRange}
+      />
+    </div>
+  );
 }
