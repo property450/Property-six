@@ -125,9 +125,10 @@ export default function UploadProperty() {
         setCoverIndex={setCoverIndex}
       />
 
-      <Button onClick={handleSubmit} disabled={loading}>
-        {loading ? '上传中...' : '提交房源'}
-      </Button>
-    </div>
-  );
-}
+      <Button
+  className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700"
+  onClick={handleUpload}
+>
+  上传房源
+</Button>
+
