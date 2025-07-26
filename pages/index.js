@@ -1,129 +1,151 @@
+// pages/index.js
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { supabase } from '../supabaseClient';
-import { useRouter } from 'next/router';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import PriceRangeSelector from '@/components/PriceRangeSelector';
 import TypeSelector from '@/components/TypeSelector';
+import PriceRangeSelector from '@/components/PriceRangeSelector';
+import DistanceSelector from '@/components/DistanceSelector';
+import PropertyCard from '@/components/PropertyCard';
 
-const MapWithMarkersClient = dynamic(() => import('@/components/MapWithMarkersClient'), { ssr: false });
+const MapWithMarkers = dynamic(() => import('@/components/MapWithMarkersClient'), {
+  ssr: false,
+});
 
 export default function Home() {
-  const router = useRouter();
-  const [address, setAddress] = useState('');
-  const [properties, setProperties] = useState([]);
-  const [filteredProperties, setFilteredProperties] = useState([]);
-  const [minPrice, setMinPrice] = useState('');
-  const [maxPrice, setMaxPrice] = useState('');
-  const [selectedType, setSelectedType] = useState('');
-  const [radius, setRadius] = useState(5); // 默认搜索半径 5 公里
-  const [mapCenter, setMapCenter] = useState(null);
+  const [properties, setProperties] = useState([]);
+  const [filteredProperties, setFilteredProperties] = useState([]);
+  const [searchLocation, setSearchLocation] = useState('');
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
+  const [mainType, setMainType] = useState('');
+  const [subType, setSubType] = useState('');
+  const [selectedType, setSelectedType] = useState('');
+  const [distance, setDistance] = useState(5); // ✅ 加上距离状态
+  const [searchCenter, setSearchCenter] = useState(null);
 
-  useEffect(() => {
-    const fetchProperties = async () => {
-      const { data, error } = await supabase.from('properties').select('*');
-      if (error) {
-        console.error('Error fetching properties:', error);
-      } else {
-        setProperties(data);
-      }
-    };
-    fetchProperties();
-  }, []);
+  useEffect(() => {
+    const fetchProperties = async () => {
+      const { data, error } = await supabase.from('properties').select('*');
+      if (error) {
+        console.error('Error fetching properties:', error);
+      } else {
+        setProperties(data);
+        setFilteredProperties(data);
+      }
+    };
 
-  const handleSearch = async () => {
-    if (!address) return;
+    fetchProperties();
+  }, []);
 
-    // 1. 地址 -> 经纬度
-    const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`);
-    const geoData = await geoRes.json();
-    if (!geoData || geoData.length === 0) {
-      alert('地址未找到，请重试');
-      return;
-    }
+  const handleSearch = async () => {
+    if (!searchLocation) return;
 
-    const lat = parseFloat(geoData[0].lat);
-    const lng = parseFloat(geoData[0].lon);
-    setMapCenter({ lat, lng });
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          searchLocation
+        )}`
+      );
+      const data = await response.json();
+      if (data && data.length > 0) {
+        const lat = parseFloat(data[0].lat);
+        const lng = parseFloat(data[0].lon);
+        setSearchCenter({ lat, lng });
 
-    // 2. 计算每个房源距离 -> 筛选
-    const filtered = properties.filter((property) => {
-      if (!property.latitude || !property.longitude) return false;
+        const filtered = properties.filter((property) => {
+          const propertyLat = parseFloat(property.lat);
+          const propertyLng = parseFloat(property.lng);
 
-      const distance = getDistanceFromLatLonInKm(
-        lat,
-        lng,
-        parseFloat(property.latitude),
-        parseFloat(property.longitude)
-      );
+          if (isNaN(propertyLat) || isNaN(propertyLng)) return false;
 
-      const inRadius = distance <= radius;
-      const inPriceRange =
-        (!minPrice || parseInt(property.price) >= parseInt(minPrice)) &&
-        (!maxPrice || parseInt(property.price) <= parseInt(maxPrice));
-      const matchType =
-        !selectedType || (property.type && property.type.toLowerCase().includes(selectedType.toLowerCase()));
+          const distanceToCenter = getDistanceFromLatLonInKm(
+            lat,
+            lng,
+            propertyLat,
+            propertyLng
+          );
 
-      return inRadius && inPriceRange && matchType;
-    });
+          const withinDistance = distanceToCenter <= distance;
+          const matchesPrice =
+            (!minPrice || property.price >= minPrice) &&
+            (!maxPrice || property.price <= maxPrice);
+          const matchesType =
+            !selectedType || property.type?.toLowerCase() === selectedType.toLowerCase();
 
-    setFilteredProperties(filtered);
-  };
+          return withinDistance && matchesPrice && matchesType;
+        });
 
-  // 计算两个坐标点间的距离（单位：公里）
-  const getDistanceFromLatLonInKm = (lat1, lon1, lat2, lon2) => {
-    const R = 6371; // 地球半径 km
-    const dLat = ((lat2 - lat1) * Math.PI) / 180;
-    const dLon = ((lon2 - lon1) * Math.PI) / 180;
-    const a =
-      0.5 - Math.cos(dLat) / 2 +
-      (Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        (1 - Math.cos(dLon))) /
-        2;
-    return R * 2 * Math.asin(Math.sqrt(a));
-  };
+        setFilteredProperties(filtered);
+      } else {
+        alert('找不到地址');
+      }
+    } catch (error) {
+      console.error('Geocoding error:', error);
+      alert('地理位置解析失败');
+    }
+  };
 
-  return (
-    <div className="p-4">
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
-        <Input
-          type="text"
-          placeholder="输入地址以搜索附近房源"
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          className="col-span-2"
-        />
-        <PriceRangeSelector
-          minPrice={minPrice}
-          maxPrice={maxPrice}
-          setMinPrice={setMinPrice}
-          setMaxPrice={setMaxPrice}
-        />
-        <TypeSelector
-          selectedType={selectedType}
-          setSelectedType={setSelectedType}
-        />
-        <select
-          value={radius}
-          onChange={(e) => setRadius(parseInt(e.target.value))}
-          className="border rounded p-1"
-        >
-          <option value={1}>1 km</option>
-          <option value={3}>3 km</option>
-          <option value={5}>5 km</option>
-          <option value={10}>10 km</option>
-          <option value={20}>20 km</option>
-        </select>
-        <Button onClick={handleSearch}>搜索</Button>
-      </div>
+  function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Radius of the earth in km
+    const dLat = deg2rad(lat2 - lat1);
+    const dLon = deg2rad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(deg2rad(lat1)) *
+        Math.cos(deg2rad(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c; // Distance in km
+  }
 
-      <MapWithMarkersClient
-        properties={filteredProperties.length > 0 ? filteredProperties : properties}
-        center={mapCenter}
-        radius={filteredProperties.length > 0 ? radius : null}
-      />
-    </div>
-  );
+  function deg2rad(deg) {
+    return deg * (Math.PI / 180);
+  }
+
+  return (
+    <div className="p-4">
+      <h1 className="text-2xl font-bold mb-4">地图搜索房源</h1>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+        <Input
+          type="text"
+          placeholder="输入地址"
+          value={searchLocation}
+          onChange={(e) => setSearchLocation(e.target.value)}
+        />
+        <PriceRangeSelector
+          minPrice={minPrice}
+          maxPrice={maxPrice}
+          setMinPrice={setMinPrice}
+          setMaxPrice={setMaxPrice}
+        />
+        <TypeSelector
+          mainType={mainType}
+          setMainType={setMainType}
+          subType={subType}
+          setSubType={setSubType}
+          selectedType={selectedType}
+          setSelectedType={setSelectedType}
+        />
+        <DistanceSelector value={distance} onChange={setDistance} /> {/* ✅ 已加入 */}
+        <Button onClick={handleSearch}>搜索</Button>
+      </div>
+
+      <div className="h-[500px] mb-4">
+        <MapWithMarkers
+          properties={filteredProperties}
+          center={searchCenter}
+          radius={distance}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {filteredProperties.map((property) => (
+          <PropertyCard key={property.id} property={property} />
+        ))}
+      </div>
+    </div>
+  );
 }
