@@ -126,7 +126,7 @@ export default function UploadProperty() {
       />
 
       <Button
-        onClick={handleUpload}
+        onClick={handleSubmit}
         disabled={loading}
         className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full"
       >
