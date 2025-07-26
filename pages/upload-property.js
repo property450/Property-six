@@ -96,10 +96,10 @@ export default function UploadProperty() {
 
       <TypeSelector selectedType={type} onChange={setType} className="mb-3" />
 
-      <CountSelector label="房间数量" value={bedrooms} onChange={setBedrooms} />
-      <CountSelector label="厕所数量" value={bathrooms} onChange={setBathrooms} />
-      <CountSelector label="车位数量" value={carparks} onChange={setCarparks} />
-      <CountSelector label="储藏室数量" value={storeRooms} onChange={setStoreRooms} />
+      <RoomCountSelector label="房间数量" value={bedrooms} onChange={setBedrooms} />
+      <RoomCountSelector label="厕所数量" value={bathrooms} onChange={setBathrooms} />
+      <RoomCountSelector label="车位数量" value={carparks} onChange={setCarparks} />
+      <RoomCountSelector label="储藏室数量" value={storeRooms} onChange={setStoreRooms} />
 
       <AddressSearchInput
         onLocationSelect={(lat, lng, selectedAddress) => {
