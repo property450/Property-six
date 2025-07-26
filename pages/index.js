@@ -1,79 +1,63 @@
-// pages/index.js
-import { useState, useEffect } from "react";
-import dynamic from "next/dynamic";
-import { supabase } from "../supabaseClient";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import PriceRangeSelector from "@/components/PriceRangeSelector";
-import TypeSelector from "@/components/TypeSelector";
-import DistanceSelector from "@/components/DistanceSelector";
-import { geocodeByAddress } from "@/utils/geocode";
+// ✅ pages/index.js
+import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
+import { supabase } from '../supabaseClient';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import PriceRangeSelector from '@/components/PriceRangeSelector';
+import TypeSelector from '@/components/TypeSelector';
+import DistanceSelector from '@/components/DistanceSelector';
+import { geocodeByAddress } from '@/utils/geocode';
 
-const MapWithMarkersClient = dynamic(() => import("@/components/MapWithMarkersClient"), {
-  ssr: false,
-});
-
-const DEFAULT_LOCATION = { lat: 3.139, lng: 101.6869 }; // 吉隆坡
+const MapWithMarkers = dynamic(() => import('@/components/MapWithMarkersClient'), { ssr: false });
 
 export default function HomePage() {
-  const [address, setAddress] = useState("");
-  const [location, setLocation] = useState(DEFAULT_LOCATION);
   const [properties, setProperties] = useState([]);
-  const [priceRange, setPriceRange] = useState([0, 5000000]);
-  const [type, setType] = useState("");
-  const [distance, setDistance] = useState(5); // 默认5km
+  const [address, setAddress] = useState('');
+  const [location, setLocation] = useState(null);
+  const [distance, setDistance] = useState(5); // ✅ 设置默认搜索半径
+  const [priceRange, setPriceRange] = useState([0, 10000000]);
+  const [selectedType, setSelectedType] = useState('');
 
   useEffect(() => {
+    const fetchProperties = async () => {
+      const { data, error } = await supabase.from('properties').select('*');
+      if (error) console.error('加载房源失败:', error);
+      else setProperties(data);
+    };
     fetchProperties();
   }, []);
 
-  const fetchProperties = async () => {
-    const { data, error } = await supabase.from("properties").select("*");
-    if (!error) setProperties(data);
-    else console.error("Error fetching properties:", error);
-  };
-
   const handleSearch = async () => {
     if (!address) return;
-    try {
-      const result = await geocodeByAddress(address);
-      if (result && result.lat && result.lng) {
-        setLocation(result);
-      } else {
-        console.warn("Geocoding failed or returned invalid result, using default location");
-        setLocation(DEFAULT_LOCATION);
-      }
-    } catch (err) {
-      console.error("Geocoding error:", err);
-      setLocation(DEFAULT_LOCATION);
+    const result = await geocodeByAddress(address);
+    if (result && result.lat && result.lng) {
+      setLocation(result);
+    } else {
+      alert('无法找到地址');
     }
   };
 
+  const filteredProperties = properties.filter((p) => {
+    const matchesPrice = p.price >= priceRange[0] && p.price <= priceRange[1];
+    const matchesType = selectedType ? p.type?.includes(selectedType) : true;
+    return matchesPrice && matchesType;
+  });
+
   return (
-    <div className="flex">
-      <div className="w-1/4 p-4">
-        <Input
-          type="text"
-          placeholder="Enter address"
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-        />
-        <Button className="mt-2" onClick={handleSearch}>
-          Search
-        </Button>
+    <div className="p-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="输入地址" />
+        <Button onClick={handleSearch}>搜索</Button>
         <DistanceSelector distance={distance} setDistance={setDistance} />
+        <TypeSelector selectedType={selectedType} setSelectedType={setSelectedType} />
         <PriceRangeSelector priceRange={priceRange} setPriceRange={setPriceRange} />
-        <TypeSelector type={type} setType={setType} />
       </div>
-      <div className="w-3/4">
-        <MapWithMarkersClient
-          center={location}
-          properties={properties}
-          distance={Number(distance)} // 强制为数字
-          priceRange={priceRange}
-          type={type}
-        />
-      </div>
+      <MapWithMarkers
+        properties={filteredProperties}
+        location={location}
+        distance={distance}
+      />
     </div>
   );
 }
