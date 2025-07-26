@@ -1,53 +1,28 @@
-// components/RoomCountSelector.js
-import React, { useState } from 'react';
-import { Input } from '@/components/ui/input';
-
-export default function RoomCountSelector({ label, value, onChange }) {
-  const predefinedOptions = ['1', '2', '3', '4+', '5+', '10+'];
-  const [custom, setCustom] = useState('');
-
-  const handleCustomInput = (e) => {
-    const val = e.target.value;
-    setCustom(val);
-    const parsed = parseInt(val);
-    if (!isNaN(parsed)) {
-      onChange(parsed);
-    }
-  };
-
-  const handleOptionClick = (option) => {
-    const parsed = parseInt(option);
-    onChange(!isNaN(parsed) ? parsed : parseInt(option.replace('+', '')));
-    setCustom('');
-  };
+export default function RoomCountSelector({ label, count, setCount }) {
+  const options = [0, 1, 2, 3, 4, 5, 6];
 
   return (
-    <div className="mb-4">
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-      <div className="flex flex-wrap gap-2 mb-2">
-        {predefinedOptions.map((option) => (
-          <button
-            key={option}
-            type="button"
-            onClick={() => handleOptionClick(option)}
-            className={`px-3 py-1 rounded border ${
-              value === parseInt(option) || value === parseInt(option.replace('+', ''))
-                ? 'bg-blue-600 text-white'
-                : 'bg-white text-gray-800'
-            }`}
-          >
-            {option}
-          </button>
+    <div className="space-y-2">
+      <label>{label}</label>
+      <select
+        value={count}
+        onChange={(e) => setCount(e.target.value)}
+        className="w-full border p-2 rounded"
+      >
+        <option value="">选择数量</option>
+        {options.map((n) => (
+          <option key={n} value={n}>{n}</option>
         ))}
-      </div>
-      <Input
-        type="number"
-        placeholder="Custom input"
-        value={custom}
-        onChange={handleCustomInput}
-        className="w-full"
-        min={0}
-      />
+        <option value="custom">自定义</option>
+      </select>
+      {count === 'custom' && (
+        <input
+          type="number"
+          placeholder="请输入数量"
+          onChange={(e) => setCount(e.target.value)}
+          className="w-full border p-2 rounded"
+        />
+      )}
     </div>
   );
 }
