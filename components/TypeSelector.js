@@ -1,55 +1,48 @@
-// components/TypeSelector.js
-import { useState } from 'react';
+// ✅ TypeSelector.js
+import { useState, useEffect } from 'react';
 
-const typeHierarchy = {
-  Residential: ['Apartment', 'Condo', 'Terrace', 'Semi-D', 'Bungalow', 'Flat'],
-  Commercial: ['Shop', 'Office', 'Retail', 'Mall'],
-  Industrial: ['Factory', 'Warehouse', 'Industrial Land'],
-  Land: ['Residential Land', 'Commercial Land', 'Agricultural Land'],
-  Others: ['Hotel', 'Resort', 'Mixed-use', 'Other'],
+const TYPE_OPTIONS = {
+  Residential: ['Apartment', 'Condo', 'Terrace', 'Semi-D'],
+  Commercial: ['Shoplot', 'Office', 'Retail'],
+  Industrial: ['Factory', 'Warehouse'],
+  Land: ['Agricultural', 'Development'],
+  Others: ['Other']
 };
 
 export default function TypeSelector({ selectedType, setSelectedType }) {
   const [mainType, setMainType] = useState('');
   const [subType, setSubType] = useState('');
 
-  const handleMainTypeChange = (e) => {
-    const newMain = e.target.value;
-    setMainType(newMain);
-    setSubType('');
-    setSelectedType(newMain);
-  };
-
-  const handleSubTypeChange = (e) => {
-    const newSub = e.target.value;
-    setSubType(newSub);
-    setSelectedType(`${mainType} > ${newSub}`);
-  };
+  useEffect(() => {
+    if (mainType && subType) {
+      setSelectedType(`${mainType} > ${subType}`);
+    }
+  }, [mainType, subType]);
 
   return (
-    <div className="mb-4">
-      <label className="block mb-1 font-semibold">类型选择：</label>
-      <div className="flex gap-2">
-        <select value={mainType} onChange={handleMainTypeChange} className="border p-1 rounded w-full">
-          <option value="">请选择主类型</option>
-          {Object.keys(typeHierarchy).map((main) => (
-            <option key={main} value={main}>
-              {main}
-            </option>
-          ))}
-        </select>
-
-        {mainType && (
-          <select value={subType} onChange={handleSubTypeChange} className="border p-1 rounded w-full">
-            <option value="">请选择子类型</option>
-            {typeHierarchy[mainType].map((sub) => (
-              <option key={sub} value={sub}>
-                {sub}
-              </option>
-            ))}
-          </select>
-        )}
-      </div>
+    <div className="flex gap-2">
+      <select
+        className="border p-1 rounded"
+        value={mainType}
+        onChange={(e) => {
+          setMainType(e.target.value);
+          setSubType('');
+        }}>
+        <option value="">Select Main Type</option>
+        {Object.keys(TYPE_OPTIONS).map((type) => (
+          <option key={type} value={type}>{type}</option>
+        ))}
+      </select>
+      <select
+        className="border p-1 rounded"
+        value={subType}
+        onChange={(e) => setSubType(e.target.value)}
+        disabled={!mainType}>
+        <option value="">Select Sub Type</option>
+        {mainType && TYPE_OPTIONS[mainType].map((sub) => (
+          <option key={sub} value={sub}>{sub}</option>
+        ))}
+      </select>
     </div>
   );
 }
