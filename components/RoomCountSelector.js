@@ -1,4 +1,4 @@
-export default function RoomCountSelector({ label, count, setCount }) {
+export default function RoomCountSelector({ label, value, onChange }) {
   const options = [0, 1, 2, 3, 4, 5, 6];
 
   return (
