@@ -1,95 +1,72 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '../supabaseClient';
 import { useRouter } from 'next/router';
-import { supabase } from '@/supabaseClient';
 import dynamic from 'next/dynamic';
-import ImageUpload from '@/components/ImageUpload';
-import TypeSelector from '@/components/TypeSelector';
-import RoomCountSelector from '@/components/RoomCountSelector';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import TypeSelector from '@/components/TypeSelector';
+import { useUser } from '@supabase/auth-helpers-react';
 
-export default function UploadProperty() {
-  const router = useRouter();
-  const [title, setTitle] = useState('');
-  const [address, setAddress] = useState('');
-  const [price, setPrice] = useState('');
-  const [description, setDescription] = useState('');
-  const [selectedType, setSelectedType] = useState('');
-  const [roomCount, setRoomCount] = useState('');
-  const [bathroomCount, setBathroomCount] = useState('');
-  const [carParkCount, setCarParkCount] = useState('');
-  const [images, setImages] = useState([]);
-  const [uploading, setUploading] = useState(false);
+const MapWithSearch = dynamic(() => import('@/components/MapWithSearch'), { ssr: false });
 
-  const handleUpload = async () => {
-    setUploading(true);
+export default function UploadPropertyPage() {
+  const router = useRouter();
+  const user = useUser();
+  const [title, setTitle] = useState('');
+  const [address, setAddress] = useState('');
+  const [price, setPrice] = useState('');
+  const [description, setDescription] = useState('');
+  const [lat, setLat] = useState(null);
+  const [lng, setLng] = useState(null);
+  const [selectedType, setSelectedType] = useState('');
+  const [roomCount, setRoomCount] = useState('');
+  const [bathroomCount, setBathroomCount] = useState('');
+  const [carParkCount, setCarParkCount] = useState('');
+  const [storeCount, setStoreCount] = useState('');
+  const [images, setImages] = useState([]);
 
-    let lat = null;
-    let lng = null;
+  const handleUpload = async () => {
+    const { data, error } = await supabase
+      .from('properties')
+      .insert([{
+        title,
+        address,
+        price: parseFloat(price),
+        description,
+        type: selectedType,
+        bedrooms: roomCount,
+        bathrooms: bathroomCount,
+        carpark: carParkCount,
+        store: storeCount,
+        latitude: lat,
+        longitude: lng,
+        user_id: user?.id,
+        images,
+      }]);
 
-    // 🧠 自动地址转经纬度
-    try {
-      const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`);
-      const geoData = await geoRes.json();
-      if (geoData.length > 0) {
-        lat = parseFloat(geoData[0].lat);
-        lng = parseFloat(geoData[0].lon);
-      } else {
-        alert('无法解析地址，请检查是否正确。');
-        setUploading(false);
-        return;
-      }
-    } catch (error) {
-      alert('地址解析失败，请稍后重试');
-      setUploading(false);
-      return;
-    }
+    if (error) {
+      console.error('上传失败:', error);
+      alert('上传失败，请检查资料是否填写完整');
+    } else {
+      alert('上传成功！');
+      router.push('/');
+    }
+  };
 
-    const { data: { user } } = await supabase.auth.getUser();
-
-    const { data, error } = await supabase
-  .from('properties')
-  .insert([{
-    title,
-    address,
-    price: parseFloat(price),
-    description,
-    type: selectedType,
-    bedrooms: roomCount,       // 替代 room_count
-    bathrooms: bathroomCount,  // 替代 bathroom_count
-    carpark: carParkCount,     // 替代 car_park_count
-    store: storeCount,         // 如果你有储藏室字段
-    latitude: lat,
-    longitude: lng,
-    user_id: user?.id,
-    images,
-  }]);
-
-    if (error) {
-      alert('上传失败');
-      console.error(error);
-    } else {
-      router.push('/');
-    }
-
-    setUploading(false);
-  };
-
-  return (
-    <div className="max-w-2xl mx-auto p-4 space-y-4">
-      <h1 className="text-2xl font-bold">上传房产</h1>
-      <Input placeholder="标题" value={title} onChange={(e) => setTitle(e.target.value)} />
-      <Input placeholder="地址" value={address} onChange={(e) => setAddress(e.target.value)} />
-      <Input placeholder="价格 (RM)" value={price} onChange={(e) => setPrice(e.target.value)} />
-      <TypeSelector selectedType={selectedType} setSelectedType={setSelectedType} />
-      <RoomCountSelector label="房间数量" count={roomCount} setCount={setRoomCount} />
-      <RoomCountSelector label="浴室数量" count={bathroomCount} setCount={setBathroomCount} />
-      <RoomCountSelector label="车位数量" count={carParkCount} setCount={setCarParkCount} />
-      <textarea placeholder="描述" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full border p-2 rounded" />
-      <ImageUpload images={images} setImages={setImages} />
-      <Button onClick={handleUpload} disabled={uploading}>
-        {uploading ? '上传中...' : '上传'}
-      </Button>
-    </div>
-  );
+  return (
+    <div className="p-4 max-w-3xl mx-auto">
+      <h1 className="text-xl font-bold mb-4">上传房产</h1>
+      <Input placeholder="标题" value={title} onChange={(e) => setTitle(e.target.value)} className="mb-2" />
+      <Input placeholder="地址" value={address} onChange={(e) => setAddress(e.target.value)} className="mb-2" />
+      <Input placeholder="价格" value={price} onChange={(e) => setPrice(e.target.value)} className="mb-2" />
+      <Input placeholder="房间数" value={roomCount} onChange={(e) => setRoomCount(e.target.value)} className="mb-2" />
+      <Input placeholder="浴室数" value={bathroomCount} onChange={(e) => setBathroomCount(e.target.value)} className="mb-2" />
+      <Input placeholder="停车位数量" value={carParkCount} onChange={(e) => setCarParkCount(e.target.value)} className="mb-2" />
+      <Input placeholder="储藏室数量" value={storeCount} onChange={(e) => setStoreCount(e.target.value)} className="mb-2" />
+      <TypeSelector selectedType={selectedType} setSelectedType={setSelectedType} />
+      <Input placeholder="描述" value={description} onChange={(e) => setDescription(e.target.value)} className="mb-2" />
+      <MapWithSearch setLat={setLat} setLng={setLng} />
+      <Button className="mt-4" onClick={handleUpload}>上传</Button>
+    </div>
+  );
 }
