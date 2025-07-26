@@ -1,98 +1,99 @@
-// components/MapWithMarkersClient.js
-import { useEffect, useState } from "react";
-import { MapContainer, TileLayer, Marker, Circle, Popup } from "react-leaflet";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
-import "leaflet-defaulticon-compatibility";
-import "leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css";
+'use client';
+import { useEffect, useState } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
-const defaultCenter = [3.139, 101.6869]; // Kuala Lumpur
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x.src,
+  iconUrl: markerIcon.src,
+  shadowUrl: markerShadow.src,
+});
 
-function haversineDistance(lat1, lng1, lat2, lng2) {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) ** 2;
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c; // in km
-}
+export default function MapWithMarkersClient({ properties, addressLocation, distance }) {
+  const [center, setCenter] = useState([3.139, 101.6869]); // Default: Kuala Lumpur
+  const [zoom, setZoom] = useState(13);
+  const [filteredMarkers, setFilteredMarkers] = useState([]);
 
-export default function MapWithMarkers({
-  address,
-  properties,
-  priceRange,
-  selectedTypes,
-  triggerSearch,
-}) {
-  const [center, setCenter] = useState(defaultCenter);
-  const [visibleProperties, setVisibleProperties] = useState([]);
-  const radius = 5;
-
-useEffect(() => {
-  if (addressLocation && map) {
-    map.setView(addressLocation, 13);
-  }
-}, [addressLocation]);
-
-    const fetchCoords = async () => {
-      try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`
-        );
-        const data = await res.json();
-        if (data && data[0]) {
-          const lat = parseFloat(data[0].lat);
-          const lon = parseFloat(data[0].lon);
-          setCenter([lat, lon]);
-        }
-      } catch (err) {
-        console.error("Geocoding failed", err);
-      }
-    };
-
-    fetchCoords();
-  }, [address, triggerSearch]);
-
+  // 更新中心点
   useEffect(() => {
-    const filtered = properties.filter((p) => {
-      if (!p.latitude || !p.longitude) return false;
-      const inPrice =
-        p.price >= priceRange[0] && p.price <= priceRange[1];
-      const inType =
-        selectedTypes.length === 0 || selectedTypes.includes(p.type);
-      const distance = haversineDistance(
-        center[0],
-        center[1],
-        p.latitude,
-        p.longitude
+    if (addressLocation?.lat && addressLocation?.lng) {
+      setCenter([addressLocation.lat, addressLocation.lng]);
+    }
+  }, [addressLocation]);
+
+  // 计算距离
+  const getDistanceFromLatLonInKm = (lat1, lon1, lat2, lon2) => {
+    const R = 6371;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  // 根据距离筛选房源
+  useEffect(() => {
+    if (!addressLocation || !addressLocation.lat || !addressLocation.lng) {
+      setFilteredMarkers(properties || []);
+      return;
+    }
+
+    const filtered = properties.filter((property) => {
+      if (!property.lat || !property.lng) return false;
+      const d = getDistanceFromLatLonInKm(
+        addressLocation.lat,
+        addressLocation.lng,
+        property.lat,
+        property.lng
       );
-      const inRadius = distance <= radius;
-      return inPrice && inType && inRadius;
+      return d <= distance;
     });
 
-    setVisibleProperties(filtered);
-  }, [properties, center, priceRange, selectedTypes, triggerSearch]);
+    setFilteredMarkers(filtered);
+  }, [properties, addressLocation, distance]);
 
   return (
-    <MapContainer center={center} zoom={13} style={{ height: "80vh", width: "100%" }}>
-      <TileLayer
-        attribution='&copy; OpenStreetMap contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      <Circle center={center} radius={radius * 1000} color="blue" />
-      {visibleProperties.map((p) => (
-        <Marker key={p.id} position={[p.latitude, p.longitude]}>
-          <Popup>
-            <strong>{p.title}</strong><br />
-            RM{p.price.toLocaleString()}<br />
-            {p.type}
-          </Popup>
-        </Marker>
-      ))}
-    </MapContainer>
+    <div className="w-full h-[80vh] mt-4 rounded-2xl overflow-hidden">
+      <MapContainer center={center} zoom={zoom} scrollWheelZoom={true} className="h-full w-full z-0">
+        <TileLayer
+          attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+
+        {/* 中心圆圈 */}
+        {addressLocation?.lat && addressLocation?.lng && (
+          <Circle
+            center={[addressLocation.lat, addressLocation.lng]}
+            radius={distance * 1000}
+            pathOptions={{ color: 'blue', fillOpacity: 0.2 }}
+          />
+        )}
+
+        {/* 房源 Marker */}
+        {filteredMarkers.map((property) => (
+          <Marker key={property.id} position={[property.lat, property.lng]}>
+            <Popup>
+              <div className="text-sm">
+                <strong>{property.title || 'No title'}</strong>
+                <br />
+                {property.price ? `RM ${property.price.toLocaleString()}` : 'No price'}
+                <br />
+                {property.address || ''}
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+      </MapContainer>
+    </div>
   );
 }
