@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import TypeSelector from '@/components/TypeSelector';
 import ImageUploader from '@/components/ImageUpload';
-import MapSelector from '@/components/MapSelector';
+import MapPicker from '@/components/MapPicker';
 import NumberInputSelector from '@/components/NumberInputSelector';
 import { useUser } from '@supabase/auth-helpers-react';
 
