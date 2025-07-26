@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient';
 import Header from '../components/Header';
 import 'leaflet/dist/leaflet.css';
 import '@/styles/globals.css'; // 你自己的样式文件
+import { Toaster } from 'react-hot-toast';
 
 function MyApp({ Component, pageProps }) {
   return (
