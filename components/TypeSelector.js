@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const typeOptions = {
-  Residential: ['Apartment', 'Condo', 'Terrace', 'Bungalow', 'Studio'],
-  Commercial: ['Shop Lot', 'Office', 'Retail', 'Hotel'],
-  Industrial: ['Factory', 'Warehouse', 'Plant'],
-  Land: ['Agricultural', 'Development Land'],
-  Others: ['Parking', 'Storage', 'Other'],
+  Residential: ['Condominium', 'Landed', 'Service Apartment', 'Flat', 'Others'],
+  Commercial: ['Shop', 'Office', 'Retail', 'SOHO', 'Others'],
+  Industrial: ['Factory', 'Warehouse', 'Others'],
+  Land: ['Agricultural', 'Development', 'Residential Land'],
+  Others: ['Parking', 'Storage', 'Custom'],
 };
 
 export default function TypeSelector({ selectedType, setSelectedType }) {
@@ -15,51 +15,69 @@ export default function TypeSelector({ selectedType, setSelectedType }) {
 
   useEffect(() => {
     if (mainType && (subType || customSubType)) {
-      setSelectedType(`${mainType} > ${customSubType || subType}`);
+      const selected = subType === 'Custom' || subType === 'Others'
+        ? `${mainType} > ${customSubType}`
+        : `${mainType} > ${subType}`;
+      setSelectedType(selected);
     }
   }, [mainType, subType, customSubType]);
 
+  const handleMainTypeChange = (e) => {
+    setMainType(e.target.value);
+    setSubType('');
+    setCustomSubType('');
+  };
+
+  const handleSubTypeChange = (e) => {
+    setSubType(e.target.value);
+    if (e.target.value !== 'Custom' && e.target.value !== 'Others') {
+      setCustomSubType('');
+    }
+  };
+
   return (
     <div className="space-y-2">
-      <label>房产类型</label>
+      <label className="block text-sm font-medium">Main Type</label>
       <select
         value={mainType}
-        onChange={(e) => {
-          setMainType(e.target.value);
-          setSubType('');
-          setCustomSubType('');
-        }}
-        className="w-full border p-2 rounded"
+        onChange={handleMainTypeChange}
+        className="w-full p-2 border rounded"
       >
-        <option value="">选择主类型</option>
-        {Object.keys(typeOptions).map((main) => (
-          <option key={main} value={main}>{main}</option>
+        <option value="">Select Main Type</option>
+        {Object.keys(typeOptions).map((type) => (
+          <option key={type} value={type}>{type}</option>
         ))}
       </select>
 
       {mainType && (
         <>
+          <label className="block text-sm font-medium">Sub Type</label>
           <select
             value={subType}
-            onChange={(e) => {
-              setSubType(e.target.value);
-              setCustomSubType('');
-            }}
-            className="w-full border p-2 rounded"
+            onChange={handleSubTypeChange}
+            className="w-full p-2 border rounded"
           >
-            <option value="">选择子类型</option>
+            <option value="">Select Sub Type</option>
             {typeOptions[mainType].map((sub) => (
               <option key={sub} value={sub}>{sub}</option>
             ))}
+            <option value="Custom">Custom</option>
           </select>
-          <input
-            type="text"
-            placeholder="自定义子类型（可选）"
-            value={customSubType}
-            onChange={(e) => setCustomSubType(e.target.value)}
-            className="w-full border p-2 rounded"
-          />
         </>
+      )}
+
+      {(subType === 'Custom' || subType === 'Others') && (
+        <input
+          type="text"
+          placeholder="Enter custom sub-type"
+          value={customSubType}
+          onChange={(e) => setCustomSubType(e.target.value)}
+          className="w-full p-2 border rounded"
+        />
+      )}
+
+      {selectedType && (
+        <p className="text-sm text-gray-600">Selected: {selectedType}</p>
       )}
     </div>
   );
