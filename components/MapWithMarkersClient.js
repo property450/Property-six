@@ -1,78 +1,102 @@
 'use client';
-
+import { useEffect, useState, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
-import { useEffect, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-const MapWithMarkersClient = ({ properties, center, radius, priceRange, selectedType }) => {
-  const [filteredProperties, setFilteredProperties] = useState([]);
+const defaultIcon = new L.Icon({
+  iconUrl: 'https://unpkg.com/leaflet@1.9.3/dist/images/marker-icon.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+});
+
+export default function MapWithMarkersClient({
+  properties = [],
+  location,
+  distance = 5,
+  priceRange = { min: 0, max: Infinity },
+  selectedType = '',
+}) {
+  const [center, setCenter] = useState([3.139, 101.686]); // Kuala Lumpur default
 
   useEffect(() => {
-    if (!center || !radius || !Array.isArray(properties)) return;
+    if (location?.lat && location?.lng) {
+      setCenter([location.lat, location.lng]);
+    }
+  }, [location]);
 
-    const filtered = properties.filter((property) => {
-      if (!property.latitude || !property.longitude || !property.price) return false;
+  const filtered = useMemo(() => {
+    return properties.filter((property) => {
+      const lat = parseFloat(property.lat);
+      const lng = parseFloat(property.lng);
+      const price = parseFloat(property.price);
 
-      const distanceToProperty = L.latLng(center[0], center[1]).distanceTo(
-        L.latLng(property.latitude, property.longitude)
-      );
+      if (
+        isNaN(lat) ||
+        isNaN(lng) ||
+        isNaN(price) ||
+        lat === 0 ||
+        lng === 0
+      ) return false;
 
-      const withinDistance = distanceToProperty <= radius;
+      const d = location?.lat
+        ? getDistanceFromLatLngInKm(lat, lng, location.lat, location.lng)
+        : 0;
 
-      let withinPrice = true;
-      if (priceRange) {
-        if (priceRange.min !== undefined) {
-          withinPrice = withinPrice && property.price >= priceRange.min;
-        }
-        if (priceRange.max !== undefined) {
-          withinPrice = withinPrice && property.price <= priceRange.max;
-        }
-      }
-
-      const matchesType =
-        !selectedType || property.type?.toLowerCase().includes(selectedType.toLowerCase());
+      const withinDistance = d <= distance;
+      const withinPrice =
+        (!priceRange.min || price >= priceRange.min) &&
+        (!priceRange.max || price <= priceRange.max);
+      const matchesType = !selectedType || property.type === selectedType;
 
       return withinDistance && withinPrice && matchesType;
     });
-
-    setFilteredProperties(filtered);
-  }, [properties, center, radius, priceRange, selectedType]);
-
-  const icon = new L.Icon({
-    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-    shadowSize: [41, 41],
-  });
-
-  if (!center) return null;
+  }, [properties, location, distance, priceRange, selectedType]);
 
   return (
-    <MapContainer center={center} zoom={13} style={{ height: '600px', width: '100%' }}>
+    <MapContainer center={center} zoom={13} scrollWheelZoom style={{ height: '500px', width: '100%' }}>
       <TileLayer
-        attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution='&copy; OpenStreetMap contributors'
       />
-      <Circle center={center} radius={radius} pathOptions={{ fillColor: 'blue' }} />
-
-      {filteredProperties.map((property) => (
+      {location?.lat && location?.lng && (
+        <Circle
+          center={[location.lat, location.lng]}
+          radius={distance * 1000}
+          pathOptions={{ color: 'blue', fillOpacity: 0.1 }}
+        />
+      )}
+      {filtered.map((property) => (
         <Marker
           key={property.id}
-          position={[property.latitude, property.longitude]}
-          icon={icon}
+          position={[parseFloat(property.lat), parseFloat(property.lng)]}
+          icon={defaultIcon}
         >
           <Popup>
             <strong>{property.title}</strong><br />
-            RM {property.price?.toLocaleString()}<br />
+            RM {property.price}<br />
             {property.type}
           </Popup>
         </Marker>
       ))}
     </MapContainer>
   );
-};
+}
 
-export default MapWithMarkersClient;
+function getDistanceFromLatLngInKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = deg2rad(lat2 - lat1);
+  const dLng = deg2rad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(deg2rad(lat1)) *
+    Math.cos(deg2rad(lat2)) *
+    Math.sin(dLng / 2) *
+    Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+function deg2rad(deg) {
+  return deg * (Math.PI / 180);
+}
