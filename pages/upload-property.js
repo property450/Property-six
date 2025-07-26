@@ -48,21 +48,22 @@ export default function UploadProperty() {
     const { data: { user } } = await supabase.auth.getUser();
 
     const { data, error } = await supabase
-      .from('properties')
-      .insert([{
-        title,
-        address,
-        price: parseFloat(price),
-        description,
-        type: selectedType,
-        room_count: roomCount,
-        bathroom_count: bathroomCount,
-        car_park_count: carParkCount,
-        latitude: lat,
-        longitude: lng,
-        user_id: user?.id,
-        images,
-      }]);
+  .from('properties')
+  .insert([{
+    title,
+    address,
+    price: parseFloat(price),
+    description,
+    type: selectedType,
+    bedrooms: roomCount,       // 替代 room_count
+    bathrooms: bathroomCount,  // 替代 bathroom_count
+    carpark: carParkCount,     // 替代 car_park_count
+    store: storeCount,         // 如果你有储藏室字段
+    latitude: lat,
+    longitude: lng,
+    user_id: user?.id,
+    images,
+  }]);
 
     if (error) {
       alert('上传失败');
