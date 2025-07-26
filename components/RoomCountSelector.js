@@ -6,7 +6,7 @@ export default function RoomCountSelector({ label, count, setCount }) {
       <label>{label}</label>
       <select
         value={count}
-        onChange={(e) => setCount(e.target.value)}
+        onChange={(e) => onChange(e.target.value)}
         className="w-full border p-2 rounded"
       >
         <option value="">选择数量</option>
@@ -19,7 +19,7 @@ export default function RoomCountSelector({ label, count, setCount }) {
         <input
           type="number"
           placeholder="请输入数量"
-          onChange={(e) => setCount(e.target.value)}
+          onChange={(e) => onChange(e.target.value)}
           className="w-full border p-2 rounded"
         />
       )}
