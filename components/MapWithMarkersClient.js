@@ -1,74 +1,80 @@
+'use client';
 import { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { useRouter } from 'next/router';
-import { supabase } from '@/supabaseClient';
-import PropertyCard from './PropertyCard';
+import 'leaflet/dist/leaflet.css';
+import { supabase } from '../supabaseClient';
 
-const defaultPosition = [3.139, 101.6869]; // Default: Kuala Lumpur
+const icon = new L.Icon({
+  iconUrl: '/marker-icon.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+});
 
-export default function MapWithMarkersClient({
-  center,
-  distance,
-  typeFilter,
-  priceRange,
-}) {
+export default function MapWithMarkersClient({ center, distance, priceRange, typeFilter }) {
   const [properties, setProperties] = useState([]);
-  const [filteredProperties, setFilteredProperties] = useState([]);
-  const radius = distance * 1000;
-
-  const router = useRouter();
 
   useEffect(() => {
-    const fetchProperties = async () => {
-      const { data, error } = await supabase.from('properties').select('*');
-      if (!error) setProperties(data);
+    const fetchData = async () => {
+      let { data, error } = await supabase.from('properties').select('*');
+
+      if (!error && data) {
+        const filtered = data.filter((property) => {
+          const withinDistance =
+            center &&
+            property.latitude &&
+            property.longitude &&
+            getDistanceFromLatLonInKm(
+              center.lat,
+              center.lng,
+              property.latitude,
+              property.longitude
+            ) <= distance;
+
+          const withinPrice =
+            property.price >= priceRange.min && property.price <= priceRange.max;
+
+          const typeMatch =
+            !typeFilter || property.type?.toLowerCase().includes(typeFilter.toLowerCase());
+
+          return withinDistance && withinPrice && typeMatch;
+        });
+
+        setProperties(filtered);
+      }
     };
-    fetchProperties();
-  }, []);
 
-  useEffect(() => {
-    if (!center || isNaN(center.lat) || isNaN(center.lng)) return;
+    fetchData();
+  }, [center, distance, priceRange, typeFilter]);
 
-    const filtered = properties.filter((p) => {
-      const d = L.latLng(center.lat, center.lng).distanceTo([p.lat, p.lng]);
-      return (
-        (!typeFilter || p.type?.includes(typeFilter)) &&
-        (!priceRange.min || p.price >= priceRange.min) &&
-        (!priceRange.max || p.price <= priceRange.max) &&
-        d <= radius
-      );
-    });
-    setFilteredProperties(filtered);
-  }, [properties, center, distance, typeFilter, priceRange]);
+  const getDistanceFromLatLonInKm = (lat1, lon1, lat2, lon2) => {
+    const R = 6371;
+    const dLat = deg2rad(lat2 - lat1);
+    const dLon = deg2rad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(deg2rad(lat1)) *
+        Math.cos(deg2rad(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  const deg2rad = (deg) => deg * (Math.PI / 180);
 
   return (
-    <MapContainer
-      center={[center?.lat || defaultPosition[0], center?.lng || defaultPosition[1]]}
-      zoom={13}
-      scrollWheelZoom={true}
-      style={{ height: '600px', width: '100%' }}
-    >
-      <TileLayer
-        url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
-        attribution='&copy; OpenStreetMap contributors'
-      />
-
-      {center && !isNaN(center.lat) && !isNaN(center.lng) && (
-        <Circle center={[center.lat, center.lng]} radius={radius} />
-      )}
-
-      {filteredProperties.map((p) => (
-        <Marker
-          key={p.id}
-          position={[p.lat, p.lng]}
-          eventHandlers={{
-            click: () => router.push(`/property/${p.id}`),
-          }}
-        >
+    <MapContainer center={center} zoom={13} style={{ height: '80vh', width: '100%' }}>
+      <TileLayer url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png' />
+      <Circle center={center} radius={distance * 1000} pathOptions={{ fillColor: 'blue' }} />
+      {properties.map((p) => (
+        <Marker key={p.id} position={[p.latitude, p.longitude]} icon={icon}>
           <Popup>
-            <PropertyCard property={p} />
+            <div>
+              <strong>{p.title}</strong>
+              <br />
+              RM {p.price}
+            </div>
           </Popup>
         </Marker>
       ))}
