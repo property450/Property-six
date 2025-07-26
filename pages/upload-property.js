@@ -136,5 +136,5 @@ export default function UploadProperty() {
   );
 };
 
-export default UploadProperty;
+
 
