@@ -1,83 +1,85 @@
-'use client';
-import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import { supabase } from '../supabaseClient';
+// components/MapWithMarkersClient.js
+"use client";
 
-const icon = new L.Icon({
-  iconUrl: '/marker-icon.png',
+import { useEffect, useState } from "react";
+import { MapContainer, TileLayer, Marker, Popup, Circle } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import "@/styles/leaflet.css";
+
+const customIcon = new L.Icon({
+  iconUrl: "/marker-icon.png",
   iconSize: [25, 41],
   iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
 });
 
-export default function MapWithMarkersClient({ center, distance, priceRange, typeFilter }) {
-  const [properties, setProperties] = useState([]);
+export default function MapWithMarkersClient({ center, properties, distance }) {
+  const [map, setMap] = useState(null);
 
   useEffect(() => {
-    const fetchData = async () => {
-      let { data, error } = await supabase.from('properties').select('*');
+    if (map && center?.lat && center?.lng) {
+      map.setView([center.lat, center.lng], 13);
+    }
+  }, [map, center]);
 
-      if (!error && data) {
-        const filtered = data.filter((property) => {
-          const withinDistance =
-            center &&
-            property.latitude &&
-            property.longitude &&
-            getDistanceFromLatLonInKm(
-              center.lat,
-              center.lng,
-              property.latitude,
-              property.longitude
-            ) <= distance;
-
-          const withinPrice =
-            property.price >= priceRange.min && property.price <= priceRange.max;
-
-          const typeMatch =
-            !typeFilter || property.type?.toLowerCase().includes(typeFilter.toLowerCase());
-
-          return withinDistance && withinPrice && typeMatch;
-        });
-
-        setProperties(filtered);
-      }
-    };
-
-    fetchData();
-  }, [center, distance, priceRange, typeFilter]);
-
-  const getDistanceFromLatLonInKm = (lat1, lon1, lat2, lon2) => {
-    const R = 6371;
-    const dLat = deg2rad(lat2 - lat1);
-    const dLon = deg2rad(lon2 - lon1);
+  const isWithinRadius = (propertyLat, propertyLng) => {
+    if (!center?.lat || !center?.lng || isNaN(distance)) return false;
+    const R = 6371; // Earth radius in km
+    const dLat = ((propertyLat - center.lat) * Math.PI) / 180;
+    const dLng = ((propertyLng - center.lng) * Math.PI) / 180;
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(deg2rad(lat1)) *
-        Math.cos(deg2rad(lat2)) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
+      Math.cos((center.lat * Math.PI) / 180) *
+        Math.cos((propertyLat * Math.PI) / 180) *
+        Math.sin(dLng / 2) * Math.sin(dLng / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
+    const d = R * c;
+    return d <= distance;
   };
 
-  const deg2rad = (deg) => deg * (Math.PI / 180);
-
   return (
-    <MapContainer center={center} zoom={13} style={{ height: '80vh', width: '100%' }}>
-      <TileLayer url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png' />
-      <Circle center={center} radius={distance * 1000} pathOptions={{ fillColor: 'blue' }} />
-      {properties.map((p) => (
-        <Marker key={p.id} position={[p.latitude, p.longitude]} icon={icon}>
-          <Popup>
-            <div>
-              <strong>{p.title}</strong>
-              <br />
-              RM {p.price}
-            </div>
-          </Popup>
-        </Marker>
-      ))}
+    <MapContainer
+      center={[center?.lat || 3.139, center?.lng || 101.6869]}
+      zoom={13}
+      style={{ height: "600px", width: "100%" }}
+      whenCreated={setMap}
+    >
+      <TileLayer
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+
+      {center?.lat && center?.lng && !isNaN(distance) && (
+        <Circle
+          center={[center.lat, center.lng]}
+          radius={distance * 1000}
+          pathOptions={{ fillColor: "blue" }}
+        />
+      )}
+
+      {properties
+        .filter(
+          (property) =>
+            property.latitude &&
+            property.longitude &&
+            isWithinRadius(property.latitude, property.longitude)
+        )
+        .map((property) => (
+          <Marker
+            key={property.id}
+            position={[property.latitude, property.longitude]}
+            icon={customIcon}
+          >
+            <Popup>
+              <div>
+                <strong>{property.title}</strong>
+                <br />
+                RM {property.price?.toLocaleString?.() || "-"}
+              </div>
+            </Popup>
+          </Marker>
+        ))}
     </MapContainer>
   );
 }
