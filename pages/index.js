@@ -1,71 +1,59 @@
 // pages/index.js
-import { useEffect, useState } from 'react';
-import dynamic from 'next/dynamic';
-import { supabase } from '../supabaseClient';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import PriceRangeSelector from '@/components/PriceRangeSelector';
-import TypeSelector from '@/components/TypeSelector';
-import { geocodeAddress } from '@/utils/geocode';
+import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+import { supabase } from "../supabaseClient";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import PriceRangeSelector from "@/components/PriceRangeSelector";
+import TypeSelector from "@/components/TypeSelector";
 
-const MapWithMarkersClient = dynamic(() => import('@/components/MapWithMarkersClient'), {
+const MapWithMarkers = dynamic(() => import("@/components/MapWithMarkersClient"), {
   ssr: false,
 });
 
 export default function HomePage() {
-  const [searchAddress, setSearchAddress] = useState('');
-  const [center, setCenter] = useState({ lat: 3.139, lng: 101.6869 }); // 初始设为吉隆坡
+  const [address, setAddress] = useState("");
   const [properties, setProperties] = useState([]);
-  const [priceRange, setPriceRange] = useState([0, 50000000]);
+  const [priceRange, setPriceRange] = useState([0, 5000000]);
   const [selectedTypes, setSelectedTypes] = useState([]);
+  const [triggerSearch, setTriggerSearch] = useState(false);
 
-  // 获取所有房源
-  const fetchProperties = async () => {
-    const { data, error } = await supabase.from('properties').select('*');
-    if (error) console.error('获取房源失败:', error);
-    else setProperties(data || []);
-  };
-
-  // 组件初始化时加载房源
   useEffect(() => {
+    const fetchProperties = async () => {
+      const { data, error } = await supabase.from("properties").select("*");
+      if (error) {
+        console.error("Failed to fetch properties:", error.message);
+      } else {
+        setProperties(data);
+      }
+    };
     fetchProperties();
   }, []);
 
-  // 🔍 点击搜索按钮触发地址转经纬度
-  const handleSearch = async () => {
-    if (!searchAddress) return;
-
-    try {
-      const { lat, lng } = await geocodeAddress(searchAddress);
-      console.log('经纬度:', lat, lng);
-      setCenter({ lat, lng });
-    } catch (error) {
-      console.error('地址转经纬度失败:', error);
-    }
+  const handleSearch = () => {
+    setTriggerSearch(!triggerSearch); // toggle to re-trigger Map update
   };
 
   return (
-    <div className="w-full h-screen">
-      <div className="p-4 space-y-4 bg-white z-10">
-        <div className="flex gap-2">
-          <Input
-            value={searchAddress}
-            onChange={(e) => setSearchAddress(e.target.value)}
-            placeholder="请输入地址"
-          />
-          <Button onClick={handleSearch}>搜索</Button>
-        </div>
-        <div className="flex gap-4">
-          <PriceRangeSelector value={priceRange} onChange={setPriceRange} />
-          <TypeSelector selected={selectedTypes} onChange={setSelectedTypes} />
-        </div>
+    <div className="p-4">
+      <div className="grid gap-2 md:grid-cols-4 mb-4">
+        <Input
+          type="text"
+          placeholder="Enter address"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+        />
+        <PriceRangeSelector value={priceRange} onChange={setPriceRange} />
+        <TypeSelector value={selectedTypes} onChange={setSelectedTypes} />
+        <Button onClick={handleSearch}>Search</Button>
       </div>
 
-      <MapWithMarkersClient
-        center={center}
+      <MapWithMarkers
+        address={address}
         properties={properties}
         priceRange={priceRange}
         selectedTypes={selectedTypes}
+        triggerSearch={triggerSearch}
       />
     </div>
   );
