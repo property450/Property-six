@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import dynamic from 'next/dynamic';
 
 const AddressSearchInput = dynamic(() => import('@/components/AddressSearchInput'), { ssr: false });
-const ImageUploader = dynamic(() => import('@/components/ImageUploader'), { ssr: false });
+const ImageUploader = dynamic(() => import('@/components/ImageUpload'), { ssr: false });
 
 export default function UploadProperty() {
   const router = useRouter();
