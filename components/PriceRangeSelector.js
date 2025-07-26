@@ -1,25 +1,34 @@
-export default function PriceRangeSelector({ minPrice, setMinPrice, maxPrice, setMaxPrice }) {
-  const priceOptions = [0, 50000, 100000, 200000, 500000, 1000000, 3000000, 5000000, 10000000, 50000000];
+// ✅ PriceRangeSelector.js
+import { useState, useEffect } from 'react';
+
+export default function PriceRangeSelector({ minPrice, maxPrice, setMinPrice, setMaxPrice }) {
+  const [min, setMin] = useState(minPrice || '');
+  const [max, setMax] = useState(maxPrice || '');
+
+  useEffect(() => {
+    setMinPrice(Number(min));
+  }, [min]);
+
+  useEffect(() => {
+    setMaxPrice(Number(max));
+  }, [max]);
 
   return (
-    <div className="flex items-center space-x-2">
-      <select value={minPrice} onChange={(e) => setMinPrice(Number(e.target.value))} className="border p-1 rounded">
-        <option value="">Min</option>
-        {priceOptions.map((price) => (
-          <option key={price} value={price}>
-            RM {price.toLocaleString()}
-          </option>
-        ))}
-      </select>
-      <span className="mx-1">-</span>
-      <select value={maxPrice} onChange={(e) => setMaxPrice(Number(e.target.value))} className="border p-1 rounded">
-        <option value="">Max</option>
-        {priceOptions.map((price) => (
-          <option key={price} value={price}>
-            RM {price.toLocaleString()}
-          </option>
-        ))}
-      </select>
+    <div className="flex gap-2">
+      <input
+        type="number"
+        placeholder="Min Price"
+        className="border rounded p-1"
+        value={min}
+        onChange={(e) => setMin(e.target.value)}
+      />
+      <input
+        type="number"
+        placeholder="Max Price"
+        className="border rounded p-1"
+        value={max}
+        onChange={(e) => setMax(e.target.value)}
+      />
     </div>
   );
 }
