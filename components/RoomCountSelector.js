@@ -15,7 +15,7 @@ export default function RoomCountSelector({ label, value, onChange }) {
         ))}
         <option value="custom">自定义</option>
       </select>
-      {count === 'custom' && (
+      {value === 'custom' && (
         <input
           type="number"
           placeholder="请输入数量"
