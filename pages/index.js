@@ -1,4 +1,3 @@
-// pages/index.js
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { supabase } from '../supabaseClient';
@@ -7,152 +6,103 @@ import { Button } from '@/components/ui/button';
 import TypeSelector from '@/components/TypeSelector';
 import PriceRangeSelector from '@/components/PriceRangeSelector';
 import DistanceSelector from '@/components/DistanceSelector';
-import PropertyCard from '@/components/PropertyCard';
 
-const MapWithMarkers = dynamic(() => import('@/components/MapWithMarkersClient'), {
-  ssr: false,
-});
+const MapWithMarkersClient = dynamic(() => import('@/components/MapWithMarkersClient'), { ssr: false });
 
-export default function Home() {
+export default function HomePage() {
   const [properties, setProperties] = useState([]);
   const [filteredProperties, setFilteredProperties] = useState([]);
-  const [searchLocation, setSearchLocation] = useState('');
-  const [minPrice, setMinPrice] = useState('');
-  const [maxPrice, setMaxPrice] = useState('');
-  const [mainType, setMainType] = useState('');
-  const [subType, setSubType] = useState('');
-  const [selectedType, setSelectedType] = useState('');
-  const [distance, setDistance] = useState(5); // ✅ 加上距离状态
-  const [searchCenter, setSearchCenter] = useState(null);
 
+  const [searchAddress, setSearchAddress] = useState('');
+  const [addressLocation, setAddressLocation] = useState(null);
+
+  const [distance, setDistance] = useState(5); // 默认5公里
+  const [priceRange, setPriceRange] = useState([0, 50000000]);
+  const [propertyType, setPropertyType] = useState('');
+
+  // 从 supabase 获取房源数据
   useEffect(() => {
     const fetchProperties = async () => {
       const { data, error } = await supabase.from('properties').select('*');
-      if (error) {
-        console.error('Error fetching properties:', error);
-      } else {
-        setProperties(data);
-        setFilteredProperties(data);
-      }
+      if (!error) setProperties(data || []);
     };
-
     fetchProperties();
   }, []);
 
+  // 搜索地址并获取经纬度
   const handleSearch = async () => {
-  if (!searchAddress) return;
-  const result = await geocodeAddress(searchAddress);
-  if (result) {
-    setAddressLocation(result); // 设置地图中心
-  } else {
-    alert('未找到该地址');
-  }
-};
-
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-          searchLocation
-        )}`
-      );
-      const data = await response.json();
-      if (data && data.length > 0) {
-        const lat = parseFloat(data[0].lat);
-        const lng = parseFloat(data[0].lon);
-        setSearchCenter({ lat, lng });
-
-        const filtered = properties.filter((property) => {
-          const propertyLat = parseFloat(property.lat);
-          const propertyLng = parseFloat(property.lng);
-
-          if (isNaN(propertyLat) || isNaN(propertyLng)) return false;
-
-          const distanceToCenter = getDistanceFromLatLonInKm(
-            lat,
-            lng,
-            propertyLat,
-            propertyLng
-          );
-
-          const withinDistance = distanceToCenter <= distance;
-          const matchesPrice =
-            (!minPrice || property.price >= minPrice) &&
-            (!maxPrice || property.price <= maxPrice);
-          const matchesType =
-            !selectedType || property.type?.toLowerCase() === selectedType.toLowerCase();
-
-          return withinDistance && matchesPrice && matchesType;
-        });
-
-        setFilteredProperties(filtered);
-      } else {
-        alert('找不到地址');
-      }
-    } catch (error) {
-      console.error('Geocoding error:', error);
-      alert('地理位置解析失败');
+    if (!searchAddress) return;
+    const response = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchAddress)}&format=json`);
+    const result = await response.json();
+    if (result.length > 0) {
+      const { lat, lon } = result[0];
+      const location = { lat: parseFloat(lat), lng: parseFloat(lon) };
+      setAddressLocation(location);
     }
   };
 
-  function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
-    const R = 6371; // Radius of the earth in km
-    const dLat = deg2rad(lat2 - lat1);
-    const dLon = deg2rad(lon2 - lon1);
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(deg2rad(lat1)) *
-        Math.cos(deg2rad(lat2)) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c; // Distance in km
-  }
+  // 根据条件筛选房源
+  useEffect(() => {
+    let filtered = properties;
 
-  function deg2rad(deg) {
-    return deg * (Math.PI / 180);
-  }
+    if (propertyType) {
+      filtered = filtered.filter((p) => p.type?.includes(propertyType));
+    }
+
+    if (priceRange.length === 2) {
+      const [min, max] = priceRange;
+      filtered = filtered.filter((p) => p.price >= min && p.price <= max);
+    }
+
+    if (addressLocation && distance) {
+      const R = 6371; // 地球半径，单位 km
+      const toRad = (value) => (value * Math.PI) / 180;
+
+      filtered = filtered.filter((p) => {
+        if (p.lat == null || p.lng == null) return false;
+
+        const dLat = toRad(p.lat - addressLocation.lat);
+        const dLng = toRad(p.lng - addressLocation.lng);
+
+        const a =
+          Math.sin(dLat / 2) ** 2 +
+          Math.cos(toRad(addressLocation.lat)) *
+          Math.cos(toRad(p.lat)) *
+          Math.sin(dLng / 2) ** 2;
+
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const d = R * c;
+
+        return d <= distance;
+      });
+    }
+
+    setFilteredProperties(filtered);
+  }, [properties, addressLocation, distance, priceRange, propertyType]);
 
   return (
-    <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">地图搜索房源</h1>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+    <div className="p-4 space-y-4">
+      <div className="space-y-2">
         <Input
           type="text"
-          placeholder="输入地址"
-          value={searchLocation}
-          onChange={(e) => setSearchLocation(e.target.value)}
+          value={searchAddress}
+          onChange={(e) => setSearchAddress(e.target.value)}
+          placeholder="请输入地址"
         />
-        <PriceRangeSelector
-          minPrice={minPrice}
-          maxPrice={maxPrice}
-          setMinPrice={setMinPrice}
-          setMaxPrice={setMaxPrice}
-        />
-        <TypeSelector
-          mainType={mainType}
-          setMainType={setMainType}
-          subType={subType}
-          setSubType={setSubType}
-          selectedType={selectedType}
-          setSelectedType={setSelectedType}
-        />
-        <DistanceSelector value={distance} onChange={setDistance} /> {/* ✅ 已加入 */}
         <Button onClick={handleSearch}>搜索</Button>
       </div>
 
-      <div className="h-[500px] mb-4">
-        <MapWithMarkers
-          properties={filteredProperties}
-          center={searchCenter}
-          radius={distance}
-        />
+      <div className="flex flex-col sm:flex-row gap-4">
+        <DistanceSelector value={distance} onChange={setDistance} />
+        <PriceRangeSelector value={priceRange} onChange={setPriceRange} />
+        <TypeSelector value={propertyType} onChange={setPropertyType} />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredProperties.map((property) => (
-          <PropertyCard key={property.id} property={property} />
-        ))}
-      </div>
+      <MapWithMarkersClient
+        properties={filteredProperties}
+        addressLocation={addressLocation}
+        distance={distance}
+      />
     </div>
   );
 }
