@@ -1,3 +1,4 @@
+// ✅ pages/index.js
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { supabase } from '../supabaseClient';
@@ -9,67 +10,72 @@ import TypeSelector from '@/components/TypeSelector';
 const MapWithMarkersClient = dynamic(() => import('@/components/MapWithMarkersClient'), { ssr: false });
 
 export default function Home() {
-  const [properties, setProperties] = useState([]);
   const [address, setAddress] = useState('');
-  const [center, setCenter] = useState([3.139, 101.6869]); // Default to KL
-  const [radius, setRadius] = useState(5000);
-  const [minPrice, setMinPrice] = useState('');
-  const [maxPrice, setMaxPrice] = useState('');
+  const [radius, setRadius] = useState(5); // in km
+  const [properties, setProperties] = useState([]);
+  const [minPrice, setMinPrice] = useState(0);
+  const [maxPrice, setMaxPrice] = useState(50000000);
   const [selectedType, setSelectedType] = useState('');
+  const [center, setCenter] = useState(null);
 
-  useEffect(() => {
-    fetchProperties();
-  }, []);
+  async function handleSearch() {
+    const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`);
+    const data = await geoRes.json();
+    if (data.length === 0) return;
+    const lat = parseFloat(data[0].lat);
+    const lng = parseFloat(data[0].lon);
+    setCenter([lat, lng]);
 
-  const fetchProperties = async () => {
-    const { data, error } = await supabase.from('properties').select('*');
-    if (!error) setProperties(data);
-  };
+    const { data: allProps } = await supabase.from('properties').select('*');
 
-  const handleSearch = async () => {
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`
-    );
-    const data = await response.json();
-    if (data && data.length > 0) {
-      const { lat, lon } = data[0];
-      setCenter([parseFloat(lat), parseFloat(lon)]);
-    }
-  };
+    const filtered = allProps.filter((prop) => {
+      const d = getDistance(lat, lng, prop.lat, prop.lng);
+      const inRadius = d <= radius;
+      const inPrice = prop.price >= minPrice && prop.price <= maxPrice;
+      const inType = !selectedType || (prop.type && prop.type.includes(selectedType));
+      return inRadius && inPrice && inType;
+    });
+
+    setProperties(filtered);
+  }
+
+  function getDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
 
   return (
-    <div className="p-4 space-y-4">
-      <div className="flex flex-wrap gap-2">
+    <div className="p-4">
+      <div className="flex flex-col md:flex-row gap-2 mb-4">
         <Input
-          type="text"
           placeholder="Enter address"
           value={address}
           onChange={(e) => setAddress(e.target.value)}
-          className="w-64"
         />
-        <Button onClick={handleSearch}>Search</Button>
-        <select value={radius} onChange={(e) => setRadius(Number(e.target.value))} className="border p-1 rounded">
-          <option value={1000}>1 km</option>
-          <option value={3000}>3 km</option>
-          <option value={5000}>5 km</option>
-          <option value={10000}>10 km</option>
-        </select>
+        <Input
+          type="number"
+          placeholder="Radius (km)"
+          value={radius}
+          onChange={(e) => setRadius(e.target.value)}
+        />
         <PriceRangeSelector
           minPrice={minPrice}
-          setMinPrice={setMinPrice}
           maxPrice={maxPrice}
+          setMinPrice={setMinPrice}
           setMaxPrice={setMaxPrice}
         />
-        <TypeSelector selectedType={selectedType} setSelectedType={setSelectedType} />
+        <TypeSelector
+          selectedType={selectedType}
+          setSelectedType={setSelectedType}
+        />
+        <Button onClick={handleSearch}>Search</Button>
       </div>
 
-      <MapWithMarkersClient
-        properties={properties}
-        center={center}
-        radius={radius}
-        priceRange={{ min: minPrice, max: maxPrice }}
-        selectedType={selectedType}
-      />
+      <MapWithMarkersClient properties={properties} center={center} radius={radius} />
     </div>
   );
 }
