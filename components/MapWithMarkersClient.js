@@ -32,8 +32,11 @@ export default function MapWithMarkers({
   const [visibleProperties, setVisibleProperties] = useState([]);
   const radius = 5;
 
-  useEffect(() => {
-    if (!address) return;
+useEffect(() => {
+  if (addressLocation && map) {
+    map.setView(addressLocation, 13);
+  }
+}, [addressLocation]);
 
     const fetchCoords = async () => {
       try {
