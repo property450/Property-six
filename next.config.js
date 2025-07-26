@@ -1,10 +1,13 @@
+// next.config.js
+const { i18n } = require('./next-i18next.config');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // swcMinify 改成 compiler 配置（或直接删掉）
   compiler: {
-    // 默认已经使用 swc 编译器
-  }
+    // 默认已启用 swc 编译器
+  },
+  i18n, // ✅ 添加这一行，启用国际化
 };
 
 module.exports = nextConfig;
