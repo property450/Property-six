@@ -40,7 +40,14 @@ export default function Home() {
   }, []);
 
   const handleSearch = async () => {
-    if (!searchLocation) return;
+  if (!searchAddress) return;
+  const result = await geocodeAddress(searchAddress);
+  if (result) {
+    setAddressLocation(result); // 设置地图中心
+  } else {
+    alert('未找到该地址');
+  }
+};
 
     try {
       const response = await fetch(
