@@ -1,156 +1,130 @@
 // pages/upload-property.js
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '../supabaseClient';
+import dynamic from 'next/dynamic';
+import { supabase } from '@/supabaseClient';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import ImageUpload from '@/components/ImageUpload';
 import TypeSelector from '@/components/TypeSelector';
-import ImageUploader from '@/components/ImageUpload';
-import MapPicker from '@/components/MapPicker';
-import RoomCountSelector from '@/components/RoomCountSelector'; // ✅ 你已有的组件
-import { useUser } from '@supabase/auth-helpers-react';
+import RoomCountSelector from '@/components/RoomCountSelector';
+import BathroomCountSelector from '@/components/BathroomCountSelector';
+import ParkingCountSelector from '@/components/ParkingCountSelector';
+import StorageCountSelector from '@/components/StorageCountSelector';
+
+// 👇 解决 window 错误（MapPicker 只在客户端加载）
+const MapPicker = dynamic(() => import('@/components/MapPicker'), { ssr: false });
 
 export default function UploadPropertyPage() {
-  const user = useUser();
   const router = useRouter();
-
   const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
-  const [selectedType, setSelectedType] = useState({ main: '', sub: '' });
-
-  const [bathroomCount, setBathroomCount] = useState(0);
-  const [bedroomCount, setBedroomCount] = useState(0);
-  const [carParkCount, setCarParkCount] = useState(0);
-  const [storeCount, setStoreCount] = useState(0);
-
-  const [lat, setLat] = useState(null);
-  const [lng, setLng] = useState(null);
-
-  const [images, setImages] = useState([]); // 多图列表
+  const [location, setLocation] = useState('');
+  const [latitude, setLatitude] = useState(null);
+  const [longitude, setLongitude] = useState(null);
+  const [images, setImages] = useState([]);
+  const [type, setType] = useState('');
+  const [rooms, setRooms] = useState('');
+  const [bathrooms, setBathrooms] = useState('');
+  const [parking, setParking] = useState('');
+  const [storage, setStorage] = useState('');
   const [uploading, setUploading] = useState(false);
 
   const handleUpload = async () => {
-    // 简单验证
-    if (
-      !title ||
-      !description ||
-      !price ||
-      !selectedType.main ||
-      lat === null ||
-      lng === null ||
-      images.length === 0
-    ) {
-      alert('请完整填写所有资料和上传至少一张图片');
+    if (!title || !price || !location || !latitude || !longitude || !images.length) {
+      alert('请填写所有字段并上传至少一张图片');
       return;
     }
 
     setUploading(true);
 
-    // 插入房产数据
-    const { data, error } = await supabase
-      .from('properties')
-      .insert([
-        {
+    try {
+      // 1. 插入房源信息
+      const { data: property, error } = await supabase
+        .from('properties')
+        .insert([{
           title,
-          description,
           price: parseFloat(price),
-          type: selectedType.main,
-          subtype: selectedType.sub,
-          bedrooms: bedroomCount,
-          bathrooms: bathroomCount,
-          parking: carParkCount,
-          store: storeCount,
-          latitude: lat,
-          longitude: lng,
-          user_id: user?.id,
-          created_at: new Date(),
-        },
-      ])
-      .select()
-      .single();
+          location,
+          latitude,
+          longitude,
+          type,
+          rooms,
+          bathrooms,
+          parking,
+          storage,
+        }])
+        .select()
+        .single();
 
-    if (error) {
-      console.error('上传失败:', error.message);
-      alert('上传失败，请重试');
-      setUploading(false);
-      return;
-    }
+      if (error) throw error;
 
-    const propertyId = data.id;
+      const propertyId = property.id;
 
-    // 上传每张图片到 bucket 并插入路径
-    for (let i = 0; i < images.length; i++) {
-      const image = images[i];
-      const fileExt = image.name.split('.').pop();
-      const filePath = `${propertyId}/${Date.now()}-${i}.${fileExt}`;
+      // 2. 上传图片到 Supabase bucket 并插入路径到 property_images 表
+      for (let i = 0; i < images.length; i++) {
+        const image = images[i];
+        const fileExt = image.name.split('.').pop();
+        const filePath = `${propertyId}/${Date.now()}_${i}.${fileExt}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('property-images')
-        .upload(filePath, image);
+        const { error: uploadError } = await supabase.storage
+          .from('property-images')
+          .upload(filePath, image);
 
-      if (uploadError) {
-        console.error('图片上传失败:', uploadError.message);
-        continue;
+        if (uploadError) throw uploadError;
+
+        const { data: publicURLData } = supabase.storage
+          .from('property-images')
+          .getPublicUrl(filePath);
+
+        const imageUrl = publicURLData.publicUrl;
+
+        await supabase.from('property_images').insert([{
+          property_id: propertyId,
+          image_url: imageUrl,
+          is_cover: i === 0, // 第一张为封面
+        }]);
       }
 
-      // 插入图片路径到 images table
-      await supabase.from('property_images').insert([
-        {
-          property_id: propertyId,
-          image_path: filePath,
-          is_cover: i === 0, // 第一张为封面图
-        },
-      ]);
+      alert('上传成功');
+      router.push('/');
+    } catch (err) {
+      console.error('上传失败:', err);
+      alert('上传失败，请稍后再试');
+    } finally {
+      setUploading(false);
     }
-
-    alert('上传成功！');
-    router.push('/');
   };
 
   return (
-    <div className="max-w-3xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">上传房源</h1>
+    <div className="max-w-4xl mx-auto p-4 space-y-4">
+      <h1 className="text-2xl font-bold">上传房源</h1>
 
-      <Input
-        type="text"
-        placeholder="房源标题"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        className="mb-3"
-      />
+      <Input placeholder="标题" value={title} onChange={(e) => setTitle(e.target.value)} />
+      <Input placeholder="价格（RM）" type="number" value={price} onChange={(e) => setPrice(e.target.value)} />
+      <Input placeholder="地址" value={location} onChange={(e) => setLocation(e.target.value)} />
 
-      <textarea
-        placeholder="房源描述"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        className="w-full border p-2 mb-3 rounded"
-        rows={4}
-      />
+      <TypeSelector selectedType={type} onTypeChange={setType} />
+      <RoomCountSelector value={rooms} onChange={setRooms} />
+      <BathroomCountSelector value={bathrooms} onChange={setBathrooms} />
+      <ParkingCountSelector value={parking} onChange={setParking} />
+      <StorageCountSelector value={storage} onChange={setStorage} />
 
-      <Input
-        type="number"
-        placeholder="价格 (RM)"
-        value={price}
-        onChange={(e) => setPrice(e.target.value)}
-        className="mb-3"
-      />
-
-      <TypeSelector selected={selectedType} setSelected={setSelectedType} />
-
-      <div className="grid grid-cols-2 gap-4 my-4">
-        <NumberInputSelector label="房间数" value={bedroomCount} setValue={setBedroomCount} />
-        <NumberInputSelector label="浴室数" value={bathroomCount} setValue={setBathroomCount} />
-        <NumberInputSelector label="停车位" value={carParkCount} setValue={setCarParkCount} />
-        <NumberInputSelector label="储藏室" value={storeCount} setValue={setStoreCount} />
+      <div>
+        <label className="font-semibold">地图定位：</label>
+        <MapPicker onLocationSelect={(lat, lng) => {
+          setLatitude(lat);
+          setLongitude(lng);
+        }} />
+        {latitude && longitude && (
+          <p className="text-sm text-gray-500 mt-1">已选位置：{latitude.toFixed(6)}, {longitude.toFixed(6)}</p>
+        )}
       </div>
 
-      <MapSelector lat={lat} lng={lng} setLat={setLat} setLng={setLng} />
+      <ImageUpload images={images} setImages={setImages} />
 
-      <ImageUploader images={images} setImages={setImages} />
-
-      <Button className="mt-4 w-full" onClick={handleUpload} disabled={uploading}>
-        {uploading ? '上传中...' : '上传房源'}
+      <Button onClick={handleUpload} disabled={uploading}>
+        {uploading ? '上传中...' : '提交房源'}
       </Button>
     </div>
   );
