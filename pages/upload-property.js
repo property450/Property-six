@@ -32,6 +32,8 @@ export default function UploadProperty() {
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
+   console.log('🚀 上传按钮已点击'); // 加这一行测试
+    
     if (!title || !price || !address || !latitude || !longitude || images.length === 0) {
       toast.error('请填写完整信息并至少上传一张图片');
       return;
