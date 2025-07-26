@@ -8,7 +8,7 @@ const typeOptions = {
   Others: ['Parking', 'Storage', 'Custom'],
 };
 
-export default function TypeSelector({ selectedType, setSelectedType }) {
+export default function TypeSelector({ selectedType, onChange }) {
   const [mainType, setMainType] = useState('');
   const [subType, setSubType] = useState('');
   const [customSubType, setCustomSubType] = useState('');
@@ -18,7 +18,7 @@ export default function TypeSelector({ selectedType, setSelectedType }) {
       const selected = subType === 'Custom' || subType === 'Others'
         ? `${mainType} > ${customSubType}`
         : `${mainType} > ${subType}`;
-      setTypeSelected(selected);
+      onChange(selected);
     }
   }, [mainType, subType, customSubType]);
 
