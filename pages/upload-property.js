@@ -1,121 +1,97 @@
-// pages/upload-property.js
 import { useState } from 'react';
-import { useRouter } from 'next/router';
 import { supabase } from '../supabaseClient';
 import dynamic from 'next/dynamic';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import TypeSelector from '@/components/TypeSelector';
-import RoomCountSelector from '@/components/RoomCountSelector';
 import PriceRangeSelector from '@/components/PriceRangeSelector';
-import ImageUpload from '@/components/ImageUpload';
+import TypeSelector from '@/components/TypeSelector';
 
-const MapPicker = dynamic(() => import('@/components/MapPicker'), {
-  ssr: false,
-});
+const MapPicker = dynamic(() => import('@/components/MapPicker'), { ssr: false });
 
 export default function UploadProperty() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [mainType, setMainType] = useState('');
-  const [subType, setSubType] = useState('');
-  const [customSubType, setCustomSubType] = useState('');
-  const [bedrooms, setBedrooms] = useState(0);
-  const [bathrooms, setBathrooms] = useState(0);
-  const [carparks, setCarparks] = useState(0);
-  const [storeRooms, setStoreRooms] = useState(0);
-  const [price, setPrice] = useState('');
-  const [location, setLocation] = useState({ lat: null, lng: null });
-  const [images, setImages] = useState([]);
-  const [coverIndex, setCoverIndex] = useState(0);
-  const router = useRouter();
+  const [price, setPrice] = useState(0);
+  const [minPrice, setMinPrice] = useState(0);
+  const [maxPrice, setMaxPrice] = useState(0);
+  const [type, setType] = useState('');
+  const [subtype, setSubtype] = useState('');
+  const [lat, setLat] = useState(null);
+  const [lng, setLng] = useState(null);
 
-  const handleUpload = async () => {
-    if (!title || !price || !location.lat || !location.lng) {
-      alert('请填写所有必填信息');
-      return;
-    }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-    const user = (await supabase.auth.getUser()).data.user;
-    if (!user) {
-      alert('请先登录');
-      return;
-    }
-
-    const imageUrls = [];
-    for (let i = 0; i < images.length; i++) {
-      const file = images[i];
-      const fileName = `${Date.now()}-${file.name}`;
-      const { data, error } = await supabase.storage
-        .from('property-images')
-        .upload(fileName, file);
-      if (error) {
-        console.error('上传失败:', error);
-        continue;
-      }
-      const url = supabase.storage.from('property-images').getPublicUrl(fileName).data.publicUrl;
-      imageUrls.push(url);
-    }
-
-    const { error: insertError } = await supabase.from('properties').insert([
+    const { data, error } = await supabase.from('properties').insert([
       {
-        user_id: user.id,
         title,
         description,
-        type: `${mainType} > ${customSubType || subType}`,
-        bedrooms,
-        bathrooms,
-        carparks,
-        store_rooms: storeRooms,
         price,
-        lat: location.lat,
-        lng: location.lng,
-        images: imageUrls,
-        cover_index: coverIndex,
+        type,
+        subtype,
+        lat,
+        lng,
       },
     ]);
 
-    if (insertError) {
-      console.error('插入失败:', insertError);
+    if (error) {
+      console.error('上传失败:', error.message);
     } else {
-      alert('上传成功');
-      router.push('/');
+      alert('房源上传成功');
+      setTitle('');
+      setDescription('');
+      setPrice(0);
+      setLat(null);
+      setLng(null);
     }
   };
 
   return (
-    <div className="max-w-3xl mx-auto p-4 space-y-4">
-      <h1 className="text-2xl font-bold">上传房源</h1>
+    <div className="max-w-3xl mx-auto p-6">
+      <h1 className="text-2xl font-bold mb-4">上传房源</h1>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <input
+          type="text"
+          placeholder="标题"
+          className="w-full p-2 border rounded"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+        />
+        <textarea
+          placeholder="描述"
+          className="w-full p-2 border rounded"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
+        <input
+          type="number"
+          placeholder="价格"
+          className="w-full p-2 border rounded"
+          value={price}
+          onChange={(e) => setPrice(Number(e.target.value))}
+        />
 
-      <Input placeholder="标题" value={title} onChange={e => setTitle(e.target.value)} />
-      <textarea
-        className="w-full p-2 border rounded"
-        placeholder="描述"
-        value={description}
-        onChange={e => setDescription(e.target.value)}
-      />
+        {/* Price Range Selector */}
+        <PriceRangeSelector
+          min={minPrice}
+          max={maxPrice}
+          setMinPrice={setMinPrice}
+          setMaxPrice={setMaxPrice}
+        />
 
-      <TypeSelector
-        mainType={mainType}
-        setMainType={setMainType}
-        subType={subType}
-        setSubType={setSubType}
-        customSubType={customSubType}
-        setCustomSubType={setCustomSubType}
-      />
+        {/* Type Selector */}
+        <TypeSelector
+          selectedType={type}
+          setSelectedType={setType}
+          selectedSubtype={subtype}
+          setSelectedSubtype={setSubtype}
+        />
 
-      <RoomCountSelector label="房间数" count={bedrooms} setCount={setBedrooms} />
-      <RoomCountSelector label="浴室数" count={bathrooms} setCount={setBathrooms} />
-      <RoomCountSelector label="车位数" count={carparks} setCount={setCarparks} />
-      <RoomCountSelector label="储藏室" count={storeRooms} setCount={setStoreRooms} />
+        {/* Map Picker */}
+        <MapPicker setLat={setLat} setLng={setLng} />
 
-      <PriceRangeSelector min={0} max={50000000} value={price} onChange={val => setPrice(val)} />
-
-      <MapPicker location={location} setLocation={setLocation} />
-
-      <ImageUpload images={images} setImages={setImages} coverIndex={coverIndex} setCoverIndex={setCoverIndex} />
-
-      <Button onClick={handleUpload}>提交房源</Button>
+        <button type="submit" className="bg-blue-600 text-white p-2 rounded">
+          提交房源
+        </button>
+      </form>
     </div>
   );
 }
