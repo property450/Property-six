@@ -19,10 +19,11 @@ export default function UploadPropertyPage() {
   const [lat, setLat] = useState(null);
   const [lng, setLng] = useState(null);
   const [selectedType, setSelectedType] = useState('');
-  const [roomCount, setRoomCount] = useState('');
-  const [bathroomCount, setBathroomCount] = useState('');
-  const [carParkCount, setCarParkCount] = useState('');
-  const [storeCount, setStoreCount] = useState('');
+  // 初始化数量字段
+const [bathroomCount, setBathroomCount] = useState(0);
+const [bedroomCount, setBedroomCount] = useState(0);
+const [carParkCount, setCarParkCount] = useState(0);
+const [storeCount, setStoreCount] = useState(0);
   const [images, setImages] = useState([]);
 
   const handleUpload = async () => {
