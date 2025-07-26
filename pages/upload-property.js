@@ -1,131 +1,118 @@
-// pages/upload-property.js
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../supabaseClient';
-import ImageUpload from '@/components/ImageUpload';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import TypeSelector from '@/components/TypeSelector';
+import ImageUpload from '@/components/ImageUpload';
+import RoomCountSelector from '@/components/RoomCountSelector';
+import axios from 'axios';
 
 export default function UploadProperty() {
-  const router = useRouter();
-  const [user, setUser] = useState(null);
-  const [images, setImages] = useState([]);
-  const [selectedType, setSelectedType] = useState(''); // ✅ 新增类型选择状态
+  const router = useRouter();
 
-  const [form, setForm] = useState({
-    title: '',
-    description: '',
-    price: '',
-    type: '',
-    location: '',
-    latitude: '',
-    longitude: '',
-  });
+  const [title, setTitle] = useState('');
+  const [price, setPrice] = useState('');
+  const [address, setAddress] = useState('');
+  const [mainType, setMainType] = useState('');
+  const [subType, setSubType] = useState('');
+  const [bedrooms, setBedrooms] = useState('');
+  const [bathrooms, setBathrooms] = useState('');
+  const [parking, setParking] = useState('');
+  const [storeRoom, setStoreRoom] = useState('');
+  const [images, setImages] = useState([]);
 
-  // 将 selectedType 写入 form.type 中 ✅
-  useEffect(() => {
-    setForm((prev) => ({ ...prev, type: selectedType }));
-  }, [selectedType]);
+  const [uploading, setUploading] = useState(false);
 
-  useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-    };
-    getUser();
-  }, []);
+  const getLatLngFromAddress = async (address) => {
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+    const encodedAddress = encodeURIComponent(address);
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&key=${apiKey}`;
+    const res = await axios.get(url);
+    const result = res.data.results?.[0];
+    if (!result) throw new Error('地址无法识别');
+    return {
+      lat: result.geometry.location.lat,
+      lng: result.geometry.location.lng
+    };
+  };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setUploading(true);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!user) return alert('请先登录');
+    try {
+      const { lat, lng } = await getLatLngFromAddress(address);
 
-    const { data, error } = await supabase.from('properties').insert([{
-      ...form,
-      user_id: user.id,
-      images: images.map(img => img.url),
-      cover_image: images.find(img => img.isCover)?.url || images[0]?.url || '',
-    }]);
+      const { data, error } = await supabase
+        .from('properties')
+        .insert([{
+          title,
+          price: parseFloat(price),
+          address,
+          lat,
+          lng,
+          type: `${mainType} > ${subType}`,
+          bedrooms: parseInt(bedrooms),
+          bathrooms: parseInt(bathrooms),
+          parking: parseInt(parking),
+          storeRoom: parseInt(storeRoom),
+          images
+        }]);
 
-    if (error) {
-      console.error('上传失败:', error);
-      return;
-    }
+      if (error) throw error;
 
-    router.push('/');
-  };
+      router.push('/');
+    } catch (err) {
+      alert(`上传失败: ${err.message}`);
+      console.error(err);
+    } finally {
+      setUploading(false);
+    }
+  };
 
-  return (
-    <div className="max-w-3xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">上传房源</h1>
-      <form onSubmit={handleSubmit} className="space-y-4">
+  return (
+    <div className="max-w-2xl mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">上传房源</h1>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Input placeholder="标题" value={title} onChange={e => setTitle(e.target.value)} required />
+        <Input placeholder="价格（RM）" type="number" value={price} onChange={e => setPrice(e.target.value)} required />
+        <Input placeholder="地址" value={address} onChange={e => setAddress(e.target.value)} required />
 
-        <Input
-          name="title"
-          placeholder="标题"
-          value={form.title}
-          onChange={handleChange}
-        />
+        <TypeSelector
+          mainType={mainType}
+          subType={subType}
+          setMainType={setMainType}
+          setSubType={setSubType}
+        />
 
-        <Input
-          name="price"
-          type="number"
-          placeholder="价格"
-          value={form.price}
-          onChange={handleChange}
-        />
+        <RoomCountSelector
+          label="卧室"
+          value={bedrooms}
+          onChange={setBedrooms}
+        />
+        <RoomCountSelector
+          label="浴室"
+          value={bathrooms}
+          onChange={setBathrooms}
+        />
+        <RoomCountSelector
+          label="车位"
+          value={parking}
+          onChange={setParking}
+        />
+        <RoomCountSelector
+          label="储藏室"
+          value={storeRoom}
+          onChange={setStoreRoom}
+        />
 
-        <Input
-          name="location"
-          placeholder="地址"
-          value={form.location}
-          onChange={handleChange}
-        />
+        <ImageUpload images={images} setImages={setImages} />
 
-        <div className="grid grid-cols-2 gap-2">
-          <Input
-            name="latitude"
-            type="number"
-            placeholder="纬度 (latitude)"
-            value={form.latitude}
-            onChange={handleChange}
-          />
-          <Input
-            name="longitude"
-            type="number"
-            placeholder="经度 (longitude)"
-            value={form.longitude}
-            onChange={handleChange}
-          />
-        </div>
-
-        {/* ✅ 类型选择器 */}
-        <div>
-          <label className="block text-sm font-medium mb-1">类型</label>
-          <TypeSelector
-            selectedType={selectedType}
-            setSelectedType={setSelectedType}
-          />
-        </div>
-
-        <textarea
-          name="description"
-          placeholder="描述"
-          value={form.description}
-          onChange={handleChange}
-          className="w-full p-2 border rounded"
-        />
-
-        {/* ✅ 图片上传组件 */}
-        <ImageUpload images={images} setImages={setImages} />
-
-        <Button type="submit" className="w-full mt-4">发布房源</Button>
-      </form>
-    </div>
-  );
+        <Button type="submit" disabled={uploading}>
+          {uploading ? '上传中...' : '提交房源'}
+        </Button>
+      </form>
+    </div>
+  );
 }
