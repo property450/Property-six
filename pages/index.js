@@ -9,15 +9,19 @@ import TypeSelector from "@/components/TypeSelector";
 import DistanceSelector from "@/components/DistanceSelector";
 import { geocodeByAddress } from "@/utils/geocode";
 
-const MapWithMarkersClient = dynamic(() => import("@/components/MapWithMarkersClient"), { ssr: false });
+const MapWithMarkersClient = dynamic(() => import("@/components/MapWithMarkersClient"), {
+  ssr: false,
+});
+
+const DEFAULT_LOCATION = { lat: 3.139, lng: 101.6869 }; // 吉隆坡
 
 export default function HomePage() {
   const [address, setAddress] = useState("");
-  const [location, setLocation] = useState(null);
+  const [location, setLocation] = useState(DEFAULT_LOCATION);
   const [properties, setProperties] = useState([]);
   const [priceRange, setPriceRange] = useState([0, 5000000]);
   const [type, setType] = useState("");
-  const [distance, setDistance] = useState(5); // ✅ 设置默认值为 5km
+  const [distance, setDistance] = useState(5); // 默认5km
 
   useEffect(() => {
     fetchProperties();
@@ -26,12 +30,23 @@ export default function HomePage() {
   const fetchProperties = async () => {
     const { data, error } = await supabase.from("properties").select("*");
     if (!error) setProperties(data);
+    else console.error("Error fetching properties:", error);
   };
 
   const handleSearch = async () => {
     if (!address) return;
-    const result = await geocodeByAddress(address);
-    if (result) setLocation(result);
+    try {
+      const result = await geocodeByAddress(address);
+      if (result && result.lat && result.lng) {
+        setLocation(result);
+      } else {
+        console.warn("Geocoding failed or returned invalid result, using default location");
+        setLocation(DEFAULT_LOCATION);
+      }
+    } catch (err) {
+      console.error("Geocoding error:", err);
+      setLocation(DEFAULT_LOCATION);
+    }
   };
 
   return (
@@ -52,9 +67,11 @@ export default function HomePage() {
       </div>
       <div className="w-3/4">
         <MapWithMarkersClient
-          center={location || { lat: 3.139, lng: 101.6869 }}
+          center={location}
           properties={properties}
-          distance={distance}
+          distance={Number(distance)} // 强制为数字
+          priceRange={priceRange}
+          type={type}
         />
       </div>
     </div>
