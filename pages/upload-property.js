@@ -7,7 +7,7 @@ import { supabase } from '@/supabaseClient';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import TypeSelector from '@/components/TypeSelector';
-import CountSelector from '@/components/CountSelector';
+import RoomCountSelector from '@/components/RoomCountSelector';
 import ImageUpload from '@/components/ImageUpload';
 import { toast } from 'react-hot-toast';
 
