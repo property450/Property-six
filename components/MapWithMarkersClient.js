@@ -26,6 +26,7 @@ export default function MapWithMarkersClient({ properties, center, radius }) {
 
   console.log("🧭 Center:", centerLatLng);
   console.log("📍 Properties (filtered):", properties);
+console.log("📍 传入的房源数量:", properties.length);
 
   return (
     <MapContainer
