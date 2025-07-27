@@ -36,11 +36,19 @@ export default function MapWithMarkersClient({ properties, center, radius }) {
           pathOptions={{ color: "blue", fillOpacity: 0.1 }}
         />
       )}
-      {properties.map((property) => (
-        <Marker
-          key={property.id}
-          position={[Number(property.lat), Number(property.lng)]}
-          icon={markerIcon}
+      properties
+  .filter((property) => {
+    const distance = L.latLng(property.lat, property.lng).distanceTo(L.latLng(center[0], center[1]));
+    return distance <= radius * 1000; // 半径是 km，换算成米
+  })
+  .map((property) => (
+    <Marker
+      key={property.id}
+      position={[property.lat, property.lng]}
+    >
+      ...
+    </Marker>
+  ));
         >
           <Popup>
             <div>
