@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import ImageUploader from '@/components/ImageUpload';
 import TypeSelector from '@/components/TypeSelector';
-import RoomSelector from '@/components/RoomSelector';
+import RoomSelector from '@/components/RoomCountSelector';
 
 const AddressSearchInput = dynamic(() => import('@/components/AddressSearchInput'), { ssr: false });
 
