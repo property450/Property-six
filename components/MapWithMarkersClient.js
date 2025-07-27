@@ -5,17 +5,16 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { useEffect, useState } from "react";
 
+export default function MapWithMarkersClient({ properties, center, radius }) {
 const markerIcon = new L.Icon({
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
+    iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
   shadowSize: [41, 41],
   crossOrigin: true,
-});
-
-export default function MapWithMarkersClient({ properties, center, radius }) {
+  });
   if (!center || !radius) {
   return <p className="text-center mt-4">Please enter an address to search.</p>;
 }
