@@ -22,7 +22,6 @@ function MyApp({ Component, pageProps }) {
       <main className="flex-grow">
         <Component {...pageProps} />
       </main>
-      <Footer />
     </div>
   );
 }
