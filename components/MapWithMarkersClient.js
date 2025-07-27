@@ -16,8 +16,9 @@ const markerIcon = new L.Icon({
 });
 
 export default function MapWithMarkersClient({ properties, center, radius }) {
-  if (!center) return <p className="text-center mt-4">Please enter an address to search.</p>;
-
+  if (!center || !radius) {
+  return <p className="text-center mt-4">Please enter an address to search.</p>;
+}
   const centerLatLng = L.latLng(center.lat || center[0], center.lng || center[1]);
 
   return (
