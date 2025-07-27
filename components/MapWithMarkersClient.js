@@ -3,7 +3,6 @@
 import { MapContainer, TileLayer, Marker, Popup, Circle } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-import { useEffect, useState } from "react";
 
 export default function MapWithMarkersClient({ properties, center, radius }) {
   const markerIcon = new L.Icon({
@@ -26,7 +25,7 @@ export default function MapWithMarkersClient({ properties, center, radius }) {
   );
 
   console.log("🧭 Center:", centerLatLng);
-  console.log("📍 Properties:", properties);
+  console.log("📍 Properties (filtered):", properties);
 
   return (
     <MapContainer
@@ -47,20 +46,13 @@ export default function MapWithMarkersClient({ properties, center, radius }) {
       />
 
       {properties
-        ?.filter(
+        .filter(
           (property) =>
             property.lat != null &&
             property.lng != null &&
             !isNaN(property.lat) &&
             !isNaN(property.lng)
         )
-        .filter((property) => {
-          const distance = L.latLng(
-            Number(property.lat),
-            Number(property.lng)
-          ).distanceTo(centerLatLng);
-          return distance <= radius * 1000;
-        })
         .map((property) => {
           console.log("📌 Showing Marker:", property.title);
           return (
