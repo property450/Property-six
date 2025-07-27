@@ -5,7 +5,7 @@ import { supabase } from '../supabaseClient';
 import { toast } from 'react-hot-toast';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import ImageUploader from '@/components/ImageUploader';
+import ImageUploader from '@/components/ImageUpload';
 import TypeSelector from '@/components/TypeSelector';
 import RoomSelector from '@/components/RoomSelector';
 
