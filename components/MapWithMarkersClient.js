@@ -18,9 +18,11 @@ const markerIcon = new L.Icon({
 export default function MapWithMarkersClient({ properties, center, radius }) {
   if (!center) return <p className="text-center mt-4">Please enter an address to search.</p>;
 
+  const centerLatLng = L.latLng(center.lat || center[0], center.lng || center[1]);
+
   return (
     <MapContainer
-      center={center}
+      center={centerLatLng}
       zoom={13}
       style={{ height: "600px", width: "100%" }}
       scrollWheelZoom={true}
@@ -29,31 +31,35 @@ export default function MapWithMarkersClient({ properties, center, radius }) {
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       />
+
       {radius && center && (
         <Circle
-          center={center}
+          center={centerLatLng}
           radius={radius * 1000}
           pathOptions={{ color: "blue", fillOpacity: 0.1 }}
         />
       )}
-      <>
-  {properties
-    .filter((property) => {
-      const distance = L.latLng(property.lat, property.lng).distanceTo(L.latLng(center[0], center[1]));
-      return distance <= radius * 1000; // radius 是 km，换算成米
-    })
-    .map((property) => (
-      <Marker
-        key={property.id}
-        position={[property.lat, property.lng]}
-      >
-        <Popup>
-          <div>
-            <h3 className="font-bold">{property.title}</h3>
-            <p>{property.price} RM</p>
-            <p>{property.address}</p>
-          </div>
-        </Popup>
-      </Marker>
-    ))}
-</>
+
+      {properties
+        .filter((property) => {
+          const distance = L.latLng(property.lat, property.lng).distanceTo(centerLatLng);
+          return distance <= radius * 1000;
+        })
+        .map((property) => (
+          <Marker
+            key={property.id}
+            position={[property.lat, property.lng]}
+            icon={markerIcon}
+          >
+            <Popup>
+              <div>
+                <h3 className="font-bold">{property.title}</h3>
+                <p>{property.price} RM</p>
+                <p>{property.address}</p>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+    </MapContainer>
+  );
+}
