@@ -20,9 +20,9 @@ export default function MapWithMarkersClient({ properties, center, radius }) {
   }
 
   const centerLatLng = L.latLng(
-    Number(center.lat ?? center[0]),
-    Number(center.lng ?? center[1])
-  );
+  Number(center[0]),
+  Number(center[1])
+);
 
   console.log("🧭 Center:", centerLatLng);
   console.log("📍 Properties (filtered):", properties);
