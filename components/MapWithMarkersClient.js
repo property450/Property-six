@@ -46,13 +46,7 @@ export default function MapWithMarkersClient({ properties, center, radius }) {
       />
 
       {properties
-        .filter(
-          (property) =>
-            property.lat != null &&
-            property.lng != null &&
-            !isNaN(property.lat) &&
-            !isNaN(property.lng)
-        )
+        
         .map((property) => {
           console.log("📌 Showing Marker:", property.title);
           return (
