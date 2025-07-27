@@ -4,6 +4,7 @@ import 'leaflet/dist/leaflet.css'; // ✅ 引入 Leaflet 样式
 import { appWithTranslation } from 'next-i18next'; // ✅ 多语言支持
 import { useEffect } from 'react';
 import Header from '@/components/Header'; // 如果你有通用导航栏
+import L from 'leaflet';
 
 function MyApp({ Component, pageProps }) {
   useEffect(() => {
