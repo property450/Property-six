@@ -61,13 +61,29 @@ export default function Home() {
   }
 
   const filteredProperties = allProperties.filter((p) => {
-    if (!center) return false;
-    const dist = haversineKm(center[0], center[1], Number(p.lat), Number(p.lng));
-    const okRadius = dist <= radius;
-    const okPrice = p.price >= minPrice && p.price <= maxPrice;
-    const okType = !selectedType || p.type?.toLowerCase().includes(selectedType.toLowerCase());
-    return okRadius && okPrice && okType;
-  });
+  if (!center) return false;
+
+  const lat = Number(p.lat);
+  const lng = Number(p.lng);
+
+  // ✅ 打印每个房源的原始数据
+  console.log("📦 Property:", p.title, "| Lat:", p.lat, "| Lng:", p.lng, "| Price:", p.price, "| Type:", p.type);
+
+  // ✅ 如果 lat/lng 无效，我们提示出来
+  if (isNaN(lat) || isNaN(lng)) {
+    console.warn("❌ 无效坐标被过滤:", p.title);
+    return false;
+  }
+
+  const dist = haversineKm(center[0], center[1], lat, lng);
+  const okRadius = dist <= radius;
+  const okPrice = p.price >= minPrice && p.price <= maxPrice;
+  const okType = !selectedType || p.type?.toLowerCase().includes(selectedType.toLowerCase());
+
+  console.log("✅ 通过距离？", okRadius, "| 价格？", okPrice, "| 类型？", okType);
+
+  return okRadius && okPrice && okType;
+});
 
   return (
     <div className="p-4">
