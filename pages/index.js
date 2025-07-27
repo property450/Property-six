@@ -104,6 +104,9 @@ export default function Home() {
         properties={properties}
         center={center}
         radius={radius}
+        minPrice={minPrice}
+        maxPrice={maxPrice}
+        selectedType={selectedType}
       />
     </div>
   );
