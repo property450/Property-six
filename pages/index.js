@@ -60,7 +60,7 @@ export default function Home() {
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
 
-  const filteredProperties = allProperties.filter((p) => {
+  const filteredProperties = allProperties;((p) => {
   if (!center) return false;
 
   const lat = Number(p.lat);
