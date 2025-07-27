@@ -1,39 +1,45 @@
-// pages/upload-property.js
-
 import { useState } from 'react';
-import dynamic from 'next/dynamic';
 import { useRouter } from 'next/router';
-import { supabase } from '@/supabaseClient';
+import dynamic from 'next/dynamic';
+import { supabase } from '../supabaseClient';
+import { toast } from 'react-toastify';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { useUser } from '@/context/UserContext';
+import ImageUploader from '@/components/ImageUploader';
 import TypeSelector from '@/components/TypeSelector';
-import RoomCountSelector from '@/components/RoomCountSelector';
-import ImageUpload from '@/components/ImageUpload';
-import { toast } from 'react-hot-toast';
+import RoomSelector from '@/components/RoomSelector';
 
 const AddressSearchInput = dynamic(() => import('@/components/AddressSearchInput'), { ssr: false });
 
 export default function UploadProperty() {
   const router = useRouter();
+  const { user } = useUser();
 
   const [title, setTitle] = useState('');
-  const [price, setPrice] = useState('');
   const [description, setDescription] = useState('');
-  const [type, setType] = useState('');
-  const [bedrooms, setBedrooms] = useState('');
-  const [bathrooms, setBathrooms] = useState('');
-  const [carparks, setCarparks] = useState('');
-  const [storeRooms, setStoreRooms] = useState('');
+  const [price, setPrice] = useState('');
   const [address, setAddress] = useState('');
   const [latitude, setLatitude] = useState(null);
   const [longitude, setLongitude] = useState(null);
-  const [images, setImages] = useState([]); // files
-  const [coverIndex, setCoverIndex] = useState(0); // 0为默认封面图
+  const [images, setImages] = useState([]);
+  const [coverIndex, setCoverIndex] = useState(0);
+  const [type, setType] = useState('');
+  const [floor, setFloor] = useState('');
+  const [builtYear, setBuiltYear] = useState('');
+  const [bedrooms, setBedrooms] = useState('');
+  const [bathrooms, setBathrooms] = useState('');
+  const [carpark, setCarpark] = useState('');
+  const [store, setStore] = useState('');
+  const [area, setArea] = useState('');
+  const [amenities, setAmenities] = useState('');
+  const [link, setLink] = useState('');
+
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
-   console.log('🚀 上传按钮已点击'); // 加这一行测试
-    
+    console.log('🚀 上传按钮已点击');
+
     if (!title || !price || !address || !latitude || !longitude || images.length === 0) {
       toast.error('请填写完整信息并至少上传一张图片');
       return;
@@ -41,91 +47,91 @@ export default function UploadProperty() {
 
     setLoading(true);
 
-    // 1. 上传图片到 Supabase Storage
-    const uploadedImageUrls = [];
+    try {
+      const { data: propertyData, error } = await supabase
+        .from('properties')
+        .insert([{
+          title,
+          description,
+          price: Number(price),
+          address,
+          lat: latitude,
+          lng: longitude,
+          user_id: user?.id,
+          link,
+          type,
+          floor,
+          built_year: builtYear,
+          bedrooms,
+          bathrooms,
+          carpark,
+          store,
+          area,
+          amenities,
+        }])
+        .select()
+        .single();
 
-    for (let i = 0; i < images.length; i++) {
-      const file = images[i];
-      const filename = `${Date.now()}_${file.name}`;
-      const { data, error } = await supabase.storage.from('property-images').upload(filename, file);
+      if (error) throw error;
 
-      if (error) {
-        toast.error(`上传图片失败：${file.name}`);
-        setLoading(false);
-        return;
+      const propertyId = propertyData.id;
+
+      for (let i = 0; i < images.length; i++) {
+        const image = images[i];
+        const fileName = `${Date.now()}_${image.name}`;
+        const filePath = `${propertyId}/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('property-images')
+          .upload(filePath, image);
+
+        if (uploadError) throw uploadError;
+
+        const { data: publicUrlData } = supabase.storage
+          .from('property-images')
+          .getPublicUrl(filePath);
+
+        const imageUrl = publicUrlData.publicUrl;
+
+        await supabase.from('property-images').insert([{
+          property_id: propertyId,
+          image_url: imageUrl,
+          is_cover: i === coverIndex,
+        }]);
       }
 
-      const imageUrl = supabase.storage.from('property-images').getPublicUrl(filename).data.publicUrl;
-      uploadedImageUrls.push(imageUrl);
-    }
-
-    // 2. 插入房源信息到数据库
-    const { error: insertError } = await supabase.from('properties').insert([
-      {
-        title,
-        price: parseFloat(price),
-        description,
-        type,
-        bedrooms,
-        bathrooms,
-        carparks,
-        storerooms: storeRooms,
-        address,
-        latitude,
-        longitude,
-        images: uploadedImageUrls,
-        coverImage: uploadedImageUrls[coverIndex] || uploadedImageUrls[0],
-        created_at: new Date(),
-      },
-    ]);
-
-    if (insertError) {
-      toast.error('房源上传失败');
+      toast.success('房源上传成功');
+      router.push('/');
+    } catch (err) {
+      console.error(err);
+      toast.error('上传失败，请检查控制台');
+    } finally {
       setLoading(false);
-      return;
     }
-
-    toast.success('房源上传成功！');
-    router.push('/'); // 上传成功跳转主页或其他页面
   };
 
   return (
-    <div className="max-w-3xl mx-auto p-4">
+    <div className="max-w-3xl mx-auto p-4 space-y-4">
       <h1 className="text-2xl font-bold mb-4">上传房源</h1>
 
-      <Input placeholder="标题" value={title} onChange={(e) => setTitle(e.target.value)} className="mb-3" />
-      <Input placeholder="价格 (RM)" type="number" value={price} onChange={(e) => setPrice(e.target.value)} className="mb-3" />
+      <Input placeholder="标题" value={title} onChange={(e) => setTitle(e.target.value)} />
+      <Input placeholder="描述" value={description} onChange={(e) => setDescription(e.target.value)} />
+      <Input placeholder="价格（RM）" value={price} onChange={(e) => setPrice(e.target.value)} />
+      <Input placeholder="链接（可选）" value={link} onChange={(e) => setLink(e.target.value)} />
+      
+      <TypeSelector value={type} onChange={setType} />
+      <RoomSelector label="卧室" value={bedrooms} onChange={setBedrooms} />
+      <RoomSelector label="浴室" value={bathrooms} onChange={setBathrooms} />
+      <RoomSelector label="停车位" value={carpark} onChange={setCarpark} />
+      <RoomSelector label="储藏室" value={store} onChange={setStore} />
+      
+      <Input placeholder="面积 (平方尺)" value={area} onChange={(e) => setArea(e.target.value)} />
+      <Input placeholder="楼层" value={floor} onChange={(e) => setFloor(e.target.value)} />
+      <Input placeholder="建成年份" value={builtYear} onChange={(e) => setBuiltYear(e.target.value)} />
+      <Input placeholder="设施/配套（如泳池、电梯等）" value={amenities} onChange={(e) => setAmenities(e.target.value)} />
 
-      <TypeSelector selectedType={type} onChange={setType} className="mb-3" />
-
-      <RoomCountSelector label="房间数量" value={bedrooms} onChange={setBedrooms} />
-      <RoomCountSelector label="厕所数量" value={bathrooms} onChange={setBathrooms} />
-      <RoomCountSelector label="车位数量" value={carparks} onChange={setCarparks} />
-      <RoomCountSelector label="储藏室数量" value={storeRooms} onChange={setStoreRooms} />
-
-      <AddressSearchInput
-        onLocationSelect={(lat, lng, selectedAddress) => {
-          setLatitude(lat);
-          setLongitude(lng);
-          setAddress(selectedAddress);
-        }}
-      />
-      <div className="text-sm text-gray-500 mb-2">选中地址: {address}</div>
-
-      <textarea
-        placeholder="房源描述"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        rows={4}
-        className="w-full border rounded p-2 mb-3"
-      />
-
-      <ImageUpload
-        images={images}
-        setImages={setImages}
-        coverIndex={coverIndex}
-        setCoverIndex={setCoverIndex}
-      />
+      <AddressSearchInput setAddress={setAddress} setLatitude={setLatitude} setLongitude={setLongitude} />
+      <ImageUploader images={images} setImages={setImages} coverIndex={coverIndex} setCoverIndex={setCoverIndex} />
 
       <Button
         onClick={handleSubmit}
@@ -136,7 +142,4 @@ export default function UploadProperty() {
       </Button>
     </div>
   );
-};
-
-
-
+}
