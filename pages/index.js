@@ -20,6 +20,7 @@ export default function Home() {
   const [center, setCenter] = useState(null);
 
   async function handleSearch() {
+    console.log("📦 所有房源数据：", allProps);
     if (!address) return;
 
     try {
