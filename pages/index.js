@@ -20,43 +20,44 @@ export default function Home() {
   const [center, setCenter] = useState(null);
 
   async function handleSearch() {
-    console.log("📦 所有房源数据：", allProps);
-    if (!address) return;
+  if (!address) return;
 
-    try {
-      const geoRes = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
-          address
-        )}&format=json&limit=1`
-      );
-      const data = await geoRes.json();
-      if (data.length === 0) {
-        alert("Address not found.");
-        return;
-      }
-      const lat = parseFloat(data[0].lat);
-      const lng = parseFloat(data[0].lon);
-      setCenter([lat, lng]);
+  try {
+    const geoRes = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`
+    );
+    const data = await geoRes.json();
+    if (data.length === 0) {
+      alert("Address not found.");
+      return;
+    }
 
-      const { data: allProps, error } = await supabase.from("properties").select("*");
-      if (error) {
-        console.error("Supabase error:", error);
-        return;
-      }
+    const lat = parseFloat(data[0].lat);
+    const lng = parseFloat(data[0].lon);
+    setCenter([lat, lng]);
 
-      const filtered = allProps.filter((prop) => {
-        const d = getDistance(lat, lng, Number(prop.lat), Number(prop.lng));
-        const inRadius = d <= radius;
-        const inPrice = prop.price >= minPrice && prop.price <= maxPrice;
-        const inType = !selectedType || (prop.type && prop.type.includes(selectedType));
-        return inRadius && inPrice && inType;
-      });
+    const { data: allProps, error } = await supabase.from("properties").select("*");
+    if (error) {
+      console.error("❌ Supabase error:", error);
+      return;
+    }
 
-      setProperties(filtered);
-    } catch (err) {
-      console.error("Search error:", err);
-    }
-  }
+    console.log("📦 所有房源数据：", allProps); // ✅ 放到这里才对
+
+    const filtered = allProps.filter((prop) => {
+      const d = getDistance(lat, lng, Number(prop.lat), Number(prop.lng));
+      const inRadius = d <= radius;
+      const inPrice = prop.price >= minPrice && prop.price <= maxPrice;
+      const inType = !selectedType || (prop.type && prop.type.includes(selectedType));
+      return inRadius && inPrice && inType;
+    });
+
+    console.log("✅ 筛选后房源：", filtered); // 加一个调试点看看是否为空
+    setProperties(filtered);
+  } catch (err) {
+    console.error("Search error:", err);
+  }
+}
 
   function getDistance(lat1, lon1, lat2, lon2) {
     const R = 6371;
