@@ -59,15 +59,8 @@ export default function Home() {
 
   useEffect(() => {
   if (!center) return;
-
-  const showAll = !minPrice && !maxPrice && !selectedType;
-  
-  let filtered = [];
-
-  if (showAll) {
-    filtered = allProperties;
-  } else {
-    filtered = allProperties.filter((p) => {
+  
+   const filtered = allProperties.filter((p) => {
       const lat = parseFloat(p.lat);
       const lng = parseFloat(p.lng);
       const price = parseFloat(p.price);
@@ -93,12 +86,12 @@ export default function Home() {
       );
 
       return okRadius && matchPrice && matchType;
-    });
-  }
+  });
 
-    console.log("📊 传入 Map 的房源数量:", filtered.length);
-    setFilteredProperties(filtered);
-  }, [center, radius, minPrice, maxPrice, selectedType, allProperties]);
+  // ✅ 这里才是正确位置
+  console.log("📊 传入 Map 的房源数量:", filtered.length);
+  setFilteredProperties(filtered);
+}, [center, radius, minPrice, maxPrice, selectedType, allProperties]);
 
   return (
     <div className="p-4">
