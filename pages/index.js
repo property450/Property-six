@@ -58,9 +58,16 @@ export default function Home() {
   }
 
   useEffect(() => {
-    if (!center) return;
+  if (!center) return;
 
-    const filtered = allProperties.filter((p) => {
+  const showAll = !minPrice && !maxPrice && !selectedType;
+  
+  let filtered = [];
+
+  if (showAll) {
+    filtered = allProperties;
+  } else {
+    filtered = allProperties.filter((p) => {
       const lat = parseFloat(p.lat);
       const lng = parseFloat(p.lng);
       const price = parseFloat(p.price);
@@ -72,13 +79,22 @@ export default function Home() {
 
       const dist = haversineKm(center[0], center[1], lat, lng);
       const okRadius = dist <= radius;
-      const okPrice = price >= minPrice && price <= maxPrice;
-      const okType = !selectedType || (p.type || "").toLowerCase().includes(selectedType.toLowerCase());
 
-      console.log(`🏠 ${p.title} | 距离=${dist.toFixed(2)}km | ✅距离=${okRadius}, ✅价格=${okPrice}, ✅类型=${okType}`);
+      const matchPrice =
+        (!minPrice && !maxPrice) ||
+        (price >= minPrice && price <= maxPrice);
 
-      return okRadius && okPrice && okType;
+      const matchType =
+        !selectedType ||
+        (p.type || "").toLowerCase().includes(selectedType.toLowerCase());
+
+      console.log(
+        `🏠 ${p.title} | 距离=${dist.toFixed(2)}km | ✅距离=${okRadius}, ✅价格=${matchPrice}, ✅类型=${matchType}`
+      );
+
+      return okRadius && matchPrice && matchType;
     });
+  }
 
     console.log("📊 传入 Map 的房源数量:", filtered.length);
     setFilteredProperties(filtered);
