@@ -20,43 +20,43 @@ export default function Home() {
   const [center, setCenter] = useState(null);
 
   async function handleSearch() {
-  if (!address) return;
+  if (!address) return;
 
-  try {
-    const geoRes = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`
-    );
-    const data = await geoRes.json();
-    if (data.length === 0) {
-      alert("Address not found.");
-      return;
-    }
+  try {
+    const geoRes = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`
+    );
+    const data = await geoRes.json();
+    if (data.length === 0) {
+      alert("Address not found.");
+      return;
+    }
 
-    const lat = parseFloat(data[0].lat);
-    const lng = parseFloat(data[0].lon);
-    setCenter([lat, lng]);
+    const lat = parseFloat(data[0].lat);
+    const lng = parseFloat(data[0].lon);
+    setCenter([lat, lng]);
 
-    const { data: allProps, error } = await supabase.from("properties").select("*");
-    if (error) {
-      console.error("❌ Supabase error:", error);
-      return;
-    }
+    const { data: allProps, error } = await supabase.from("properties").select("*");
+    if (error) {
+      console.error("❌ Supabase error:", error);
+      return;
+    }
 
-    console.log("📦 所有房源数据：", allProps); // ✅ 放到这里才对
+    console.log("📦 所有房源数据：", allProps); // ✅ 放到这里才对
 
-    const filtered = allProps.filter((prop) => {
-      const d = getDistance(lat, lng, Number(prop.lat), Number(prop.lng));
-      const inRadius = d <= radius;
-      const inPrice = prop.price >= minPrice && prop.price <= maxPrice;
-      const inType = !selectedType || (prop.type && prop.type.includes(selectedType));
-      return inRadius && inPrice && inType;
-    });
+    const filtered = allProps.filter((prop) => {
+      const d = getDistance(lat, lng, Number(prop.lat), Number(prop.lng));
+      const inRadius = d <= radius;
+      const inPrice = prop.price >= minPrice && prop.price <= maxPrice;
+      const inType = !selectedType || (prop.type && prop.type.includes(selectedType));
+      return inRadius && inPrice && inType;
+    });
 
-    console.log("✅ 筛选后房源：", filtered); // 加一个调试点看看是否为空
-    setProperties(filtered);
-  } catch (err) {
-    console.error("Search error:", err);
-  }
+    console.log("✅ 筛选后房源：", filtered); // 加一个调试点看看是否为空
+    setProperties(filtered);
+  } catch (err) {
+    console.error("Search error:", err);
+  }
 }
 
   function getDistance(lat1, lon1, lat2, lon2) {
@@ -99,23 +99,12 @@ export default function Home() {
         />
         <Button onClick={handleSearch}>Search</Button>
       </div>
-            <Button
-  variant="outline"
-  onClick={async () => {
-    const { data: allProps, error } = await supabase.from("properties").select("*");
-    if (error) {
-      console.error("❌ Supabase error:", error);
-    } else {
-      console.log("🧪 手动加载房源：", allProps);
-      setProperties(allProps);
-      setCenter([allProps[0].lat, allProps[0].lng]); // 临时中心点
-    }
-  }}
->
-  Test Show All
-</Button>
 
-      <MapWithMarkersClient properties={properties} center={center} radius={radius} />
+      <MapWithMarkersClient
+        properties={properties}
+        center={center}
+        radius={radius}
+      />
     </div>
   );
 }
