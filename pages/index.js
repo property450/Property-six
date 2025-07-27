@@ -99,6 +99,21 @@ export default function Home() {
         />
         <Button onClick={handleSearch}>Search</Button>
       </div>
+            <Button
+  variant="outline"
+  onClick={async () => {
+    const { data: allProps, error } = await supabase.from("properties").select("*");
+    if (error) {
+      console.error("❌ Supabase error:", error);
+    } else {
+      console.log("🧪 手动加载房源：", allProps);
+      setProperties(allProps);
+      setCenter([allProps[0].lat, allProps[0].lng]); // 临时中心点
+    }
+  }}
+>
+  Test Show All
+</Button>
 
       <MapWithMarkersClient properties={properties} center={center} radius={radius} />
     </div>
