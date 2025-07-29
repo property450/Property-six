@@ -114,9 +114,13 @@ export default function Home() {
           setMinPrice={setMinPrice}
           setMaxPrice={setMaxPrice}
         />
-        <TypeSelector selectedType={selectedType} setSelectedType={setSelectedType} />
-        <Button onClick={handleSearch}>Search</Button>
-      </div>
+        const [selectedType, setSelectedType] = useState("");
+
+<TypeSelector
+  selectedType={selectedType}
+  setSelectedType={setSelectedType}
+  onChange={(value) => setSelectedType(value)} // 👈 这行不能省
+/>
 
       <MapWithMarkersClient properties={filteredProperties} center={center} radius={radius} />
     </div>
