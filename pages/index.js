@@ -127,7 +127,7 @@ export default function Home() {
     center={center}
     radius={radius}
   />
-</div>        // ✅ inner div
-</div>        // ✅ outer div
-);            // ✅ close return
-}             // ✅ close function Home
+</div>     {/* inner div for Map section */}
+  </div>       {/* outer div, usually for layout padding etc */}
+);
+}             // close function Home
