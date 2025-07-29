@@ -1,13 +1,6 @@
 import { useEffect } from 'react';
 
 export default function PriceRangeSelector({ minPrice, maxPrice, setMinPrice, setMaxPrice }) {
-  useEffect(() => {
-    setMinPrice(Number(min));
-  }, [min]);
-
-  useEffect(() => {
-    setMaxPrice(Number(max));
-  }, [max]);
 
   return (
     <div className="flex gap-2">
@@ -15,14 +8,14 @@ export default function PriceRangeSelector({ minPrice, maxPrice, setMinPrice, se
         type="number"
         placeholder="最低价格"
         className="p-2 border rounded w-full"
-        value={min}
+        value={minPrice}
         onChange={(e) => setMinPrice(Number(e.target.value))}
       />
       <input
         type="number"
         placeholder="最高价格"
         className="p-2 border rounded w-full"
-        value={max}
+        value={maxPrice}
         onChange={(e) => setMaxPrice(Number(e.target.value))}
       />
     </div>
