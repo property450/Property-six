@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function ImageUpload({ images, setImages }) {
+export default function ImageUpload({ images, setImages, coverIndex, setCoverIndex }) {
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files);
     const newImages = files.map(file => ({
