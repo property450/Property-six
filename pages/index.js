@@ -127,6 +127,7 @@ export default function Home() {
     center={center}
     radius={radius}
   />
-</div>
-);
-}
+</div>        // ✅ inner div
+</div>        // ✅ outer div
+);            // ✅ close return
+}             // ✅ close function Home
