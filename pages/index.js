@@ -11,7 +11,10 @@ console.log("👉 Input:", Input);
 console.log("👉 Button:", Button);
 console.log("TEST PriceRangeSelector typeof:", typeof PriceRangeSelector); // 应该是 "function"
 
-const MapWithMarkersClient = dynamic(() => import("@/components/MapWithMarkersClient"), { ssr: false });
+const MapWithMarkersClient = dynamic(
+  () => import("@/components/MapWithMarkersClient").then((mod) => mod.default),
+  { ssr: false }
+);
 
 export default function Home() {
   const [address, setAddress] = useState("");
