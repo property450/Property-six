@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-export default function PriceRangeSelector({ min, max, setMinPrice, setMaxPrice }) {
+export default function PriceRangeSelector({ minPrice, maxPrice, setMinPrice, setMaxPrice }) {
   useEffect(() => {
     setMinPrice(Number(min));
   }, [min]);
