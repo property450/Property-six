@@ -99,35 +99,40 @@ export default function Home() {
 }, [center, radius, minPrice, maxPrice, selectedType, allProperties]);
 
   return (
-    <div className="p-4">
-      <div className="flex flex-col md:flex-row gap-2 mb-4">
-        <Input placeholder="Enter address" value={address} onChange={(e) => setAddress(e.target.value)} />
-        <Input
-          type="number"
-          placeholder="Radius (km)"
-          value={radius}
-          onChange={(e) => setRadius(+e.target.value)}
-        />
-        <PriceRangeSelector
-          minPrice={minPrice}
-          maxPrice={maxPrice}
-          setMinPrice={setMinPrice}
-          setMaxPrice={setMaxPrice}
-        />
-        <div className="w-full">
-  <TypeSelector
-    selectedType={selectedType}
-    setSelectedType={setSelectedType}
-    onChange={(value) => setSelectedType(value)}
-  />
-  <Button onClick={handleSearch}>Search</Button>
+  <div className="p-4">
+    {/* 上方筛选器区块 */}
+    <div className="flex flex-col md:flex-row gap-2 mb-4">
+      <Input
+        placeholder="Enter address"
+        value={address}
+        onChange={(e) => setAddress(e.target.value)}
+      />
+      <Input
+        type="number"
+        placeholder="Radius (km)"
+        value={radius}
+        onChange={(e) => setRadius(+e.target.value)}
+      />
+      <PriceRangeSelector
+        minPrice={minPrice}
+        maxPrice={maxPrice}
+        setMinPrice={setMinPrice}
+        setMaxPrice={setMaxPrice}
+      />
+      <TypeSelector
+        selectedType={selectedType}
+        setSelectedType={setSelectedType}
+        onChange={(value) => setSelectedType(value)}
+      />
+      <Button onClick={handleSearch}>Search</Button>
+    </div>
 
-  <MapWithMarkersClient
-    properties={filteredProperties}
-    center={center}
-    radius={radius}
-  />
-</div>     {/* inner div for Map section */}
-  </div>       {/* outer div, usually for layout padding etc */}
-);
-}             // close function Home
+    {/* 地图展示区块 */}
+    <MapWithMarkersClient
+      properties={filteredProperties}
+      center={center}
+      radius={radius}
+    />
+  </div>
+); // ✅ 关闭 return
+}   // ✅ 关闭 Home 函数
