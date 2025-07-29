@@ -9,6 +9,7 @@ console.log("👉 PriceRangeSelector:", PriceRangeSelector);
 console.log("👉 TypeSelector:", TypeSelector);
 console.log("👉 Input:", Input);
 console.log("👉 Button:", Button);
+console.log("TEST PriceRangeSelector typeof:", typeof PriceRangeSelector); // 应该是 "function"
 
 const MapWithMarkersClient = dynamic(() => import("@/components/MapWithMarkersClient"), { ssr: false });
 
