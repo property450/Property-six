@@ -6,7 +6,7 @@ import { supabase } from '../supabaseClient';
 import { toast } from 'react-hot-toast';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import ImageUploader from '@/components/ImageUpload';
+import ImageUpload from '@/components/ImageUpload';
 import TypeSelector from '@/components/TypeSelector';
 import RoomSelector from '@/components/RoomCountSelector';
 
@@ -131,7 +131,7 @@ export default function UploadProperty() {
       <Input placeholder="设施/配套（如泳池、电梯等）" value={amenities} onChange={(e) => setAmenities(e.target.value)} />
 
       <AddressSearchInput setAddress={setAddress} setLatitude={setLatitude} setLongitude={setLongitude} />
-      <ImageUploader images={images} setImages={setImages} coverIndex={coverIndex} setCoverIndex={setCoverIndex} />
+      <ImageUpload images={images} setImages={setImages} coverIndex={coverIndex} setCoverIndex={setCoverIndex} />
 
       <Button
         onClick={handleSubmit}
