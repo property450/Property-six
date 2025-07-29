@@ -61,32 +61,37 @@ export default function Home() {
   if (!center) return;
   
    const filtered = allProperties.filter((p) => {
-      const lat = parseFloat(p.lat);
-      const lng = parseFloat(p.lng);
-      const price = parseFloat(p.price);
+  const lat = parseFloat(p.lat);
+  const lng = parseFloat(p.lng);
+  const price = parseFloat((p.price || "").toString().replace(/,/g, "")); // 防逗号
 
-      if (isNaN(lat) || isNaN(lng)) {
-        console.warn("❌ 无效坐标被过滤:", p.title);
-        return false;
-      }
+  const min = Number(minPrice);
+  const max = Number(maxPrice);
 
-      const dist = haversineKm(center[0], center[1], lat, lng);
-      const okRadius = dist <= radius;
+  if (isNaN(lat) || isNaN(lng)) {
+    console.warn("❌ 无效坐标被过滤:", p.title);
+    return false;
+  }
 
-      const matchPrice =
-        (!minPrice && !maxPrice) ||
-        (price >= minPrice && price <= maxPrice);
+  const dist = haversineKm(center[0], center[1], lat, lng);
+  const okRadius = dist <= radius;
 
-      const matchType =
-        !selectedType ||
-        (p.type || "").toLowerCase().includes(selectedType.toLowerCase());
+  const matchPrice =
+    (isNaN(min) && isNaN(max)) ||
+    (!isNaN(min) && !isNaN(max) && price >= min && price <= max) ||
+    (!isNaN(min) && isNaN(max) && price >= min) ||
+    (isNaN(min) && !isNaN(max) && price <= max);
 
-      console.log(
-        `🏠 ${p.title} | 距离=${dist.toFixed(2)}km | ✅距离=${okRadius}, ✅价格=${matchPrice}, ✅类型=${matchType}`
-      );
+  const matchType =
+    !selectedType ||
+    (p.type || "").toLowerCase().includes(selectedType.toLowerCase());
 
-      return okRadius && matchPrice && matchType;
-  });
+  console.log(
+    `🏠 ${p.title} | 距离=${dist.toFixed(2)}km | ✅距离=${okRadius}, ✅价格=${matchPrice}, ✅类型=${matchType}`
+  );
+
+  return okRadius && matchPrice && matchType;
+});
 
   // ✅ 这里才是正确位置
   console.log("📊 传入 Map 的房源数量:", filtered.length);
