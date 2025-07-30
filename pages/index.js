@@ -3,8 +3,8 @@ import dynamic from "next/dynamic";
 import { supabase } from "../supabaseClient";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
-import PriceRangeSelector from "../components/PriceRangeSelector";
-import TypeSelector from "../components/TypeSelector";
+//import PriceRangeSelector from "../components/PriceRangeSelector";
+//import TypeSelector from "../components/TypeSelector";
 
 const MapWithMarkersClient = dynamic(
   () => import("@/components/MapWithMarkersClient").then((mod) => mod.default),
@@ -22,9 +22,9 @@ export default function Home() {
   const [center, setCenter] = useState(null);
 
  useEffect(() => {
-  console.log("🧪 Input:", Input);
+//  console.log("🧪 Input:", Input);
   console.log("🧪 Button:", Button);
-  console.log("🧪 PriceRangeSelector:", PriceRangeSelector);
+ // console.log("🧪 PriceRangeSelector:", PriceRangeSelector);
   console.log("🧪 TypeSelector:", TypeSelector);
 }, []);
 
@@ -123,7 +123,7 @@ export default function Home() {
         value={radius}
         onChange={(e) => setRadius(+e.target.value)}
       />
-      <PriceRangeSelector
+      //<PriceRangeSelector
         minPrice={minPrice}
         maxPrice={maxPrice}
         setMinPrice={setMinPrice}
