@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import dynamic from 'next/dynamic';
 import { supabase } from '../supabaseClient';
@@ -8,24 +8,30 @@ import { Button } from '@/components/ui/button';
 import ImageUpload from '@/components/ImageUpload';
 import TypeSelector from '@/components/TypeSelector';
 import RoomSelector from '@/components/RoomCountSelector';
+import { useUser } from '@supabase/auth-helpers-react';
 
 const AddressSearchInput = dynamic(() => import('@/components/AddressSearchInput'), { ssr: false });
 
-import { useUser } from '@supabase/auth-helpers-react';
-
 export default function UploadProperty() {
-  const router = useRouter();
-  const { user, isLoading } = useUser();
+  const router = useRouter();
+  const user = useUser();
 
-  if (isLoading) return <div>加载中...</div>;
+  // 自动跳转逻辑
+  useEffect(() => {
+    if (user === null) {
+      router.push('/login');
+    }
+  }, [user]);
 
-  if (!user) {
-    router.push('/login');
-    return null;
-  }
+  if (user === null) {
+    return <div>正在检查登录状态...</div>;
+  }
 
-  // ...以下是原本的 useState 等逻辑
+  if (!user) {
+    return null; // 防止闪烁
+  }
 
+  // ---------- 以下是状态管理 ------------
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
@@ -46,6 +52,7 @@ export default function UploadProperty() {
   const [link, setLink] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // ---------- 上传逻辑 ------------
   const handleSubmit = async () => {
     console.log('🚀 上传按钮已点击');
 
@@ -119,6 +126,7 @@ export default function UploadProperty() {
     }
   };
 
+  // ---------- 表单 UI ------------
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-4">
       <h1 className="text-2xl font-bold mb-4">上传房源</h1>
@@ -152,34 +160,3 @@ export default function UploadProperty() {
     </div>
   );
 }
-
-// 🔒 服务端获取 session，确保 user 存在
-// upload-property.js 最底部
-import { createServerSupabaseClient } from '@supabase/auth-helpers-nextjs';
-
-export const getServerSideProps = async (ctx) => {
-  const supabase = createServerSupabaseClient({
-    req: ctx.req,
-    res: ctx.res,
-  });
-
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session) {
-    return {
-      redirect: {
-        destination: '/login',
-        permanent: false,
-      },
-    };
-  }
-
-  return {
-    props: {
-      initialSession: session,
-      user: session.user,
-    },
-  };
-};
