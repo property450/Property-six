@@ -2,7 +2,6 @@ import '@/styles/globals.css';
 import 'leaflet/dist/leaflet.css';
 import { useEffect } from 'react';
 import Header from '@/components/Header';
-import { UserProvider } from '@supabase/auth-helpers-react'; // ✅ 加上这行
 import { supabase } from '../supabaseClient'; // ✅ 确保也引入了 Supabase 客户端
 
 export default function MyApp({ Component, pageProps }) {
