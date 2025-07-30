@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { supabase } from "../supabaseClient";
-import { Input } from "../components/ui/input";
-import { Button } from "../components/ui/button";
+//import { Input } from "../components/ui/input";
+//import { Button } from "../components/ui/button";
 //import PriceRangeSelector from "../components/PriceRangeSelector";
 //import TypeSelector from "../components/TypeSelector";
 
@@ -23,9 +23,9 @@ export default function Home() {
 
  useEffect(() => {
 //  console.log("🧪 Input:", Input);
-  console.log("🧪 Button:", Button);
+//  console.log("🧪 Button:", Button);
  // console.log("🧪 PriceRangeSelector:", PriceRangeSelector);
-  console.log("🧪 TypeSelector:", TypeSelector);
+ // console.log("🧪 TypeSelector:", TypeSelector);
 }, []);
 
   useEffect(() => {
