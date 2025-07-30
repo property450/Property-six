@@ -11,12 +11,20 @@ import RoomSelector from '@/components/RoomCountSelector';
 
 const AddressSearchInput = dynamic(() => import('@/components/AddressSearchInput'), { ssr: false });
 
-export default function UploadProperty({ user }) {
-  const router = useRouter();
+import { useUser } from '@supabase/auth-helpers-react';
 
-  if (!user) {
-    return <div>Loading...</div>; // 可替换为跳转登录页
-  }
+export default function UploadProperty() {
+  const router = useRouter();
+  const { user, isLoading } = useUser();
+
+  if (isLoading) return <div>加载中...</div>;
+
+  if (!user) {
+    router.push('/login');
+    return null;
+  }
+
+  // ...以下是原本的 useState 等逻辑
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
