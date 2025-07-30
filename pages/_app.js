@@ -20,7 +20,6 @@ export default function MyApp({ Component, pageProps }) {
   }, []);
 
   return (
-    <UserProvider supabaseClient={supabase}> {/* ✅ 包裹页面 */}
       <Header />
       <Component {...pageProps} />
     </UserProvider>
