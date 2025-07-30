@@ -1,7 +1,7 @@
 // pages/_app.js
 import '@/styles/globals.css';
 import 'leaflet/dist/leaflet.css';
-
+import { createBrowserSupabaseClient } from '@supabase/auth-helpers-nextjs';
 import { useEffect, useState } from 'react';
 import { createBrowserSupabaseClient } from '@supabase/auth-helpers-nextjs';
 import { SessionContextProvider } from '@supabase/auth-helpers-react';
