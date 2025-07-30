@@ -20,7 +20,14 @@ export default function Home() {
   const [maxPrice, setMaxPrice] = useState(50_000_000);
   const [selectedType, setSelectedType] = useState("");
   const [center, setCenter] = useState(null);
- 
+
+ useEffect(() => {
+  console.log("🧪 Input:", Input);
+  console.log("🧪 Button:", Button);
+  console.log("🧪 PriceRangeSelector:", PriceRangeSelector);
+  console.log("🧪 TypeSelector:", TypeSelector);
+}, []);
+
   useEffect(() => {
     const fetchProperties = async () => {
       const { data, error } = await supabase.from("properties").select("*");
