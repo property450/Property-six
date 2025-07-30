@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button";
 import PriceRangeSelector from "@/components/PriceRangeSelector";
 import TypeSelector from "@/components/TypeSelector";
 
-//console.log("👉 PriceRangeSelector:", PriceRangeSelector);
-//console.log("👉 TypeSelector:", TypeSelector);
-//console.log("👉 Input:", Input);
-//console.log("👉 Button:", Button);
-//console.log("TEST PriceRangeSelector typeof:", typeof PriceRangeSelector); // 应该是 "function"
+ useEffect(() => {
+  console.log("🧪 PriceRangeSelector:", PriceRangeSelector);
+  console.log("🧪 TypeSelector:", TypeSelector);
+  console.log("🧪 Input:", Input);
+  console.log("🧪 Button:", Button);
+}, []);
 
 const MapWithMarkersClient = dynamic(
   () => import("@/components/MapWithMarkersClient").then((mod) => mod.default),
