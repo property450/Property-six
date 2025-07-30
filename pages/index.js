@@ -1,4 +1,4 @@
-//import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 //import { supabase } from "../supabaseClient";
 //import { Input } from "../components/ui/input";
