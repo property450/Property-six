@@ -1,4 +1,3 @@
-import { useUser } from '@supabase/auth-helpers-react';
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import dynamic from 'next/dynamic';
@@ -12,7 +11,7 @@ import RoomSelector from '@/components/RoomCountSelector';
 
 const AddressSearchInput = dynamic(() => import('@/components/AddressSearchInput'), { ssr: false });
 
-export default function UploadProperty() {
+export default function UploadProperty({ user }) {
   const router = useRouter();
 
   if (!user) {
