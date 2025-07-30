@@ -20,13 +20,6 @@ export default function Home() {
   const [maxPrice, setMaxPrice] = useState(50_000_000);
   const [selectedType, setSelectedType] = useState("");
   const [center, setCenter] = useState(null);
-
- useEffect(() => {
-  console.log("🧪 PriceRangeSelector:", PriceRangeSelector);
-  console.log("🧪 TypeSelector:", TypeSelector);
-  console.log("🧪 Input:", Input);
-  console.log("🧪 Button:", Button);
-}, []);
  
   useEffect(() => {
     const fetchProperties = async () => {
