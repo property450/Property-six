@@ -13,150 +13,156 @@ import { useUser } from '@supabase/auth-helpers-react';
 const AddressSearchInput = dynamic(() => import('@/components/AddressSearchInput'), { ssr: false });
 
 export default function UploadProperty() {
-  const router = useRouter();
-  const user = useUser();
+  const router = useRouter();
+  const user = useUser();
 
-  // 自动跳转逻辑
-  useEffect(() => {
-    if (user === null) {
-      router.push('/login');
-    }
-  }, [user]);
+  useEffect(() => {
+    if (user === null) {
+      router.push('/login');
+    }
+  }, [user]);
 
-  if (user === null) {
-    return <div>正在检查登录状态...</div>;
-  }
+  if (user === null) {
+    return <div>正在检查登录状态...</div>;
+  }
 
-  if (!user) {
-    return null; // 防止闪烁
-  }
+  if (!user) {
+    return null;
+  }
 
-  // ---------- 以下是状态管理 ------------
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [price, setPrice] = useState('');
-  const [address, setAddress] = useState('');
-  const [latitude, setLatitude] = useState(null);
-  const [longitude, setLongitude] = useState(null);
-  const [images, setImages] = useState([]);
-  const [coverIndex, setCoverIndex] = useState(0);
-  const [type, setType] = useState('');
-  const [floor, setFloor] = useState('');
-  const [builtYear, setBuiltYear] = useState('');
-  const [bedrooms, setBedrooms] = useState('');
-  const [bathrooms, setBathrooms] = useState('');
-  const [carpark, setCarpark] = useState('');
-  const [store, setStore] = useState('');
-  const [area, setArea] = useState('');
-  const [amenities, setAmenities] = useState('');
-  const [link, setLink] = useState('');
-  const [loading, setLoading] = useState(false);
+  // ---------- 状态管理 ------------
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [price, setPrice] = useState('');
+  const [address, setAddress] = useState('');
+  const [latitude, setLatitude] = useState(null);
+  const [longitude, setLongitude] = useState(null);
+  const [images, setImages] = useState([]);
+  const [coverIndex, setCoverIndex] = useState(0);
+  const [type, setType] = useState('');
+  const [floor, setFloor] = useState('');
+  const [builtYear, setBuiltYear] = useState('');
+  const [bedrooms, setBedrooms] = useState('');
+  const [bathrooms, setBathrooms] = useState('');
+  const [carpark, setCarpark] = useState('');
+  const [store, setStore] = useState('');
+  const [area, setArea] = useState('');
+  const [amenities, setAmenities] = useState('');
+  const [link, setLink] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  // ---------- 上传逻辑 ------------
-  const handleSubmit = async () => {
-    console.log('🚀 上传按钮已点击');
+  // ✅ 接收地址搜索返回的结果
+  const handleLocationSelect = ({ lat, lng, address }) => {
+    setLatitude(lat);
+    setLongitude(lng);
+    setAddress(address);
+  };
 
-    if (!title || !price || !address || !latitude || !longitude || images.length === 0) {
-      toast.error('请填写完整信息并至少上传一张图片');
-      return;
-    }
+  const handleSubmit = async () => {
+    console.log('🚀 上传按钮已点击');
 
-    setLoading(true);
+    if (!title || !price || !address || !latitude || !longitude || images.length === 0) {
+      toast.error('请填写完整信息并至少上传一张图片');
+      return;
+    }
 
-    try {
-      const { data: propertyData, error } = await supabase
-        .from('properties')
-        .insert([{
-          title,
-          description,
-          price: Number(price),
-          address,
-          lat: latitude,
-          lng: longitude,
-          user_id: user.id,
-          link,
-          type,
-          floor,
-          built_year: builtYear,
-          bedrooms,
-          bathrooms,
-          carpark,
-          store,
-          area,
-          amenities,
-        }])
-        .select()
-        .single();
+    setLoading(true);
 
-      if (error) throw error;
+    try {
+      const { data: propertyData, error } = await supabase
+        .from('properties')
+        .insert([{
+          title,
+          description,
+          price: Number(price),
+          address,
+          lat: latitude,
+          lng: longitude,
+          user_id: user.id,
+          link,
+          type,
+          floor,
+          built_year: builtYear,
+          bedrooms,
+          bathrooms,
+          carpark,
+          store,
+          area,
+          amenities,
+        }])
+        .select()
+        .single();
 
-      const propertyId = propertyData.id;
+      if (error) throw error;
 
-      for (let i = 0; i < images.length; i++) {
-        const image = images[i];
-        const fileName = `${Date.now()}_${image.name}`;
-        const filePath = `${propertyId}/${fileName}`;
+      const propertyId = propertyData.id;
 
-        const { error: uploadError } = await supabase.storage
-          .from('property-images')
-          .upload(filePath, image);
+      for (let i = 0; i < images.length; i++) {
+        const image = images[i];
+        const fileName = `${Date.now()}_${image.name}`;
+        const filePath = `${propertyId}/${fileName}`;
 
-        if (uploadError) throw uploadError;
+        const { error: uploadError } = await supabase.storage
+          .from('property-images')
+          .upload(filePath, image);
 
-        const { data: publicUrlData } = supabase.storage
-          .from('property-images')
-          .getPublicUrl(filePath);
+        if (uploadError) throw uploadError;
 
-        const imageUrl = publicUrlData.publicUrl;
+        const { data: publicUrlData } = supabase.storage
+          .from('property-images')
+          .getPublicUrl(filePath);
 
-        await supabase.from('property-images').insert([{
-          property_id: propertyId,
-          image_url: imageUrl,
-          is_cover: i === coverIndex,
-        }]);
-      }
+        const imageUrl = publicUrlData.publicUrl;
 
-      toast.success('房源上传成功');
-      router.push('/');
-    } catch (err) {
-      console.error(err);
-      toast.error('上传失败，请检查控制台');
-    } finally {
-      setLoading(false);
-    }
-  };
+        await supabase.from('property-images').insert([{
+          property_id: propertyId,
+          image_url: imageUrl,
+          is_cover: i === coverIndex,
+        }]);
+      }
 
-  // ---------- 表单 UI ------------
-  return (
-    <div className="max-w-3xl mx-auto p-4 space-y-4">
-      <h1 className="text-2xl font-bold mb-4">上传房源</h1>
+      toast.success('房源上传成功');
+      router.push('/');
+    } catch (err) {
+      console.error(err);
+      toast.error('上传失败，请检查控制台');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      <Input placeholder="标题" value={title} onChange={(e) => setTitle(e.target.value)} />
-      <Input placeholder="描述" value={description} onChange={(e) => setDescription(e.target.value)} />
-      <Input placeholder="价格（RM）" value={price} onChange={(e) => setPrice(e.target.value)} />
-      <Input placeholder="链接（可选）" value={link} onChange={(e) => setLink(e.target.value)} />
+  return (
+    <div className="max-w-3xl mx-auto p-4 space-y-4">
+      <h1 className="text-2xl font-bold mb-4">上传房源</h1>
 
-      <TypeSelector value={type} onChange={setType} />
-      <RoomSelector label="卧室" value={bedrooms} onChange={setBedrooms} />
-      <RoomSelector label="浴室" value={bathrooms} onChange={setBathrooms} />
-      <RoomSelector label="停车位" value={carpark} onChange={setCarpark} />
-      <RoomSelector label="储藏室" value={store} onChange={setStore} />
+      <Input placeholder="标题" value={title} onChange={(e) => setTitle(e.target.value)} />
+      <Input placeholder="描述" value={description} onChange={(e) => setDescription(e.target.value)} />
+      <Input placeholder="价格（RM）" value={price} onChange={(e) => setPrice(e.target.value)} />
+      <Input placeholder="链接（可选）" value={link} onChange={(e) => setLink(e.target.value)} />
 
-      <Input placeholder="面积 (平方尺)" value={area} onChange={(e) => setArea(e.target.value)} />
-      <Input placeholder="楼层" value={floor} onChange={(e) => setFloor(e.target.value)} />
-      <Input placeholder="建成年份" value={builtYear} onChange={(e) => setBuiltYear(e.target.value)} />
-      <Input placeholder="设施/配套（如泳池、电梯等）" value={amenities} onChange={(e) => setAmenities(e.target.value)} />
+      <TypeSelector value={type} onChange={setType} />
+      <RoomSelector label="卧室" value={bedrooms} onChange={setBedrooms} />
+      <RoomSelector label="浴室" value={bathrooms} onChange={setBathrooms} />
+      <RoomSelector label="停车位" value={carpark} onChange={setCarpark} />
+      <RoomSelector label="储藏室" value={store} onChange={setStore} />
 
-      <AddressSearchInput setAddress={setAddress} setLatitude={setLatitude} setLongitude={setLongitude} />
-      <ImageUpload images={images} setImages={setImages} coverIndex={coverIndex} setCoverIndex={setCoverIndex} />
+      <Input placeholder="面积 (平方尺)" value={area} onChange={(e) => setArea(e.target.value)} />
+      <Input placeholder="楼层" value={floor} onChange={(e) => setFloor(e.target.value)} />
+      <Input placeholder="建成年份" value={builtYear} onChange={(e) => setBuiltYear(e.target.value)} />
+      <Input placeholder="设施/配套（如泳池、电梯等）" value={amenities} onChange={(e) => setAmenities(e.target.value)} />
 
-      <Button
-        onClick={handleSubmit}
-        disabled={loading}
-        className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full"
-      >
-        {loading ? '上传中...' : '提交房源'}
-      </Button>
-    </div>
-  );
+      {/* ✅ 使用新版本 AddressSearchInput */}
+      <AddressSearchInput onLocationSelect={handleLocationSelect} />
+
+      <ImageUpload images={images} setImages={setImages} coverIndex={coverIndex} setCoverIndex={setCoverIndex} />
+
+      <Button
+        onClick={handleSubmit}
+        disabled={loading}
+        className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full"
+      >
+        {loading ? '上传中...' : '提交房源'}
+      </Button>
+    </div>
+  );
 }
