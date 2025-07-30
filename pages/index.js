@@ -123,7 +123,7 @@ export default function Home() {
         value={radius}
         onChange={(e) => setRadius(+e.target.value)}
       />
-      //<PriceRangeSelector
+      <PriceRangeSelector
         minPrice={minPrice}
         maxPrice={maxPrice}
         setMinPrice={setMinPrice}
