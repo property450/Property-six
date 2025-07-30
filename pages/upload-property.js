@@ -14,7 +14,13 @@ const AddressSearchInput = dynamic(() => import('@/components/AddressSearchInput
 
 export default function UploadProperty() {
   const router = useRouter();
-  const { user } = useUser();
+  const userContext = useUser();
+
+if (!userContext || !userContext.user) {
+  return <div>Loading...</div>; // 或者跳转去登录页
+}
+
+const user = userContext.user;
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
