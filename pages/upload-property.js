@@ -148,10 +148,15 @@ export default function UploadProperty() {
 }
 
 // 🔒 服务端获取 session，确保 user 存在
+// upload-property.js 最底部
 import { createServerSupabaseClient } from '@supabase/auth-helpers-nextjs';
 
 export const getServerSideProps = async (ctx) => {
-  const supabase = createServerSupabaseClient(ctx);
+  const supabase = createServerSupabaseClient({
+    req: ctx.req,
+    res: ctx.res,
+  });
+
   const {
     data: { session },
   } = await supabase.auth.getSession();
