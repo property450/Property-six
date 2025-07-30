@@ -14,7 +14,6 @@ const AddressSearchInput = dynamic(() => import('@/components/AddressSearchInput
 
 export default function UploadProperty() {
   const router = useRouter();
-  const { user } = useUser();
 
   if (!user) {
     return <div>Loading...</div>; // 可替换为跳转登录页
