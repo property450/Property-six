@@ -14,13 +14,11 @@ const AddressSearchInput = dynamic(() => import('@/components/AddressSearchInput
 
 export default function UploadProperty() {
   const router = useRouter();
-  const userContext = useUser();
+  const { user } = useUser();
 
-if (!userContext || !userContext.user) {
-  return <div>Loading...</div>; // 或者跳转去登录页
-}
-
-const user = userContext.user;
+  if (!user) {
+    return <div>Loading...</div>; // 可替换为跳转登录页
+  }
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -40,7 +38,6 @@ const user = userContext.user;
   const [area, setArea] = useState('');
   const [amenities, setAmenities] = useState('');
   const [link, setLink] = useState('');
-
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
@@ -63,7 +60,7 @@ const user = userContext.user;
           address,
           lat: latitude,
           lng: longitude,
-          user_id: user?.id,
+          user_id: user.id,
           link,
           type,
           floor,
@@ -124,13 +121,13 @@ const user = userContext.user;
       <Input placeholder="描述" value={description} onChange={(e) => setDescription(e.target.value)} />
       <Input placeholder="价格（RM）" value={price} onChange={(e) => setPrice(e.target.value)} />
       <Input placeholder="链接（可选）" value={link} onChange={(e) => setLink(e.target.value)} />
-      
+
       <TypeSelector value={type} onChange={setType} />
       <RoomSelector label="卧室" value={bedrooms} onChange={setBedrooms} />
       <RoomSelector label="浴室" value={bathrooms} onChange={setBathrooms} />
       <RoomSelector label="停车位" value={carpark} onChange={setCarpark} />
       <RoomSelector label="储藏室" value={store} onChange={setStore} />
-      
+
       <Input placeholder="面积 (平方尺)" value={area} onChange={(e) => setArea(e.target.value)} />
       <Input placeholder="楼层" value={floor} onChange={(e) => setFloor(e.target.value)} />
       <Input placeholder="建成年份" value={builtYear} onChange={(e) => setBuiltYear(e.target.value)} />
@@ -149,3 +146,29 @@ const user = userContext.user;
     </div>
   );
 }
+
+// 🔒 服务端获取 session，确保 user 存在
+import { createServerSupabaseClient } from '@supabase/auth-helpers-nextjs';
+
+export const getServerSideProps = async (ctx) => {
+  const supabase = createServerSupabaseClient(ctx);
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session) {
+    return {
+      redirect: {
+        destination: '/login',
+        permanent: false,
+      },
+    };
+  }
+
+  return {
+    props: {
+      initialSession: session,
+      user: session.user,
+    },
+  };
+};
