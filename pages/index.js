@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { supabase } from "../supabaseClient";
-import Input from "@/components/ui/input";
-import Button from "@/components/ui/button";
+//import Input from "@/components/ui/input";
+//import Button from "@/components/ui/button";
 //import PriceRangeSelector from "@/components/PriceRangeSelector";
 //import TypeSelector from "@/components/TypeSelector";
 
