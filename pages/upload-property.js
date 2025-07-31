@@ -65,6 +65,8 @@ const [area, setArea] = useState('');
   const [amenities, setAmenities] = useState('');
   const [link, setLink] = useState('');
   const [loading, setLoading] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
 
   // ✅ useEffect：关闭下拉逻辑，建议放在组件顶部
 useEffect(() => {
