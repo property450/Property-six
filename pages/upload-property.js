@@ -159,7 +159,10 @@ const [customCarparkPosition, setCustomCarparkPosition] = useState('');
 
   <div className="space-y-4">
   <label className="block text-sm font-medium text-gray-700">车位位置</label>
-  <Select onValueChange={handleCarparkPositionChange}>
+  <select
+  value={carparkPosition}
+  onChange={(e) => handleCarparkPositionChange(e.target.value)}
+>
     <SelectTrigger>
       <SelectValue placeholder="选择车位位置" />
     </SelectTrigger>
