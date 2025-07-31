@@ -287,16 +287,6 @@ const [area, setArea] = useState('');
   </datalist>
 </div>
 
-
-onChange={(e) => {
-  const input = e.target.value;
-  if (input.endsWith('sf')) {
-    setSize(input);
-  } else {
-    setSize(input + 'sf');
-  }
-}}
-
 {/* 建成年份 */}
 <div className="space-y-1">
   <label className="text-sm font-medium">建成年份</label>
