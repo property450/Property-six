@@ -68,7 +68,8 @@ const [area, setArea] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
 const dropdownRef = useRef(null);
   const currentYear = new Date().getFullYear();
-const years = Array.from({ length: 100 + 6 }, (_, i) => currentYear - 100 + i); // +6 保证包括当前+5
+const currentYear = new Date().getFullYear();
+const years = Array.from({ length: 6 }, (_, i) => currentYear + i);
 built_year: useCustomYear ? customBuildYear : builtYear,
 const [useCustomYear, setUseCustomYear] = useState(false);
 const numericValue = e.target.value.replace(/\D/g, "").slice(0, 6); // 最多 6 位
