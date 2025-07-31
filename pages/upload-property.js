@@ -238,7 +238,7 @@ const [selectedPrice, setSelectedPrice] = useState('');
       'UG',
       ...Array.from({ length: 3 }, (_, i) => `M${i + 1}`),
       ...Array.from({ length: 15 }, (_, i) => `Level ${i + 1}`).flatMap(item =>
-        item.includes('4') ? [item, 'Level 3A'] : [item]
+        item.includes('4') ? [item, 'Level 13A'] : [item]
       ),
       '其他（自定义）',
     ].map((option) => (
