@@ -47,7 +47,6 @@ const [selectedPrice, setSelectedPrice] = useState('');
   const [facing, setFacing] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [price, setPrice] = useState('');
   const [address, setAddress] = useState('');
   const [latitude, setLatitude] = useState(null);
   const [longitude, setLongitude] = useState(null);
