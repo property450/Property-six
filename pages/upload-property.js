@@ -59,7 +59,8 @@ const [selectedPrice, setSelectedPrice] = useState('');
   const [bathrooms, setBathrooms] = useState('');
   const [carpark, setCarpark] = useState('');
   const [store, setStore] = useState('');
-  const [area, setArea] = useState('');
+  // 组件最上方加这个 state：
+const [isCustomArea, setIsCustomArea] = useState(false);
   const [amenities, setAmenities] = useState('');
   const [link, setLink] = useState('');
   const [loading, setLoading] = useState(false);
@@ -264,12 +265,15 @@ const [selectedPrice, setSelectedPrice] = useState('');
   <label className="block text-sm font-medium text-gray-700">面积 (Area)</label>
 
   <select
-    value={area}
+    value={isCustomArea ? 'custom' : area}
     onChange={(e) => {
-      if (e.target.value === 'custom') {
+      const value = e.target.value;
+      if (value === 'custom') {
+        setIsCustomArea(true);
         setArea('');
       } else {
-        setArea(e.target.value);
+        setIsCustomArea(false);
+        setArea(value);
       }
     }}
     className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
@@ -283,11 +287,11 @@ const [selectedPrice, setSelectedPrice] = useState('');
     <option value="custom">自定义输入</option>
   </select>
 
-  {area === '' && (
+  {isCustomArea && (
     <input
       type="number"
       placeholder="请输入面积 (如 1234)"
-      value={area === '' ? '' : area.replace(' sf', '')}
+      value={area.replace(' sf', '')}
       onChange={(e) => setArea(`${e.target.value} sf`)}
       className="block w-full mt-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
     />
