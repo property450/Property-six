@@ -72,6 +72,7 @@ const years = Array.from({ length: 100 + 6 }, (_, i) => currentYear - 100 + i); 
 built_year: useCustomYear ? customBuildYear : builtYear,
 const [useCustomYear, setUseCustomYear] = useState(false);
 const numericValue = e.target.value.replace(/\D/g, "").slice(0, 6); // 最多 6 位
+const [customBuildYear, setCustomBuildYear] = useState('');
 
 
 
