@@ -264,7 +264,6 @@ const [area, setArea] = useState('');
      {/* 面积 */}
 import { useState } from "react";
 
-export default function UploadProperty() {
   const predefinedAreas = [
     200, 300, 500, 800, 1000, 1200, 1500,
     2000, 3000, 5000, 8000, 10000, 15000, 20000, 30000,
