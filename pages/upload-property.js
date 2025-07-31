@@ -284,26 +284,18 @@ const toggleDropdown = () => {
 </div>
 
      {/* 面积 */}
-
-
 {/* ✅ 面积输入 + 下拉组件 */}
-<div className="relative w-full">
+<div className="relative w-full" ref={dropdownRef}>
   <input
     type="text"
-    className="w-full pr-8 border rounded px-2 py-1"
+    className="w-full pr-8 border rounded px-3 py-2"
     inputMode="numeric"
     placeholder="选择或输入面积"
-    value={area} // ✅ 只放数字部分
+    value={area}
     onChange={(e) => {
       const numericValue = e.target.value.replace(/\D/g, "");
       setArea(numericValue);
     }}
-  />
-  {/* sf 是独立展示在右边，不影响输入内容 */}
-  <span className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
-    sf
-  </span>
-</div>
     onClick={(e) => {
       setDropdownOpen(true);
       const input = e.target;
@@ -317,18 +309,33 @@ const toggleDropdown = () => {
     onKeyDown={(e) => {
       const input = e.target;
       const valueLength = area.length;
+
+      // 禁止光标越过 sf
       if (["ArrowRight", "End"].includes(e.key)) {
         if (input.selectionStart >= valueLength) {
           e.preventDefault();
           input.setSelectionRange(valueLength, valueLength);
         }
       }
-      if (e.key === "Backspace" && input.selectionStart > valueLength - 1) {
+
+      // 删除 sf 的尝试无效
+      if (e.key === "Delete" && input.selectionStart >= valueLength) {
         e.preventDefault();
       }
+
+      // 修复 Backspace 无法删除最后一位的问题
+      if (e.key === "Backspace" && input.selectionStart === valueLength) {
+        if (area.length > 0) {
+          e.preventDefault();
+          const newValue = area.slice(0, -1);
+          setArea(newValue);
+        }
+      }
     }}
-    className="border rounded px-3 py-2 w-full"
   />
+  <span className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
+    sf
+  </span>
 
   {dropdownOpen && (
     <ul className="absolute z-10 mt-1 w-full bg-white border rounded shadow max-h-60 overflow-y-auto">
@@ -356,6 +363,7 @@ const toggleDropdown = () => {
     </ul>
   )}
 </div>
+
 
 {/* 建成年份 */}
 <div className="space-y-1">
