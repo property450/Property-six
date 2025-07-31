@@ -16,6 +16,16 @@ export default function UploadProperty() {
   const router = useRouter();
   const user = useUser();
 
+  const [carparkPosition, setCarparkPosition] = useState('');
+const [customCarparkPosition, setCustomCarparkPosition] = useState('');
+
+  const handleCarparkPositionChange = (value) => {
+  setCarparkPosition(value);
+  if (value !== '其他（自定义）') {
+    setCustomCarparkPosition('');
+  }
+};
+
   useEffect(() => {
     if (user === null) {
       router.push('/login');
@@ -89,6 +99,7 @@ export default function UploadProperty() {
           store,
           area,
           amenities,
+          carpark_position: carparkPosition === '其他（自定义）' ? customCarparkPosition : carparkPosition,
         }])
         .select()
         .single();
@@ -145,6 +156,36 @@ export default function UploadProperty() {
       <RoomSelector label="浴室" value={bathrooms} onChange={setBathrooms} />
       <RoomSelector label="停车位" value={carpark} onChange={setCarpark} />
       <RoomSelector label="储藏室" value={store} onChange={setStore} />
+
+  <div className="space-y-4">
+  <Label>车位位置</Label>
+  <Select onValueChange={handleCarparkPositionChange}>
+    <SelectTrigger>
+      <SelectValue placeholder="选择车位位置" />
+    </SelectTrigger>
+    <SelectContent>
+      {[
+        'Basement',
+        'LG Level',
+        'G Level',
+        ...Array.from({ length: 15 }, (_, i) => `Level ${i + 1}`),
+        '其他（自定义）',
+      ].map((option) => (
+        <SelectItem key={option} value={option}>
+          {option}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+
+  {carparkPosition === '其他（自定义）' && (
+    <Input
+      placeholder="请输入自定义车位位置"
+      value={customCarparkPosition}
+      onChange={(e) => setCustomCarparkPosition(e.target.value)}
+    />
+  )}
+</div>
 
       {/* 面积 */}
 <div className="space-y-1">
