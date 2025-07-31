@@ -158,7 +158,7 @@ const [customCarparkPosition, setCustomCarparkPosition] = useState('');
       <RoomSelector label="储藏室" value={store} onChange={setStore} />
 
   <div className="space-y-4">
-  <Label>车位位置</Label>
+  <label className="block text-sm font-medium text-gray-700">车位位置</label>
   <Select onValueChange={handleCarparkPositionChange}>
     <SelectTrigger>
       <SelectValue placeholder="选择车位位置" />
