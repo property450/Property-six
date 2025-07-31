@@ -331,34 +331,6 @@ const toggleDropdown = () => {
         <li
           key={a}
           onClick={() => {
-            setArea(`${a}`);
-            setDropdownOpen(false);
-          }}
-          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-        >
-          {a}sf
-        </li>
-      ))}
-      <li
-        onClick={() => {
-          setArea('');
-          setDropdownOpen(false);
-        }}
-        className="px-3 py-2 text-blue-600 hover:bg-blue-50 cursor-pointer"
-      >
-        自定义
-      </li>
-    </ul>
-  )}
-</div>
-
-
-  {dropdownOpen && (
-    <ul className="absolute z-10 mt-1 w-full bg-white border rounded shadow max-h-60 overflow-y-auto">
-      {[200, 300, 500, 800, 1000, 1200, 1500, 2000, 3000, 5000, 8000, 10000, 15000, 20000, 30000].map((a) => (
-        <li
-          key={a}
-          onClick={() => {
             setArea(`${a}sf`);
             setDropdownOpen(false);
           }}
