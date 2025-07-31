@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import dynamic from 'next/dynamic';
 import { supabase } from '../supabaseClient';
@@ -66,25 +66,7 @@ const [area, setArea] = useState('');
   const [link, setLink] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const predefinedAreas = [
-  200, 300, 500, 800, 1000, 1200, 1500,
-  2000, 3000, 5000, 8000, 10000, 15000, 20000, 30000,
-];
-
-const [areaInput, setAreaInput] = useState("");
-const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
-const handleDropdownSelect = (value) => {
-  setAreaInput(`${value}sf`);
-  setArea(value); // 设置最终值
-  setIsDropdownOpen(false);
-};
-
-const handleInputChange = (e) => {
-  const value = e.target.value.replace(/[^\d]/g, ""); // 只保留数字
-  setAreaInput(value ? `${value}sf` : "");
-  setArea(value); // 更新 area 字段
-};
+  
 
 const toggleDropdown = () => {
   setIsDropdownOpen((prev) => !prev);
@@ -287,29 +269,74 @@ const toggleDropdown = () => {
 </div>
 
      {/* 面积 */}
-<div className="relative w-[250px]">
-  <label className="block text-sm font-medium mb-1">面积</label>
+   // ⬇️ 放在 useEffect 下方或组件最顶部
+// ✅ useEffect：关闭下拉逻辑，建议放在组件顶部
+useEffect(() => {
+  const handleClickOutside = (event) => {
+    if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      setDropdownOpen(false);
+    }
+  };
+  document.addEventListener('mousedown', handleClickOutside);
+  return () => {
+    document.removeEventListener('mousedown', handleClickOutside);
+  };
+}, []);
+
+{/* ✅ 面积输入 + 下拉组件 */}
+<div className="relative w-full max-w-[200px]" ref={dropdownRef}>
+  <label className="block text-sm font-medium text-gray-700 mb-1">面积</label>
   <input
     type="text"
-    value={areaInput}
-    onClick={toggleDropdown}
-    onChange={handleInputChange}
-    placeholder="请选择面积"
-    className="border p-2 w-full rounded"
+    inputMode="numeric"
+    value={area}
+    onClick={() => setDropdownOpen(true)}
+    onChange={(e) => {
+      const numeric = e.target.value.replace(/\D/g, '');
+      setArea(numeric ? `${numeric}sf` : '');
+    }}
+    onFocus={(e) => {
+      const numeric = area.replace(/\D/g, '');
+      e.target.setSelectionRange(0, numeric.length);
+    }}
+    onKeyDown={(e) => {
+      const numeric = area.replace(/\D/g, '');
+      const cursorPosition = e.target.selectionStart;
+      if (
+        (e.key === 'Backspace' && cursorPosition > numeric.length - 1) ||
+        (e.key === 'Delete' && cursorPosition >= numeric.length)
+      ) {
+        e.preventDefault();
+      }
+    }}
+    placeholder="选择或输入面积"
+    className="border rounded px-3 py-2 w-full"
   />
-  {isDropdownOpen && (
-    <div className="absolute z-10 bg-white border w-full max-h-[200px] overflow-y-scroll mt-1 rounded shadow">
-      {predefinedAreas.map((area) => (
-        <div
-          key={area}
-          onClick={() => handleDropdownSelect(area)}
-          className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+
+  {dropdownOpen && (
+    <ul className="absolute z-10 mt-1 w-full bg-white border rounded shadow max-h-60 overflow-y-auto">
+      {[200, 300, 500, 800, 1000, 1200, 1500, 2000, 3000, 5000, 8000, 10000, 15000, 20000, 30000].map((a) => (
+        <li
+          key={a}
+          onClick={() => {
+            setArea(`${a}sf`);
+            setDropdownOpen(false);
+          }}
+          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
         >
-          {area}sf
-        </div>
+          {a}sf
+        </li>
       ))}
-      <div className="px-4 py-2 text-gray-400">点击数字可编辑</div>
-    </div>
+      <li
+        onClick={() => {
+          setArea('');
+          setDropdownOpen(false);
+        }}
+        className="px-3 py-2 text-blue-600 hover:bg-blue-50 cursor-pointer"
+      >
+        自定义
+      </li>
+    </ul>
   )}
 </div>
 
