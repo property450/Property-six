@@ -331,7 +331,7 @@ const toggleDropdown = () => {
         <li
           key={a}
           onClick={() => {
-            setArea(`${a}sf`);
+            setArea(`${a}`);
             setDropdownOpen(false);
           }}
           className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
