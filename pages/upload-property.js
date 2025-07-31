@@ -68,7 +68,7 @@ const [area, setArea] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
 const dropdownRef = useRef(null);
   const currentYear = new Date().getFullYear();
-const years = Array.from({ length: 6 }, (_, i) => currentYear + i); // 例如：2025～2030
+const years = Array.from({ length: 70 + 5 + 1 }, (_, i) => currentYear + 5 - i); // 从当前+5年倒推70年
 const [useCustomYear, setUseCustomYear] = useState(false);
 const [customBuildYear, setCustomBuildYear] = useState('');
 
@@ -372,40 +372,54 @@ const toggleDropdown = () => {
 
 {/* 建成年份 */}
 <div className="mb-4">
-  <label className="block text-sm font-medium mb-1">建造年份</label>
-  <select
-    className="w-full border p-2 rounded"
-    value={useCustomYear ? 'custom' : buildYear}
-    onChange={(e) => {
-      if (e.target.value === 'custom') {
-        setUseCustomYear(true);
-        setBuildYear('');
-      } else {
-        setBuildYear(e.target.value);
-        setUseCustomYear(false);
-        setCustomBuildYear('');
-      }
-    }}
-  >
-    <option value="">请选择建造年份</option>
-    <option value="custom">自定义输入</option>
-    {years.map((year) => (
-      <option key={year} value={year}>
-        {year}
-      </option>
-    ))}
-  </select>
+  <label className="block text-sm font-medium mb-1">建造年份</label>
+  <select
+    className="w-full border p-2 rounded"
+    value={useCustomYear ? 'custom' : buildYear}
+    onChange={(e) => {
+      if (e.target.value === 'custom') {
+        setUseCustomYear(true);
+        setBuildYear('');
+      } else {
+        setBuildYear(e.target.value);
+        setUseCustomYear(false);
+        setCustomBuildYear('');
+      }
+    }}
+  >
+    <option value="">请选择建造年份</option>
+    {years.map((year) => (
+      <option key={year} value={year}>
+        {year}
+      </option>
+    ))}
+    <option value="custom">自定义输入</option>
+  </select>
 
-  {useCustomYear && (
-    <input
-      type="number"
-      placeholder="请输入建造年份"
-      value={customBuildYear}
-      onChange={(e) => setCustomBuildYear(e.target.value)}
-      className="mt-2 w-full border p-2 rounded"
-    />
-  )}
+  {useCustomYear && (
+    <input
+      type="number"
+      placeholder="请输入建造年份"
+      value={customBuildYear}
+      onChange={(e) => {
+        const val = e.target.value;
+        // 最多 4 位数字限制 + 范围校验
+        if (/^\d{0,4}$/.test(val)) {
+          setCustomBuildYear(val);
+          const num = parseInt(val);
+          if (num >= currentYear - 70 && num <= currentYear + 5) {
+            // 合法年份
+          } else {
+            toast.error('请输入有效年份（近70年内）');
+          }
+        }
+      }}
+      className="mt-2 w-full border p-2 rounded"
+      maxLength={4}
+    />
+  )}
 </div>
+
 
       <Input placeholder="设施/配套（如泳池、电梯等）" value={amenities} onChange={(e) => setAmenities(e.target.value)} />
 
