@@ -264,63 +264,56 @@ const [area, setArea] = useState('');
      {/* 面积 */}
 import { useState } from "react";
 
-export default function AreaInputWithDropdown() {
-  const predefinedAreas = [
-    200, 300, 500, 800, 1000, 1200, 1500, 2000,
-    3000, 5000, 8000, 10000, 15000, 20000, 30000,
-  ];
-  const [areaValue, setAreaValue] = useState(""); // 纯数字值
-  const [isEditing, setIsEditing] = useState(false); // 控制是否允许自定义输入
+export default function UploadProperty() {
+  const predefinedAreas = [
+    200, 300, 500, 800, 1000, 1200, 1500,
+    2000, 3000, 5000, 8000, 10000, 15000, 20000, 30000,
+  ];
 
-  // 处理选择下拉选项
-  const handleSelect = (e) => {
-    const value = e.target.value;
-    if (value === "custom") {
-      setIsEditing(true);
-      setAreaValue("");
-    } else {
-      setAreaValue(value);
-      setIsEditing(true); // 自动允许修改
-    }
-  };
+  const [areaInput, setAreaInput] = useState("");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  // 只允许输入数字
-  const handleChange = (e) => {
-    const input = e.target.value;
-    const numeric = input.replace(/\D/g, ""); // 移除非数字
-    setAreaValue(numeric);
-  };
+  const handleDropdownSelect = (value) => {
+    setAreaInput(`${value}sf`);
+    setIsDropdownOpen(false);
+  };
 
-  return (
-    <div className="flex flex-col gap-2">
-      <label className="text-sm font-medium">Area</label>
-      <select
-        onChange={handleSelect}
-        className="border rounded px-2 py-1"
-        defaultValue=""
-      >
-        <option value="" disabled>
-          请选择面积
-        </option>
-        {predefinedAreas.map((area) => (
-          <option key={area} value={area}>
-            {area} sf
-          </option>
-        ))}
-        <option value="custom">自定义</option>
-      </select>
+  const handleInputChange = (e) => {
+    const value = e.target.value.replace(/[^\d]/g, ""); // 只保留数字
+    setAreaInput(value ? `${value}sf` : "");
+  };
 
-      {isEditing && (
-        <input
-          type="text"
-          value={areaValue ? `${areaValue} sf` : ""}
-          onChange={handleChange}
-          className="border rounded px-2 py-1"
-          placeholder="请输入面积"
-        />
-      )}
-    </div>
-  );
+  const toggleDropdown = () => {
+    setIsDropdownOpen((prev) => !prev);
+  };
+
+  return (
+    <div className="relative w-[250px]">
+      <label className="block text-sm font-medium mb-1">面积</label>
+      <input
+        type="text"
+        value={areaInput}
+        onClick={toggleDropdown}
+        onChange={handleInputChange}
+        placeholder="请选择面积"
+        className="border p-2 w-full rounded"
+      />
+      {isDropdownOpen && (
+        <div className="absolute z-10 bg-white border w-full max-h-[200px] overflow-y-scroll mt-1 rounded shadow">
+          {predefinedAreas.map((area) => (
+            <div
+              key={area}
+              onClick={() => handleDropdownSelect(area)}
+              className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+            >
+              {area}sf
+            </div>
+          ))}
+          <div className="px-4 py-2 text-gray-400">点击数字可编辑</div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 {/* 建成年份 */}
