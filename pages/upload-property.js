@@ -41,6 +41,8 @@ const [customCarparkPosition, setCustomCarparkPosition] = useState('');
   }
 
   // ---------- 状态管理 ------------
+  const [customFacing, setCustomFacing] = useState('');
+  const [facing, setFacing] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
@@ -99,6 +101,7 @@ const [customCarparkPosition, setCustomCarparkPosition] = useState('');
           store,
           area,
           amenities,
+          facing,
           carpark_position: carparkPosition === '其他（自定义）' ? customCarparkPosition : carparkPosition,
         }])
         .select()
@@ -156,6 +159,36 @@ const [customCarparkPosition, setCustomCarparkPosition] = useState('');
       <RoomSelector label="浴室" value={bathrooms} onChange={setBathrooms} />
       <RoomSelector label="停车位" value={carpark} onChange={setCarpark} />
       <RoomSelector label="储藏室" value={store} onChange={setStore} />
+
+  {facing === '其他' && (
+  <input
+    type="text"
+    className="mt-2 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+    placeholder="请输入其他朝向"
+    value={customFacing}
+    onChange={(e) => setCustomFacing(e.target.value)}
+  />
+)}
+
+  <div className="space-y-4">
+  <label className="block text-sm font-medium text-gray-700">朝向</label>
+  <select
+    value={facing}
+    onChange={(e) => setFacing(e.target.value)}
+    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+  >
+    <option value="">请选择朝向</option>
+    <option value="东">东</option>
+    <option value="南">南</option>
+    <option value="西">西</option>
+    <option value="北">北</option>
+    <option value="东南">东南</option>
+    <option value="东北">东北</option>
+    <option value="西南">西南</option>
+    <option value="西北">西北</option>
+    <option value="其他">其他</option>
+  </select>
+</div>
 
   <div className="space-y-4">
   <label className="block text-sm font-medium text-gray-700">车位位置</label>
