@@ -158,36 +158,31 @@ const [customCarparkPosition, setCustomCarparkPosition] = useState('');
       <RoomSelector label="储藏室" value={store} onChange={setStore} />
 
   <div className="space-y-4">
-  <label className="block text-sm font-medium text-gray-700">车位位置</label>
-  <select
-  value={carparkPosition}
-  onChange={(e) => handleCarparkPositionChange(e.target.value)}
->
-    <SelectTrigger>
-      <SelectValue placeholder="选择车位位置" />
-    </SelectTrigger>
-    <SelectContent>
-      {[
-        'Basement',
-        'LG Level',
-        'G Level',
-        ...Array.from({ length: 15 }, (_, i) => `Level ${i + 1}`),
-        '其他（自定义）',
-      ].map((option) => (
-        <SelectItem key={option} value={option}>
-          {option}
-        </SelectItem>
-      ))}
-    </SelectContent>
-  </Select>
+  <label className="block text-sm font-medium text-gray-700">车位位置</label>
+  <select
+    className="w-full border border-gray-300 rounded px-3 py-2"
+    value={carparkPosition}
+    onChange={(e) => handleCarparkPositionChange(e.target.value)}
+  >
+    <option value="">请选择车位位置</option>
+    <option value="Basement">Basement</option>
+    <option value="LG Level">LG Level</option>
+    <option value="G Level">G Level</option>
+    {Array.from({ length: 15 }, (_, i) => (
+      <option key={i} value={`Level ${i + 1}`}>{`Level ${i + 1}`}</option>
+    ))}
+    <option value="其他（自定义）">其他（自定义）</option>
+  </select>
 
-  {carparkPosition === '其他（自定义）' && (
-    <Input
-      placeholder="请输入自定义车位位置"
-      value={customCarparkPosition}
-      onChange={(e) => setCustomCarparkPosition(e.target.value)}
-    />
-  )}
+  {carparkPosition === '其他（自定义）' && (
+    <input
+      type="text"
+      className="w-full border border-gray-300 rounded px-3 py-2"
+      placeholder="请输入自定义车位位置"
+      value={customCarparkPosition}
+      onChange={(e) => setCustomCarparkPosition(e.target.value)}
+    />
+  )}
 </div>
 
       {/* 面积 */}
