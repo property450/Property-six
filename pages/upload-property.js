@@ -152,7 +152,6 @@ const [selectedPrice, setSelectedPrice] = useState('');
 
       <Input placeholder="标题" value={title} onChange={(e) => setTitle(e.target.value)} />
       <Input placeholder="描述" value={description} onChange={(e) => setDescription(e.target.value)} />
-      <Input placeholder="价格（RM）" value={price} onChange={(e) => setPrice(e.target.value)} />
       <Input placeholder="链接（可选）" value={link} onChange={(e) => setLink(e.target.value)} />
 
       <TypeSelector value={type} onChange={setType} />
