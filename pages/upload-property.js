@@ -289,64 +289,69 @@ const toggleDropdown = () => {
 {/* ✅ 面积输入 + 下拉组件 */}
 <div className="relative w-full max-w-[200px]" ref={dropdownRef}>
   <label className="block text-sm font-medium text-gray-700 mb-1">面积</label>
-  <input
-    type="text"
-    inputMode="numeric"
-    value={area}
-    onClick={() => setDropdownOpen(true)}
-    onChange={(e) => {
-      const numeric = e.target.value.replace(/\D/g, '');
-      setArea(numeric ? `${numeric}sf` : '');
-    }}
-    onFocus={(e) => {
-      const numeric = area.replace(/\D/g, '');
-      e.target.setSelectionRange(0, numeric.length);
-    }}
-    onKeyDown={(e) => {
-      const numeric = area.replace(/\D/g, '');
-      const cursorPosition = e.target.selectionStart;
-      if (
-        (e.key === 'Backspace' && cursorPosition > numeric.length - 1) ||
-        (e.key === 'Delete' && cursorPosition >= numeric.length)
-      ) {
-        e.preventDefault();
-      }
-    }}
-    placeholder="选择或输入面积"
-    className="border rounded px-3 py-2 w-full"
-  />
 
-    <div className="relative">
   <input
     type="text"
     value={`${area}sf`}
+    inputMode="numeric"
+    placeholder="选择或输入面积"
     onChange={(e) => {
       const numericValue = e.target.value.replace(/\D/g, "");
       setArea(numericValue);
     }}
     onClick={(e) => {
+      setDropdownOpen(true);
       const input = e.target;
       const valueLength = area.length;
       setTimeout(() => input.setSelectionRange(valueLength, valueLength), 0);
     }}
+    onFocus={(e) => {
+      const valueLength = area.length;
+      e.target.setSelectionRange(valueLength, valueLength);
+    }}
     onKeyDown={(e) => {
       const input = e.target;
       const valueLength = area.length;
-      // 如果光标想往 sf 部分走，就禁止
       if (["ArrowRight", "End"].includes(e.key)) {
         if (input.selectionStart >= valueLength) {
           e.preventDefault();
           input.setSelectionRange(valueLength, valueLength);
         }
       }
-      // 禁止删除 sf
       if (e.key === "Backspace" && input.selectionStart > valueLength - 1) {
         e.preventDefault();
       }
     }}
-    className="border rounded px-2 py-1 w-full"
+    className="border rounded px-3 py-2 w-full"
   />
+
+  {dropdownOpen && (
+    <ul className="absolute z-10 mt-1 w-full bg-white border rounded shadow max-h-60 overflow-y-auto">
+      {[200, 300, 500, 800, 1000, 1200, 1500, 2000, 3000, 5000, 8000, 10000, 15000, 20000, 30000].map((a) => (
+        <li
+          key={a}
+          onClick={() => {
+            setArea(`${a}`);
+            setDropdownOpen(false);
+          }}
+          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+        >
+          {a}sf
+        </li>
+      ))}
+      <li
+        onClick={() => {
+          setArea('');
+          setDropdownOpen(false);
+        }}
+        className="px-3 py-2 text-blue-600 hover:bg-blue-50 cursor-pointer"
+      >
+        自定义
+      </li>
+    </ul>
+  )}
 </div>
+
 
   {dropdownOpen && (
     <ul className="absolute z-10 mt-1 w-full bg-white border rounded shadow max-h-60 overflow-y-auto">
