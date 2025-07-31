@@ -67,6 +67,11 @@ const [area, setArea] = useState('');
   const [loading, setLoading] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
 const dropdownRef = useRef(null);
+  const currentYear = new Date().getFullYear();
+const years = Array.from({ length: 100 + 6 }, (_, i) => currentYear - 100 + i); // +6 保证包括当前+5
+const [customBuildYear, setCustomBuildYear] = useState('');
+const [useCustomYear, setUseCustomYear] = useState(false);
+
 
 
   // ✅ useEffect：关闭下拉逻辑，建议放在组件顶部
@@ -366,23 +371,40 @@ const toggleDropdown = () => {
 
 
 {/* 建成年份 */}
-<div className="space-y-1">
-  <label className="text-sm font-medium">建成年份</label>
-  <select
-    value={builtYear}
-    onChange={(e) => setBuiltYear(e.target.value)}
-    className="w-full border rounded px-3 py-2"
-  >
-    <option value="">请选择年份</option>
-    {Array.from({ length: 70 }, (_, i) => {
-      const year = new Date().getFullYear() - i;
-      return (
-        <option key={year} value={year}>
-          {year}
-        </option>
-      );
-    })}
-  </select>
+<div className="mb-4">
+  <label className="block text-sm font-medium mb-1">建造年份</label>
+  <select
+    className="w-full border p-2 rounded"
+    value={useCustomYear ? 'custom' : buildYear}
+    onChange={(e) => {
+      if (e.target.value === 'custom') {
+        setUseCustomYear(true);
+        setBuildYear('');
+      } else {
+        setBuildYear(e.target.value);
+        setUseCustomYear(false);
+        setCustomBuildYear('');
+      }
+    }}
+  >
+    <option value="">请选择建造年份</option>
+    <option value="custom">自定义输入</option>
+    {years.map((year) => (
+      <option key={year} value={year}>
+        {year}
+      </option>
+    ))}
+  </select>
+
+  {useCustomYear && (
+    <input
+      type="number"
+      placeholder="请输入建造年份"
+      value={customBuildYear}
+      onChange={(e) => setCustomBuildYear(e.target.value)}
+      className="mt-2 w-full border p-2 rounded"
+    />
+  )}
 </div>
 
       <Input placeholder="设施/配套（如泳池、电梯等）" value={amenities} onChange={(e) => setAmenities(e.target.value)} />
