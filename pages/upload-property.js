@@ -66,7 +66,19 @@ const [area, setArea] = useState('');
   const [link, setLink] = useState('');
   const [loading, setLoading] = useState(false);
 
-  
+  // ✅ useEffect：关闭下拉逻辑，建议放在组件顶部
+useEffect(() => {
+  const handleClickOutside = (event) => {
+    if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      setDropdownOpen(false);
+    }
+  };
+  document.addEventListener('mousedown', handleClickOutside);
+  return () => {
+    document.removeEventListener('mousedown', handleClickOutside);
+  };
+}, []);
+
 
 const toggleDropdown = () => {
   setIsDropdownOpen((prev) => !prev);
@@ -269,19 +281,7 @@ const toggleDropdown = () => {
 </div>
 
      {/* 面积 */}
-   // ⬇️ 放在 useEffect 下方或组件最顶部
-// ✅ useEffect：关闭下拉逻辑，建议放在组件顶部
-useEffect(() => {
-  const handleClickOutside = (event) => {
-    if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-      setDropdownOpen(false);
-    }
-  };
-  document.addEventListener('mousedown', handleClickOutside);
-  return () => {
-    document.removeEventListener('mousedown', handleClickOutside);
-  };
-}, []);
+
 
 {/* ✅ 面积输入 + 下拉组件 */}
 <div className="relative w-full max-w-[200px]" ref={dropdownRef}>
