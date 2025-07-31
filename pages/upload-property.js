@@ -263,41 +263,39 @@ const [area, setArea] = useState('');
 
      {/* 面积 */}
 <div className="space-y-2">
-  <label className="block text-sm font-medium text-gray-700">面积 (Area)</label>
-
-  <select
-    value={isCustomArea ? 'custom' : area}
+  <label htmlFor="size" className="block text-sm font-medium text-gray-700">面积 (sf)</label>
+  <input
+    list="size-options"
+    id="size"
+    name="size"
+    value={area}
     onChange={(e) => {
-      const value = e.target.value;
-      if (value === 'custom') {
-        setIsCustomArea(true);
-        setArea('');
+      const input = e.target.value;
+      if (input.endsWith('sf')) {
+        setArea(input);
       } else {
-        setIsCustomArea(false);
-        setArea(value);
+        setArea(input + 'sf');
       }
     }}
-    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-  >
-    <option value="">请选择面积</option>
-    {Array.from({ length: 299 }, (_, i) => 200 + i * 100).map((sf) => (
-      <option key={sf} value={`${sf} sf`}>
-        {sf.toLocaleString()} sf
-      </option>
+    placeholder="请输入或选择面积"
+    className="w-full border border-gray-300 rounded px-3 py-2"
+  />
+  <datalist id="size-options">
+    {Array.from({ length: 149 }, (_, i) => 200 + i * 200).map((value) => (
+      <option key={value} value={`${value}sf`} />
     ))}
-    <option value="custom">自定义输入</option>
-  </select>
-
-  {isCustomArea && (
-    <input
-      type="number"
-      placeholder="请输入面积 (如 1234)"
-      value={area.replace(' sf', '')}
-      onChange={(e) => setArea(`${e.target.value} sf`)}
-      className="block w-full mt-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-    />
-  )}
+  </datalist>
 </div>
+
+
+onChange={(e) => {
+  const input = e.target.value;
+  if (input.endsWith('sf')) {
+    setSize(input);
+  } else {
+    setSize(input + 'sf');
+  }
+}}
 
 {/* 建成年份 */}
 <div className="space-y-1">
