@@ -316,6 +316,19 @@ const toggleDropdown = () => {
     className="border rounded px-3 py-2 w-full"
   />
 
+    <div className="relative w-full">
+  <input
+    type="number"
+    value={area}
+    onChange={(e) => setArea(e.target.value)}
+    className="w-full pr-10 pl-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+    placeholder="Enter area"
+  />
+  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
+    sf
+  </span>
+</div>
+
   {dropdownOpen && (
     <ul className="absolute z-10 mt-1 w-full bg-white border rounded shadow max-h-60 overflow-y-auto">
       {[200, 300, 500, 800, 1000, 1200, 1500, 2000, 3000, 5000, 8000, 10000, 15000, 20000, 30000].map((a) => (
