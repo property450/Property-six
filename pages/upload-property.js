@@ -316,17 +316,36 @@ const toggleDropdown = () => {
     className="border rounded px-3 py-2 w-full"
   />
 
-    <div className="relative w-full">
+    <div className="relative">
   <input
-    type="number"
-    value={area}
-    onChange={(e) => setArea(e.target.value)}
-    className="w-full pr-10 pl-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-    placeholder="Enter area"
+    type="text"
+    value={`${area}sf`}
+    onChange={(e) => {
+      const numericValue = e.target.value.replace(/\D/g, "");
+      setArea(numericValue);
+    }}
+    onClick={(e) => {
+      const input = e.target;
+      const valueLength = area.length;
+      setTimeout(() => input.setSelectionRange(valueLength, valueLength), 0);
+    }}
+    onKeyDown={(e) => {
+      const input = e.target;
+      const valueLength = area.length;
+      // 如果光标想往 sf 部分走，就禁止
+      if (["ArrowRight", "End"].includes(e.key)) {
+        if (input.selectionStart >= valueLength) {
+          e.preventDefault();
+          input.setSelectionRange(valueLength, valueLength);
+        }
+      }
+      // 禁止删除 sf
+      if (e.key === "Backspace" && input.selectionStart > valueLength - 1) {
+        e.preventDefault();
+      }
+    }}
+    className="border rounded px-2 py-1 w-full"
   />
-  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
-    sf
-  </span>
 </div>
 
   {dropdownOpen && (
