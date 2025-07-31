@@ -60,7 +60,8 @@ const [selectedPrice, setSelectedPrice] = useState('');
   const [carpark, setCarpark] = useState('');
   const [store, setStore] = useState('');
   // 组件最上方加这个 state：
-const [isCustomArea, setIsCustomArea] = useState(false);
+const [area, setArea] = useState('');
+  const [isCustomArea, setIsCustomArea] = useState(false);
   const [amenities, setAmenities] = useState('');
   const [link, setLink] = useState('');
   const [loading, setLoading] = useState(false);
