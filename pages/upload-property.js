@@ -287,18 +287,23 @@ const toggleDropdown = () => {
 
 
 {/* ✅ 面积输入 + 下拉组件 */}
-<div className="relative w-full max-w-[200px]" ref={dropdownRef}>
-  <label className="block text-sm font-medium text-gray-700 mb-1">面积</label>
-
+<div className="relative w-full">
   <input
     type="text"
-    value={`${area}sf`}
+    className="w-full pr-8 border rounded px-2 py-1"
     inputMode="numeric"
     placeholder="选择或输入面积"
+    value={area} // ✅ 只放数字部分
     onChange={(e) => {
       const numericValue = e.target.value.replace(/\D/g, "");
       setArea(numericValue);
     }}
+  />
+  {/* sf 是独立展示在右边，不影响输入内容 */}
+  <span className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
+    sf
+  </span>
+</div>
     onClick={(e) => {
       setDropdownOpen(true);
       const input = e.target;
