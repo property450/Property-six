@@ -260,66 +260,39 @@ const [selectedPrice, setSelectedPrice] = useState('');
 </div>
 
      {/* 面积 */}
-import { useState } from 'react';
+<div className="space-y-2">
+  <label className="block text-sm font-medium text-gray-700">面积 (Area)</label>
 
-export default function UploadProperty() {
-  const [selectedArea, setSelectedArea] = useState('');
-  const [customArea, setCustomArea] = useState('');
-  const [isCustomArea, setIsCustomArea] = useState(false);
+  <select
+    value={area}
+    onChange={(e) => {
+      if (e.target.value === 'custom') {
+        setArea('');
+      } else {
+        setArea(e.target.value);
+      }
+    }}
+    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+  >
+    <option value="">请选择面积</option>
+    {Array.from({ length: 299 }, (_, i) => 200 + i * 100).map((sf) => (
+      <option key={sf} value={`${sf} sf`}>
+        {sf.toLocaleString()} sf
+      </option>
+    ))}
+    <option value="custom">自定义输入</option>
+  </select>
 
-  const generateAreaOptions = () => {
-    const options = [];
-    for (let i = 200; i <= 30000; i += 100) {
-      options.push(`${i} sf`);
-    }
-    return options;
-  };
-
-  const handleAreaChange = (e) => {
-    const value = e.target.value;
-    if (value === 'custom') {
-      setIsCustomArea(true);
-      setSelectedArea('');
-    } else {
-      setIsCustomArea(false);
-      setSelectedArea(value);
-      setCustomArea('');
-    }
-  };
-
-  const handleCustomAreaChange = (e) => {
-    setCustomArea(e.target.value);
-    setSelectedArea(`${e.target.value} sf`);
-  };
-
-  return (
-    <div>
-      <label>面积 (Area)</label>
-      {!isCustomArea && (
-        <select value={selectedArea || ''} onChange={handleAreaChange}>
-          <option value="">请选择面积</option>
-          {generateAreaOptions().map((area) => (
-            <option key={area} value={area}>
-              {area}
-            </option>
-          ))}
-          <option value="custom">自定义输入</option>
-        </select>
-      )}
-      {isCustomArea && (
-        <input
-          type="number"
-          placeholder="输入面积 (如 1234)"
-          value={customArea}
-          onChange={handleCustomAreaChange}
-        />
-      )}
-
-      {/* 调试显示所选值 */}
-      <p>最终面积值：{selectedArea}</p>
-    </div>
-  );
-}
+  {area === '' && (
+    <input
+      type="number"
+      placeholder="请输入面积 (如 1234)"
+      value={area === '' ? '' : area.replace(' sf', '')}
+      onChange={(e) => setArea(`${e.target.value} sf`)}
+      className="block w-full mt-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+    />
+  )}
+</div>
 
 {/* 建成年份 */}
 <div className="space-y-1">
