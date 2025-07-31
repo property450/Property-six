@@ -259,41 +259,31 @@ const [selectedPrice, setSelectedPrice] = useState('');
   )}
 </div>
 
-      {/* 面积 */}
-<div className="space-y-1">
-  <label className="text-sm font-medium">面积 (平方尺)</label>
+     {/* 面积 */}
+<div className="space-y-2">
+  <label className="text-sm font-medium text-gray-700">面积 (平方尺)</label>
   <select
     value={area}
     onChange={(e) => setArea(e.target.value)}
-    className="w-full border rounded px-3 py-2"
+    className="w-full border border-gray-300 rounded px-3 py-2"
   >
     <option value="">请选择面积</option>
-    {Array.from({ length: 20 }, (_, i) => {
-      const sqft = (i + 5) * 100;
-      return (
-        <option key={sqft} value={sqft}>
-          {sqft} 平方尺
-        </option>
-      );
-    })}
+    {
+      Array.from({ length: 149 }, (_, i) => 200 + i * 200).map((sqft) => (
+        <option key={sqft} value={sqft}>{sqft.toLocaleString()} 平方尺</option>
+      ))
+    }
+    <option value="custom">自定义</option>
   </select>
-</div>
 
-{/* 楼层 */}
-<div className="space-y-1">
-  <label className="text-sm font-medium">楼层</label>
-  <select
-    value={floor}
-    onChange={(e) => setFloor(e.target.value)}
-    className="w-full border rounded px-3 py-2"
-  >
-    <option value="">请选择楼层</option>
-    {Array.from({ length: 51 }, (_, i) => (
-      <option key={i} value={i}>
-        {i === 0 ? '底楼' : `${i} 楼`}
-      </option>
-    ))}
-  </select>
+  {area === 'custom' && (
+    <input
+      type="number"
+      placeholder="请输入自定义面积（平方尺）"
+      className="mt-2 w-full border border-gray-300 rounded px-3 py-2"
+      onChange={(e) => setArea(e.target.value)}
+    />
+  )}
 </div>
 
 {/* 建成年份 */}
