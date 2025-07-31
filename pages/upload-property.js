@@ -262,30 +262,66 @@ const [area, setArea] = useState('');
 </div>
 
      {/* 面积 */}
-<div className="space-y-2">
-  <label htmlFor="size" className="block text-sm font-medium text-gray-700">面积 (sf)</label>
-  <input
-    list="size-options"
-    id="size"
-    name="size"
-    value={area}
-    onChange={(e) => {
-      const input = e.target.value;
-      if (input.endsWith('sf')) {
-        setArea(input);
-      } else {
-        setArea(input + 'sf');
-      }
-    }}
-    placeholder="请输入或选择面积"
-    className="w-full border border-gray-300 rounded px-3 py-2"
-  />
-  <datalist id="size-options">
-    {Array.from({ length: 149 }, (_, i) => 200 + i * 200).map((value) => (
-      <option key={value} value={`${value}sf`} />
-    ))}
-  </datalist>
-</div>
+import { useState } from "react";
+
+export default function AreaInputWithDropdown() {
+  const predefinedAreas = [
+    200, 300, 500, 800, 1000, 1200, 1500, 2000,
+    3000, 5000, 8000, 10000, 15000, 20000, 30000,
+  ];
+  const [areaValue, setAreaValue] = useState(""); // 纯数字值
+  const [isEditing, setIsEditing] = useState(false); // 控制是否允许自定义输入
+
+  // 处理选择下拉选项
+  const handleSelect = (e) => {
+    const value = e.target.value;
+    if (value === "custom") {
+      setIsEditing(true);
+      setAreaValue("");
+    } else {
+      setAreaValue(value);
+      setIsEditing(true); // 自动允许修改
+    }
+  };
+
+  // 只允许输入数字
+  const handleChange = (e) => {
+    const input = e.target.value;
+    const numeric = input.replace(/\D/g, ""); // 移除非数字
+    setAreaValue(numeric);
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <label className="text-sm font-medium">Area</label>
+      <select
+        onChange={handleSelect}
+        className="border rounded px-2 py-1"
+        defaultValue=""
+      >
+        <option value="" disabled>
+          请选择面积
+        </option>
+        {predefinedAreas.map((area) => (
+          <option key={area} value={area}>
+            {area} sf
+          </option>
+        ))}
+        <option value="custom">自定义</option>
+      </select>
+
+      {isEditing && (
+        <input
+          type="text"
+          value={areaValue ? `${areaValue} sf` : ""}
+          onChange={handleChange}
+          className="border rounded px-2 py-1"
+          placeholder="请输入面积"
+        />
+      )}
+    </div>
+  );
+}
 
 {/* 建成年份 */}
 <div className="space-y-1">
