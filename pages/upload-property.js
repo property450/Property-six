@@ -66,6 +66,30 @@ const [area, setArea] = useState('');
   const [link, setLink] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const predefinedAreas = [
+  200, 300, 500, 800, 1000, 1200, 1500,
+  2000, 3000, 5000, 8000, 10000, 15000, 20000, 30000,
+];
+
+const [areaInput, setAreaInput] = useState("");
+const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+const handleDropdownSelect = (value) => {
+  setAreaInput(`${value}sf`);
+  setArea(value); // 设置最终值
+  setIsDropdownOpen(false);
+};
+
+const handleInputChange = (e) => {
+  const value = e.target.value.replace(/[^\d]/g, ""); // 只保留数字
+  setAreaInput(value ? `${value}sf` : "");
+  setArea(value); // 更新 area 字段
+};
+
+const toggleDropdown = () => {
+  setIsDropdownOpen((prev) => !prev);
+};
+  
   // ✅ 接收地址搜索返回的结果
   const handleLocationSelect = ({ lat, lng, address }) => {
     setLatitude(lat);
@@ -253,6 +277,7 @@ const [area, setArea] = useState('');
   {carparkPosition === '其他（自定义）' && (
     <input
       type="text"
+   inputMode="numeric"
       placeholder="请输入自定义车位位置"
       value={customCarparkPosition}
       onChange={(e) => setCustomCarparkPosition(e.target.value)}
@@ -262,58 +287,31 @@ const [area, setArea] = useState('');
 </div>
 
      {/* 面积 */}
-import { useState } from "react";
-
-  const predefinedAreas = [
-    200, 300, 500, 800, 1000, 1200, 1500,
-    2000, 3000, 5000, 8000, 10000, 15000, 20000, 30000,
-  ];
-
-  const [areaInput, setAreaInput] = useState("");
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
-  const handleDropdownSelect = (value) => {
-    setAreaInput(`${value}sf`);
-    setIsDropdownOpen(false);
-  };
-
-  const handleInputChange = (e) => {
-    const value = e.target.value.replace(/[^\d]/g, ""); // 只保留数字
-    setAreaInput(value ? `${value}sf` : "");
-  };
-
-  const toggleDropdown = () => {
-    setIsDropdownOpen((prev) => !prev);
-  };
-
-  return (
-    <div className="relative w-[250px]">
-      <label className="block text-sm font-medium mb-1">面积</label>
-      <input
-        type="text"
-        value={areaInput}
-        onClick={toggleDropdown}
-        onChange={handleInputChange}
-        placeholder="请选择面积"
-        className="border p-2 w-full rounded"
-      />
-      {isDropdownOpen && (
-        <div className="absolute z-10 bg-white border w-full max-h-[200px] overflow-y-scroll mt-1 rounded shadow">
-          {predefinedAreas.map((area) => (
-            <div
-              key={area}
-              onClick={() => handleDropdownSelect(area)}
-              className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-            >
-              {area}sf
-            </div>
-          ))}
-          <div className="px-4 py-2 text-gray-400">点击数字可编辑</div>
-        </div>
-      )}
-    </div>
-  );
-}
+<div className="relative w-[250px]">
+  <label className="block text-sm font-medium mb-1">面积</label>
+  <input
+    type="text"
+    value={areaInput}
+    onClick={toggleDropdown}
+    onChange={handleInputChange}
+    placeholder="请选择面积"
+    className="border p-2 w-full rounded"
+  />
+  {isDropdownOpen && (
+    <div className="absolute z-10 bg-white border w-full max-h-[200px] overflow-y-scroll mt-1 rounded shadow">
+      {predefinedAreas.map((area) => (
+        <div
+          key={area}
+          onClick={() => handleDropdownSelect(area)}
+          className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+        >
+          {area}sf
+        </div>
+      ))}
+      <div className="px-4 py-2 text-gray-400">点击数字可编辑</div>
+    </div>
+  )}
+</div>
 
 {/* 建成年份 */}
 <div className="space-y-1">
