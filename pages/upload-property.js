@@ -69,7 +69,6 @@ const [area, setArea] = useState('');
 const dropdownRef = useRef(null);
   const currentYear = new Date().getFullYear();
 const years = Array.from({ length: 6 }, (_, i) => currentYear + i); // 例如：2025～2030
-
 const [useCustomYear, setUseCustomYear] = useState(false);
 const [customBuildYear, setCustomBuildYear] = useState('');
 
