@@ -49,7 +49,7 @@ export default function TypeSelector({ value, onChange }) {
   ]);
 
   const categoryOptions = {
-    'Bungalow / Villa': ['Bungalow', 'Link Bungalow', 'Twin Villa', 'Zero-Lot Bungalow', 'Bungalow land'],
+    'Bungalow / Villa': ['Bungalow', 'Link Bungalow', 'Twin Villa', 'Zero-Lot Bungalow'],
     'Apartment / Condo / Service Residence': ['Apartment', 'Condominium', 'Flat', 'Service Residence', 'Penthouse'],
     'Semi-Detached House': ['Cluster House', 'Semi-Detached House'],
     'Terrace / Link House': [
@@ -79,9 +79,6 @@ export default function TypeSelector({ value, onChange }) {
       'Sofo',
       'Soho',
       'Sovo',
-      'Duplex',
-      'Triplex',
-      'Dual Key',
       'Commercial Bungalow',
       'Commercial Semi-Detached House',
       'Mall / Commercial Complex',
