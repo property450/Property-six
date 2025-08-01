@@ -245,11 +245,18 @@ export default function TypeSelector({ value, onChange }) {
               }}
             >
               <option value="">请选择类别</option>
-              {Object.keys(categoryOptions).map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
+              {Object.keys(categoryOptions)
+  .filter((cat) => {
+    if (affordable === 'Yes') {
+      return !['Business Property', 'Industrial Property', 'Land'].includes(cat);
+    }
+    return true;
+  })
+  .map((cat) => (
+    <option key={cat} value={cat}>
+      {cat}
+    </option>
+))}
             </select>
           </div>
 
