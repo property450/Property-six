@@ -49,7 +49,7 @@ export default function TypeSelector({ value, onChange }) {
   ]);
 
   const categoryOptions = {
-    'Bungalow / Villa': ['Bungalow', 'Link Bungalow', 'Twin Villa', 'Zero-Lot Bungalow'],
+    'Bungalow / Villa': ['Bungalow', 'Link Bungalow', 'Twin Villa', 'Zero-Lot Bungalow', 'Bungalow land'],
     'Apartment / Condo / Service Residence': ['Apartment', 'Condominium', 'Flat', 'Service Residence'],
     'Semi-Detached House': ['Cluster House', 'Semi-Detached House'],
     'Terrace / Link House': [
