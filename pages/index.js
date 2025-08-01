@@ -94,7 +94,7 @@ export default function Home() {
 
   const matchType =
     !selectedType ||
-    (p.type || "").toLowerCase().includes(selectedType.toLowerCase());
+    (p.type || "").toLowerCase().includes((selectedType?.type || "").toLowerCase())
 
   console.log(
     `🏠 ${p.title} | 距离=${dist.toFixed(2)}km | ✅距离=${okRadius}, ✅价格=${matchPrice}, ✅类型=${matchType}`
