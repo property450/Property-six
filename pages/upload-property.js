@@ -61,16 +61,17 @@ const [selectedPrice, setSelectedPrice] = useState('');
   const [store, setStore] = useState('');
   // 组件最上方加这个 state：
 const [area, setArea] = useState('');
-  const [isCustomArea, setIsCustomArea] = useState(false);
+  const [areaUnit, setAreaUnit] = useState('sq ft');
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
   const [amenities, setAmenities] = useState('');
   const [link, setLink] = useState('');
   const [loading, setLoading] = useState(false);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-const dropdownRef = useRef(null);
-  const currentYear = new Date().getFullYear();
-const years = Array.from({ length: 70 + 5 + 1 }, (_, i) => currentYear + 5 - i); // 从当前+5年倒推70年
-const [useCustomYear, setUseCustomYear] = useState(false);
-const [customBuildYear, setCustomBuildYear] = useState('');
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 70 + 5 + 1 }, (_, i) => currentYear + 5 - i);
+  const [useCustomYear, setUseCustomYear] = useState(false);
+  const [customBuildYear, setCustomBuildYear] = useState('');
 
 
 
@@ -128,7 +129,7 @@ const toggleDropdown = () => {
           bathrooms,
           carpark,
           store,
-          area,
+          area: `${area} ${areaUnit}`,
           amenities,
           facing,
           carpark_position: carparkPosition === '其他（自定义）' ? customCarparkPosition : carparkPosition,
@@ -290,84 +291,40 @@ const toggleDropdown = () => {
 
      {/* 面积 */}
 {/* ✅ 面积输入 + 下拉组件 */}
-<div className="relative w-full" ref={dropdownRef}>
-  <input
-    type="text"
-    className="w-full pr-8 border rounded px-3 py-2"
-    inputMode="numeric"
-    placeholder="选择或输入面积"
-    value={area}
-    onChange={(e) => {
-      const numericValue = e.target.value.replace(/\D/g, "");
-      setArea(numericValue);
-    }}
-    onClick={(e) => {
-      setDropdownOpen(true);
-      const input = e.target;
-      const valueLength = area.length;
-      setTimeout(() => input.setSelectionRange(valueLength, valueLength), 0);
-    }}
-    onFocus={(e) => {
-      const valueLength = area.length;
-      e.target.setSelectionRange(valueLength, valueLength);
-    }}
-    onKeyDown={(e) => {
-      const input = e.target;
-      const valueLength = area.length;
-
-      // 禁止光标越过 sf
-      if (["ArrowRight", "End"].includes(e.key)) {
-        if (input.selectionStart >= valueLength) {
-          e.preventDefault();
-          input.setSelectionRange(valueLength, valueLength);
-        }
-      }
-
-      // 删除 sf 的尝试无效
-      if (e.key === "Delete" && input.selectionStart >= valueLength) {
-        e.preventDefault();
-      }
-
-      // 修复 Backspace 无法删除最后一位的问题
-      if (e.key === "Backspace" && input.selectionStart === valueLength) {
-        if (area.length > 0) {
-          e.preventDefault();
-          const newValue = area.slice(0, -1);
-          setArea(newValue);
-        }
-      }
-    }}
-  />
-  <span className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
-    sf
-  </span>
-
-  {dropdownOpen && (
-    <ul className="absolute z-10 mt-1 w-full bg-white border rounded shadow max-h-60 overflow-y-auto">
-      {[200, 300, 500, 800, 1000, 1200, 1500, 2000, 3000, 5000, 8000, 10000, 15000, 20000, 30000].map((a) => (
-        <li
-          key={a}
-          onClick={() => {
-            setArea(`${a}`);
-            setDropdownOpen(false);
-          }}
-          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+ <div className="space-y-1">
+        <label className="block text-sm font-medium text-gray-700">面积</label>
+        <div className="relative flex items-center">
+          <input
+            type="text"
+            inputMode="decimal"
+            pattern="[0-9.]*"
+            value={area}
+            onChange={(e) => {
+              const raw = e.target.value;
+              if (/^\d*(\.\d{0,2})?$/.test(raw)) setArea(raw);
+            }}
+            className="w-full border rounded px-3 py-2 pr-16"
+            placeholder="请输入面积"
+          />
+          <span className="absolute right-3 text-sm text-gray-500 pointer-events-none">{areaUnit}</span>
+        </div>
+        <select
+          value={areaUnit}
+          onChange={(e) => setAreaUnit(e.target.value)}
+          className="mt-1 w-full border rounded p-2"
         >
-          {a}sf
-        </li>
-      ))}
-      <li
-        onClick={() => {
-          setArea('');
-          setDropdownOpen(false);
-        }}
-        className="px-3 py-2 text-blue-600 hover:bg-blue-50 cursor-pointer"
-      >
-        自定义
-      </li>
-    </ul>
-  )}
-</div>
+          <option value="sq ft">平方英尺（sq ft）</option>
+          <option value="acres">英亩（acres）</option>
+          <option value="hectares">公顷（hectares）</option>
+        </select>
+        {area && areaUnit === 'acres' && (
+          <p className="text-sm text-gray-500 mt-1">≈ {(area * 43560).toLocaleString()} sq ft</p>
+        )}
+        {area && areaUnit === 'hectares' && (
+          <p className="text-sm text-gray-500 mt-1">≈ {(area * 107639).toLocaleString()} sq ft</p>
+        )}
+      </div>
+
 
 
 {/* 建成年份 */}
