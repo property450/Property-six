@@ -9,6 +9,7 @@ import ImageUpload from '@/components/ImageUpload';
 import TypeSelector from '@/components/TypeSelector';
 import RoomSelector from '@/components/RoomCountSelector';
 import { useUser } from '@supabase/auth-helpers-react';
+import AreaSelector from '@/components/AreaSelector';
 
 const AddressSearchInput = dynamic(() => import('@/components/AddressSearchInput'), { ssr: false });
 
@@ -60,9 +61,6 @@ const [selectedPrice, setSelectedPrice] = useState('');
   const [carpark, setCarpark] = useState('');
   const [store, setStore] = useState('');
   // 组件最上方加这个 state：
-const [area, setArea] = useState('');
-  const [areaUnit, setAreaUnit] = useState('sq ft');
-  const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
   const [amenities, setAmenities] = useState('');
@@ -72,6 +70,7 @@ const [area, setArea] = useState('');
   const years = Array.from({ length: 70 + 5 + 1 }, (_, i) => currentYear + 5 - i);
   const [useCustomYear, setUseCustomYear] = useState(false);
   const [customBuildYear, setCustomBuildYear] = useState('');
+const [areaData, setAreaData] = useState({ area: '', unit: 'sq ft' });
 
 
 
@@ -129,7 +128,7 @@ const toggleDropdown = () => {
           bathrooms,
           carpark,
           store,
-          area: `${area} ${areaUnit}`,
+          area: JSON.stringify(areaData), // 建议序列化存储，方便查询与提取
           amenities,
           facing,
           carpark_position: carparkPosition === '其他（自定义）' ? customCarparkPosition : carparkPosition,
@@ -290,6 +289,72 @@ const toggleDropdown = () => {
 </div>
 
      {/* 面积 */}
+<AreaSelector onChange={(data) => setAreaData(data)} />
+
+  import { useEffect, useState } from 'react';
+
+   const [areaData, setAreaData] = useState({
+  buildUpArea: '',
+  landArea: '',
+  unit: 'sq ft',
+});
+   
+export default function AreaSelector({ onChange }) {
+  const [buildUpArea, setBuildUpArea] = useState('');
+  const [landArea, setLandArea] = useState('');
+  const [unit, setUnit] = useState('sq ft');
+
+  useEffect(() => {
+    if (onChange) {
+      onChange({
+        buildUpArea,
+        landArea,
+        unit,
+      });
+    }
+  }, [buildUpArea, landArea, unit]);
+
+  return (
+    <div className="space-y-4">
+      <label className="block text-sm font-medium text-gray-700">面积</label>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <input
+            type="number"
+            placeholder="建筑面积"
+            value={buildUpArea}
+            onChange={(e) => setBuildUpArea(e.target.value)}
+            className="w-full border rounded px-3 py-2"
+          />
+          <p className="text-xs text-gray-500">建筑面积</p>
+        </div>
+
+        <div>
+          <input
+            type="number"
+            placeholder="土地面积"
+            value={landArea}
+            onChange={(e) => setLandArea(e.target.value)}
+            className="w-full border rounded px-3 py-2"
+          />
+          <p className="text-xs text-gray-500">土地面积</p>
+        </div>
+      </div>
+
+      <select
+        value={unit}
+        onChange={(e) => setUnit(e.target.value)}
+        className="mt-2 w-full border rounded px-3 py-2"
+      >
+        <option value="sq ft">平方英尺（sq ft）</option>
+        <option value="acres">英亩（acres）</option>
+        <option value="hectares">公顷（hectares）</option>
+      </select>
+    </div>
+  );
+}
+
 {/* ✅ 面积输入 + 下拉组件 */}
  <div className="space-y-1">
         <label className="block text-sm font-medium text-gray-700">面积</label>
