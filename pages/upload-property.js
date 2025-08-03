@@ -356,14 +356,6 @@ export default function AreaSelector({ onChange }) {
 }
 
 {/* ✅ 面积输入 + 下拉组件 */}
-
-   <AreaSelector
-  buildUpArea={buildUpArea}
-  setBuildUpArea={setBuildUpArea}
-  landArea={landArea}
-  setLandArea={setLandArea}
-/>
-
     const [buildUpArea, setBuildUpArea] = useState('');
 const [landArea, setLandArea] = useState('');
 const [unit, setUnit] = useState('sq ft');
