@@ -356,6 +356,18 @@ export default function AreaSelector({ onChange }) {
 }
 
 {/* ✅ 面积输入 + 下拉组件 */}
+
+   <AreaSelector
+  buildUpArea={buildUpArea}
+  setBuildUpArea={setBuildUpArea}
+  landArea={landArea}
+  setLandArea={setLandArea}
+/>
+
+    const [buildUpArea, setBuildUpArea] = useState('');
+const [landArea, setLandArea] = useState('');
+const [unit, setUnit] = useState('sq ft');
+
  <div className="space-y-1">
         <label className="block text-sm font-medium text-gray-700">面积</label>
         <div className="relative flex items-center">
