@@ -60,44 +60,39 @@ export default function AreaSelector({ onChange = () => {}, initialValue = {} })
   const handleUnitChange = (type, unitVal) => {
     setUnits((prev) => ({ ...prev, [type]: unitVal }));
   };
+const handleValueChange = (type, input) => {
+  // 清除逗号
+  const plain = input.replace(/,/g, "");
 
-  const handleValueChange = (type, val) => {
-  // 去掉逗号，获得干净的数值
-  const plain = val.replace(/,/g, "");
-
-  // 校验是否是合法数字（带一个小数点）
+  // 校验合法输入：数字、小数点，只允许一个小数点
   if (!/^\d*\.?\d*$/.test(plain)) return;
 
-  // 限制小数点后最多 3 位
+  // 限制最多 3 位小数
   const parts = plain.split(".");
-  if (parts.length === 2 && parts[1].length > 3) return;
+  if (parts[1]?.length > 3) return;
 
-  // 更新原始数值
+  // 更新数值（提交用）
   setAreaValues((prev) => ({ ...prev, [type]: plain }));
 
-  // 实时格式化：保留小数点位数
-  const formatted = plain
-    ? Number(plain).toLocaleString(undefined, {
-        minimumFractionDigits: parts[1]?.length || 0,
-        maximumFractionDigits: 3,
-      })
-    : "";
+  // 判断是否为小数点结尾，例如 "1234." 或 "0."
+  const isDotEnd = plain.endsWith(".") && parts.length === 2;
+  const isDecimalTyping = parts.length === 2 && !parts[1].endsWith("0") && input.endsWith("0");
 
+  // 格式化显示的值（带千分位），但保留小数点和正在输入的小数部分
+  let formatted = Number(plain).toLocaleString(undefined, {
+    minimumFractionDigits: parts[1]?.length || 0,
+    maximumFractionDigits: 3,
+  });
+
+  if (isDotEnd) {
+    formatted += ".";
+  } else if (isDecimalTyping) {
+    formatted += "0";
+  }
+
+  // 显示格式化值（含千分位）
   setRawInputValues((prev) => ({ ...prev, [type]: formatted }));
 };
-
-
-  const handleBlur = (type) => {
-    const val = rawInputValues[type];
-    const parts = val.split(".");
-    const formatted = val
-      ? Number(val).toLocaleString(undefined, {
-          minimumFractionDigits: parts[1]?.length || 0,
-          maximumFractionDigits: 3,
-        })
-      : "";
-    setDisplayValues((prev) => ({ ...prev, [type]: formatted }));
-  };
 
   const handleSelectCommon = (type, val) => {
     const str = String(val);
