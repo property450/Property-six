@@ -61,10 +61,10 @@ export default function AreaSelector({ onChange = () => {}, initialValue = {} })
     setUnits((prev) => ({ ...prev, [type]: unitVal }));
   };
 
-  const handleValueChange = (type, raw) => {
-    const plain = raw.replace(/,/g, "");
+  const handleValueChange = (type, rawDisplayVal) => {
+    const plain = rawDisplayVal.replace(/,/g, "");
 
-    // 只允许输入数字和一个小数点
+    // 只允许数字和一个小数点
     if (!/^\d*\.?\d*$/.test(plain)) return;
 
     // 限制小数点后最多3位
@@ -73,10 +73,9 @@ export default function AreaSelector({ onChange = () => {}, initialValue = {} })
 
     setAreaValues((prev) => ({ ...prev, [type]: plain }));
 
-    // 格式化显示数字（带千位逗号）
     const formatted = plain
       ? Number(plain).toLocaleString(undefined, {
-          minimumFractionDigits: 0,
+          minimumFractionDigits: parts[1] ? parts[1].length : 0,
           maximumFractionDigits: 3,
         })
       : "";
@@ -89,11 +88,12 @@ export default function AreaSelector({ onChange = () => {}, initialValue = {} })
 
   const handleSelectCommon = (type, val) => {
     const str = String(val);
+    const formatted = Number(str).toLocaleString(undefined, {
+      maximumFractionDigits: 3,
+    });
+
     setAreaValues((prev) => ({ ...prev, [type]: str }));
-    setDisplayValues((prev) => ({
-      ...prev,
-      [type]: Number(str).toLocaleString(),
-    }));
+    setDisplayValues((prev) => ({ ...prev, [type]: formatted }));
   };
 
   const convertToSqFt = (val, unit) => {
@@ -143,8 +143,11 @@ export default function AreaSelector({ onChange = () => {}, initialValue = {} })
         <div className="flex gap-2 mb-2">
           <select
             className="border px-3 py-2 w-1/2 rounded"
-            onChange={(e) => handleSelectCommon(type, e.target.value)}
-            value=""
+            onChange={(e) => {
+              if (e.target.value !== "") {
+                handleSelectCommon(type, e.target.value);
+              }
+            }}
           >
             <option value="">选择常用值</option>
             {COMMON_VALUES[type].slice(0, 50).map((v) => (
@@ -156,13 +159,13 @@ export default function AreaSelector({ onChange = () => {}, initialValue = {} })
 
           <div className="relative w-1/2">
             <input
-  type="text"
-  inputMode="decimal"
-  value={val}
-  onChange={(e) => handleValueChange(type, e.target.value)}
-  placeholder="输入面积"
-  className="border px-3 py-2 pr-20 w-full rounded"
-/>
+              type="text"
+              inputMode="decimal"
+              value={displayVal}
+              onChange={(e) => handleValueChange(type, e.target.value)}
+              placeholder="输入面积"
+              className="border px-3 py-2 pr-20 w-full rounded"
+            />
             <span className="absolute right-3 top-2.5 text-gray-500 pointer-events-none">
               {unit}
             </span>
