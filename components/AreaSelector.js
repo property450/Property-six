@@ -8,10 +8,8 @@ const AREA_TYPES = [
 
 const UNITS = ["square feet", "square meter", "acres", "hectares"];
 
-const COMMON_VALUES = {
-  buildUp: Array.from({ length: 149 }, (_, i) => 200 + i * 200), // 200–30,000
-  land: Array.from({ length: 30000 }, (_, i) => i + 1), // 1–30,000
-};
+// 所有单位统一使用 200–30,000 范围
+const COMMON_VALUES = Array.from({ length: 149 }, (_, i) => 200 + i * 200); // 200–30,000
 
 export default function AreaSelector({ onChange = () => {}, initialValue = {} }) {
   const [selectedTypes, setSelectedTypes] = useState(initialValue.types || ["buildUp"]);
@@ -64,18 +62,19 @@ export default function AreaSelector({ onChange = () => {}, initialValue = {} })
   const handleValueChange = (type, rawDisplayVal) => {
     const plain = rawDisplayVal.replace(/,/g, "");
 
-    // 只允许数字和一个小数点
+    // 只允许数字和最多一个小数点
     if (!/^\d*\.?\d*$/.test(plain)) return;
 
-    // 限制小数点后最多3位
+    // 限制小数点后最多 3 位
     const parts = plain.split(".");
     if (parts.length === 2 && parts[1].length > 3) return;
 
     setAreaValues((prev) => ({ ...prev, [type]: plain }));
 
+    // 动态保留小数长度格式化
     const formatted = plain
       ? Number(plain).toLocaleString(undefined, {
-          minimumFractionDigits: parts[1] ? parts[1].length : 0,
+          minimumFractionDigits: parts[1]?.length || 0,
           maximumFractionDigits: 3,
         })
       : "";
@@ -150,7 +149,7 @@ export default function AreaSelector({ onChange = () => {}, initialValue = {} })
             }}
           >
             <option value="">选择常用值</option>
-            {COMMON_VALUES[type].slice(0, 50).map((v) => (
+            {COMMON_VALUES.map((v) => (
               <option key={v} value={v}>
                 {v.toLocaleString()} {unit}
               </option>
