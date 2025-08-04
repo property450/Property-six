@@ -102,7 +102,7 @@ const handleValueChange = (type, input) => {
 
     setAreaValues((prev) => ({ ...prev, [type]: str }));
     setDisplayValues((prev) => ({ ...prev, [type]: formatted }));
-    setRawInputValues((prev) => ({ ...prev, [type]: str }));
+    setRawInputValues((prev) => ({ ...prev, [type]: formatted }));
   };
 
   const convertToSqFt = (val, unit) => {
