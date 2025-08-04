@@ -77,7 +77,6 @@ const [selectedPrice, setSelectedPrice] = useState('');
   const years = Array.from({ length: 70 + 5 + 1 }, (_, i) => currentYear + 5 - i);
   const [useCustomYear, setUseCustomYear] = useState(false);
   const [customBuildYear, setCustomBuildYear] = useState('');
-const [areaData, setAreaData] = useState({ area: '', unit: 'sq ft' });
 
 
 
@@ -294,57 +293,6 @@ const toggleDropdown = () => {
     />
   )}
 </div>
-
-  useEffect(() => {
-    if (onChange) {
-      onChange({
-        buildUpArea,
-        landArea,
-        unit,
-      });
-    }
-  }, [buildUpArea, landArea, unit]);
-
-  return (
-    <div className="space-y-4">
-      <label className="block text-sm font-medium text-gray-700">面积</label>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <input
-            type="number"
-            placeholder="建筑面积"
-            value={buildUpArea}
-            onChange={(e) => setBuildUpArea(e.target.value)}
-            className="w-full border rounded px-3 py-2"
-          />
-          <p className="text-xs text-gray-500">建筑面积</p>
-        </div>
-
-        <div>
-          <input
-            type="number"
-            placeholder="土地面积"
-            value={landArea}
-            onChange={(e) => setLandArea(e.target.value)}
-            className="w-full border rounded px-3 py-2"
-          />
-          <p className="text-xs text-gray-500">土地面积</p>
-        </div>
-      </div>
-
-      <select
-        value={unit}
-        onChange={(e) => setUnit(e.target.value)}
-        className="mt-2 w-full border rounded px-3 py-2"
-      >
-        <option value="sq ft">平方英尺（sq ft）</option>
-        <option value="acres">英亩（acres）</option>
-        <option value="hectares">公顷（hectares）</option>
-      </select>
-    </div>
-  );
-}
 
 {/* ✅ 面积输入 + 下拉组件 */}
    {/* 面积 */}
