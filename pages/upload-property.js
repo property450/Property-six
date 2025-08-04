@@ -295,7 +295,6 @@ const toggleDropdown = () => {
   )}
 </div>
 
-    
   useEffect(() => {
     if (onChange) {
       onChange({
