@@ -215,36 +215,4 @@ export default function AreaSelector({
     );
   };
 
-  return (
-    <div className="p-4 border rounded-xl shadow-md">
-      <label className="block font-semibold mb-2">Build up Area / Land Area</label>
-      <div className="flex gap-4 mb-4">
-        {AREA_TYPES.map((type) => (
-          <label key={type.value} className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={selectedTypes.includes(type.value)}
-              onChange={() => handleCheckboxChange(type.value)}
-            />
-            {type.label}
-          </label>
-        ))}
-      </div>
-
-      <label className="block font-semibold mb-2">Measurement Unit</label>
-      <select
-        className="border px-3 py-2 w-full mb-4 rounded"
-        value={unit}
-        onChange={(e) => setUnit(e.target.value)}
-      >
-        {UNITS.map((u) => (
-          <option key={u} value={u}>
-            {u}
-          </option>
-        ))}
-      </select>
-
-      {selectedTypes.map((type) => renderAreaInput(type))}
-    </div>
-  );
-}
+  
