@@ -63,13 +63,28 @@ export default function AreaSelector({ onChange = () => {}, initialValue = {} })
 
   const handleValueChange = (type, raw) => {
     const plain = raw.replace(/,/g, "");
-    if (/^\d*\.?\d*$/.test(plain)) {
-      setAreaValues((prev) => ({ ...prev, [type]: plain }));
-      setDisplayValues((prev) => ({
-        ...prev,
-        [type]: plain ? Number(plain).toLocaleString() : "",
-      }));
-    }
+
+    // 只允许输入数字和一个小数点
+    if (!/^\d*\.?\d*$/.test(plain)) return;
+
+    // 限制小数点后最多3位
+    const parts = plain.split(".");
+    if (parts.length === 2 && parts[1].length > 3) return;
+
+    setAreaValues((prev) => ({ ...prev, [type]: plain }));
+
+    // 格式化显示数字（带千位逗号）
+    const formatted = plain
+      ? Number(plain).toLocaleString(undefined, {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 3,
+        })
+      : "";
+
+    setDisplayValues((prev) => ({
+      ...prev,
+      [type]: formatted,
+    }));
   };
 
   const handleSelectCommon = (type, val) => {
