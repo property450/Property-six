@@ -10,7 +10,6 @@ import TypeSelector from '@/components/TypeSelector';
 import RoomSelector from '@/components/RoomCountSelector';
 import { useUser } from '@supabase/auth-helpers-react';
 import AreaSelector from '@/components/AreaSelector';
-import { useEffect, useState } from 'react';
 
 const AddressSearchInput = dynamic(() => import('@/components/AddressSearchInput'), { ssr: false });
 
