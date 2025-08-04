@@ -10,12 +10,19 @@ import TypeSelector from '@/components/TypeSelector';
 import RoomSelector from '@/components/RoomCountSelector';
 import { useUser } from '@supabase/auth-helpers-react';
 import AreaSelector from '@/components/AreaSelector';
+import { useEffect, useState } from 'react';
 
 const AddressSearchInput = dynamic(() => import('@/components/AddressSearchInput'), { ssr: false });
 
 export default function UploadProperty() {
   const router = useRouter();
   const user = useUser();
+
+  const [areaData, setAreaData] = useState({
+    buildUpArea: '',
+    landArea: '',
+    unit: 'sq ft',
+  });
 
   const [carparkPosition, setCarparkPosition] = useState('');
 const [customCarparkPosition, setCustomCarparkPosition] = useState('');
@@ -288,22 +295,7 @@ const toggleDropdown = () => {
   )}
 </div>
 
-     {/* 面积 */}
-<AreaSelector onChange={(data) => setAreaData(data)} />
-
-  import { useEffect, useState } from 'react';
-
-   const [areaData, setAreaData] = useState({
-  buildUpArea: '',
-  landArea: '',
-  unit: 'sq ft',
-});
-   
-export default function AreaSelector({ onChange }) {
-  const [buildUpArea, setBuildUpArea] = useState('');
-  const [landArea, setLandArea] = useState('');
-  const [unit, setUnit] = useState('sq ft');
-
+    
   useEffect(() => {
     if (onChange) {
       onChange({
@@ -356,45 +348,9 @@ export default function AreaSelector({ onChange }) {
 }
 
 {/* ✅ 面积输入 + 下拉组件 */}
-    const [buildUpArea, setBuildUpArea] = useState('');
-const [landArea, setLandArea] = useState('');
-const [unit, setUnit] = useState('sq ft');
-
- <div className="space-y-1">
-        <label className="block text-sm font-medium text-gray-700">面积</label>
-        <div className="relative flex items-center">
-          <input
-            type="text"
-            inputMode="decimal"
-            pattern="[0-9.]*"
-            value={area}
-            onChange={(e) => {
-              const raw = e.target.value;
-              if (/^\d*(\.\d{0,2})?$/.test(raw)) setArea(raw);
-            }}
-            className="w-full border rounded px-3 py-2 pr-16"
-            placeholder="请输入面积"
-          />
-          <span className="absolute right-3 text-sm text-gray-500 pointer-events-none">{areaUnit}</span>
-        </div>
-        <select
-          value={areaUnit}
-          onChange={(e) => setAreaUnit(e.target.value)}
-          className="mt-1 w-full border rounded p-2"
-        >
-          <option value="sq ft">平方英尺（sq ft）</option>
-          <option value="acres">英亩（acres）</option>
-          <option value="hectares">公顷（hectares）</option>
-        </select>
-        {area && areaUnit === 'acres' && (
-          <p className="text-sm text-gray-500 mt-1">≈ {(area * 43560).toLocaleString()} sq ft</p>
-        )}
-        {area && areaUnit === 'hectares' && (
-          <p className="text-sm text-gray-500 mt-1">≈ {(area * 107639).toLocaleString()} sq ft</p>
-        )}
-      </div>
-
-
+   {/* 面积 */}
+<AreaSelector onChange={(data) => setAreaData(data)} />
+    
 
 {/* 建成年份 */}
 <div className="mb-4">
