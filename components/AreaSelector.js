@@ -156,13 +156,13 @@ export default function AreaSelector({ onChange = () => {}, initialValue = {} })
 
           <div className="relative w-1/2">
             <input
-              type="text"
-              inputMode="decimal"
-              value={displayVal}
-              onChange={(e) => handleValueChange(type, e.target.value)}
-              placeholder="输入面积"
-              className="border px-3 py-2 pr-20 w-full rounded"
-            />
+  type="text"
+  inputMode="decimal"
+  value={val}
+  onChange={(e) => handleValueChange(type, e.target.value)}
+  placeholder="输入面积"
+  className="border px-3 py-2 pr-20 w-full rounded"
+/>
             <span className="absolute right-3 top-2.5 text-gray-500 pointer-events-none">
               {unit}
             </span>
