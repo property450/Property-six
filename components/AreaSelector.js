@@ -62,18 +62,30 @@ export default function AreaSelector({ onChange = () => {}, initialValue = {} })
   };
 
   const handleValueChange = (type, val) => {
-    const plain = val.replace(/,/g, "");
+  // 去掉逗号，获得干净的数值
+  const plain = val.replace(/,/g, "");
 
-    // 只允许数字和一个小数点
-    if (!/^\d*\.?\d*$/.test(plain)) return;
+  // 校验是否是合法数字（带一个小数点）
+  if (!/^\d*\.?\d*$/.test(plain)) return;
 
-    // 限制小数点后最多 3 位
-    const parts = plain.split(".");
-    if (parts.length === 2 && parts[1].length > 3) return;
+  // 限制小数点后最多 3 位
+  const parts = plain.split(".");
+  if (parts.length === 2 && parts[1].length > 3) return;
 
-    setRawInputValues((prev) => ({ ...prev, [type]: plain }));
-    setAreaValues((prev) => ({ ...prev, [type]: plain }));
-  };
+  // 更新原始数值
+  setAreaValues((prev) => ({ ...prev, [type]: plain }));
+
+  // 实时格式化：保留小数点位数
+  const formatted = plain
+    ? Number(plain).toLocaleString(undefined, {
+        minimumFractionDigits: parts[1]?.length || 0,
+        maximumFractionDigits: 3,
+      })
+    : "";
+
+  setRawInputValues((prev) => ({ ...prev, [type]: formatted }));
+};
+
 
   const handleBlur = (type) => {
     const val = rawInputValues[type];
@@ -165,7 +177,6 @@ export default function AreaSelector({ onChange = () => {}, initialValue = {} })
               inputMode="decimal"
               value={displayVal}
               onChange={(e) => handleValueChange(type, e.target.value)}
-              onBlur={() => handleBlur(type)}
               placeholder="输入面积"
               className="border px-3 py-2 pr-20 w-full rounded"
             />
