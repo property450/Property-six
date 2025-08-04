@@ -173,40 +173,7 @@ export default function AreaSelector({
 
 
   // 通知父组件变化
-  useEffect(() => {
-    onChange({
-      types: selectedTypes,
-      unit,
-      selected: selectedValues,
-      custom: customValues,
-    });
-  }, [selectedTypes, unit, selectedValues, customValues]);
-
-  const handleCheckboxChange = (value) => {
-    setSelectedTypes((prev) =>
-      prev.includes(value)
-        ? prev.length > 1
-          ? prev.filter((v) => v !== value)
-          : prev
-        : [...prev, value]
-    );
-  };
-
-  const handleSelectChange = (type, value) => {
-    if (value === "custom") {
-      setSelectedValues((prev) => ({ ...prev, [type]: "custom" }));
-    } else {
-      setSelectedValues((prev) => ({ ...prev, [type]: value }));
-      setCustomValues((prev) => ({ ...prev, [type]: "" }));
-    }
-  };
-
-  const handleCustomChange = (type, value) => {
-    if (/^\d*\.?\d*$/.test(value)) {
-      setCustomValues((prev) => ({ ...prev, [type]: value }));
-    }
-  };
-
+  
   const renderAreaInput = (type) => {
     const label = AREA_TYPES.find((t) => t.value === type).label;
     const selected = selectedValues[type];
