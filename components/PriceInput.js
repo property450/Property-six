@@ -15,14 +15,13 @@ export default function PriceInput({ value, onChange }) {
     onChange(raw);
   };
 
-  const handleSelect = (price: number) => {
+  const handleSelect = (price) => {
     onChange(price.toString());
     setShowDropdown(false);
   };
 
   return (
     <div className="relative w-full">
-      {/* 输入框（带 RM） */}
       <div className="relative">
         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">RM</span>
         <input
@@ -35,7 +34,6 @@ export default function PriceInput({ value, onChange }) {
         />
       </div>
 
-      {/* 下拉选项 */}
       {showDropdown && (
         <ul className="absolute z-10 w-full bg-white border mt-1 max-h-60 overflow-y-auto rounded shadow">
           {predefinedPrices.map((price) => (
