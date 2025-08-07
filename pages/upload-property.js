@@ -11,6 +11,7 @@ import RoomSelector from '@/components/RoomCountSelector';
 import { useUser } from '@supabase/auth-helpers-react';
 import AreaSelector from '@/components/AreaSelector';
 import CarparkLevelSelector from '@/components/CarparkLevelSelector';
+import FacingSelector from '@/components/FacingSelector';
 
 const AddressSearchInput = dynamic(() => import('@/components/AddressSearchInput'), { ssr: false });
 
@@ -136,7 +137,7 @@ const toggleDropdown = () => {
           store,
           area: JSON.stringify(areaData), // 建议序列化存储，方便查询与提取
           amenities,
-          facing,
+          facing: facing === '其他' ? customFacing : facing,
           carpark_position: carparkPosition === '其他（自定义）' ? customCarparkPosition : carparkPosition,
         }])
         .select()
@@ -226,35 +227,12 @@ const toggleDropdown = () => {
   )}
 </div>
 
-  {facing === '其他' && (
-  <input
-    type="text"
-    className="mt-2 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-    placeholder="请输入其他朝向"
-    value={customFacing}
-    onChange={(e) => setCustomFacing(e.target.value)}
-  />
-)}
-
-  <div className="space-y-4">
-  <label className="block text-sm font-medium text-gray-700">朝向</label>
-  <select
-    value={facing}
-    onChange={(e) => setFacing(e.target.value)}
-    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-  >
-    <option value="">请选择朝向</option>
-    <option value="东">东</option>
-    <option value="南">南</option>
-    <option value="西">西</option>
-    <option value="北">北</option>
-    <option value="东南">东南</option>
-    <option value="东北">东北</option>
-    <option value="西南">西南</option>
-    <option value="西北">西北</option>
-    <option value="其他">其他</option>
-  </select>
-</div>
+  <FacingSelector
+  value={facing}
+  onChange={setFacing}
+  customValue={customFacing}
+  onCustomChange={setCustomFacing}
+/>
 
   <CarparkLevelSelector
   value={carparkPosition}
