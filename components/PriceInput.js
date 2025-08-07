@@ -64,7 +64,6 @@ export default function PriceInput({ value, onChange }) {
             onClick={() => setShowDropdown(false)}
             className="px-4 py-2 text-blue-500 hover:underline cursor-pointer text-center"
           >
-            关闭
           </li>
         </ul>
       )}
