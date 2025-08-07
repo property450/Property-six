@@ -13,10 +13,8 @@ export default function PriceInput({ value, onChange }) {
   const handleSelectChange = (e) => {
     const val = e.target.value;
     setSelectedPrice(val);
-    if (val !== "custom") {
-      onChange(val);
-    }
-    // 如果是 "custom"，不变更 value，由输入框决定
+    if (val === "custom") return;
+    onChange(val); // 会被格式化后显示在输入框中
   };
 
   const handleInputChange = (e) => {
@@ -24,9 +22,14 @@ export default function PriceInput({ value, onChange }) {
     onChange(raw);
   };
 
+  const formatValue = (v) => {
+    if (!v) return "";
+    return v.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  };
+
   return (
     <div className="space-y-2">
-      {/* 始终显示下拉框 */}
+      {/* ✅ 始终显示下拉菜单 */}
       <select
         value={selectedPrice}
         onChange={handleSelectChange}
@@ -41,19 +44,17 @@ export default function PriceInput({ value, onChange }) {
         <option value="custom">自定义（手动输入）</option>
       </select>
 
-      {/* 当选择了“自定义”时，显示输入框 */}
-      {selectedPrice === "custom" && (
-        <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">RM</span>
-          <input
-            type="text"
-            value={value.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
-            onChange={handleInputChange}
-            className="pl-12 pr-4 py-2 border rounded w-full"
-            placeholder="请输入价格"
-          />
-        </div>
-      )}
+      {/* ✅ 始终显示输入框，让用户可以编辑 */}
+      <div className="relative">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">RM</span>
+        <input
+          type="text"
+          value={formatValue(value)}
+          onChange={handleInputChange}
+          className="pl-12 pr-4 py-2 border rounded w-full"
+          placeholder="请输入价格"
+        />
+      </div>
     </div>
   );
 }
