@@ -53,14 +53,15 @@ export default function PriceInput({ value, onChange }) {
       )}
 
       {mode === "custom" && (
-        <input
-          type="text"
-          value={formatPrice(value)}
-          onChange={handleInputChange}
-          className="pr-4 py-2 border rounded w-full"
-          placeholder="请输入价格"
-        />
-      )}
-    </div>
-  );
-}
+  <div className="relative">
+    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">RM</span>
+    <input
+      type="text"
+      value={value.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+      onChange={handleInputChange}
+      className="pl-12 pr-4 py-2 border rounded w-full"
+      placeholder="请输入价格"
+    />
+  </div>
+)}
+
