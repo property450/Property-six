@@ -39,31 +39,34 @@ export default function PriceInput({ value, onChange }) {
 
   return (
     <div className="space-y-2">
-      <label className="block text-sm font-medium text-gray-700">价格</label>
+  <label className="block text-sm font-medium text-gray-700">价格</label>
 
-      {mode === "select" && (
-        <select
-          value={selectedPrice}
-          onChange={handleSelectChange}
-          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-        >
-          <option value="">请选择价格</option>
-          {predefinedPrices.map((price) => (
-            <option key={price} value={price}>{`RM ${price.toLocaleString()}`}</option>
-          ))}
-          <option value="custom">自定义（手动输入）</option>
-        </select>
-      )}
+  {mode === "select" && (
+    <select
+      value={selectedPrice}
+      onChange={handleSelectChange}
+      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+    >
+      <option value="">请选择价格</option>
+      {predefinedPrices.map((price) => (
+        <option key={price} value={price}>{`RM ${price.toLocaleString()}`}</option>
+      ))}
+      <option value="custom">自定义（手动输入）</option>
+    </select>
+  )}
 
-     <div className="relative">
-  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none">
-    RM
-  </span>
-  <input
-    type="text"
-    value={formatPrice(value)}
-    onChange={handleInputChange}
-    className="pl-14 pr-4 py-2 border rounded w-full"
-    placeholder="请输入价格"
-  />
+  {mode === "custom" && (
+    <div className="relative">
+      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none">
+        RM
+      </span>
+      <input
+        type="text"
+        value={formatPrice(value)}
+        onChange={handleInputChange}
+        className="pl-14 pr-4 py-2 border rounded w-full"
+        placeholder="请输入价格"
+      />
+    </div>
+  )}
 </div>
