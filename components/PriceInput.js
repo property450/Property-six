@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 
 export default function PriceInput({ value, onChange }) {
   const [showDropdown, setShowDropdown] = useState(false);
-  const wrapperRef = useRef(null); // 用来判断点击是否在组件内
+  const wrapperRef = useRef(null);
 
   const predefinedPrices = [
     50000, 100000, 200000, 300000, 500000,
@@ -21,7 +21,6 @@ export default function PriceInput({ value, onChange }) {
     setShowDropdown(false);
   };
 
-  // 👇 点击外部时关闭下拉
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
@@ -60,16 +59,8 @@ export default function PriceInput({ value, onChange }) {
               RM {price.toLocaleString()}
             </li>
           ))}
-        {showDropdown && (
-  <ul className="absolute z-10 w-full bg-white border mt-1 max-h-60 overflow-y-auto rounded shadow">
-    {predefinedPrices.map((price) => (
-      <li
-        key={price}
-        onClick={() => handleSelect(price)}
-        className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-      >
-        RM {price.toLocaleString()}
-      </li>
-    ))}
-  </ul>
-)}
+        </ul>
+      )}
+    </div>
+  );
+}
