@@ -60,13 +60,16 @@ export default function PriceInput({ value, onChange }) {
               RM {price.toLocaleString()}
             </li>
           ))}
-          <li
-            onClick={() => setShowDropdown(false)}
-            className="px-4 py-2 text-blue-500 hover:underline cursor-pointer text-center"
-          >
-          </li>
-        </ul>
-      )}
-    </div>
-  );
-}
+        {showDropdown && (
+  <ul className="absolute z-10 w-full bg-white border mt-1 max-h-60 overflow-y-auto rounded shadow">
+    {predefinedPrices.map((price) => (
+      <li
+        key={price}
+        onClick={() => handleSelect(price)}
+        className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+      >
+        RM {price.toLocaleString()}
+      </li>
+    ))}
+  </ul>
+)}
