@@ -11,12 +11,6 @@ export default function PriceInput({ value, onChange }) {
     50000000, 100000000,
   ];
 
-  const formatPrice = (numberStr) => {
-    if (!numberStr) return '';
-    const cleaned = numberStr.toString().replace(/\D/g, '');
-    return cleaned.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  };
-
   const handleSelectChange = (e) => {
     const val = e.target.value;
     if (val === "custom") {
@@ -36,7 +30,8 @@ export default function PriceInput({ value, onChange }) {
 
   return (
     <div className="space-y-2">
-      <label className="block text-sm font-medium text-gray-700">价格</label>
+      {/* ❌ 删除下面这行就不会再有多余 RM 或标题 */}
+      {/* <label className="block text-sm font-medium text-gray-700">价格</label> */}
 
       {mode === "select" && (
         <select
@@ -54,9 +49,10 @@ export default function PriceInput({ value, onChange }) {
 
       {mode === "custom" && (
         <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">RM</span>
           <input
             type="text"
-            value={formatPrice(value)}
+            value={value.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
             onChange={handleInputChange}
             className="pl-12 pr-4 py-2 border rounded w-full"
             placeholder="请输入价格"
