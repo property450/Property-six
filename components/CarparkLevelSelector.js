@@ -1,55 +1,56 @@
-// components/CarparkLevelSelector.js
 import React from 'react';
 
-export default function CarparkLevelSelector({
+export default function CarparkPositionSelector({
   value,
   onChange,
   customValue,
   setCustomValue,
 }) {
-  const options = [
-    // 地下楼层 Basement 10 ~ Basement 1
-    ...Array.from({ length: 10 }, (_, i) => `Basement ${10 - i}`),
-
-    // 地下地面过渡层 LG3 ~ LG1
-    'LG3', 'LG2', 'LG1',
-
-    // 地面与夹层
-    'G', 'UG', 'M1', 'M2', 'M3',
-
-    // Podium 层
-    'P1', 'P2', 'P3', 'P3A', 'P4', 'P5',
-
-    // Level 1 ~ Level 30，带 3A、13A、可能的 4
-    ...Array.from({ length: 30 }, (_, i) => {
-      const level = i + 1;
-      const base = `Level ${level}`;
-      if (level === 4) return ['Level 3A', base];
-      if (level === 14) return ['Level 13A', base];
-      return base;
-    }).flat(),
-
-    // 顶层
-    'R', 'Rooftop',
-
-    // 自定义
-    '其他（自定义）',
-  ];
+  const groupedOptions = {
+    '🔻 地下楼层（Basement）': [
+      'Basement 10',
+      'Basement 9',
+      'Basement 8',
+      'Basement 7',
+      'Basement 6',
+      'Basement 5',
+      'Basement 4',
+      'Basement 3A',
+      'Basement 3',
+      'Basement 2',
+      'Basement 1',
+    ],
+    '🔻 地下地面过渡层': ['LG3', 'LG2', 'LG1'],
+    '🔹 地面与夹层': ['G', 'UG', 'M1', 'M2', 'M3'],
+    '🔹 Podium 层（可选）': ['P1', 'P2', 'P3', 'P3A', 'P4', 'P5'],
+    '🔼 正常楼层': [
+      'Level 1', 'Level 2', 'Level 3', 'Level 3A',
+      'Level 4', 'Level 5', 'Level 6', 'Level 7', 'Level 8', 'Level 9',
+      'Level 10', 'Level 11', 'Level 12', 'Level 13', 'Level 13A',
+      'Level 14', 'Level 15', 'Level 16', 'Level 17', 'Level 18', 'Level 19',
+      'Level 20', 'Level 21', 'Level 22', 'Level 23', 'Level 23A',
+      'Level 24', 'Level 25', 'Level 26', 'Level 27', 'Level 28', 'Level 29', 'Level 30',
+    ],
+    '🔝 顶层': ['R（Roof）', 'Rooftop'],
+  };
 
   return (
     <div className="space-y-2">
-      <label className="block text-sm font-medium text-gray-700">车位楼层</label>
+      <label className="block text-sm font-medium text-gray-700">车位位置</label>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="w-full border border-gray-300 rounded px-3 py-2"
       >
-        <option value="">请选择车位楼层</option>
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
+        <option value="">请选择车位位置</option>
+        {Object.entries(groupedOptions).map(([groupLabel, options]) => (
+          <optgroup key={groupLabel} label={groupLabel}>
+            {options.map((opt) => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+          </optgroup>
         ))}
+        <option value="其他（自定义）">其他（自定义）</option>
       </select>
 
       {value === '其他（自定义）' && (
@@ -58,9 +59,9 @@ export default function CarparkLevelSelector({
           placeholder="请输入自定义车位位置"
           value={customValue}
           onChange={(e) => setCustomValue(e.target.value)}
-          className="w-full border border-gray-300 rounded px-3 py-2 mt-2"
+          className="w-full border border-gray-300 rounded px-3 py-2"
         />
       )}
     </div>
   );
-}
+          }
