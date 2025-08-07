@@ -5,12 +5,12 @@ import { supabase } from '../supabaseClient';
 import { toast } from 'react-hot-toast';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-//import ImageUpload from '@/components/ImageUpload';
-//import TypeSelector from '@/components/TypeSelector';
-//import RoomSelector from '@/components/RoomCountSelector';
+import ImageUpload from '@/components/ImageUpload';
+import TypeSelector from '@/components/TypeSelector';
+import RoomSelector from '@/components/RoomCountSelector';
 import { useUser } from '@supabase/auth-helpers-react';
-//import AreaSelector from '@/components/AreaSelector';
-//import CarparkLevelSelector from '@/components/CarparkLevelSelector';
+import AreaSelector from '@/components/AreaSelector';
+import CarparkLevelSelector from '@/components/CarparkLevelSelector';
 //import FacingSelector from '@/components/FacingSelector';
 import PriceInput from '@/components/PriceInput';
 
