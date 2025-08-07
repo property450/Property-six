@@ -1,7 +1,6 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 
 export default function PriceInput({ value, onChange }) {
-  const inputRef = useRef(null);
   const [mode, setMode] = useState("select");
   const [selectedPrice, setSelectedPrice] = useState("");
 
@@ -15,7 +14,7 @@ export default function PriceInput({ value, onChange }) {
   const formatPrice = (numberStr) => {
     if (!numberStr) return '';
     const cleaned = numberStr.toString().replace(/\D/g, '');
-    return cleaned.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return `RM ${cleaned.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
   };
 
   const handleSelectChange = (e) => {
@@ -31,7 +30,7 @@ export default function PriceInput({ value, onChange }) {
   };
 
   const handleInputChange = (e) => {
-    const raw = e.target.value.replace(/\D/g, '');
+    const raw = e.target.value.replace(/[^\d]/g, '');
     onChange(raw);
   };
 
@@ -54,17 +53,14 @@ export default function PriceInput({ value, onChange }) {
       )}
 
       {mode === "custom" && (
-        <div className="relative">
-         
-          <input
-            type="text"
-            value={formatPrice(value)}
-            onChange={handleInputChange}
-            className="pl-14 pr-4 py-2 border rounded w-full"
-            placeholder="请输入价格"
-          />
-        </div>
+        <input
+          type="text"
+          value={formatPrice(value)}
+          onChange={handleInputChange}
+          className="pr-4 py-2 border rounded w-full"
+          placeholder="请输入价格"
+        />
       )}
-    </div>  // ←←← 你之前漏掉了这一行
+    </div>
   );
 }
