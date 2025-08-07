@@ -11,7 +11,7 @@ import RoomSelector from '@/components/RoomCountSelector';
 import { useUser } from '@supabase/auth-helpers-react';
 import AreaSelector from '@/components/AreaSelector';
 import CarparkLevelSelector from '@/components/CarparkLevelSelector';
-//import FacingSelector from '@/components/FacingSelector';
+import FacingSelector from '@/components/FacingSelector';
 import PriceInput from '@/components/PriceInput';
 
 const AddressSearchInput = dynamic(() => import('@/components/AddressSearchInput'), { ssr: false });
