@@ -10,6 +10,7 @@ import TypeSelector from '@/components/TypeSelector';
 import RoomSelector from '@/components/RoomCountSelector';
 import { useUser } from '@supabase/auth-helpers-react';
 import AreaSelector from '@/components/AreaSelector';
+import CarparkLevelSelector from '@/components/CarparkLevelSelector';
 
 const AddressSearchInput = dynamic(() => import('@/components/AddressSearchInput'), { ssr: false });
 
@@ -255,43 +256,12 @@ const toggleDropdown = () => {
   </select>
 </div>
 
-  <div className="space-y-4">
-  <label className="block text-sm font-medium text-gray-700">车位位置</label>
-  <select
-    value={carparkPosition}
-    onChange={(e) => handleCarparkPositionChange(e.target.value)}
-    className="w-full border border-gray-300 rounded px-3 py-2"
-  >
-    {[
-      ...Array.from({ length: 10 }, (_, i) => `Basement ${10 - i}`).flatMap(item =>
-        item.includes('4') ? [item, 'Basement 3A'] : [item]
-      ),
-      ...Array.from({ length: 3 }, (_, i) => `LG${3 - i}`),
-      'G',
-      'UG',
-      ...Array.from({ length: 3 }, (_, i) => `M${i + 1}`),
-      ...Array.from({ length: 15 }, (_, i) => `Level ${i + 1}`).flatMap(item =>
-        item.includes('4') ? [item, 'Level 13A'] : [item]
-      ),
-      '其他（自定义）',
-    ].map((option) => (
-      <option key={option} value={option}>
-        {option}
-      </option>
-    ))}
-  </select>
-
-  {carparkPosition === '其他（自定义）' && (
-    <input
-      type="text"
-   inputMode="numeric"
-      placeholder="请输入自定义车位位置"
-      value={customCarparkPosition}
-      onChange={(e) => setCustomCarparkPosition(e.target.value)}
-      className="w-full border border-gray-300 rounded px-3 py-2"
-    />
-  )}
-</div>
+  <CarparkLevelSelector
+  value={carparkPosition}
+  onChange={handleCarparkPositionChange}
+  customValue={customCarparkPosition}
+  setCustomValue={setCustomCarparkPosition}
+/>
 
 {/* ✅ 面积输入 + 下拉组件 */}
    {/* 面积 */}
