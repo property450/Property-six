@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 export default function PriceInput({ value, onChange }) {
   const [showDropdown, setShowDropdown] = useState(false);
+  const wrapperRef = useRef(null); // 用来判断点击是否在组件内
 
   const predefinedPrices = [
     50000, 100000, 200000, 300000, 500000,
@@ -20,8 +21,22 @@ export default function PriceInput({ value, onChange }) {
     setShowDropdown(false);
   };
 
+  // 👇 点击外部时关闭下拉
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setShowDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   return (
-    <div className="relative w-full">
+    <div className="relative w-full" ref={wrapperRef}>
       <div className="relative">
         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">RM</span>
         <input
