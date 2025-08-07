@@ -196,7 +196,11 @@ const toggleDropdown = () => {
       <RoomSelector label="停车位" value={carpark} onChange={setCarpark} />
       <RoomSelector label="储藏室" value={store} onChange={setStore} />
 
-  <PriceSelector value={price} onChange={setPrice} />
+  <PriceInput
+  value={price}
+  onChange={setPrice}
+  placeholder="请输入房产价格"
+/>
 
   <FacingSelector
   value={facing}
