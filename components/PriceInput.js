@@ -37,27 +37,6 @@ export default function PriceInput({ value, onChange }) {
     onChange(raw);
   };
 
-  // 插入 RM 标签（仅对输入框）
-  useEffect(() => {
-    if (!inputRef.current || mode !== "custom") return;
-
-    const input = inputRef.current;
-    if (input.parentNode.querySelector(".rm-span")) return;
-
-    const rmSpan = document.createElement("span");
-    rmSpan.textContent = "RM ";
-    rmSpan.className = "rm-span";
-    rmSpan.style.position = "absolute";
-    rmSpan.style.left = "0.75rem";
-    rmSpan.style.top = "50%";
-    rmSpan.style.transform = "translateY(-50%)";
-    rmSpan.style.pointerEvents = "none";
-    rmSpan.style.color = "#6B7280";
-    rmSpan.style.fontSize = "0.875rem";
-    input.parentNode.style.position = "relative";
-    input.parentNode.appendChild(rmSpan);
-  }, [mode]);
-
   return (
     <div className="space-y-2">
       <label className="block text-sm font-medium text-gray-700">价格</label>
@@ -76,18 +55,15 @@ export default function PriceInput({ value, onChange }) {
         </select>
       )}
 
-      {mode === "custom" && (
-        <div className="relative">
-          <input
-            ref={inputRef}
-            type="text"
-            value={formatPrice(value)}
-            onChange={handleInputChange}
-            className="pl-14 pr-4 py-2 border rounded w-full"
-            placeholder="请输入价格"
-          />
-        </div>
-      )}
-    </div>
-  );
-}
+     <div className="relative">
+  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none">
+    RM
+  </span>
+  <input
+    type="text"
+    value={formatPrice(value)}
+    onChange={handleInputChange}
+    className="pl-14 pr-4 py-2 border rounded w-full"
+    placeholder="请输入价格"
+  />
+</div>
