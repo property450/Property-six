@@ -45,7 +45,6 @@ export default function PriceInput({ value, onChange }) {
     if (input.parentNode.querySelector(".rm-span")) return;
 
     const rmSpan = document.createElement("span");
-    rmSpan.textContent = "RM ";
     rmSpan.className = "rm-span";
     rmSpan.style.position = "absolute";
     rmSpan.style.left = "0.75rem";
