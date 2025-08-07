@@ -69,4 +69,3 @@ export default function PriceInput({ value, onChange }) {
       />
     </div>
   )}
-</div>
