@@ -12,6 +12,7 @@ import { useUser } from '@supabase/auth-helpers-react';
 import AreaSelector from '@/components/AreaSelector';
 import CarparkLevelSelector from '@/components/CarparkLevelSelector';
 import FacingSelector from '@/components/FacingSelector';
+import PriceInput from '@/components/PriceInput';
 
 const AddressSearchInput = dynamic(() => import('@/components/AddressSearchInput'), { ssr: false });
 
@@ -195,37 +196,7 @@ const toggleDropdown = () => {
       <RoomSelector label="停车位" value={carpark} onChange={setCarpark} />
       <RoomSelector label="储藏室" value={store} onChange={setStore} />
 
-  <div className="space-y-2">
-  <label className="block text-sm font-medium text-gray-700">价格</label>
-
-  <select
-    value={selectedPrice}
-    onChange={(e) => {
-      const value = e.target.value;
-      setSelectedPrice(value);
-      if (value !== "自定义") {
-        setPrice(value); // 设置实际价格
-      }
-    }}
-    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-  >
-    <option value="">请选择价格</option>
-    {[100000, 200000, 300000, 400000, 500000, 800000, 1000000].map((price) => (
-      <option key={price} value={price}>{price.toLocaleString()}</option>
-    ))}
-    <option value="自定义">自定义</option>
-  </select>
-
-  {selectedPrice === "自定义" && (
-    <input
-      type="number"
-      placeholder="请输入自定义价格"
-      value={price}
-      onChange={(e) => setPrice(e.target.value)}
-      className="block w-full mt-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-    />
-  )}
-</div>
+  <PriceSelector value={price} onChange={setPrice} />
 
   <FacingSelector
   value={facing}
