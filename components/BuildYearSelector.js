@@ -1,53 +1,69 @@
-import React, { useState, useEffect } from 'react';
-import { toast } from 'react-hot-toast';
+import React, { useState, useRef, useEffect } from 'react';
 
 export default function BuildYearSelector({ value, onChange }) {
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 70 + 5 + 1 }, (_, i) => currentYear + 5 - i);
 
   const [inputVal, setInputVal] = useState(value || '');
+  const [showDropdown, setShowDropdown] = useState(false);
+  const containerRef = useRef(null);
 
-  // 同步父组件 value 更新到本地状态
   useEffect(() => {
     setInputVal(value || '');
   }, [value]);
 
+  // 点击页面外关闭下拉
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setShowDropdown(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const handleInputChange = (e) => {
     const val = e.target.value;
-
-    // 只能数字，最多4位
     if (val === '' || /^\d{0,4}$/.test(val)) {
       setInputVal(val);
       onChange(val);
-
-      if (val.length === 4) {
-        const num = parseInt(val, 10);
-        if (num < currentYear - 70 || num > currentYear + 5) {
-          toast.error('请输入有效年份（近70年内）');
-        }
-      }
     }
   };
 
+  const handleOptionClick = (year) => {
+    setInputVal(String(year));
+    onChange(String(year));
+    setShowDropdown(false);
+  };
+
   return (
-    <div className="mb-4">
+    <div className="mb-4 relative" ref={containerRef}>
       <label className="block font-medium mb-1">建造年份</label>
       <input
         type="text"
-        list="years-list"
+        maxLength={4}
         inputMode="numeric"
         pattern="[0-9]*"
-        maxLength={4}
         placeholder="请选择或输入建造年份"
         className="w-full border p-2 rounded"
         value={inputVal}
         onChange={handleInputChange}
+        onFocus={() => setShowDropdown(true)}
       />
-      <datalist id="years-list">
-        {years.map((year) => (
-          <option key={year} value={year} />
-        ))}
-      </datalist>
+      {showDropdown && (
+        <ul className="absolute z-10 w-full max-h-40 overflow-auto border bg-white rounded mt-1 shadow-lg">
+          {years.map((year) => (
+            <li
+              key={year}
+              className="p-2 cursor-pointer hover:bg-blue-500 hover:text-white"
+              onClick={() => handleOptionClick(year)}
+            >
+              {year}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
