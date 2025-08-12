@@ -26,7 +26,8 @@ export default function UploadProperty() {
     unit: 'sq ft',
   });
 
-  const [sizeInSqft, setSizeInSqft] = useState('');
+  const [sizeInSqft, setSizeInSqft] = useState(''); // numeric value (number) or ''
+  const [pricePerSqFt, setPricePerSqFt] = useState(''); // string formatted by toFixed(2)
 
   const [carparkPosition, setCarparkPosition] = useState('');
   const [customCarparkPosition, setCustomCarparkPosition] = useState('');
@@ -81,15 +82,25 @@ export default function UploadProperty() {
     setAddress(address);
   };
 
+  // 当价格或 sizeInSqft 改变时自动更新 pricePerSqFt
+  useEffect(() => {
+    const p = Number(price || 0);
+    const s = Number(sizeInSqft || 0);
+    if (p > 0 && s > 0) {
+      setPricePerSqFt((p / s).toFixed(2));
+    } else {
+      setPricePerSqFt('');
+    }
+  }, [price, sizeInSqft]);
+
   const handleSubmit = async () => {
     if (!title || !price || !address || !latitude || !longitude || images.length === 0) {
       toast.error('请填写完整信息并至少上传一张图片');
       return;
     }
 
-    // ✅ 即时计算每平方英尺价格
-    const computedPricePerSqFt =
-      sizeInSqft && price ? (Number(price) / sizeInSqft).toFixed(2) : null;
+    // 计算要写入 DB 的 price_per_sq_ft（若无法计算则写 null）
+    const computedPricePerSqFt = pricePerSqFt ? Number(pricePerSqFt) : null;
 
     setLoading(true);
     try {
@@ -99,7 +110,7 @@ export default function UploadProperty() {
           title,
           description,
           price: Number(price),
-          price_per_sq_ft: computedPricePerSqFt ? Number(computedPricePerSqFt) : null,
+          price_per_sq_ft: computedPricePerSqFt,
           address,
           lat: latitude,
           lng: longitude,
@@ -123,6 +134,7 @@ export default function UploadProperty() {
       if (error) throw error;
       const propertyId = propertyData.id;
 
+      // 上传图片到 storage 并记录
       for (let i = 0; i < images.length; i++) {
         const image = images[i];
         const fileName = `${Date.now()}_${image.name}`;
@@ -170,19 +182,47 @@ export default function UploadProperty() {
 
       <AreaSelector
         onChange={(data) => {
+          // data = { types, units, values }
           setAreaData(data);
-          const sqft = data.buildUpArea
-            ? parseFloat(data.buildUpArea) * (data.unit === 'sq m' ? 10.7639 : 1)
-            : '';
-          setSizeInSqft(sqft);
+
+          // 读取 buildUp 面积值（注意 AreaSelector 的结构）
+          const buildUpVal = data.values?.buildUp || data.values?.buildup || '';
+          const buildUpUnit = data.units?.buildUp || data.units?.buildup || '';
+
+          if (buildUpVal) {
+            const num = parseFloat(String(buildUpVal).replace(/,/g, ''));
+            if (!isNaN(num) && num > 0) {
+              let sqftNum = num;
+              // 单位转换（AreaSelector 使用 "square feet", "square meter", "acres", "hectares"）
+              if (buildUpUnit === 'square meter') {
+                sqftNum = num * 10.7639;
+              } else if (buildUpUnit === 'acres') {
+                sqftNum = num * 43560;
+              } else if (buildUpUnit === 'hectares') {
+                sqftNum = num * 107639;
+              } // otherwise assume square feet
+              setSizeInSqft(sqftNum);
+              return;
+            }
+          }
+          // no valid buildUp area
+          setSizeInSqft('');
         }}
       />
 
       <PriceInput
         value={price}
-        onChange={setPrice}
+        onChange={(val) => {
+          // val 是纯数字字符串（例如 "1200000"）
+          setPrice(val);
+        }}
         area={sizeInSqft}
       />
+
+      {/* 页面上也显示一个 summary（可选） */}
+      {pricePerSqFt && (
+        <div className="text-gray-600 text-sm">RM {Number(pricePerSqFt).toLocaleString()} / 平方英尺</div>
+      )}
 
       <FacingSelector
         value={facing}
