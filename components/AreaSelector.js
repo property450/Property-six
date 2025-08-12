@@ -48,14 +48,22 @@ export default function AreaSelector({ onChange = () => {}, initialValue = {} })
   }, [selectedTypes, units, areaValues]);
 
   const handleCheckboxChange = (value) => {
-    setSelectedTypes((prev) =>
-      prev.includes(value)
-        ? prev.length > 1
-          ? prev.filter((v) => v !== value)
-          : prev
-        : [...prev, value]
-    );
-  };
+  setSelectedTypes((prev) => {
+    if (prev.includes(value)) {
+      if (prev.length > 1) {
+        setAreaValues((prevVals) => ({ ...prevVals, [value]: "" }));
+        setRawInputValues((prevVals) => ({ ...prevVals, [value]: "" }));
+        setDisplayValues((prevVals) => ({ ...prevVals, [value]: "" }));
+
+        return prev.filter((v) => v !== value);
+      } else {
+        return prev;
+      }
+    } else {
+      return [...prev, value];
+    }
+  });
+};
 
   const handleUnitChange = (type, unitVal) => {
     setUnits((prev) => ({ ...prev, [type]: unitVal }));
