@@ -80,9 +80,6 @@ export default function UploadProperty() {
   const years = Array.from({ length: 70 + 5 + 1 }, (_, i) => currentYear + 5 - i);
   const [useCustomYear, setUseCustomYear] = useState(false);
   const [customBuildYear, setCustomBuildYear] = useState('');
-// 状态变量替换：
-const [amenities, setAmenities] = useState('');
-const [buildYear, setBuildYear] = useState('');
 
   const handleLocationSelect = ({ lat, lng, address }) => {
     setLatitude(lat);
