@@ -17,10 +17,6 @@ import PriceInput from '@/components/PriceInput';
 import AmenitiesInput from '@/components/AmenitiesInput';
 import BuildYearSelector from '@/components/BuildYearSelector';
 
-// 状态变量替换：
-const [amenities, setAmenities] = useState('');
-const [buildYear, setBuildYear] = useState('');
-
 const AddressSearchInput = dynamic(() => import('@/components/AddressSearchInput'), { ssr: false });
 
 export default function UploadProperty() {
@@ -84,6 +80,9 @@ export default function UploadProperty() {
   const years = Array.from({ length: 70 + 5 + 1 }, (_, i) => currentYear + 5 - i);
   const [useCustomYear, setUseCustomYear] = useState(false);
   const [customBuildYear, setCustomBuildYear] = useState('');
+// 状态变量替换：
+const [amenities, setAmenities] = useState('');
+const [buildYear, setBuildYear] = useState('');
 
   const handleLocationSelect = ({ lat, lng, address }) => {
     setLatitude(lat);
