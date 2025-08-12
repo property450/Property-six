@@ -49,8 +49,8 @@ export default function PriceInput({ value, onChange, area }) {
         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">RM</span>
         <input
           type="text"
-          value={value.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
-          onChange={handleInputChange}
+          value={(value ?? "").toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+onChange={handleInputChange}
           onFocus={() => setShowDropdown(true)}
           className="pl-12 pr-4 py-2 border rounded w-full"
           placeholder="请输入价格"
