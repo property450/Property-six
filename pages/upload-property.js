@@ -17,298 +17,259 @@ import PriceInput from '@/components/PriceInput';
 const AddressSearchInput = dynamic(() => import('@/components/AddressSearchInput'), { ssr: false });
 
 export default function UploadProperty() {
-  const router = useRouter();
-  const user = useUser();
+  const router = useRouter();
+  const user = useUser();
 
-  
-const [area, setArea] = useState("");
-const [pricePerSqft, setPricePerSqft] = useState("");
-
-useEffect(() => {
-  const priceNum = parseFloat(price.toString().replace(/,/g, "")) || 0;
-  const areaNum = parseFloat(area) || 0;
-  if (priceNum > 0 && areaNum > 0) {
-    setPricePerSqft((priceNum / areaNum).toFixed(2));
-  } else {
-    setPricePerSqft("");
-  }
-}, [price, area]);
+  // ------------------- 核心输入数据 -------------------
+  const [price, setPrice] = useState('');
+  const [area, setArea] = useState('');
+  const [pricePerSqft, setPricePerSqft] = useState('');
 
   const [areaData, setAreaData] = useState({
-    buildUpArea: '',
-    landArea: '',
-    unit: 'sq ft',
-  });
+    buildUpArea: '',
+    landArea: '',
+    unit: 'sq ft',
+  });
 
+  // 自动计算 Price per sqft
+  useEffect(() => {
+    const priceNum = parseFloat(price.toString().replace(/,/g, "")) || 0;
+    const areaNum = parseFloat(area) || 0;
+    if (priceNum > 0 && areaNum > 0) {
+      setPricePerSqft((priceNum / areaNum).toFixed(2));
+    } else {
+      setPricePerSqft('');
+    }
+  }, [price, area]);
+
+  // ------------------- 其它表单数据 -------------------
   const [carparkPosition, setCarparkPosition] = useState('');
-const [customCarparkPosition, setCustomCarparkPosition] = useState('');
-
-  const handleCarparkPositionChange = (value) => {
-  setCarparkPosition(value);
-  if (value !== '其他（自定义）') {
-    setCustomCarparkPosition('');
-  }
-};
-
-  useEffect(() => {
-    if (user === null) {
-      router.push('/login');
-    }
-  }, [user]);
-
-  if (user === null) {
-    return <div>正在检查登录状态...</div>;
-  }
-
-  if (!user) {
-    return null;
-  }
-
-  // ---------- 状态管理 ------------
-  const [price, setPrice] = useState('');
-const [selectedPrice, setSelectedPrice] = useState('');
+  const [customCarparkPosition, setCustomCarparkPosition] = useState('');
   const [customFacing, setCustomFacing] = useState('');
   const [facing, setFacing] = useState('');
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [address, setAddress] = useState('');
-  const [latitude, setLatitude] = useState(null);
-  const [longitude, setLongitude] = useState(null);
-  const [images, setImages] = useState([]);
-  const [coverIndex, setCoverIndex] = useState(0);
-  const [type, setType] = useState('');
-  const [floor, setFloor] = useState('');
-  const [buildYear, setBuildYear] = useState('');
-  const [bedrooms, setBedrooms] = useState('');
-  const [bathrooms, setBathrooms] = useState('');
-  const [carpark, setCarpark] = useState('');
-  const [store, setStore] = useState('');
-  // 组件最上方加这个 state：
-  const dropdownRef = useRef(null);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [address, setAddress] = useState('');
+  const [latitude, setLatitude] = useState(null);
+  const [longitude, setLongitude] = useState(null);
+  const [images, setImages] = useState([]);
+  const [coverIndex, setCoverIndex] = useState(0);
+  const [type, setType] = useState('');
+  const [floor, setFloor] = useState('');
+  const [buildYear, setBuildYear] = useState('');
+  const [bedrooms, setBedrooms] = useState('');
+  const [bathrooms, setBathrooms] = useState('');
+  const [carpark, setCarpark] = useState('');
+  const [store, setStore] = useState('');
+  const [amenities, setAmenities] = useState('');
+  const [link, setLink] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const [amenities, setAmenities] = useState('');
-  const [link, setLink] = useState('');
-  const [loading, setLoading] = useState(false);
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 70 + 5 + 1 }, (_, i) => currentYear + 5 - i);
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 76 }, (_, i) => currentYear + 5 - i);
   const [useCustomYear, setUseCustomYear] = useState(false);
   const [customBuildYear, setCustomBuildYear] = useState('');
 
+  // ------------------- 登录状态检查 -------------------
+  useEffect(() => {
+    if (user === null) {
+      router.push('/login');
+    }
+  }, [user]);
 
+  if (user === null) return <div>正在检查登录状态...</div>;
+  if (!user) return null;
 
-  // ✅ useEffect：关闭下拉逻辑，建议放在组件顶部
-useEffect(() => {
-  const handleClickOutside = (event) => {
-    if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-      setDropdownOpen(false);
-    }
-  };
-  document.addEventListener('mousedown', handleClickOutside);
-  return () => {
-    document.removeEventListener('mousedown', handleClickOutside);
-  };
-}, []);
+  // ------------------- 事件 -------------------
+  const handleCarparkPositionChange = (value) => {
+    setCarparkPosition(value);
+    if (value !== '其他（自定义）') {
+      setCustomCarparkPosition('');
+    }
+  };
 
+  const handleLocationSelect = ({ lat, lng, address }) => {
+    setLatitude(lat);
+    setLongitude(lng);
+    setAddress(address);
+  };
 
-const toggleDropdown = () => {
-  setIsDropdownOpen((prev) => !prev);
-};
-  
-  // ✅ 接收地址搜索返回的结果
-  const handleLocationSelect = ({ lat, lng, address }) => {
-    setLatitude(lat);
-    setLongitude(lng);
-    setAddress(address);
-  };
+  const handleSubmit = async () => {
+    if (!title || !price || !address || !latitude || !longitude || images.length === 0) {
+      toast.error('请填写完整信息并至少上传一张图片');
+      return;
+    }
 
-  const handleSubmit = async () => {
-    console.log('🚀 上传按钮已点击');
-
-    if (!title || !price || !address || !latitude || !longitude || images.length === 0) {
-      toast.error('请填写完整信息并至少上传一张图片');
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const { data: propertyData, error } = await supabase
-        .from('properties')
-        .insert([{
-          title,
-          description,
-          price: Number(price),
-          address,
-          lat: latitude,
-          lng: longitude,
-          user_id: user.id,
-          link,
-          type,
-          floor,
-          built_year: useCustomYear ? customBuildYear : builtYear,
-          bedrooms,
-          bathrooms,
-          carpark,
-          store,
-          area: JSON.stringify(areaData), // 建议序列化存储，方便查询与提取
-          amenities,
+    setLoading(true);
+    try {
+      const { data: propertyData, error } = await supabase
+        .from('properties')
+        .insert([{
+          title,
+          description,
+          price: Number(price),
+          address,
+          lat: latitude,
+          lng: longitude,
+          user_id: user.id,
+          link,
+          type,
+          floor,
+          built_year: useCustomYear ? customBuildYear : buildYear,
+          bedrooms,
+          bathrooms,
+          carpark,
+          store,
+          area: JSON.stringify(areaData),
+          amenities,
           facing: facing === '其他' ? customFacing : facing,
           carpark_position: carparkPosition === '其他（自定义）' ? customCarparkPosition : carparkPosition,
-        }])
-        .select()
-        .single();
+        }])
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (error) throw error;
 
-      const propertyId = propertyData.id;
+      const propertyId = propertyData.id;
 
-      for (let i = 0; i < images.length; i++) {
-        const image = images[i];
-        const fileName = `${Date.now()}_${image.name}`;
-        const filePath = `${propertyId}/${fileName}`;
+      for (let i = 0; i < images.length; i++) {
+        const image = images[i];
+        const fileName = `${Date.now()}_${image.name}`;
+        const filePath = `${propertyId}/${fileName}`;
 
-        const { error: uploadError } = await supabase.storage
-          .from('property-images')
-          .upload(filePath, image);
+        const { error: uploadError } = await supabase.storage
+          .from('property-images')
+          .upload(filePath, image);
+        if (uploadError) throw uploadError;
 
-        if (uploadError) throw uploadError;
+        const { data: publicUrlData } = supabase.storage
+          .from('property-images')
+          .getPublicUrl(filePath);
 
-        const { data: publicUrlData } = supabase.storage
-          .from('property-images')
-          .getPublicUrl(filePath);
+        await supabase.from('property-images').insert([{
+          property_id: propertyId,
+          image_url: publicUrlData.publicUrl,
+          is_cover: i === coverIndex,
+        }]);
+      }
 
-        const imageUrl = publicUrlData.publicUrl;
+      toast.success('房源上传成功');
+      router.push('/');
+    } catch (err) {
+      console.error(err);
+      toast.error('上传失败，请检查控制台');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        await supabase.from('property-images').insert([{
-          property_id: propertyId,
-          image_url: imageUrl,
-          is_cover: i === coverIndex,
-        }]);
-      }
+  // ------------------- UI -------------------
+  return (
+    <div className="max-w-3xl mx-auto p-4 space-y-4">
+      <h1 className="text-2xl font-bold mb-4">上传房源</h1>
 
-      toast.success('房源上传成功');
-      router.push('/');
-    } catch (err) {
-      console.error(err);
-      toast.error('上传失败，请检查控制台');
-    } finally {
-      setLoading(false);
-    }
-  };
+      <Input placeholder="标题" value={title} onChange={(e) => setTitle(e.target.value)} />
+      <Input placeholder="描述" value={description} onChange={(e) => setDescription(e.target.value)} />
+      <Input placeholder="链接（可选）" value={link} onChange={(e) => setLink(e.target.value)} />
 
-  return (
-    <div className="max-w-3xl mx-auto p-4 space-y-4">
-      <h1 className="text-2xl font-bold mb-4">上传房源</h1>
+      <TypeSelector value={type} onChange={setType} />
+      <RoomSelector label="卧室" value={bedrooms} onChange={setBedrooms} />
+      <RoomSelector label="浴室" value={bathrooms} onChange={setBathrooms} />
+      <RoomSelector label="停车位" value={carpark} onChange={setCarpark} />
+      <RoomSelector label="储藏室" value={store} onChange={setStore} />
 
-      <Input placeholder="标题" value={title} onChange={(e) => setTitle(e.target.value)} />
-      <Input placeholder="描述" value={description} onChange={(e) => setDescription(e.target.value)} />
-      <Input placeholder="链接（可选）" value={link} onChange={(e) => setLink(e.target.value)} />
+      <AreaSelector onChange={(data) => setAreaData(data)} />
 
-      <TypeSelector value={type} onChange={setType} />
-      <RoomSelector label="卧室" value={bedrooms} onChange={setBedrooms} />
-      <RoomSelector label="浴室" value={bathrooms} onChange={setBathrooms} />
-      <RoomSelector label="停车位" value={carpark} onChange={setCarpark} />
-      <RoomSelector label="储藏室" value={store} onChange={setStore} />
+      {/* 价格 + 面积 + PPSF */}
+      <PriceInput value={price} onChange={setPrice} />
+      <Input
+        type="number"
+        placeholder="Enter area (sqft)"
+        value={area}
+        onChange={(e) => setArea(e.target.value)}
+      />
+      <Input
+        type="text"
+        value={pricePerSqft}
+        readOnly
+        placeholder="Price per sqft"
+        className="bg-gray-100"
+      />
 
-{/* ✅ 面积输入 + 下拉组件 */}
-   {/* 面积 */}
-<AreaSelector onChange={(data) => setAreaData(data)} />
-    
-{/* 价格输入，自动显示每平方英尺价格 */}
-<PriceInput value={price} onChange={setPrice} />
-<Input
-  type="number"
-  placeholder="Enter area (sqft)"
-  value={area}
-  onChange={(e) => setArea(e.target.value)}
-/>
-<Input
-  type="text"
-  value={pricePerSqft}
-  readOnly
-  placeholder="Price per sqft"
-  className="bg-gray-100"
-/>
+      <FacingSelector
+        value={facing}
+        onChange={setFacing}
+        customValue={customFacing}
+        onCustomChange={setCustomFacing}
+      />
 
-  <FacingSelector
-  value={facing}
-  onChange={setFacing}
-  customValue={customFacing}
-  onCustomChange={setCustomFacing}
-/>
+      <CarparkLevelSelector
+        value={carparkPosition}
+        onChange={handleCarparkPositionChange}
+        customValue={customCarparkPosition}
+        setCustomValue={setCustomCarparkPosition}
+      />
 
-  <CarparkLevelSelector
-  value={carparkPosition}
-  onChange={handleCarparkPositionChange}
-  customValue={customCarparkPosition}
-  setCustomValue={setCustomCarparkPosition}
-/>
+      {/* 建成年份选择 */}
+      <div className="mb-4">
+        <label className="block text-sm font-medium mb-1">建造年份</label>
+        <select
+          className="w-full border p-2 rounded"
+          value={useCustomYear ? 'custom' : buildYear}
+          onChange={(e) => {
+            if (e.target.value === 'custom') {
+              setUseCustomYear(true);
+              setBuildYear('');
+            } else {
+              setBuildYear(e.target.value);
+              setUseCustomYear(false);
+              setCustomBuildYear('');
+            }
+          }}
+        >
+          <option value="">请选择建造年份</option>
+          {years.map((year) => (
+            <option key={year} value={year}>
+              {year}
+            </option>
+          ))}
+          <option value="custom">自定义输入</option>
+        </select>
 
-{/* 建成年份 */}
-<div className="mb-4">
-  <label className="block text-sm font-medium mb-1">建造年份</label>
-  <select
-    className="w-full border p-2 rounded"
-    value={useCustomYear ? 'custom' : buildYear}
-    onChange={(e) => {
-      if (e.target.value === 'custom') {
-        setUseCustomYear(true);
-        setBuildYear('');
-      } else {
-        setBuildYear(e.target.value);
-        setUseCustomYear(false);
-        setCustomBuildYear('');
-      }
-    }}
-  >
-    <option value="">请选择建造年份</option>
-    {years.map((year) => (
-      <option key={year} value={year}>
-        {year}
-      </option>
-    ))}
-    <option value="custom">自定义输入</option>
-  </select>
+        {useCustomYear && (
+          <input
+            type="number"
+            placeholder="请输入建造年份"
+            value={customBuildYear}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (/^\d{0,4}$/.test(val)) {
+                setCustomBuildYear(val);
+                const num = parseInt(val);
+                if (num < currentYear - 70 || num > currentYear + 5) {
+                  toast.error('请输入有效年份（近70年内）');
+                }
+              }
+            }}
+            className="mt-2 w-full border p-2 rounded"
+            maxLength={4}
+          />
+        )}
+      </div>
 
-  {useCustomYear && (
-    <input
-      type="number"
-      placeholder="请输入建造年份"
-      value={customBuildYear}
-      onChange={(e) => {
-        const val = e.target.value;
-        // 最多 4 位数字限制 + 范围校验
-        if (/^\d{0,4}$/.test(val)) {
-          setCustomBuildYear(val);
-          const num = parseInt(val);
-          if (num >= currentYear - 70 && num <= currentYear + 5) {
-            // 合法年份
-          } else {
-            toast.error('请输入有效年份（近70年内）');
-          }
-        }
-      }}
-      className="mt-2 w-full border p-2 rounded"
-      maxLength={4}
-    />
-  )}
-</div>
+      <Input placeholder="设施/配套（如泳池、电梯等）" value={amenities} onChange={(e) => setAmenities(e.target.value)} />
 
+      <AddressSearchInput onLocationSelect={handleLocationSelect} />
 
-      <Input placeholder="设施/配套（如泳池、电梯等）" value={amenities} onChange={(e) => setAmenities(e.target.value)} />
+      <ImageUpload images={images} setImages={setImages} coverIndex={coverIndex} setCoverIndex={setCoverIndex} />
 
-      {/* ✅ 使用新版本 AddressSearchInput */}
-      <AddressSearchInput onLocationSelect={handleLocationSelect} />
-
-      <ImageUpload images={images} setImages={setImages} coverIndex={coverIndex} setCoverIndex={setCoverIndex} />
-
-      <Button
-        onClick={handleSubmit}
-        disabled={loading}
-        className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full"
-      >
-        {loading ? '上传中...' : '提交房源'}
-      </Button>
-    </div>
-  );
+      <Button
+        onClick={handleSubmit}
+        disabled={loading}
+        className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full"
+      >
+        {loading ? '上传中...' : '提交房源'}
+      </Button>
+    </div>
+  );
 }
