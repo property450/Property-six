@@ -196,9 +196,14 @@ const toggleDropdown = () => {
       <RoomSelector label="停车位" value={carpark} onChange={setCarpark} />
       <RoomSelector label="储藏室" value={store} onChange={setStore} />
 
-  <PriceInput
+  {/* 面积选择器 */}
+<AreaSelector onChange={(data) => setAreaData(data)} />
+
+{/* 价格输入，自动显示每平方英尺价格 */}
+<PriceInput
   value={price}
   onChange={setPrice}
+  area={areaData.buildUpArea}
   placeholder="请输入房产价格"
 />
 
