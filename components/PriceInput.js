@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 
-export default function PriceInput({ value, onChange }) {
+export default function PriceInput({ value, onChange, area }) {
+  // ✅ area 参数是你的房屋面积（sqft）
   const [showDropdown, setShowDropdown] = useState(false);
   const wrapperRef = useRef(null);
 
@@ -34,13 +35,20 @@ export default function PriceInput({ value, onChange }) {
     };
   }, []);
 
+  // ✅ 自动计算每平方英尺价格
+  const perSqft =
+    area && value
+      ? (parseFloat(value) / parseFloat(area)).toFixed(2)
+      : null;
+
   return (
     <div className="relative w-full" ref={wrapperRef}>
-      {/* 👇 这是“价格”文字标签 */}
       <label className="block text-sm font-medium text-gray-700">价格</label>
-    
+
       <div className="relative">
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">RM</span>
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+          RM
+        </span>
         <input
           type="text"
           value={value.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
@@ -50,6 +58,13 @@ export default function PriceInput({ value, onChange }) {
           placeholder="请输入价格"
         />
       </div>
+
+      {/* ✅ 自动显示 per sqft 提示 */}
+      {perSqft && (
+        <p className="text-sm text-gray-500 mt-1">
+          每平方英尺: RM {parseFloat(perSqft).toLocaleString()}
+        </p>
+      )}
 
       {showDropdown && (
         <ul className="absolute z-10 w-full bg-white border mt-1 max-h-60 overflow-y-auto rounded shadow">
