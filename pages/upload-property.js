@@ -230,12 +230,7 @@ export default function UploadProperty() {
         // 把转换好的总面积（sqft 数字或 ''）传给 PriceInput
         area={sizeInSqft}
       />
-
-      {/* 页面上也显示 pricePerSqFt（备用/summary） */}
-      {pricePerSqFt && (
-        <div className="text-gray-600 text-sm">RM {Number(pricePerSqFt).toLocaleString()} / 平方英尺</div>
-      )}
-
+          
       <FacingSelector
         value={facing}
         onChange={setFacing}
