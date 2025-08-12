@@ -20,7 +20,7 @@ export default function UploadProperty() {
   const router = useRouter();
   const user = useUser();
 
-  const [price, setPrice] = useState("");
+  
 const [area, setArea] = useState("");
 const [pricePerSqft, setPricePerSqft] = useState("");
 
