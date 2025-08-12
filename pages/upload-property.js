@@ -1,3 +1,4 @@
+// pages/upload-property.js
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import dynamic from 'next/dynamic';
@@ -20,14 +21,15 @@ export default function UploadProperty() {
   const router = useRouter();
   const user = useUser();
 
+  // areaData 与 AreaSelector 的 onChange 返回结构一致：
   const [areaData, setAreaData] = useState({
-    buildUpArea: '',
-    landArea: '',
-    unit: 'sq ft',
+    types: ['buildUp'],
+    units: { buildUp: 'square feet', land: 'square feet' },
+    values: { buildUp: '', land: '' },
   });
 
-  const [sizeInSqft, setSizeInSqft] = useState(''); // numeric value (number) or ''
-  const [pricePerSqFt, setPricePerSqFt] = useState(''); // string formatted by toFixed(2)
+  const [sizeInSqft, setSizeInSqft] = useState(''); // numeric value in sqft (number or empty string)
+  const [pricePerSqFt, setPricePerSqFt] = useState(''); // string like "12.34"
 
   const [carparkPosition, setCarparkPosition] = useState('');
   const [customCarparkPosition, setCustomCarparkPosition] = useState('');
@@ -42,7 +44,7 @@ export default function UploadProperty() {
     if (user === null) {
       router.push('/login');
     }
-  }, [user]);
+  }, [user, router]);
 
   if (user === null) {
     return <div>正在检查登录状态...</div>;
@@ -51,7 +53,8 @@ export default function UploadProperty() {
     return null;
   }
 
-  const [price, setPrice] = useState('');
+  // ---------- 表单状态 ----------
+  const [price, setPrice] = useState(''); // PriceInput 会传回纯数字字符串 "1200000"
   const [customFacing, setCustomFacing] = useState('');
   const [facing, setFacing] = useState('');
   const [title, setTitle] = useState('');
@@ -82,10 +85,47 @@ export default function UploadProperty() {
     setAddress(address);
   };
 
-  // 当价格或 sizeInSqft 改变时自动更新 pricePerSqFt
+  // 单位转换函数（把任意 unit 转为 sqft）
+  const convertToSqft = (val, unit) => {
+    const num = parseFloat(String(val || '').replace(/,/g, ''));
+    if (isNaN(num) || num <= 0) return 0;
+    switch (unit) {
+      case 'square meter':
+      case 'square metres':
+      case 'sq m':
+        return num * 10.7639;
+      case 'acres':
+        return num * 43560;
+      case 'hectares':
+        return num * 107639;
+      default:
+        // assume square feet
+        return num;
+    }
+  };
+
+  // 当 AreaSelector 改变时：更新 areaData，并计算 sizeInSqft = buildUp + land（都换算成 sqft）
+  const handleAreaChange = (data) => {
+    // data: { types, units, values }
+    setAreaData(data);
+
+    const buildUpVal = data.values?.buildUp ?? '';
+    const landVal = data.values?.land ?? '';
+
+    const buildUpUnit = data.units?.buildUp ?? 'square feet';
+    const landUnit = data.units?.land ?? 'square feet';
+
+    const buildUpSq = convertToSqft(buildUpVal, buildUpUnit);
+    const landSq = convertToSqft(landVal, landUnit);
+
+    const total = (buildUpSq || 0) + (landSq || 0);
+    setSizeInSqft(total > 0 ? total : '');
+  };
+
+  // 自动计算 pricePerSqFt（当 price 或 sizeInSqft 改变）
   useEffect(() => {
-    const p = Number(price || 0);
-    const s = Number(sizeInSqft || 0);
+    const p = Number(String(price || '').replace(/,/g, '')) || 0;
+    const s = Number(sizeInSqft) || 0;
     if (p > 0 && s > 0) {
       setPricePerSqFt((p / s).toFixed(2));
     } else {
@@ -99,7 +139,6 @@ export default function UploadProperty() {
       return;
     }
 
-    // 计算要写入 DB 的 price_per_sq_ft（若无法计算则写 null）
     const computedPricePerSqFt = pricePerSqFt ? Number(pricePerSqFt) : null;
 
     setLoading(true);
@@ -109,7 +148,7 @@ export default function UploadProperty() {
         .insert([{
           title,
           description,
-          price: Number(price),
+          price: Number(String(price).replace(/,/g, '')),
           price_per_sq_ft: computedPricePerSqFt,
           address,
           lat: latitude,
@@ -134,7 +173,7 @@ export default function UploadProperty() {
       if (error) throw error;
       const propertyId = propertyData.id;
 
-      // 上传图片到 storage 并记录
+      // 上传图片
       for (let i = 0; i < images.length; i++) {
         const image = images[i];
         const fileName = `${Date.now()}_${image.name}`;
@@ -180,46 +219,19 @@ export default function UploadProperty() {
       <RoomSelector label="停车位" value={carpark} onChange={setCarpark} />
       <RoomSelector label="储藏室" value={store} onChange={setStore} />
 
-      <AreaSelector
-        onChange={(data) => {
-          // data = { types, units, values }
-          setAreaData(data);
-
-          // 读取 buildUp 面积值（注意 AreaSelector 的结构）
-          const buildUpVal = data.values?.buildUp || data.values?.buildup || '';
-          const buildUpUnit = data.units?.buildUp || data.units?.buildup || '';
-
-          if (buildUpVal) {
-            const num = parseFloat(String(buildUpVal).replace(/,/g, ''));
-            if (!isNaN(num) && num > 0) {
-              let sqftNum = num;
-              // 单位转换（AreaSelector 使用 "square feet", "square meter", "acres", "hectares"）
-              if (buildUpUnit === 'square meter') {
-                sqftNum = num * 10.7639;
-              } else if (buildUpUnit === 'acres') {
-                sqftNum = num * 43560;
-              } else if (buildUpUnit === 'hectares') {
-                sqftNum = num * 107639;
-              } // otherwise assume square feet
-              setSizeInSqft(sqftNum);
-              return;
-            }
-          }
-          // no valid buildUp area
-          setSizeInSqft('');
-        }}
-      />
+      <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
 
       <PriceInput
         value={price}
         onChange={(val) => {
-          // val 是纯数字字符串（例如 "1200000"）
+          // PriceInput 传来的 val 是纯数字字符串（例如 "1200000"）
           setPrice(val);
         }}
+        // 把转换好的总面积（sqft 数字或 ''）传给 PriceInput
         area={sizeInSqft}
       />
 
-      {/* 页面上也显示一个 summary（可选） */}
+      {/* 页面上也显示 pricePerSqFt（备用/summary） */}
       {pricePerSqFt && (
         <div className="text-gray-600 text-sm">RM {Number(pricePerSqFt).toLocaleString()} / 平方英尺</div>
       )}
