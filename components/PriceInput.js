@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 
 export default function PriceInput({ value, onChange, area }) {
-  // ✅ area 参数是你的房屋面积（sqft）
   const [showDropdown, setShowDropdown] = useState(false);
   const wrapperRef = useRef(null);
 
@@ -36,10 +35,17 @@ export default function PriceInput({ value, onChange, area }) {
   }, []);
 
   // ✅ 自动计算每平方英尺价格
-  const perSqft =
-    area && value
-      ? (parseFloat(value) / parseFloat(area)).toFixed(2)
-      : null;
+  let perSqftText = null;
+  const priceNum = parseFloat(value);
+  const areaNum = parseFloat(area);
+  
+  if (priceNum > 0 && areaNum > 0) {
+    const perSqft = priceNum / areaNum;
+    perSqftText = perSqft.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  }
 
   return (
     <div className="relative w-full" ref={wrapperRef}>
@@ -60,9 +66,9 @@ export default function PriceInput({ value, onChange, area }) {
       </div>
 
       {/* ✅ 自动显示 per sqft 提示 */}
-      {perSqft && (
+      {perSqftText && (
         <p className="text-sm text-gray-500 mt-1">
-          每平方英尺: RM {parseFloat(perSqft).toLocaleString()}
+          每平方英尺: RM {perSqftText}
         </p>
       )}
 
