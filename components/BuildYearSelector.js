@@ -7,14 +7,15 @@ export default function BuildYearSelector({ value, onChange }) {
 
   const [inputVal, setInputVal] = useState(value || '');
 
-  // 同步父组件value到本地状态
+  // 同步父组件 value 更新到本地状态
   useEffect(() => {
     setInputVal(value || '');
   }, [value]);
 
   const handleInputChange = (e) => {
     const val = e.target.value;
-    // 限制只能输入数字，最多4位
+
+    // 只能数字，最多4位
     if (val === '' || /^\d{0,4}$/.test(val)) {
       setInputVal(val);
       onChange(val);
