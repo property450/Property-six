@@ -184,10 +184,6 @@ export default function UploadProperty() {
         value={price}
         onChange={(val) => {
           setPrice(val);
-          if (sizeInSqft && val) {
-            setPricePerSqFt((Number(val) / sizeInSqft).toFixed(2));
-          } else {
-            setPricePerSqFt('');
           }
         }}
         area={sizeInSqft}
