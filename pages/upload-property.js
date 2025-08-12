@@ -20,6 +20,20 @@ export default function UploadProperty() {
   const router = useRouter();
   const user = useUser();
 
+  const [price, setPrice] = useState("");
+const [area, setArea] = useState("");
+const [pricePerSqft, setPricePerSqft] = useState("");
+
+useEffect(() => {
+  const priceNum = parseFloat(price.toString().replace(/,/g, "")) || 0;
+  const areaNum = parseFloat(area) || 0;
+  if (priceNum > 0 && areaNum > 0) {
+    setPricePerSqft((priceNum / areaNum).toFixed(2));
+  } else {
+    setPricePerSqft("");
+  }
+}, [price, area]);
+
   const [areaData, setAreaData] = useState({
     buildUpArea: '',
     landArea: '',
@@ -201,11 +215,19 @@ const toggleDropdown = () => {
 <AreaSelector onChange={(data) => setAreaData(data)} />
     
 {/* 价格输入，自动显示每平方英尺价格 */}
-<PriceInput
-  value={price}
-  onChange={setPrice}
-  area={areaData.buildUpArea}
-  placeholder="请输入房产价格"
+<PriceInput value={price} onChange={setPrice} />
+<Input
+  type="number"
+  placeholder="Enter area (sqft)"
+  value={area}
+  onChange={(e) => setArea(e.target.value)}
+/>
+<Input
+  type="text"
+  value={pricePerSqft}
+  readOnly
+  placeholder="Price per sqft"
+  className="bg-gray-100"
 />
 
   <FacingSelector
