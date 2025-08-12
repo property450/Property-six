@@ -196,9 +196,10 @@ const toggleDropdown = () => {
       <RoomSelector label="停车位" value={carpark} onChange={setCarpark} />
       <RoomSelector label="储藏室" value={store} onChange={setStore} />
 
-  {/* 面积选择器 */}
+{/* ✅ 面积输入 + 下拉组件 */}
+   {/* 面积 */}
 <AreaSelector onChange={(data) => setAreaData(data)} />
-
+    
 {/* 价格输入，自动显示每平方英尺价格 */}
 <PriceInput
   value={price}
@@ -220,11 +221,6 @@ const toggleDropdown = () => {
   customValue={customCarparkPosition}
   setCustomValue={setCustomCarparkPosition}
 />
-
-{/* ✅ 面积输入 + 下拉组件 */}
-   {/* 面积 */}
-<AreaSelector onChange={(data) => setAreaData(data)} />
-    
 
 {/* 建成年份 */}
 <div className="mb-4">
