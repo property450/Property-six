@@ -37,10 +37,8 @@ export default function PriceInput({ value, onChange }) {
   return (
     <div className="relative w-full" ref={wrapperRef}>
       {/* 👇 这是“价格”文字标签 */}
-      <label className="absolute -top-2 left-3 bg-white px-1 text-sm text-gray-500 z-10">
-        价格
-      </label>
-
+      <label className="block text-sm font-medium text-gray-700">价格</label>
+    
       <div className="relative">
         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">RM</span>
         <input
