@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import dynamic from 'next/dynamic';
 import { supabase } from '../supabaseClient';
@@ -174,6 +174,8 @@ export default function UploadProperty() {
           setSizeInSqft(sqft);
           if (sqft && price) {
             setPricePerSqFt((Number(price) / sqft).toFixed(2));
+          } else {
+            setPricePerSqFt('');
           }
         }}
       />
