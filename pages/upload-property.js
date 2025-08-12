@@ -27,7 +27,6 @@ export default function UploadProperty() {
   });
 
   const [sizeInSqft, setSizeInSqft] = useState('');
-  const [pricePerSqFt, setPricePerSqFt] = useState('');
 
   const [carparkPosition, setCarparkPosition] = useState('');
   const [customCarparkPosition, setCustomCarparkPosition] = useState('');
@@ -88,6 +87,10 @@ export default function UploadProperty() {
       return;
     }
 
+    // ✅ 即时计算每平方英尺价格
+    const computedPricePerSqFt =
+      sizeInSqft && price ? (Number(price) / sizeInSqft).toFixed(2) : null;
+
     setLoading(true);
     try {
       const { data: propertyData, error } = await supabase
@@ -96,7 +99,7 @@ export default function UploadProperty() {
           title,
           description,
           price: Number(price),
-          price_per_sq_ft: Number(pricePerSqFt) || null,
+          price_per_sq_ft: computedPricePerSqFt ? Number(computedPricePerSqFt) : null,
           address,
           lat: latitude,
           lng: longitude,
@@ -172,26 +175,14 @@ export default function UploadProperty() {
             ? parseFloat(data.buildUpArea) * (data.unit === 'sq m' ? 10.7639 : 1)
             : '';
           setSizeInSqft(sqft);
-          if (sqft && price) {
-            setPricePerSqFt((Number(price) / sqft).toFixed(2));
-          } else {
-            setPricePerSqFt('');
-          }
         }}
       />
 
       <PriceInput
         value={price}
-        onChange={(val) => {
-          setPrice(val);
-          }
-        }}
+        onChange={setPrice}
         area={sizeInSqft}
       />
-
-      {pricePerSqFt && (
-        <div className="text-gray-600 text-sm">RM {pricePerSqFt} / 平方英尺</div>
-      )}
 
       <FacingSelector
         value={facing}
