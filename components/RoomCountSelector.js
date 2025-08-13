@@ -1,68 +1,76 @@
 // components/RoomCountSelector.js
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
-export default function RoomCountSelector({ label, value, onChange }) {
-  const options = [0, 1, 2, 3, 4, 5, 6];
-  const [inputValue, setInputValue] = useState("");
+export default function QuantitySelector() {
+  const options = [
+    { label: "1", value: "1" },
+    { label: "2", value: "2" },
+    { label: "3", value: "3" },
+    { label: "4+", value: "4+" },
+    { label: "自定义", value: "custom" }
+  ];
 
-  // 格式化为带千分位
-  const formatNumber = (num) => {
-    if (!num) return "";
-    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  };
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedValues, setSelectedValues] = useState([]);
+  const [customValue, setCustomValue] = useState("");
 
-  // 初始化
-  useEffect(() => {
-    if (value !== undefined && value !== null && value !== "") {
-      setInputValue(formatNumber(value));
+  const toggleOption = (value) => {
+    if (value === "custom") {
+      if (!selectedValues.includes("custom")) {
+        setSelectedValues([...selectedValues, "custom"]);
+      }
+    } else {
+      if (selectedValues.includes(value)) {
+        setSelectedValues(selectedValues.filter((v) => v !== value));
+      } else {
+        setSelectedValues([...selectedValues, value]);
+      }
     }
-  }, [value]);
-
-  // 处理输入
-  const handleInputChange = (e) => {
-    let raw = e.target.value.replace(/,/g, ""); // 去掉逗号
-    // 只允许数字
-    raw = raw.replace(/\D/g, "");
-    // 限制 6 位
-    if (raw.length > 6) raw = raw.slice(0, 6);
-    setInputValue(formatNumber(raw));
-    onChange(raw); // 传纯数字
-  };
-
-  // 处理下拉选择
-  const handleSelectChange = (e) => {
-    const selectedValue = e.target.value;
-    setInputValue(formatNumber(selectedValue));
-    onChange(selectedValue);
   };
 
   return (
-    <div className="space-y-2">
-      <label>{label}</label>
-      <div className="flex gap-2">
-        {/* 下拉选择 */}
-        <select
-          value={value}
-          onChange={handleSelectChange}
-          className="border p-2 rounded w-28"
-        >
-          <option value="">选择数量</option>
-          {options.map((n) => (
-            <option key={n} value={n}>
-              {n}
-            </option>
-          ))}
-        </select>
-
-        {/* 输入框（可以直接修改数量） */}
-        <input
-          type="text"
-          placeholder="请输入数量"
-          value={inputValue}
-          onChange={handleInputChange}
-          className="border p-2 rounded flex-1"
-        />
+    <div className="relative w-64">
+      {/* 框架 */}
+      <div
+        className="border p-2 rounded cursor-pointer bg-white"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        {selectedValues.length > 0
+          ? selectedValues
+              .map((v) => (v === "custom" ? (customValue || "自定义") : v))
+              .join(", ")
+          : "选择数量"}
       </div>
+
+      {/* 下拉选择 */}
+      {isOpen && (
+        <div className="absolute z-10 mt-1 border rounded bg-white shadow-lg w-full p-2">
+          {options.map((opt) => (
+            <label
+              key={opt.value}
+              className="flex items-center space-x-2 p-1 cursor-pointer hover:bg-gray-100"
+            >
+              <input
+                type="checkbox"
+                checked={selectedValues.includes(opt.value)}
+                onChange={() => toggleOption(opt.value)}
+              />
+              <span>{opt.label}</span>
+            </label>
+          ))}
+
+          {/* 自定义输入框 */}
+          {selectedValues.includes("custom") && (
+            <input
+              type="number"
+              className="mt-2 border p-1 rounded w-full"
+              placeholder="请输入你要的数量"
+              value={customValue}
+              onChange={(e) => setCustomValue(e.target.value)}
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }
