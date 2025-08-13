@@ -14,7 +14,7 @@ import AreaSelector from '@/components/AreaSelector';
 import CarparkLevelSelector from '@/components/CarparkLevelSelector';
 import FacingSelector from '@/components/FacingSelector';
 import PriceInput from '@/components/PriceInput';
-import AmenitiesInput from '@/components/AmenitiesInput';
+import FacilitiesSelector from "@/components/FacilitiesSelector";
 import BuildYearSelector from '@/components/BuildYearSelector';
 
 const AddressSearchInput = dynamic(() => import('@/components/AddressSearchInput'), { ssr: false });
@@ -73,7 +73,7 @@ export default function UploadProperty() {
   const [bathrooms, setBathrooms] = useState('');
   const [carpark, setCarpark] = useState('');
   const [store, setStore] = useState('');
-  const [amenities, setAmenities] = useState('');
+  const [facilities, setFacilities] = useState([]);
   const [link, setLink] = useState('');
   const [loading, setLoading] = useState(false);
   const currentYear = new Date().getFullYear();
@@ -249,7 +249,7 @@ export default function UploadProperty() {
           <Input placeholder="设施/配套（如泳池、电梯等）" value={amenities} onChange={(e) => setAmenities(e.target.value)} />
      
     // JSX 里替换成组件调用
-<AmenitiesInput value={amenities} onChange={setAmenities} />
+<FacilitiesSelector value={facilities} onChange={setFacilities} />
 
 <BuildYearSelector value={buildYear} onChange={setBuildYear} />
 
