@@ -54,6 +54,7 @@ export default function ExtraSpacesSelector({ value = [], onChange }) {
       {/* 标签输入框 */}
       <CreatableSelect
         isMulti
+        closeMenuOnSelect={false} // 关键代码：多选不自动关闭
         placeholder="选择或输入额外空间..."
         options={extraSpacesOptions}
         value={selectedSpaces.map((s) => ({ value: s.label, label: s.label }))}
