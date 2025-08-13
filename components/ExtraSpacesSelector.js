@@ -1,129 +1,101 @@
 // components/ExtraSpacesSelector.js
-import { useState } from "react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-function XIcon(props) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={props.className}
-    >
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
-  );
-}
+"use client";
+
+import React, { useState } from "react";
+import CreatableSelect from "react-select/creatable";
+
+// 数量选择器选项
+const quantityOptions = [0, 1, 2, 3, 4, 5, 6];
+
+// 预设额外空间选项
+const extraSpacesOptions = [
+  "阳台",
+  "书房",
+  "花园",
+  "庭院",
+  "走廊",
+  "大厅",
+  "景观",
+  "洗衣房",
+  "储物间",
+].map((label) => ({ value: label, label }));
 
 export default function ExtraSpacesSelector({ value = [], onChange }) {
-  // 预设额外空间选项
-  const presetSpaces = [
-    "Balcony",
-    "Study Room",
-    "Maid Room",
-    "Storage Room",
-    "Utility Room",
-    "Patio",
-    "Garden",
-    "Loft"
-  ];
-
   const [selectedSpaces, setSelectedSpaces] = useState(value);
-  const [customInput, setCustomInput] = useState("");
 
-  // 添加新的空间
-  const addSpace = (spaceType) => {
-    if (!spaceType.trim()) return;
-    // 如果已存在，不重复添加
-    if (selectedSpaces.find((s) => s.type.toLowerCase() === spaceType.toLowerCase())) return;
+  // 添加或更新标签
+  const handleSelectChange = (selected) => {
+    const currentLabels = selectedSpaces.map((s) => s.label);
+    const newLabels = (selected || []).map((opt) => opt.value);
 
-    const updated = [...selectedSpaces, { type: spaceType, count: 1 }];
-    setSelectedSpaces(updated);
-    onChange?.(updated);
-    setCustomInput("");
-  };
+    // 保留已有数量
+    const updated = newLabels.map((label) => {
+      const existing = selectedSpaces.find((s) => s.label === label);
+      return existing || { label, count: "" };
+    });
 
-  // 删除空间
-  const removeSpace = (spaceType) => {
-    const updated = selectedSpaces.filter((s) => s.type !== spaceType);
     setSelectedSpaces(updated);
     onChange?.(updated);
   };
 
   // 修改数量
-  const updateCount = (spaceType, count) => {
+  const handleCountChange = (label, count) => {
     const updated = selectedSpaces.map((s) =>
-      s.type === spaceType ? { ...s, count: Number(count) } : s
+      s.label === label ? { ...s, count } : s
     );
     setSelectedSpaces(updated);
     onChange?.(updated);
   };
 
   return (
-    <div className="space-y-3">
-      {/* 预设多选标签 */}
-      <div className="flex flex-wrap gap-2">
-        {presetSpaces.map((space) => {
-          const isSelected = selectedSpaces.some(
-            (s) => s.type.toLowerCase() === space.toLowerCase()
-          );
-          return (
-            <Button
-              key={space}
-              variant={isSelected ? "secondary" : "outline"}
-              size="sm"
-              onClick={() => addSpace(space)}
-            >
-              {space}
-            </Button>
-          );
-        })}
-      </div>
+    <div className="space-y-4">
+      <label className="block font-medium mb-1">额外空间</label>
 
-      {/* 自定义输入 */}
-      <div className="flex gap-2">
-        <Input
-          placeholder="Enter custom extra space"
-          value={customInput}
-          onChange={(e) => setCustomInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              addSpace(customInput);
-            }
-          }}
-        />
-        <Button onClick={() => addSpace(customInput)}>Add</Button>
-      </div>
+      {/* 标签输入框 */}
+      <CreatableSelect
+        isMulti
+        placeholder="选择或输入额外空间..."
+        options={extraSpacesOptions}
+        value={selectedSpaces.map((s) => ({ value: s.label, label: s.label }))}
+        onChange={handleSelectChange}
+        formatCreateLabel={(inputValue) => `添加自定义: ${inputValue}`}
+        styles={{
+          menu: (provided) => ({
+            ...provided,
+            zIndex: 9999,
+          }),
+        }}
+      />
 
-      {/* 已选空间框架 */}
-      <div className="space-y-2">
+      {/* 框架 */}
+      <div className="space-y-3">
         {selectedSpaces.map((space) => (
           <div
-            key={space.type}
-            className="flex items-center gap-3 border rounded-lg p-3 bg-gray-50"
+            key={space.label}
+            className="flex items-center gap-3 border p-3 rounded-lg bg-gray-50"
           >
-            <span className="font-medium">{space.type}</span>
-            <Input
-              type="number"
-              min="0"
+            <span className="font-medium">{space.label}</span>
+            <select
               value={space.count}
-              onChange={(e) => updateCount(space.type, e.target.value)}
-              className="w-20"
-            />
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => removeSpace(space.type)}
+              onChange={(e) => handleCountChange(space.label, e.target.value)}
+              className="border p-2 rounded w-28"
             >
-              <X className="w-4 h-4" />
-            </Button>
+              <option value="">选择数量</option>
+              {quantityOptions.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+              <option value="custom">自定义</option>
+            </select>
+            {space.count === "custom" && (
+              <input
+                type="number"
+                placeholder="请输入数量"
+                className="border p-2 rounded w-28"
+                onChange={(e) => handleCountChange(space.label, e.target.value)}
+              />
+            )}
           </div>
         ))}
       </div>
