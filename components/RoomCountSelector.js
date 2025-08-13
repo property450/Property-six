@@ -12,20 +12,37 @@ const parseNumber = (str) => str.replace(/,/g, "");
 
 export default function RoomCountSelector({ value = {}, onChange }) {
   const fields = [
-    { key: "bedrooms", label: "卧室", options: ["Studio", 0, 1, 2, 3, 4, 5, 6] },
-    { key: "bathrooms", label: "浴室", options: [0, 1, 2, 3, 4, 5, 6] },
-    { key: "kitchens", label: "厨房", options: [1, 2, 3, 4, 5, 6] },
-    { key: "livingRooms", label: "客厅", options: [0, 1, 2, 3, 4, 5, 6] },
+    {
+      key: "bedrooms",
+      label: "卧室",
+      options: ["Studio", 0, 1, 2, 3, 4, 5, 6],
+    },
+    {
+      key: "bathrooms",
+      label: "浴室",
+      options: [0, 1, 2, 3, 4, 5, 6],
+    },
+    {
+      key: "kitchens",
+      label: "厨房",
+      options: [1, 2, 3, 4, 5, 6],
+    },
+    {
+      key: "livingRooms",
+      label: "客厅",
+      options: [0, 1, 2, 3, 4, 5, 6],
+    },
   ];
 
   const handleChange = (key, val) => {
-    // 判断是不是纯数字
     const raw = parseNumber(val);
+
+    // 如果输入的是纯数字
     if (/^\d+$/.test(raw)) {
-      if (raw.length > 7) return; // 限制最大位数
+      if (raw.length > 7) return; // 最多 7 位
       onChange({ ...value, [key]: raw });
     } else {
-      // 如果不是数字，允许输入 "Studio" 这种字符串
+      // 非数字（如 Studio）直接存
       onChange({ ...value, [key]: val });
     }
   };
@@ -42,11 +59,10 @@ export default function RoomCountSelector({ value = {}, onChange }) {
         return (
           <div key={field.key} className="flex flex-col">
             <label className="text-sm font-medium mb-1">{field.label}</label>
-
             <input
               list={`${field.key}-list`}
               className="border rounded p-2 w-full"
-              placeholder="输入或选择"
+              placeholder="输入或选择数量"
               value={displayValue}
               onChange={(e) => handleChange(field.key, e.target.value)}
             />
@@ -56,6 +72,7 @@ export default function RoomCountSelector({ value = {}, onChange }) {
                   {opt}
                 </option>
               ))}
+              <option value="">请输入你要的数字</option>
             </datalist>
           </div>
         );
