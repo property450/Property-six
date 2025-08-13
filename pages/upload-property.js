@@ -246,9 +246,7 @@ export default function UploadProperty() {
         setCustomValue={setCustomCarparkPosition}
       />
 
-          <Input placeholder="设施/配套（如泳池、电梯等）" value={amenities} onChange={(e) => setAmenities(e.target.value)} />
-     
-    // JSX 里替换成组件调用
+          
 <FacilitiesSelector value={facilities} onChange={setFacilities} />
 
 <BuildYearSelector value={buildYear} onChange={setBuildYear} />
