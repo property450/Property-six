@@ -16,6 +16,7 @@ import FacingSelector from '@/components/FacingSelector';
 import PriceInput from '@/components/PriceInput';
 import FacilitiesSelector from "@/components/FacilitiesSelector";
 import BuildYearSelector from '@/components/BuildYearSelector';
+import ExtraSpacesSelector from "@/components/ExtraSpacesSelector";
 
 const AddressSearchInput = dynamic(() => import('@/components/AddressSearchInput'), { ssr: false });
 
@@ -80,6 +81,7 @@ export default function UploadProperty() {
   const years = Array.from({ length: 70 + 5 + 1 }, (_, i) => currentYear + 5 - i);
   const [useCustomYear, setUseCustomYear] = useState(false);
   const [customBuildYear, setCustomBuildYear] = useState('');
+  const [extraSpaces, setExtraSpaces] = useState([]);
 
   const handleLocationSelect = ({ lat, lng, address }) => {
     setLatitude(lat);
@@ -226,7 +228,8 @@ export default function UploadProperty() {
         // 把转换好的总面积（sqft 数字或 ''）传给 PriceInput
         area={sizeInSqft}
       />
-          
+          <ExtraSpacesSelector value={extraSpaces} onChange={setExtraSpaces} />
+
       <RoomSelector label="卧室" value={bedrooms} onChange={setBedrooms} />
       <RoomSelector label="浴室" value={bathrooms} onChange={setBathrooms} />
       <RoomSelector label="停车位" value={carpark} onChange={setCarpark} />
