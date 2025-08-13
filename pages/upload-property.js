@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import ImageUpload from '@/components/ImageUpload';
 import TypeSelector from '@/components/TypeSelector';
-import RoomSelector from '@/components/RoomCountSelector';
+import RoomCountSelector from '@/components/RoomCountSelector';
 import { useUser } from '@supabase/auth-helpers-react';
 import AreaSelector from '@/components/AreaSelector';
 import CarparkLevelSelector from '@/components/CarparkLevelSelector';
@@ -82,6 +82,12 @@ export default function UploadProperty() {
   const [useCustomYear, setUseCustomYear] = useState(false);
   const [customBuildYear, setCustomBuildYear] = useState('');
   const [extraSpaces, setExtraSpaces] = useState([]);
+  const [rooms, setRooms] = useState({
+  bedrooms: '',
+  bathrooms: '',
+  kitchens: '',
+  livingRooms: ''
+});
 
   const handleLocationSelect = ({ lat, lng, address }) => {
     setLatitude(lat);
@@ -228,12 +234,9 @@ export default function UploadProperty() {
         // 把转换好的总面积（sqft 数字或 ''）传给 PriceInput
         area={sizeInSqft}
       />
-          <ExtraSpacesSelector value={extraSpaces} onChange={setExtraSpaces} />
+         <RoomCountSelector value={rooms} onChange={setRooms} />
 
-      <RoomSelector label="卧室" value={bedrooms} onChange={setBedrooms} />
-      <RoomSelector label="浴室" value={bathrooms} onChange={setBathrooms} />
-      <RoomSelector label="停车位" value={carpark} onChange={setCarpark} />
-      <RoomSelector label="储藏室" value={store} onChange={setStore} />
+          <ExtraSpacesSelector value={extraSpaces} onChange={setExtraSpaces} />
 
           <FacingSelector
         value={facing}
