@@ -235,6 +235,12 @@ export default function UploadProperty() {
         area={sizeInSqft}
       />
          <RoomCountSelector value={rooms} onChange={setRooms} />
+<div className="grid grid-cols-1 gap-4">
+  <RoomSelector label="卧室" value={bedrooms} onChange={setBedrooms} />
+  <RoomSelector label="浴室" value={bathrooms} onChange={setBathrooms} />
+  <RoomSelector label="厨房" value={kitchens} onChange={setKitchens} />
+  <RoomSelector label="客厅" value={livingRooms} onChange={setLivingRooms} />
+</div>
 
           <ExtraSpacesSelector value={extraSpaces} onChange={setExtraSpaces} />
 
