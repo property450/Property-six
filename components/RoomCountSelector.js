@@ -1,5 +1,6 @@
-// components/RoomCountSelector.js
 "use client";
+
+import { useState, useRef, useEffect } from "react";
 
 const formatNumber = (num) => {
   if (!num && num !== 0) return "";
@@ -12,43 +13,47 @@ const parseNumber = (str) => str.replace(/,/g, "");
 
 export default function RoomCountSelector({ value = {}, onChange }) {
   const fields = [
-    {
-      key: "bedrooms",
-      label: "卧室",
-      options: ["Studio", 0, 1, 2, 3, 4, 5, 6],
-    },
-    {
-      key: "bathrooms",
-      label: "浴室",
-      options: [0, 1, 2, 3, 4, 5, 6],
-    },
-    {
-      key: "kitchens",
-      label: "厨房",
-      options: [1, 2, 3, 4, 5, 6],
-    },
-    {
-      key: "livingRooms",
-      label: "客厅",
-      options: [0, 1, 2, 3, 4, 5, 6],
-    },
+    { key: "bedrooms", label: "卧室", options: ["Studio", 0, 1, 2, 3, 4, 5, 6] },
+    { key: "bathrooms", label: "浴室", options: [0, 1, 2, 3, 4, 5, 6] },
+    { key: "kitchens", label: "厨房", options: [1, 2, 3, 4, 5, 6] },
+    { key: "livingRooms", label: "客厅", options: [0, 1, 2, 3, 4, 5, 6] },
   ];
+
+  const [openKey, setOpenKey] = useState(null);
+  const wrapperRef = useRef(null);
+
+  // 点击外部时关闭下拉
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+        setOpenKey(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleChange = (key, val) => {
     const raw = parseNumber(val);
 
-    // 如果输入的是纯数字
     if (/^\d+$/.test(raw)) {
-      if (raw.length > 7) return; // 最多 7 位
+      if (raw.length > 7) return;
       onChange({ ...value, [key]: raw });
     } else {
-      // 非数字（如 Studio）直接存
       onChange({ ...value, [key]: val });
     }
   };
 
+  const handleSelect = (key, option) => {
+    handleChange(key, option);
+    setOpenKey(key); // 选完后保持下拉打开
+  };
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div
+      ref={wrapperRef}
+      className="grid grid-cols-1 md:grid-cols-2 gap-4"
+    >
       {fields.map((field) => {
         const currentValue = value[field.key];
         const displayValue =
@@ -57,23 +62,33 @@ export default function RoomCountSelector({ value = {}, onChange }) {
             : currentValue || "";
 
         return (
-          <div key={field.key} className="flex flex-col">
+          <div key={field.key} className="flex flex-col relative">
             <label className="text-sm font-medium mb-1">{field.label}</label>
             <input
-              list={`${field.key}-list`}
-              className="border rounded p-2 w-full"
+              type="text"
+              className="border rounded p-2 w-full focus:outline-none focus:border-blue-500"
               placeholder="输入或选择数量"
               value={displayValue}
               onChange={(e) => handleChange(field.key, e.target.value)}
+              onClick={() => setOpenKey(field.key)}
             />
-            <datalist id={`${field.key}-list`}>
-              {field.options.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-              <option value="">请输入你要的数字</option>
-            </datalist>
+
+            {openKey === field.key && (
+              <div className="absolute z-10 mt-1 w-full border border-gray-300 rounded bg-white shadow max-h-40 overflow-y-auto">
+                {field.options.map((opt) => (
+                  <div
+                    key={opt}
+                    className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                    onClick={() => handleSelect(field.key, opt)}
+                  >
+                    {opt}
+                  </div>
+                ))}
+                <div className="px-3 py-2 text-gray-500">
+                  请输入你要的数字
+                </div>
+              </div>
+            )}
           </div>
         );
       })}
