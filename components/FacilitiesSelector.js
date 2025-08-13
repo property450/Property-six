@@ -112,6 +112,7 @@ export default function FacilitiesSelector({ value = [], onChange }) {
         value={selectedOptions}
         onChange={handleChange}
         formatCreateLabel={(inputValue) => `添加自定义: ${inputValue}`}
+        closeMenuOnSelect={false} // ✅ 选中后不关闭
         styles={{
           menu: (provided) => ({
             ...provided,
@@ -122,3 +123,4 @@ export default function FacilitiesSelector({ value = [], onChange }) {
     </div>
   );
 }
+  
