@@ -1,79 +1,52 @@
 // components/RoomCountSelector.js
 import { useState } from "react";
 
-export default function RoomCountSelector({ values = {}, onChange }) {
-  // 配置字段
+export default function RoomCountSelector({ value = {}, onChange }) {
   const fields = [
     { key: "bedrooms", label: "卧室" },
     { key: "bathrooms", label: "浴室" },
     { key: "parking", label: "停车位" },
-    { key: "kitchen", label: "厨房" },
-    { key: "livingroom", label: "客厅" },
+    { key: "kitchens", label: "厨房" },
+    { key: "livingRooms", label: "客厅" },
   ];
 
-  // 预设选项
-  const options = [0, 1, 2, 3, 4, 5, "自定义"];
+  // 预设可选数字
+  const options = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
-  const handleSelectChange = (fieldKey, selectedValue) => {
-    if (selectedValue === "自定义") {
-      onChange({
-        ...values,
-        [fieldKey]: "", // 清空值等待输入
-      });
-    } else {
-      onChange({
-        ...values,
-        [fieldKey]: selectedValue,
-      });
-    }
-  };
-
-  const handleInputChange = (fieldKey, inputValue) => {
+  const handleChange = (key, val) => {
     onChange({
-      ...values,
-      [fieldKey]: inputValue,
+      ...value,
+      [key]: val === "" ? "" : Number(val),
     });
   };
 
   return (
-    <div className="space-y-4">
-      {fields.map((field) => {
-        const value = values[field.key] ?? "";
-        const isCustom = value === "" || !options.includes(value);
-
-        return (
-          <div key={field.key} className="flex items-center space-x-3">
-            {/* 字段名 */}
-            <label className="w-20">{field.label}</label>
-
-            {/* 下拉选择 */}
-            <select
-              className="border p-2 rounded w-32"
-              value={isCustom ? "自定义" : value}
-              onChange={(e) =>
-                handleSelectChange(field.key, isNaN(e.target.value) ? e.target.value : Number(e.target.value))
-              }
-            >
-              {options.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt === "自定义" ? "自定义" : `${opt} 个`}
-                </option>
-              ))}
-            </select>
-
-            {/* 自定义输入框 */}
-            {isCustom && (
-              <input
-                type="number"
-                className="border p-2 rounded w-32"
-                placeholder="请输入你要的数量"
-                value={value}
-                onChange={(e) => handleInputChange(field.key, Number(e.target.value))}
-              />
-            )}
-          </div>
-        );
-      })}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {fields.map((field) => (
+        <div key={field.key} className="flex flex-col">
+          <label className="text-sm font-medium mb-1">{field.label}</label>
+          <select
+            className="border rounded p-2 mb-1"
+            value={value[field.key] ?? ""}
+            onChange={(e) => handleChange(field.key, e.target.value)}
+          >
+            <option value="">请选择</option>
+            {options.map((num) => (
+              <option key={num} value={num}>
+                {num}
+              </option>
+            ))}
+          </select>
+          <input
+            type="number"
+            placeholder={`自定义${field.label}数量`}
+            className="border rounded p-2"
+            value={value[field.key] ?? ""}
+            onChange={(e) => handleChange(field.key, e.target.value)}
+            min="0"
+          />
+        </div>
+      ))}
     </div>
   );
 }
