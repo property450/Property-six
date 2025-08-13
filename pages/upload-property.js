@@ -72,8 +72,9 @@ export default function UploadProperty() {
   const [buildYear, setBuildYear] = useState('');
   const [bedrooms, setBedrooms] = useState('');
   const [bathrooms, setBathrooms] = useState('');
-  const [carpark, setCarpark] = useState('');
-  const [store, setStore] = useState('');
+   const [kitchen, setKitchen] = useState('');
+  const [livingRoom, setlivingRoom] = useState('');
+  const [store, setStore] = useState('');
   const [facilities, setFacilities] = useState([]);
   const [link, setLink] = useState('');
   const [loading, setLoading] = useState(false);
