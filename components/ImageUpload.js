@@ -123,49 +123,6 @@ export default function ImageUpload({ config, images, setImages }) {
   const labels = generateLabels();
 
   return (
-    <div className="space-y-6">
-      {/* 添加自定义额外空间 */}
-      <div className="flex items-center gap-2">
-        <input
-          type="text"
-          placeholder="额外空间名称，如 瑜伽室"
-          value={extraName}
-          onChange={(e) => setExtraName(e.target.value)}
-          className="border rounded px-2 py-1 flex-1"
-        />
-        <input
-          type="number"
-          min="1"
-          value={extraCount}
-          onChange={(e) => setExtraCount(Number(e.target.value))}
-          className="border rounded px-2 py-1 w-20"
-        />
-        <button
-          type="button"
-          onClick={addCustomExtra}
-          className="bg-blue-500 text-white px-3 py-1 rounded"
-        >
-          添加额外空间
-        </button>
-      </div>
-
-      {/* 添加自定义设施 */}
-      <div className="flex items-center gap-2">
-        <input
-          type="text"
-          placeholder="设施名称，如 电影院"
-          value={facilityName}
-          onChange={(e) => setFacilityName(e.target.value)}
-          className="border rounded px-2 py-1 flex-1"
-        />
-        <button
-          type="button"
-          onClick={addCustomFacility}
-          className="bg-green-500 text-white px-3 py-1 rounded"
-        >
-          添加设施
-        </button>
-      </div>
 
       {/* 动态生成的上传框 */}
       {labels.map((label) => (
