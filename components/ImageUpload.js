@@ -102,14 +102,28 @@ export default function ImageUpload({ config, images, setImages }) {
       labels.push("朝向/风景");
     }
 
-    // 设施（系统选择）
+    // 设施（直接名字）
     if (config.facilities?.length) {
-      labels = [...labels, ...config.facilities];
+      config.facilities.forEach((facility) => {
+        if (typeof facility === "string") {
+          labels.push(facility);
+        } else if (facility?.name) {
+          labels.push(facility.name);
+        }
+      });
     }
 
-    // 额外选项（系统选择）
+    // 额外空间（名字 + 数量）
     if (config.extra?.length) {
-      labels = [...labels, ...config.extra];
+      config.extra.forEach((extra) => {
+        if (typeof extra === "string") {
+          labels.push(extra); // 如果只是名字，没有数量
+        } else if (extra?.name && extra?.count) {
+          for (let i = 1; i <= extra.count; i++) {
+            labels.push(`${extra.name}${i}`);
+          }
+        }
+      });
     }
 
     // 自定义额外空间
