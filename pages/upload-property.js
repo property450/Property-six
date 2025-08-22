@@ -255,15 +255,6 @@ export default function UploadProperty() {
     {/* 🚀 动态生成的上传图片区域 */}
     <ImageUpload config={config} images={images} setImages={setImages} />
 
-    <Button
-      onClick={handleSubmit}
-      disabled={loading}
-      className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full"
-    >
-      {loading ? "上传中..." : "提交房源"}
-    </Button>
-  </div>
-);
       
     // ---------- 动态生成 config ----------
 const config = {
