@@ -262,7 +262,7 @@ export default function UploadProperty() {
     <Input placeholder="描述" value={description} onChange={(e) => setDescription(e.target.value)} />
       
       
-      <ImageUpload
+  
     
   // 动态生成 config
   const config = {
