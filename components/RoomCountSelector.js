@@ -112,7 +112,7 @@ export default function RoomCountSelector({ value = {}, onChange }) {
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 gap-4">
       {FIELD_DEFS.map((def) => {
         const cur = value[def.key];
         const isNumberLike = typeof cur === "number" || /^\d+$/.test(String(cur || ""));
