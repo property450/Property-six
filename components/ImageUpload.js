@@ -94,7 +94,7 @@ if (config.bedrooms) {
     }
 
     // 朝向/风景
-    if (config.facing) {
+    if (config.orientation) {
       labels.push("朝向/风景");
     }
 
