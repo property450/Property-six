@@ -104,7 +104,7 @@ const config = {
   bathrooms: Number(rooms.bathrooms) || 0,
   kitchens: Number(rooms.kitchens) || 0,
   livingRooms: Number(rooms.livingRooms) || 0,
-  carpark: Number(carparkPosition) || 0,
+  carpark: Number(carpark) || 0,
   storage: Number(store) || 0,
   orientation: !!facing,
   facilities: facilities || [],
