@@ -74,17 +74,17 @@ if (config.bedrooms) {
     }
 
     // 停车位
-    for (let i = 1; i <= (config.parking || 0); i++) {
+    for (let i = 1; i <= (config.carparkPosition || 0); i++) {
       labels.push(`停车位${i}`);
     }
 
     // 储藏室
-    for (let i = 1; i <= (config.storage || 0); i++) {
+    for (let i = 1; i <= (config.store || 0); i++) {
       labels.push(`储藏室${i}`);
     }
 
     // 朝向/风景
-    if (config.orientation) {
+    if (config.facing) {
       labels.push("朝向/风景");
     }
 
