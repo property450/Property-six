@@ -73,6 +73,16 @@ if (config.bedrooms) {
       labels.push(`浴室${i}`);
     }
 
+    // 厨房
+    for (let i = 1; i <= (config.kitchens || 0); i++) {
+      labels.push(`厨房${i}`);
+    }
+
+    // 客厅
+    for (let i = 1; i <= (config.livingRooms || 0); i++) {
+      labels.push(`客厅${i}`);
+    }
+
     // 停车位
     for (let i = 1; i <= (config.carparkPosition || 0); i++) {
       labels.push(`停车位${i}`);
