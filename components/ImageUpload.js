@@ -4,10 +4,13 @@ import { ReactSortable } from "react-sortablejs"; // npm install react-sortablej
 export default function ImageUpload({ config, images, setImages }) {
   // 确保 images 是对象
   const [localImages, setLocalImages] = useState(images || {});
-  const [customExtras, setCustomExtras] = useState([]); // 手动输入的额外空间
-  const [customFacilities, setCustomFacilities] = useState([]); // 手动输入的设施
-  const [inputValue, setInputValue] = useState(""); // 输入框的值
-  const [inputType, setInputType] = useState("extra"); // 当前输入的是 extra 还是 facility
+  const [customExtras, setCustomExtras] = useState([]); // { name: "瑜伽室", count: 2 }
+  const [customFacilities, setCustomFacilities] = useState([]); // ["电影院"]
+
+  // 输入框状态
+  const [extraName, setExtraName] = useState("");
+  const [extraCount, setExtraCount] = useState(1);
+  const [facilityName, setFacilityName] = useState("");
 
   // 当 config 或 images 变化时，保持同步
   useEffect(() => {
@@ -32,7 +35,7 @@ export default function ImageUpload({ config, images, setImages }) {
     setImages(updated);
   };
 
-  // 删除
+  // 删除图片
   const removeImage = (label, index) => {
     const updated = {
       ...localImages,
@@ -55,15 +58,19 @@ export default function ImageUpload({ config, images, setImages }) {
     setImages(updated);
   };
 
-  // 添加自定义项
-  const handleAddCustom = () => {
-    if (!inputValue.trim()) return;
-    if (inputType === "extra") {
-      setCustomExtras((prev) => [...prev, inputValue.trim()]);
-    } else {
-      setCustomFacilities((prev) => [...prev, inputValue.trim()]);
-    }
-    setInputValue("");
+  // 添加自定义额外空间
+  const addCustomExtra = () => {
+    if (!extraName.trim() || extraCount < 1) return;
+    setCustomExtras((prev) => [...prev, { name: extraName.trim(), count: extraCount }]);
+    setExtraName("");
+    setExtraCount(1);
+  };
+
+  // 添加自定义设施
+  const addCustomFacility = () => {
+    if (!facilityName.trim()) return;
+    setCustomFacilities((prev) => [...prev, facilityName.trim()]);
+    setFacilityName("");
   };
 
   // 生成要渲染的区块
@@ -95,23 +102,29 @@ export default function ImageUpload({ config, images, setImages }) {
       labels.push("朝向/风景");
     }
 
-    // 设施（系统选择 + 用户自定义）
+    // 设施（系统选择）
     if (config.facilities?.length) {
       labels = [...labels, ...config.facilities];
     }
+
+    // 额外选项（系统选择）
+    if (config.extra?.length) {
+      labels = [...labels, ...config.extra];
+    }
+
+    // 自定义额外空间
+    customExtras.forEach((extra) => {
+      for (let i = 1; i <= extra.count; i++) {
+        labels.push(`${extra.name}${i}`);
+      }
+    });
+
+    // 自定义设施
     if (customFacilities.length) {
       labels = [...labels, ...customFacilities];
     }
 
-    // 额外选项（系统选择 + 用户自定义）
-    if (config.extra?.length) {
-      labels = [...labels, ...config.extra];
-    }
-    if (customExtras.length) {
-      labels = [...labels, ...customExtras];
-    }
-
-    // 去重（防止重复）
+    // 去重
     return [...new Set(labels)];
   };
 
@@ -119,29 +132,46 @@ export default function ImageUpload({ config, images, setImages }) {
 
   return (
     <div className="space-y-6">
-      {/* 手动输入功能 */}
+      {/* 添加自定义额外空间 */}
       <div className="flex items-center gap-2">
-        <select
-          value={inputType}
-          onChange={(e) => setInputType(e.target.value)}
-          className="border rounded px-2 py-1"
-        >
-          <option value="extra">额外空间</option>
-          <option value="facility">设施</option>
-        </select>
         <input
           type="text"
-          placeholder="请输入名称，例如：瑜伽室"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
+          placeholder="额外空间名称，如 瑜伽室"
+          value={extraName}
+          onChange={(e) => setExtraName(e.target.value)}
+          className="border rounded px-2 py-1 flex-1"
+        />
+        <input
+          type="number"
+          min="1"
+          value={extraCount}
+          onChange={(e) => setExtraCount(Number(e.target.value))}
+          className="border rounded px-2 py-1 w-20"
+        />
+        <button
+          type="button"
+          onClick={addCustomExtra}
+          className="bg-blue-500 text-white px-3 py-1 rounded"
+        >
+          添加额外空间
+        </button>
+      </div>
+
+      {/* 添加自定义设施 */}
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          placeholder="设施名称，如 电影院"
+          value={facilityName}
+          onChange={(e) => setFacilityName(e.target.value)}
           className="border rounded px-2 py-1 flex-1"
         />
         <button
           type="button"
-          onClick={handleAddCustom}
-          className="bg-blue-500 text-white px-3 py-1 rounded"
+          onClick={addCustomFacility}
+          className="bg-green-500 text-white px-3 py-1 rounded"
         >
-          添加
+          添加设施
         </button>
       </div>
 
