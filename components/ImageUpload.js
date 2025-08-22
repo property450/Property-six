@@ -1,20 +1,14 @@
-import { useState } from "react";
-import { ReactSortable } from "react-sortablejs"; // 需要安装：npm install react-sortablejs
+import { useState, useEffect } from "react";
+import { ReactSortable } from "react-sortablejs"; // npm install react-sortablejs
 
 export default function ImageUpload({ config, images, setImages }) {
-  /**
-   * images 的结构会是：
-   * {
-   *   "卧室1": [{file, url, isCover}],
-   *   "卧室2": [...],
-   *   "浴室1": [...],
-   *   "健身房": [...],
-   *   ...
-   * }
-   */
-
   // 确保 images 是对象
   const [localImages, setLocalImages] = useState(images || {});
+
+  // 当 config 或 images 变化时，保持同步
+  useEffect(() => {
+    setLocalImages(images || {});
+  }, [images, config]);
 
   // 处理上传
   const handleImageChange = (e, label) => {
@@ -96,7 +90,8 @@ export default function ImageUpload({ config, images, setImages }) {
       labels = [...labels, ...config.extra];
     }
 
-    return labels;
+    // 去重（防止手动输入和设施重复）
+    return [...new Set(labels)];
   };
 
   const labels = generateLabels();
