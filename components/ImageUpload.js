@@ -54,9 +54,13 @@ export default function ImageUpload({ config, images, setImages }) {
     let labels = [];
 
     // 卧室
-    for (let i = 1; i <= (config.bedrooms || 0); i++) {
-      labels.push(`卧室${i}`);
-    }
+if (config.bedrooms === "Studio") {
+  labels.push("Studio");
+} else {
+  for (let i = 1; i <= (Number(config.bedrooms) || 0); i++) {
+    labels.push(`卧室${i}`);
+  }
+}
 
     // 浴室
     for (let i = 1; i <= (config.bathrooms || 0); i++) {
