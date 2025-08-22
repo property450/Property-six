@@ -94,10 +94,10 @@ if (config.extraSpaces?.length) {
   config.extraSpaces.forEach((extra) => {
     if (typeof extra === "string") {
       labels.push(extra);
-    } else if (extra?.name) {
+    } else if (extra?.label) {
       const count = extra.count || 1;
       for (let i = 1; i <= count; i++) {
-        labels.push(`${extra.name}${i}`);
+        labels.push(`${extra.label}${i}`);
       }
     }
   });
