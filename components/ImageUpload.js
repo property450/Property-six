@@ -1,23 +1,14 @@
 import { useState, useEffect } from "react";
-import { ReactSortable } from "react-sortablejs"; // npm install react-sortablejs
+import { ReactSortable } from "react-sortablejs";
 
 export default function ImageUpload({ config, images, setImages }) {
-  // 确保 images 是对象
   const [localImages, setLocalImages] = useState(images || {});
-  const [customExtras, setCustomExtras] = useState([]); // { name: "瑜伽室", count: 2 }
-  const [customFacilities, setCustomFacilities] = useState([]); // ["电影院"]
 
-  // 输入框状态
-  const [extraName, setExtraName] = useState("");
-  const [extraCount, setExtraCount] = useState(1);
-  const [facilityName, setFacilityName] = useState("");
-
-  // 当 config 或 images 变化时，保持同步
   useEffect(() => {
     setLocalImages(images || {});
   }, [images, config]);
 
-  // 处理上传
+  // 上传
   const handleImageChange = (e, label) => {
     const files = Array.from(e.target.files);
     const newImages = files.map((file) => ({
@@ -35,7 +26,7 @@ export default function ImageUpload({ config, images, setImages }) {
     setImages(updated);
   };
 
-  // 删除图片
+  // 删除
   const removeImage = (label, index) => {
     const updated = {
       ...localImages,
@@ -58,22 +49,7 @@ export default function ImageUpload({ config, images, setImages }) {
     setImages(updated);
   };
 
-  // 添加自定义额外空间
-  const addCustomExtra = () => {
-    if (!extraName.trim() || extraCount < 1) return;
-    setCustomExtras((prev) => [...prev, { name: extraName.trim(), count: extraCount }]);
-    setExtraName("");
-    setExtraCount(1);
-  };
-
-  // 添加自定义设施
-  const addCustomFacility = () => {
-    if (!facilityName.trim()) return;
-    setCustomFacilities((prev) => [...prev, facilityName.trim()]);
-    setFacilityName("");
-  };
-
-  // 生成要渲染的区块
+  // 动态生成标签
   const generateLabels = () => {
     let labels = [];
 
@@ -102,29 +78,37 @@ export default function ImageUpload({ config, images, setImages }) {
       labels.push("朝向/风景");
     }
 
-    // ✅ 手动输入的设施
-    if (customFacilities.length) {
-      customFacilities.forEach((facility) => labels.push(facility));
-    }
-
-    // ✅ 手动输入的额外空间
-    if (customExtras.length) {
-      customExtras.forEach((extra) => {
-        for (let i = 1; i <= extra.count; i++) {
-          labels.push(`${extra.name}${i}`);
+    // 设施
+    if (config.facilities?.length) {
+      config.facilities.forEach((facility) => {
+        if (typeof facility === "string") {
+          labels.push(facility);
+        } else if (facility?.name) {
+          labels.push(facility.name);
         }
       });
     }
 
-    // 去重
+    // 额外空间（名字 + 数量）
+    if (config.extra?.length) {
+      config.extra.forEach((extra) => {
+        if (typeof extra === "string") {
+          labels.push(extra);
+        } else if (extra?.name && extra?.count) {
+          for (let i = 1; i <= extra.count; i++) {
+            labels.push(`${extra.name}${i}`);
+          }
+        }
+      });
+    }
+
     return [...new Set(labels)];
   };
 
   const labels = generateLabels();
 
   return (
-
-      {/* 动态生成的上传框 */}
+    <div className="space-y-6">
       {labels.map((label) => (
         <div key={label} className="space-y-2 border rounded p-2">
           <p className="font-semibold">{label}</p>
@@ -152,7 +136,6 @@ export default function ImageUpload({ config, images, setImages }) {
                     img.isCover ? "border-4 border-green-500" : ""
                   }`}
                 />
-                {/* 删除按钮 */}
                 <button
                   type="button"
                   className="absolute top-1 right-1 bg-red-500 text-white text-xs px-1 rounded"
@@ -160,7 +143,6 @@ export default function ImageUpload({ config, images, setImages }) {
                 >
                   X
                 </button>
-                {/* 封面按钮 */}
                 <button
                   type="button"
                   className="absolute bottom-1 left-1 bg-black text-white text-xs px-1 rounded"
