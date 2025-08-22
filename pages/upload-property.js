@@ -263,7 +263,6 @@ export default function UploadProperty() {
       
       
       <ImageUpload
-  config={{
     
   // 动态生成 config
   const config = {
