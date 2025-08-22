@@ -17,6 +17,7 @@ import PriceInput from '@/components/PriceInput';
 import FacilitiesSelector from "@/components/FacilitiesSelector";
 import BuildYearSelector from '@/components/BuildYearSelector';
 import ExtraSpacesSelector from "@/components/ExtraSpacesSelector";
+import CarparkCountSelector from "@/components/CarparkCountSelector";
 
 const AddressSearchInput = dynamic(() => import('@/components/AddressSearchInput'), { ssr: false });
 
@@ -84,6 +85,8 @@ export default function UploadProperty() {
   const [customBuildYear, setCustomBuildYear] = useState('');
   const [extraSpaces, setExtraSpaces] = useState([]);
   const [rooms, setRooms] = useState({
+ const [carpark, setCarpark] = useState("");
+ 
   bedrooms: '',
   bathrooms: '',
   kitchens: '',
@@ -244,6 +247,7 @@ const config = {
     />
 
     <RoomCountSelector value={rooms} onChange={setRooms} />
+    <CarparkCountSelector value={carpark} onChange={setCarpark} />
     <ExtraSpacesSelector value={extraSpaces} onChange={setExtraSpaces} />
     <FacingSelector
       value={facing}
