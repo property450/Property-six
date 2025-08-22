@@ -65,7 +65,7 @@ export default function UploadProperty() {
   const [address, setAddress] = useState('');
   const [latitude, setLatitude] = useState(null);
   const [longitude, setLongitude] = useState(null);
-  const [images, setImages] = useState([]);
+  const [images, setImages] = useState({});
   const [coverIndex, setCoverIndex] = useState(0);
   const [type, setType] = useState('');
   const [floor, setFloor] = useState('');
