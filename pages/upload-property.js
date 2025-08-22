@@ -106,7 +106,7 @@ const config = {
   storage: Number(store) || 0,
   orientation: !!facing,
   facilities: facilities || [],
-  extra: extraSpaces || [],
+  extraSpaces: extraSpaces || [],
 };
 
 
