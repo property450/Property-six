@@ -102,26 +102,16 @@ export default function ImageUpload({ config, images, setImages }) {
       labels.push("朝向/风景");
     }
 
-    // 设施（直接名字）
-    if (config.facilities?.length) {
-      config.facilities.forEach((facility) => {
-        if (typeof facility === "string") {
-          labels.push(facility);
-        } else if (facility?.name) {
-          labels.push(facility.name);
-        }
-      });
+    // ✅ 手动输入的设施
+    if (customFacilities.length) {
+      customFacilities.forEach((facility) => labels.push(facility));
     }
 
-    // 额外空间（名字 + 数量）
-    if (config.extra?.length) {
-      config.extra.forEach((extra) => {
-        if (typeof extra === "string") {
-          labels.push(extra); // 如果只是名字，没有数量
-        } else if (extra?.name && extra?.count) {
-          for (let i = 1; i <= extra.count; i++) {
-            labels.push(`${extra.name}${i}`);
-          }
+    // ✅ 手动输入的额外空间
+    if (customExtras.length) {
+      customExtras.forEach((extra) => {
+        for (let i = 1; i <= extra.count; i++) {
+          labels.push(`${extra.name}${i}`);
         }
       });
     }
