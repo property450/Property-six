@@ -142,7 +142,7 @@ export default function TypeSelector({ value, onChange }) {
     'Rent-to-Own Scheme',
   ];
 
-  const usageOptions = ['Residential', 'Commercial', 'Industrial', 'Agricultural'];
+  const usageOptions = ['Residential', 'Commercial', 'Commercial Under HDA', 'Industrial', 'Agricultural'];
 
   const showCategory = saleType === 'Rent' || usage;
 
