@@ -269,8 +269,8 @@ export default function UploadProperty() {
     bedrooms,
     bathrooms,
     parking,
-    storage,
-    orientation,
+    store,
+    facing,
     facilities,
     extra,
   };
