@@ -98,7 +98,7 @@ export default function UploadProperty() {
 
   // ---------- 动态生成 config ----------
 const config = {
-  bedrooms: Number(rooms.bedrooms) || 0,
+  bedrooms: rooms.bedrooms, // 🚀 保留原始值（可能是 "Studio" 或数字字符串）
   bathrooms: Number(rooms.bathrooms) || 0,
   kitchens: Number(rooms.kitchens) || 0,
   livingRooms: Number(rooms.livingRooms) || 0,
