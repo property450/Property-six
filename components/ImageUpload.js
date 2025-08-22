@@ -4,6 +4,10 @@ import { ReactSortable } from "react-sortablejs"; // npm install react-sortablej
 export default function ImageUpload({ config, images, setImages }) {
   // 确保 images 是对象
   const [localImages, setLocalImages] = useState(images || {});
+  const [customExtras, setCustomExtras] = useState([]); // 手动输入的额外空间
+  const [customFacilities, setCustomFacilities] = useState([]); // 手动输入的设施
+  const [inputValue, setInputValue] = useState(""); // 输入框的值
+  const [inputType, setInputType] = useState("extra"); // 当前输入的是 extra 还是 facility
 
   // 当 config 或 images 变化时，保持同步
   useEffect(() => {
@@ -51,6 +55,17 @@ export default function ImageUpload({ config, images, setImages }) {
     setImages(updated);
   };
 
+  // 添加自定义项
+  const handleAddCustom = () => {
+    if (!inputValue.trim()) return;
+    if (inputType === "extra") {
+      setCustomExtras((prev) => [...prev, inputValue.trim()]);
+    } else {
+      setCustomFacilities((prev) => [...prev, inputValue.trim()]);
+    }
+    setInputValue("");
+  };
+
   // 生成要渲染的区块
   const generateLabels = () => {
     let labels = [];
@@ -80,24 +95,57 @@ export default function ImageUpload({ config, images, setImages }) {
       labels.push("朝向/风景");
     }
 
-    // 设施
+    // 设施（系统选择 + 用户自定义）
     if (config.facilities?.length) {
       labels = [...labels, ...config.facilities];
     }
+    if (customFacilities.length) {
+      labels = [...labels, ...customFacilities];
+    }
 
-    // 额外选项
+    // 额外选项（系统选择 + 用户自定义）
     if (config.extra?.length) {
       labels = [...labels, ...config.extra];
     }
+    if (customExtras.length) {
+      labels = [...labels, ...customExtras];
+    }
 
-    // 去重（防止手动输入和设施重复）
+    // 去重（防止重复）
     return [...new Set(labels)];
   };
 
   const labels = generateLabels();
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* 手动输入功能 */}
+      <div className="flex items-center gap-2">
+        <select
+          value={inputType}
+          onChange={(e) => setInputType(e.target.value)}
+          className="border rounded px-2 py-1"
+        >
+          <option value="extra">额外空间</option>
+          <option value="facility">设施</option>
+        </select>
+        <input
+          type="text"
+          placeholder="请输入名称，例如：瑜伽室"
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          className="border rounded px-2 py-1 flex-1"
+        />
+        <button
+          type="button"
+          onClick={handleAddCustom}
+          className="bg-blue-500 text-white px-3 py-1 rounded"
+        >
+          添加
+        </button>
+      </div>
+
+      {/* 动态生成的上传框 */}
       {labels.map((label) => (
         <div key={label} className="space-y-2 border rounded p-2">
           <p className="font-semibold">{label}</p>
