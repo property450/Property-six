@@ -100,7 +100,7 @@ export default function UploadProperty() {
 const config = {
   bedrooms: Number(bedrooms) || 0,
   bathrooms: Number(bathrooms) || 0,
-  carpark_position: Number(carpark_position) || 0,
+  carpark: Number(carparkPosition) || 0,
   storage: Number(store) || 0,
   orientation: !!facing,   // 如果选择了朝向/风景，就传 true
   facilities: facilities || [],
