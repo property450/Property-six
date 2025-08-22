@@ -90,19 +90,18 @@ export default function ImageUpload({ config, images, setImages }) {
     }
 
     // 额外空间（名字 + 数量）
-if (config.extra?.length) {
-  config.extra.forEach((extra) => {
+if (config.extraSpaces?.length) {
+  config.extraSpaces.forEach((extra) => {
     if (typeof extra === "string") {
       labels.push(extra);
     } else if (extra?.name) {
-      const count = extra.count || 1; // 如果没填数量，至少生成 1 个
+      const count = extra.count || 1;
       for (let i = 1; i <= count; i++) {
         labels.push(`${extra.name}${i}`);
       }
     }
   });
 }
-
 
     return [...new Set(labels)];
   };
