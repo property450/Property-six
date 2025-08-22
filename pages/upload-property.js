@@ -260,49 +260,20 @@ export default function UploadProperty() {
 
               
     <Input placeholder="描述" value={description} onChange={(e) => setDescription(e.target.value)} />
-      
-      
-  
-    
-  // 动态生成 config
-  const config = {
-    bedrooms,
-    bathrooms,
-    parking,
-    store,
-    facing,
-    facilities,
-    extra,
-  };
 
-  return (
-    <div className="space-y-6">
-      {/* 示例选择：卧室 */}
-      <label>
-        卧室数量:
-        <input
-          type="number"
-          value={bedrooms}
-          onChange={(e) => setBedrooms(Number(e.target.value))}
-          className="border p-1 ml-2"
-        />
-      </label>
-
-      <label>
-        浴室数量:
-        <input
-          type="number"
-          value={bathrooms}
-          onChange={(e) => setBathrooms(Number(e.target.value))}
-          className="border p-1 ml-2"
-        />
-      </label>
-
-      {/* 上传图片区域 */}
-      <ImageUpload config={config} images={images} setImages={setImages} />
-    </div>
-  );
-}
+{/* 🚀 动态生成的上传图片区域 */}
+    <ImageUpload config={config} images={images} setImages={setImages} />
+      
+    // ---------- 动态生成 config ----------
+const config = {
+  bedrooms: Number(bedrooms) || 0,
+  bathrooms: Number(bathrooms) || 0,
+  parking: Number(parking) || 0,
+  storage: Number(store) || 0,
+  orientation: !!facing,   // 如果选择了朝向/风景，就传 true
+  facilities: facilities || [],
+  extra: extraSpaces || [],
+};
 
       <Button
         onClick={handleSubmit}
