@@ -96,6 +96,17 @@ export default function UploadProperty() {
     setAddress(address);
   };
 
+  // ---------- 动态生成 config ----------
+const config = {
+  bedrooms: Number(bedrooms) || 0,
+  bathrooms: Number(bathrooms) || 0,
+  parking: Number(parking) || 0,
+  storage: Number(store) || 0,
+  orientation: !!facing,   // 如果选择了朝向/风景，就传 true
+  facilities: facilities || [],
+  extra: extraSpaces || [],
+};
+
   // 单位转换函数（把任意 unit 转为 sqft）
   const convertToSqft = (val, unit) => {
     const num = parseFloat(String(val || '').replace(/,/g, ''));
@@ -255,17 +266,7 @@ export default function UploadProperty() {
     {/* 🚀 动态生成的上传图片区域 */}
     <ImageUpload config={config} images={images} setImages={setImages} />
 
-      
-    // ---------- 动态生成 config ----------
-const config = {
-  bedrooms: Number(bedrooms) || 0,
-  bathrooms: Number(bathrooms) || 0,
-  parking: Number(parking) || 0,
-  storage: Number(store) || 0,
-  orientation: !!facing,   // 如果选择了朝向/风景，就传 true
-  facilities: facilities || [],
-  extra: extraSpaces || [],
-};
+    
 
       <Button
         onClick={handleSubmit}
