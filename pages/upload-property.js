@@ -262,8 +262,19 @@ export default function UploadProperty() {
     <Input placeholder="描述" value={description} onChange={(e) => setDescription(e.target.value)} />
       
       
-      <ImageUpload images={images} setImages={setImages} coverIndex={coverIndex} setCoverIndex={setCoverIndex} />
-
+      <ImageUpload
+  config={{
+    bedrooms: 2,
+    bathrooms: 3,
+    parking: 2,
+    storage: 1,
+    orientation: true,
+    facilities: ["健身房", "游泳池"],
+    extra: ["足球场"],
+  }}
+  images={images}
+  setImages={setImages}
+/>
       <Button
         onClick={handleSubmit}
         disabled={loading}
