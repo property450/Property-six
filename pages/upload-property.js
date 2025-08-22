@@ -98,14 +98,17 @@ export default function UploadProperty() {
 
   // ---------- 动态生成 config ----------
 const config = {
-  bedrooms: Number(bedrooms) || 0,
-  bathrooms: Number(bathrooms) || 0,
+  bedrooms: Number(rooms.bedrooms) || 0,
+  bathrooms: Number(rooms.bathrooms) || 0,
+  kitchens: Number(rooms.kitchens) || 0,
+  livingRooms: Number(rooms.livingRooms) || 0,
   carpark: Number(carparkPosition) || 0,
   storage: Number(store) || 0,
-  orientation: !!facing,   // 如果选择了朝向/风景，就传 true
+  orientation: !!facing,
   facilities: facilities || [],
   extra: extraSpaces || [],
 };
+
 
   // 单位转换函数（把任意 unit 转为 sqft）
   const convertToSqft = (val, unit) => {
