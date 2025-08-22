@@ -84,7 +84,7 @@ if (config.bedrooms) {
     }
 
     // 停车位
-    for (let i = 1; i <= (config.carparkPosition || 0); i++) {
+    for (let i = 1; i <= (config.carpark || 0); i++) {
       labels.push(`停车位${i}`);
     }
 
