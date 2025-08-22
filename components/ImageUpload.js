@@ -55,7 +55,8 @@ export default function ImageUpload({ config, images, setImages }) {
 
     // 卧室
 if (config.bedrooms) {
-  if (typeof config.bedrooms === "string" && config.bedrooms.toLowerCase() === "studio") {
+  const val = String(config.bedrooms).toLowerCase();
+  if (val === "studio") {
     labels.push("Studio");
   } else {
     const num = Number(config.bedrooms);
