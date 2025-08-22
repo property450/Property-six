@@ -75,6 +75,7 @@ export default function UploadProperty() {
   const [bathrooms, setBathrooms] = useState('');
    const [kitchens, setKitchens] = useState('');
   const [livingRooms, setLivingRooms] = useState('');
+  const [carpark, setCarpark] = useState("");
   const [store, setStore] = useState('');
   const [facilities, setFacilities] = useState([]);
   const [link, setLink] = useState('');
@@ -85,8 +86,6 @@ export default function UploadProperty() {
   const [customBuildYear, setCustomBuildYear] = useState('');
   const [extraSpaces, setExtraSpaces] = useState([]);
   const [rooms, setRooms] = useState({
- const [carpark, setCarpark] = useState("");
- 
   bedrooms: '',
   bathrooms: '',
   kitchens: '',
