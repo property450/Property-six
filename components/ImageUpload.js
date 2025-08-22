@@ -53,12 +53,17 @@ export default function ImageUpload({ config, images, setImages }) {
   const generateLabels = () => {
     let labels = [];
 
-// 卧室
-if (typeof config.bedrooms === "string" && config.bedrooms.toLowerCase() === "studio") {
-  labels.push("Studio");
-} else {
-  for (let i = 1; i <= (Number(config.bedrooms) || 0); i++) {
-    labels.push(`卧室${i}`);
+    // 卧室
+if (config.bedrooms) {
+  if (typeof config.bedrooms === "string" && config.bedrooms.toLowerCase() === "studio") {
+    labels.push("Studio");
+  } else {
+    const num = Number(config.bedrooms);
+    if (!isNaN(num) && num > 0) {
+      for (let i = 1; i <= num; i++) {
+        labels.push(`卧室${i}`);
+      }
+    }
   }
 }
 
