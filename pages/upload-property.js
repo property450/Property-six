@@ -217,52 +217,53 @@ export default function UploadProperty() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto p-4 space-y-4">
-      <h1 className="text-2xl font-bold mb-4">上传房源</h1>
+  <div className="max-w-3xl mx-auto p-4 space-y-4">
+    <h1 className="text-2xl font-bold mb-4">上传房源</h1>
 
-      <AddressSearchInput onLocationSelect={handleLocationSelect} />
-
+    <AddressSearchInput onLocationSelect={handleLocationSelect} />
     <TypeSelector value={type} onChange={setType} />
-   
-    <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
+    <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
+    <PriceInput
+      value={price}
+      onChange={(val) => setPrice(val)}
+      area={sizeInSqft}
+    />
 
-    <PriceInput
-        value={price}
-        onChange={(val) => {
-          // PriceInput 传来的 val 是纯数字字符串（例如 "1200000"）
-          setPrice(val);
-        }}
-        // 把转换好的总面积（sqft 数字或 ''）传给 PriceInput
-        area={sizeInSqft}
-      />
-         <RoomCountSelector value={rooms} onChange={setRooms} />
+    <RoomCountSelector value={rooms} onChange={setRooms} />
+    <ExtraSpacesSelector value={extraSpaces} onChange={setExtraSpaces} />
+    <FacingSelector
+      value={facing}
+      onChange={setFacing}
+      customValue={customFacing}
+      onCustomChange={setCustomFacing}
+    />
+    <CarparkLevelSelector
+      value={carparkPosition}
+      onChange={handleCarparkPositionChange}
+      customValue={customCarparkPosition}
+      setCustomValue={setCustomCarparkPosition}
+    />
+    <FacilitiesSelector value={facilities} onChange={setFacilities} />
+    <BuildYearSelector value={buildYear} onChange={setBuildYear} />
 
-          <ExtraSpacesSelector value={extraSpaces} onChange={setExtraSpaces} />
+    <Input
+      placeholder="描述"
+      value={description}
+      onChange={(e) => setDescription(e.target.value)}
+    />
 
-          <FacingSelector
-        value={facing}
-        onChange={setFacing}
-        customValue={customFacing}
-        onCustomChange={setCustomFacing}
-      />
-
-      <CarparkLevelSelector
-        value={carparkPosition}
-        onChange={handleCarparkPositionChange}
-        customValue={customCarparkPosition}
-        setCustomValue={setCustomCarparkPosition}
-      />
-
-          
-<FacilitiesSelector value={facilities} onChange={setFacilities} />
-
-<BuildYearSelector value={buildYear} onChange={setBuildYear} />
-
-              
-    <Input placeholder="描述" value={description} onChange={(e) => setDescription(e.target.value)} />
-
-{/* 🚀 动态生成的上传图片区域 */}
+    {/* 🚀 动态生成的上传图片区域 */}
     <ImageUpload config={config} images={images} setImages={setImages} />
+
+    <Button
+      onClick={handleSubmit}
+      disabled={loading}
+      className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full"
+    >
+      {loading ? "上传中..." : "提交房源"}
+    </Button>
+  </div>
+);
       
     // ---------- 动态生成 config ----------
 const config = {
