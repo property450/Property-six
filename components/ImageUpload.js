@@ -126,18 +126,6 @@ export default function ImageUpload({ config, images, setImages }) {
       });
     }
 
-    // 自定义额外空间
-    customExtras.forEach((extra) => {
-      for (let i = 1; i <= extra.count; i++) {
-        labels.push(`${extra.name}${i}`);
-      }
-    });
-
-    // 自定义设施
-    if (customFacilities.length) {
-      labels = [...labels, ...customFacilities];
-    }
-
     // 去重
     return [...new Set(labels)];
   };
