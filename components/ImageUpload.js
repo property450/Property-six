@@ -53,8 +53,8 @@ export default function ImageUpload({ config, images, setImages }) {
   const generateLabels = () => {
     let labels = [];
 
-    // 卧室
-if (config.bedrooms === "Studio") {
+// 卧室
+if (typeof config.bedrooms === "string" && config.bedrooms.toLowerCase() === "studio") {
   labels.push("Studio");
 } else {
   for (let i = 1; i <= (Number(config.bedrooms) || 0); i++) {
