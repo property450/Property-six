@@ -1,86 +1,70 @@
-// components/ImageUpload.js
-import { useState } from "react";
-import { supabase } from "../supabaseClient";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { toast } from "react-hot-toast";
+"use client";
 
-export default function ImageUpload({ label, value = [], onChange }) {
-  const [uploading, setUploading] = useState(false);
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+
+export default function ImageUpload({ rooms = {}, onImagesChange }) {
+  const [images, setImages] = useState({});
 
   // 上传文件
-  const uploadFile = async (event) => {
-    try {
-      setUploading(true);
-
-      const file = event.target.files[0];
-      if (!file) return;
-
-      // bucket 内路径：使用 label 中文名称
-      const filePath = `${label}/${Date.now()}-${file.name}`;
-
-      let { error } = await supabase.storage
-        .from("property-images")
-        .upload(filePath, file);
-
-      if (error) {
-        throw error;
-      }
-
-      const { data } = supabase.storage
-        .from("property-images")
-        .getPublicUrl(filePath);
-
-      if (data?.publicUrl) {
-        onChange([...value, data.publicUrl]);
-        toast.success(`${label} 照片上传成功`);
-      }
-    } catch (error) {
-      console.error("上传错误:", error.message);
-      toast.error("上传失败: " + error.message);
-    } finally {
-      setUploading(false);
-    }
+  const handleFileChange = (e, category) => {
+    const files = Array.from(e.target.files);
+    const newImages = { ...images, [category]: files };
+    setImages(newImages);
+    if (onImagesChange) onImagesChange(newImages);
   };
 
-  // 删除已上传图片
-  const removeImage = async (url) => {
-    try {
-      const path = url.split("/").pop();
-      await supabase.storage.from("property-images").remove([`${label}/${path}`]);
-      onChange(value.filter((img) => img !== url));
-      toast.success("删除成功");
-    } catch (error) {
-      console.error("删除失败:", error.message);
-      toast.error("删除失败: " + error.message);
-    }
+  // 删除某个图片
+  const removeImage = (category, index) => {
+    const updated = { ...images };
+    updated[category].splice(index, 1);
+    setImages(updated);
+    if (onImagesChange) onImagesChange(updated);
+  };
+
+  // 渲染上传框
+  const renderUploadBox = (label, category, count) => {
+    if (!count || count <= 0) return null;
+
+    return (
+      <div className="mb-6">
+        <h3 className="text-lg font-semibold mb-2">{label} 照片</h3>
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={(e) => handleFileChange(e, category)}
+          className="mb-3"
+        />
+        <div className="grid grid-cols-3 gap-2">
+          {images[category]?.map((file, index) => (
+            <div key={index} className="relative">
+              <img
+                src={URL.createObjectURL(file)}
+                alt={`${label}-${index}`}
+                className="w-full h-32 object-cover rounded"
+              />
+              <Button
+                variant="destructive"
+                size="sm"
+                className="absolute top-1 right-1"
+                onClick={() => removeImage(category, index)}
+              >
+                X
+              </Button>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   };
 
   return (
-    <div className="p-4 border rounded-2xl shadow-sm bg-white mb-4">
-      <h3 className="text-lg font-semibold mb-2">{label} 照片</h3>
-      <Input type="file" accept="image/*" onChange={uploadFile} disabled={uploading} />
-
-      <div className="grid grid-cols-3 gap-3 mt-3">
-        {value.map((url, idx) => (
-          <div key={idx} className="relative group">
-            <img
-              src={url}
-              alt={`${label}-${idx}`}
-              className="w-full h-24 object-cover rounded-lg border"
-            />
-            <Button
-              type="button"
-              size="sm"
-              variant="destructive"
-              className="absolute top-1 right-1 opacity-80"
-              onClick={() => removeImage(url)}
-            >
-              删除
-            </Button>
-          </div>
-        ))}
-      </div>
+    <div>
+      {renderUploadBox("卧室", "bedrooms", rooms.bedrooms)}
+      {renderUploadBox("浴室", "bathrooms", rooms.bathrooms)}
+      {renderUploadBox("车位", "carparks", rooms.carparks)}
+      {renderUploadBox("储藏室", "storerooms", rooms.storerooms)}
     </div>
   );
 }
