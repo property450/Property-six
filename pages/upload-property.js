@@ -105,8 +105,11 @@ const config = {
   carpark: Number(carparkPosition) || 0,
   storage: Number(store) || 0,
   orientation: !!facing,
-  facilities: facilities || [],
-  extra: extraSpaces || [],
+  facilities: ["健身房", "游泳池", { name: "电影院" }],
+  extra: [
+    { name: "瑜伽室", count: 2 },
+    { name: "麻将室", count: 1 }
+  ]
 };
 
 
