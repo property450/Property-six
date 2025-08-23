@@ -1,4 +1,3 @@
-// components/CarparkCountSelector.js
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -16,7 +15,7 @@ const parseNumber = (str) => String(str || "").replace(/,/g, "");
 
 const OPTIONS = [0, 1, 2, 3, 4, 5, "custom"];
 
-export default function CarparkCountSelector({ value, onChange }) {
+export default function CarparkCountSelector({ value, onChange, mode = "single" }) {
   const [open, setOpen] = useState(false);
   const [isCustom, setIsCustom] = useState(false);
   const ref = useRef(null);
@@ -34,10 +33,10 @@ export default function CarparkCountSelector({ value, onChange }) {
   const handlePick = (opt) => {
     if (opt === "custom") {
       setIsCustom(true);
-      onChange("");
+      onChange(mode === "single" ? "" : { min: "", max: "" });
     } else {
       setIsCustom(false);
-      onChange(String(opt));
+      onChange(mode === "single" ? String(opt) : { ...value, min: String(opt), max: String(opt) });
     }
     setOpen(false);
   };
@@ -49,6 +48,39 @@ export default function CarparkCountSelector({ value, onChange }) {
     }
   };
 
+  const handleRangeInput = (field, val) => {
+    const raw = parseNumber(val);
+    if (/^\d*$/.test(raw)) {
+      onChange({ ...value, [field]: raw });
+    }
+  };
+
+  if (mode === "range") {
+    // ---------- 范围模式 ----------
+    return (
+      <div className="flex flex-col" ref={ref}>
+        <label className="text-sm font-medium mb-1">停车位范围</label>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder="最少"
+            value={formatNumber(value?.min)}
+            onChange={(e) => handleRangeInput("min", e.target.value)}
+            className="flex-1 border border-gray-300 rounded px-3 py-2 bg-white focus:outline-none focus:ring focus:border-blue-500"
+          />
+          <input
+            type="text"
+            placeholder="最多"
+            value={formatNumber(value?.max)}
+            onChange={(e) => handleRangeInput("max", e.target.value)}
+            className="flex-1 border border-gray-300 rounded px-3 py-2 bg-white focus:outline-none focus:ring focus:border-blue-500"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // ---------- 单值模式 ----------
   const display = isCustom ? value : formatNumber(value);
 
   return (
