@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 export default function PriceInput({ value, onChange, area, mode }) {
   const [showDropdown, setShowDropdown] = useState(false);
@@ -9,21 +9,21 @@ export default function PriceInput({ value, onChange, area, mode }) {
   const predefinedPrices = [
     50000, 100000, 200000, 300000, 500000,
     800000, 1000000, 1500000, 2000000,
+    3000000, 5000000, 10000000, 20000000,
+    50000000, 100000000,
   ];
 
   const formatNumber = (num) => {
-    if (num === null || num === undefined || num === "") return "";
+    if (!num) return "";
     const n = typeof num === "string" ? parseFloat(num.replace(/,/g, "")) : num;
     if (isNaN(n)) return "";
     return n.toLocaleString();
   };
 
-  // ---------- 内部状态 ----------
   const [singlePrice, setSinglePrice] = useState("");
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
 
-  // ---------- 初始化 ----------
   useEffect(() => {
     if (mode === "range") {
       setMinPrice(value?.min || "");
@@ -33,130 +33,154 @@ export default function PriceInput({ value, onChange, area, mode }) {
     }
   }, [value, mode]);
 
-  // ---------- 事件 ----------
   const handleSingleChange = (e) => {
-    const v = e.target.value.replace(/,/g, "");
-    setSinglePrice(v);
-    onChange(v);
+    const raw = e.target.value.replace(/[^\d]/g, "");
+    setSinglePrice(raw);
+    onChange(raw);
   };
 
   const handleMinChange = (e) => {
-    const v = e.target.value.replace(/,/g, "");
-    setMinPrice(v);
-    onChange({ min: v, max: maxPrice });
+    const raw = e.target.value.replace(/[^\d]/g, "");
+    setMinPrice(raw);
+    onChange({ min: raw, max: maxPrice });
   };
 
   const handleMaxChange = (e) => {
-    const v = e.target.value.replace(/,/g, "");
-    setMaxPrice(v);
-    onChange({ min: minPrice, max: v });
+    const raw = e.target.value.replace(/[^\d]/g, "");
+    setMaxPrice(raw);
+    onChange({ min: minPrice, max: raw });
   };
 
-  const handleSelectPrice = (p, type) => {
+  const handleSelect = (price, type) => {
     if (mode === "range") {
       if (type === "min") {
-        setMinPrice(p);
-        onChange({ min: p, max: maxPrice });
+        setMinPrice(price);
+        onChange({ min: price, max: maxPrice });
       } else {
-        setMaxPrice(p);
-        onChange({ min: minPrice, max: p });
+        setMaxPrice(price);
+        onChange({ min: minPrice, max: price });
       }
     } else {
-      setSinglePrice(p);
-      onChange(p);
+      setSinglePrice(price);
+      onChange(price.toString());
     }
   };
 
+  // 点击外部关闭下拉
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setShowDropdown(false);
+        setShowDropdownMin(false);
+        setShowDropdownMax(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const perSqft =
+    area && singlePrice ? (parseFloat(singlePrice) / parseFloat(area)).toFixed(2) : null;
+
   return (
-    <div className="space-y-2 relative" ref={wrapperRef}>
+    <div className="relative w-full space-y-2" ref={wrapperRef}>
       {mode === "range" ? (
         <div className="flex gap-2">
+          {/* Min */}
           <div className="relative flex-1">
             <input
               type="text"
-              placeholder="Min"
               value={formatNumber(minPrice)}
               onChange={handleMinChange}
+              placeholder="Min"
               className="border p-2 w-full rounded"
               onFocus={() => setShowDropdownMin(true)}
             />
             {showDropdownMin && (
-              <div className="absolute z-10 bg-white border rounded shadow mt-1 max-h-40 overflow-y-auto w-full">
+              <ul className="absolute z-10 w-full bg-white border mt-1 max-h-60 overflow-y-auto rounded shadow">
                 {predefinedPrices.map((p) => (
-                  <div
+                  <li
                     key={p}
-                    className="px-2 py-1 hover:bg-gray-100 cursor-pointer"
                     onMouseDown={() => {
-                      handleSelectPrice(p, "min");
+                      handleSelect(p, "min");
                       setShowDropdownMin(false);
                     }}
+                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
                   >
-                    {p.toLocaleString()}
-                  </div>
+                    RM {p.toLocaleString()}
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
           </div>
 
+          {/* Max */}
           <div className="relative flex-1">
             <input
               type="text"
-              placeholder="Max"
               value={formatNumber(maxPrice)}
               onChange={handleMaxChange}
+              placeholder="Max"
               className="border p-2 w-full rounded"
               onFocus={() => setShowDropdownMax(true)}
             />
             {showDropdownMax && (
-              <div className="absolute z-10 bg-white border rounded shadow mt-1 max-h-40 overflow-y-auto w-full">
+              <ul className="absolute z-10 w-full bg-white border mt-1 max-h-60 overflow-y-auto rounded shadow">
                 {predefinedPrices.map((p) => (
-                  <div
+                  <li
                     key={p}
-                    className="px-2 py-1 hover:bg-gray-100 cursor-pointer"
                     onMouseDown={() => {
-                      handleSelectPrice(p, "max");
+                      handleSelect(p, "max");
                       setShowDropdownMax(false);
                     }}
+                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
                   >
-                    {p.toLocaleString()}
-                  </div>
+                    RM {p.toLocaleString()}
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
           </div>
         </div>
       ) : (
         <div className="relative">
-          <input
-            type="text"
-            placeholder="Price"
-            value={formatNumber(singlePrice)}
-            onChange={handleSingleChange}
-            className="border p-2 w-full rounded"
-            onFocus={() => setShowDropdown(true)}
-          />
+          <label className="block text-sm font-medium text-gray-700">价格</label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">RM</span>
+            <input
+              type="text"
+              value={formatNumber(singlePrice)}
+              onChange={handleSingleChange}
+              className="pl-12 pr-4 py-2 border rounded w-full"
+              placeholder="请输入价格"
+              onFocus={() => setShowDropdown(true)}
+            />
+          </div>
+
           {showDropdown && (
-            <div className="absolute z-10 bg-white border rounded shadow mt-1 max-h-40 overflow-y-auto w-full">
-              {predefinedPrices.map((p) => (
-                <div
-                  key={p}
-                  className="px-2 py-1 hover:bg-gray-100 cursor-pointer"
+            <ul className="absolute z-10 w-full bg-white border mt-1 max-h-60 overflow-y-auto rounded shadow">
+              {predefinedPrices.map((price) => (
+                <li
+                  key={price}
                   onMouseDown={() => {
-                    handleSelectPrice(p);
+                    handleSelect(price);
                     setShowDropdown(false);
                   }}
+                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
                 >
-                  {p.toLocaleString()}
-                </div>
+                  RM {price.toLocaleString()}
+                </li>
               ))}
-            </div>
+            </ul>
+          )}
+
+          {perSqft && (
+            <p className="text-sm text-gray-500 mt-1">
+              每平方英尺: RM {parseFloat(perSqft).toLocaleString()}
+            </p>
           )}
         </div>
       )}
-
-      {mode !== "range" && area > 0 && singlePrice ? (
-        <div>每平方尺单价: {(Number(singlePrice.replace(/,/g, "")) / area).toFixed(2)}</div>
-      ) : null}
     </div>
   );
 }
