@@ -160,7 +160,6 @@ const isRange = !!(
           )}
         </>
       ) : (
-        <>
           <div className="grid grid-cols-2 gap-2">
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">RM</span>
