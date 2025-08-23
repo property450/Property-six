@@ -127,7 +127,6 @@ const isRange = !!(
       <label className="block text-sm font-medium text-gray-700">
   {isRange ? "价格范围" : "价格"}
 </label>
-        <>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">RM</span>
             <input
