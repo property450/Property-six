@@ -246,10 +246,11 @@ const config = {
     <TypeSelector value={type} onChange={setType} />
     <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
     <PriceInput
-      value={price}
-      onChange={(val) => setPrice(val)}
-      area={sizeInSqft}
-    />
+  value={price}
+  onChange={setPrice}
+  area={sizeInSqft}
+  mode={(type === "New Project / Under Construction" || type === "Completed Unit / Developer Unit") ? "range" : "single"}
+/>
 
     <RoomCountSelector value={rooms} onChange={setRooms} />
     <CarparkCountSelector value={carpark} onChange={setCarpark} />
