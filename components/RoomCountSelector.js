@@ -29,7 +29,7 @@ const FIELD_DEFS = [
   {
     key: "kitchens",
     label: "厨房",
-    options: [1, 2, 3, 4, 5, 6, "custom"],
+    options: [0, 1, 2, 3, 4, 5, 6, "custom"],
   },
   {
     key: "livingRooms",
