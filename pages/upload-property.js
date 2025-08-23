@@ -62,7 +62,7 @@ export default function UploadProperty() {
   // ---------- 表单状态 ----------
   const [price, setPrice] = useState(mode === "range" ? {min:"", max:""} : "");
  // PriceInput 会传回纯数字字符串 "1200000"
-  const [customFacing, setCustomFacing] = useState('');
+ const [customFacing, setCustomFacing] = useState('');
   const [facing, setFacing] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -103,6 +103,11 @@ export default function UploadProperty() {
     setAddress(address);
   };
 
+// 根据 type 动态决定模式
+const mode = (type === "New Project / Under Construction" || type === "Completed Unit / Developer Unit") 
+  ? "range" 
+  : "single";
+ 
   // ---------- 动态生成 config ----------
 const config = {
   bedrooms: rooms.bedrooms, // 🚀 保留原始值（可能是 "Studio" 或数字字符串）
