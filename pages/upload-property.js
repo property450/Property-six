@@ -60,7 +60,8 @@ export default function UploadProperty() {
   }
 
   // ---------- 表单状态 ----------
-  const [price, setPrice] = useState(''); // PriceInput 会传回纯数字字符串 "1200000"
+  const [price, setPrice] = useState(mode === "range" ? {min:"", max:""} : "");
+ // PriceInput 会传回纯数字字符串 "1200000"
   const [customFacing, setCustomFacing] = useState('');
   const [facing, setFacing] = useState('');
   const [title, setTitle] = useState('');
