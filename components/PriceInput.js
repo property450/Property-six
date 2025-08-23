@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 
-export default function PriceInput({ value, onChange, area, mode }) {
+export default function PriceInput({ value, onChange, area, mode = "single" }) {
+  const wrapperRef = useRef(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showDropdownMin, setShowDropdownMin] = useState(false);
   const [showDropdownMax, setShowDropdownMax] = useState(false);
-  const wrapperRef = useRef(null);
 
   const predefinedPrices = [
     50000, 100000, 200000, 300000, 500000,
@@ -20,10 +20,12 @@ export default function PriceInput({ value, onChange, area, mode }) {
     return n.toLocaleString();
   };
 
+  // ---------- 内部状态 ----------
   const [singlePrice, setSinglePrice] = useState("");
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
 
+  // ---------- 初始化 ----------
   useEffect(() => {
     if (mode === "range") {
       setMinPrice(value?.min || "");
@@ -33,6 +35,7 @@ export default function PriceInput({ value, onChange, area, mode }) {
     }
   }, [value, mode]);
 
+  // ---------- 输入事件 ----------
   const handleSingleChange = (e) => {
     const raw = e.target.value.replace(/[^\d]/g, "");
     setSinglePrice(raw);
@@ -63,10 +66,11 @@ export default function PriceInput({ value, onChange, area, mode }) {
     } else {
       setSinglePrice(price);
       onChange(price.toString());
+      setShowDropdown(false);
     }
   };
 
-  // 点击外部关闭下拉
+  // ---------- 点击外部关闭下拉 ----------
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
@@ -79,6 +83,7 @@ export default function PriceInput({ value, onChange, area, mode }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // ---------- 每平方英尺价格 ----------
   const perSqft =
     area && singlePrice ? (parseFloat(singlePrice) / parseFloat(area)).toFixed(2) : null;
 
@@ -90,9 +95,9 @@ export default function PriceInput({ value, onChange, area, mode }) {
           <div className="relative flex-1">
             <input
               type="text"
+              placeholder="Min"
               value={formatNumber(minPrice)}
               onChange={handleMinChange}
-              placeholder="Min"
               className="border p-2 w-full rounded"
               onFocus={() => setShowDropdownMin(true)}
             />
@@ -101,10 +106,7 @@ export default function PriceInput({ value, onChange, area, mode }) {
                 {predefinedPrices.map((p) => (
                   <li
                     key={p}
-                    onMouseDown={() => {
-                      handleSelect(p, "min");
-                      setShowDropdownMin(false);
-                    }}
+                    onMouseDown={() => handleSelect(p, "min")}
                     className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
                   >
                     RM {p.toLocaleString()}
@@ -118,9 +120,9 @@ export default function PriceInput({ value, onChange, area, mode }) {
           <div className="relative flex-1">
             <input
               type="text"
+              placeholder="Max"
               value={formatNumber(maxPrice)}
               onChange={handleMaxChange}
-              placeholder="Max"
               className="border p-2 w-full rounded"
               onFocus={() => setShowDropdownMax(true)}
             />
@@ -129,10 +131,7 @@ export default function PriceInput({ value, onChange, area, mode }) {
                 {predefinedPrices.map((p) => (
                   <li
                     key={p}
-                    onMouseDown={() => {
-                      handleSelect(p, "max");
-                      setShowDropdownMax(false);
-                    }}
+                    onMouseDown={() => handleSelect(p, "max")}
                     className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
                   >
                     RM {p.toLocaleString()}
@@ -162,10 +161,7 @@ export default function PriceInput({ value, onChange, area, mode }) {
               {predefinedPrices.map((price) => (
                 <li
                   key={price}
-                  onMouseDown={() => {
-                    handleSelect(price);
-                    setShowDropdown(false);
-                  }}
+                  onMouseDown={() => handleSelect(price)}
                   className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
                 >
                   RM {price.toLocaleString()}
