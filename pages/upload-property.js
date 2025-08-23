@@ -18,6 +18,7 @@ import FacilitiesSelector from "@/components/FacilitiesSelector";
 import BuildYearSelector from '@/components/BuildYearSelector';
 import ExtraSpacesSelector from "@/components/ExtraSpacesSelector";
 import CarparkCountSelector from "@/components/CarparkCountSelector";
+import FurnitureSelector from "@/components/FurnitureSelector";
 
 const AddressSearchInput = dynamic(() => import('@/components/AddressSearchInput'), { ssr: false });
 
@@ -78,7 +79,8 @@ export default function UploadProperty() {
   const [carpark, setCarpark] = useState("");
   const [store, setStore] = useState('');
   const [facilities, setFacilities] = useState([]);
-  const [link, setLink] = useState('');
+  const [furniture, setFurniture] = useState([]);
+  const [link, setLink] = useState('');
   const [loading, setLoading] = useState(false);
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 70 + 5 + 1 }, (_, i) => currentYear + 5 - i);
@@ -261,7 +263,8 @@ const config = {
       setCustomValue={setCustomCarparkPosition}
     />
     <FacilitiesSelector value={facilities} onChange={setFacilities} />
-    <BuildYearSelector value={buildYear} onChange={setBuildYear} />
+    <FurnitureSelector value={furniture} onChange={setFurniture} />
+        <BuildYearSelector value={buildYear} onChange={setBuildYear} />
 
     <Input
       placeholder="描述"
