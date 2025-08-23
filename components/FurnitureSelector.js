@@ -1,6 +1,5 @@
 // components/FurnitureSelector.js
 import { useState } from "react";
-import { X } from "lucide-react";
 
 export default function FurnitureSelector({ value = [], onChange }) {
   const [inputValue, setInputValue] = useState("");
@@ -63,9 +62,9 @@ export default function FurnitureSelector({ value = [], onChange }) {
             <button
               type="button"
               onClick={() => removeFurniture(item.name)}
-              className="ml-2 text-red-500"
+              className="ml-2 text-red-500 font-bold"
             >
-              <X size={14} />
+              ×
             </button>
           </div>
         ))}
