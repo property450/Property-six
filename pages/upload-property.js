@@ -267,11 +267,14 @@ export default function UploadProperty() {
 
       {/* 价格输入：根据 type 自动切换 single / range */}
       <PriceInput
-        value={price}
-        onChange={setPrice}
-        area={sizeInSqft}
-        mode={mode}
-      />
+  status={status}
+  price={price}
+  setPrice={setPrice}
+  minPrice={minPrice}
+  setMinPrice={setMinPrice}
+  maxPrice={maxPrice}
+  setMaxPrice={setMaxPrice}
+/>
 
       <RoomCountSelector value={rooms} onChange={setRooms} />
       <CarparkCountSelector value={carpark} onChange={setCarpark} />
