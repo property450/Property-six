@@ -11,7 +11,7 @@ import TypeSelector from '@/components/TypeSelector';
 import RoomCountSelector from '@/components/RoomCountSelector';
 import { useUser } from '@supabase/auth-helpers-react';
 import AreaSelector from '@/components/AreaSelector';
-import CarparkLevelSelector from '@/components/CarparkLevelSelector';
+import CarparkPositionSelector from '@/components/CarparkLevelSelector';
 import FacingSelector from '@/components/FacingSelector';
 import PriceInput from '@/components/PriceInput';
 import FacilitiesSelector from "@/components/FacilitiesSelector";
