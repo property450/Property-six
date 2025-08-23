@@ -27,7 +27,7 @@ export default function UploadProperty() {
   const router = useRouter();
   const user = useUser();
 
-  // ---------- 面积数据 ----------
+  // areaData 与 AreaSelector 的 onChange 返回结构一致：
   const [areaData, setAreaData] = useState({
     types: ['buildUp'],
     units: { buildUp: 'square feet', land: 'square feet' },
@@ -37,7 +37,6 @@ export default function UploadProperty() {
   const [sizeInSqft, setSizeInSqft] = useState('');
   const [pricePerSqFt, setPricePerSqFt] = useState('');
 
-  // ---------- 停车位自定义 ----------
   const [carparkPosition, setCarparkPosition] = useState('');
   const [customCarparkPosition, setCustomCarparkPosition] = useState('');
   const handleCarparkPositionChange = (value) => {
@@ -48,14 +47,20 @@ export default function UploadProperty() {
   };
 
   useEffect(() => {
-    if (user === null) router.push('/login');
+    if (user === null) {
+      router.push('/login');
+    }
   }, [user, router]);
 
-  if (user === null) return <div>正在检查登录状态...</div>;
-  if (!user) return null;
+  if (user === null) {
+    return <div>正在检查登录状态...</div>;
+  }
+  if (!user) {
+    return null;
+  }
 
   // ---------- 表单状态 ----------
-  const [price, setPrice] = useState(''); // 单价或 {min,max} 对象
+  const [price, setPrice] = useState(''); // 单价时为字符串；区间时为 {min,max}
   const [customFacing, setCustomFacing] = useState('');
   const [facing, setFacing] = useState('');
   const [title, setTitle] = useState('');
@@ -65,15 +70,13 @@ export default function UploadProperty() {
   const [longitude, setLongitude] = useState(null);
   const [images, setImages] = useState([]);
   const [coverIndex, setCoverIndex] = useState(0);
-  const [type, setType] = useState('');
+  const [type, setType] = useState(''); // TypeSelector will now set a string (finalType)
   const [floor, setFloor] = useState('');
   const [buildYear, setBuildYear] = useState('');
-  const [rooms, setRooms] = useState({
-    bedrooms: '',
-    bathrooms: '',
-    kitchens: '',
-    livingRooms: ''
-  });
+  const [bedrooms, setBedrooms] = useState('');
+  const [bathrooms, setBathrooms] = useState('');
+  const [kitchens, setKitchens] = useState('');
+  const [livingRooms, setLivingRooms] = useState('');
   const [carpark, setCarpark] = useState("");
   const [store, setStore] = useState('');
   const [facilities, setFacilities] = useState([]);
@@ -86,23 +89,45 @@ export default function UploadProperty() {
   const [useCustomYear, setUseCustomYear] = useState(false);
   const [customBuildYear, setCustomBuildYear] = useState('');
   const [extraSpaces, setExtraSpaces] = useState([]);
+  const [rooms, setRooms] = useState({
+    bedrooms: '',
+    bathrooms: '',
+    kitchens: '',
+    livingRooms: ''
+  });
 
-  // ---------- 自动切换 PriceInput 模式 ----------
+  // ---------- 关键：根据 type 切换 mode ----------
   const mode =
     type === "New Project / Under Construction" ||
     type === "Completed Unit / Developer Unit"
       ? "range"
       : "single";
 
+  // 切换模式时，把 price 在 string 和 {min,max} 之间转换（最小改动，不影响其它逻辑）
   useEffect(() => {
     if (mode === 'range') {
       if (typeof price !== 'object') setPrice({ min: '', max: '' });
     } else {
       if (typeof price === 'object') setPrice('');
     }
-  }, [mode]);
+  }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ---------- 单位转换 ----------
+  // ---------- 动态生成 config ----------
+  const config = {
+    bedrooms: rooms.bedrooms,
+    bathrooms: Number(rooms.bathrooms) || 0,
+    kitchens: Number(rooms.kitchens) || 0,
+    livingRooms: Number(rooms.livingRooms) || 0,
+    carpark: Number(carpark) || 0,
+    storage: Number(store) || 0,
+    orientation: !!facing,
+    facilities: facilities || [],
+    extraSpaces: extraSpaces || [],
+    furniture: furniture || [],
+    floorPlans: Number(floorPlans) || 0,
+  };
+
+  // 单位转换函数（把任意 unit 转为 sqft）
   const convertToSqft = (val, unit) => {
     const num = parseFloat(String(val || '').replace(/,/g, ''));
     if (isNaN(num) || num <= 0) return 0;
@@ -116,19 +141,28 @@ export default function UploadProperty() {
       case 'hectares':
         return num * 107639;
       default:
+        // assume square feet
         return num;
     }
   };
 
   const handleAreaChange = (data) => {
     setAreaData(data);
-    const buildUpSq = convertToSqft(data.values?.buildUp, data.units?.buildUp);
-    const landSq = convertToSqft(data.values?.land, data.units?.land);
+
+    const buildUpVal = data.values?.buildUp ?? '';
+    const landVal = data.values?.land ?? '';
+
+    const buildUpUnit = data.units?.buildUp ?? 'square feet';
+    const landUnit = data.units?.land ?? 'square feet';
+
+    const buildUpSq = convertToSqft(buildUpVal, buildUpUnit);
+    const landSq = convertToSqft(landVal, landUnit);
+
     const total = (buildUpSq || 0) + (landSq || 0);
     setSizeInSqft(total > 0 ? total : '');
   };
 
-  // ---------- 每平方英尺价格 ----------
+  // 自动计算 pricePerSqFt（仅在 single 模式计算）
   useEffect(() => {
     if (mode === 'range') {
       setPricePerSqFt('');
@@ -144,7 +178,6 @@ export default function UploadProperty() {
   }, [price, sizeInSqft, mode]);
 
   const handleSubmit = async () => {
-    const { bedrooms, bathrooms, kitchens, livingRooms } = rooms;
     if (!title || !price || !address || !latitude || !longitude || images.length === 0) {
       toast.error('请填写完整信息并至少上传一张图片');
       return;
@@ -159,6 +192,7 @@ export default function UploadProperty() {
         .insert([{
           title,
           description,
+          // single 存数值；range 存 "min-max"
           price: mode === "range"
             ? `${price?.min || ""}-${price?.max || ""}`
             : Number(String(price).replace(/,/g, '')),
@@ -173,8 +207,6 @@ export default function UploadProperty() {
           built_year: useCustomYear ? customBuildYear : buildYear,
           bedrooms,
           bathrooms,
-          kitchens,
-          livingRooms,
           carpark,
           store,
           area: JSON.stringify(areaData),
@@ -188,6 +220,7 @@ export default function UploadProperty() {
       if (error) throw error;
       const propertyId = propertyData.id;
 
+      // 上传图片
       for (let i = 0; i < images.length; i++) {
         const image = images[i];
         const fileName = `${Date.now()}_${image.name}`;
@@ -228,11 +261,11 @@ export default function UploadProperty() {
         setLongitude(lng);
         setAddress(address);
       }} />
-
+      {/* 这里 TypeSelector 的 onChange 现在会把 finalType (string) 传回 */}
       <TypeSelector value={type} onChange={setType} />
       <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
 
-      {/* ---------- 价格输入 ---------- */}
+      {/* 价格输入：根据 type 自动切换 single / range */}
       <PriceInput
         value={price}
         onChange={setPrice}
@@ -268,7 +301,7 @@ export default function UploadProperty() {
         onChange={(e) => setDescription(e.target.value)}
       />
 
-      <ImageUpload images={images} setImages={setImages} config={{}} />
+      <ImageUpload config={config} images={images} setImages={setImages} />
 
       <Button
         onClick={handleSubmit}
@@ -279,4 +312,4 @@ export default function UploadProperty() {
       </Button>
     </div>
   );
-          }
+}
