@@ -125,8 +125,8 @@ if (config.extraSpaces?.length) {
 
 
     // 家私（名字 + 数量）
-if (config.extraSpaces?.length) {
-  config.extraSpaces.forEach((extra) => {
+if (config.furniture?.length) {
+  config.furniture.forEach((extra) => {
     if (typeof extra === "string") {
       labels.push(extra);
     } else if (extra?.label) {
