@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 
-export default function PriceInput({ value, onChange, area, mode = "single" }) {
+export default function PriceInput({ value, onChange, mode = "single", area }) {
   const [showDropdown, setShowDropdown] = useState(false);
   const wrapperRef = useRef(null);
 
