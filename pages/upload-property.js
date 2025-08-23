@@ -63,6 +63,10 @@ export default function UploadProperty() {
   const [coverIndex, setCoverIndex] = useState(0);
   const [loading, setLoading] = useState(false);
 
+ // 🔑 新增价格范围 state
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
+  
   const handleCarparkPositionChange = (value) => {
     setCarparkPosition(value);
     if (value !== '其他（自定义）') {
