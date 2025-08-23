@@ -12,7 +12,10 @@ export default function TypeSelector({ value, onChange }) {
   const [subtype, setSubtype] = useState('');
   const [auctionDate, setAuctionDate] = useState('');
   const [showSubtype, setShowSubtype] = useState(false);
-
+const [price, setPrice] = useState(''); // 单一价格
+const [minPrice, setMinPrice] = useState('');
+const [maxPrice, setMaxPrice] = useState('');
+  
   const subtypeOptions = [
     'Penthouse',
     'Duplex',
@@ -33,6 +36,9 @@ export default function TypeSelector({ value, onChange }) {
       finalType,
       subtype,
       auctionDate,
+      price,
+    minPrice,
+    maxPrice,
     };
     onChange(formData);
   }, [
@@ -46,6 +52,9 @@ export default function TypeSelector({ value, onChange }) {
     finalType,
     subtype,
     auctionDate,
+    price,
+    minPrice,
+    maxPrice,
   ]);
 
   const categoryOptions = {
@@ -145,6 +154,38 @@ export default function TypeSelector({ value, onChange }) {
   const usageOptions = ['Residential', 'Commercial', 'Commercial Under HDA', 'Industrial', 'Agricultural'];
 
   const showCategory = saleType === 'Rent' || usage;
+
+// 渲染价格输入
+<div>
+  <label className="block font-medium">价格</label>
+  {propertyStatus === 'New Project / Under Construction' || propertyStatus === 'Completed Unit / Developer Unit' ? (
+    <div className="flex gap-2">
+      <input
+        type="number"
+        placeholder="Min"
+        className="w-1/2 border rounded p-2"
+        value={minPrice}
+        onChange={(e) => setMinPrice(e.target.value)}
+      />
+      <input
+        type="number"
+        placeholder="Max"
+        className="w-1/2 border rounded p-2"
+        value={maxPrice}
+        onChange={(e) => setMaxPrice(e.target.value)}
+      />
+    </div>
+  ) : (
+    <input
+      type="number"
+      placeholder="Price"
+      className="w-full border rounded p-2"
+      value={price}
+      onChange={(e) => setPrice(e.target.value)}
+    />
+  )}
+</div>
+
 
   return (
     <div className="space-y-4">
