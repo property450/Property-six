@@ -4,7 +4,6 @@ export default function PriceInput({ value, onChange, area, mode = "single" }) {
   const [showDropdown, setShowDropdown] = useState(false);
   const wrapperRef = useRef(null);
 
-  // 如果是 range 模式，用对象存 {min, max}
   const val = typeof value === "object" ? value : { min: "", max: "" };
 
   const predefinedPrices = [
@@ -15,12 +14,21 @@ export default function PriceInput({ value, onChange, area, mode = "single" }) {
   ];
 
   const handleInputChange = (e, key = "single") => {
-    const raw = e.target.value.replace(/[^\d]/g, "");
+    const raw = e.target.value.replace(/[^\d]/g, '');
     if (mode === "range") {
       onChange({ ...val, [key]: raw });
     } else {
       onChange(raw);
     }
+  };
+
+  const handleSelect = (price) => {
+    if (mode === "range") {
+      onChange({ ...val, min: price.toString(), max: "" });
+    } else {
+      onChange(price.toString());
+    }
+    setShowDropdown(false);
   };
 
   useEffect(() => {
@@ -35,7 +43,6 @@ export default function PriceInput({ value, onChange, area, mode = "single" }) {
     };
   }, []);
 
-  // ✅ 每平方英尺价格计算 (只在 single 模式计算)
   const perSqft =
     mode === "single" && area && value
       ? (parseFloat(value) / parseFloat(area)).toFixed(2)
@@ -46,32 +53,24 @@ export default function PriceInput({ value, onChange, area, mode = "single" }) {
       <label className="block text-sm font-medium text-gray-700">价格</label>
 
       {mode === "single" ? (
-        <>
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">RM</span>
-            <input
-              type="text"
-              value={(value ?? "").toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
-              onChange={handleInputChange}
-              onFocus={() => setShowDropdown(true)}
-              className="pl-12 pr-4 py-2 border rounded w-full"
-              placeholder="请输入价格"
-            />
-          </div>
-          {perSqft && (
-            <p className="text-sm text-gray-500 mt-1">
-              每平方英尺: RM {parseFloat(perSqft).toLocaleString()}
-            </p>
-          )}
-        </>
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">RM</span>
+          <input
+            type="text"
+            value={(value ?? "").toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+            onChange={handleInputChange}
+            onFocus={() => setShowDropdown(true)}
+            className="pl-12 pr-4 py-2 border rounded w-full"
+            placeholder="请输入价格"
+          />
+        </div>
       ) : (
-        // 🚀 Range 模式
         <div className="flex gap-2">
           <div className="relative flex-1">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">Min RM</span>
             <input
               type="text"
-              value={val.min?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") || ""}
+              value={val.min?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
               onChange={(e) => handleInputChange(e, "min")}
               className="pl-16 pr-4 py-2 border rounded w-full"
               placeholder="最低价格"
@@ -81,13 +80,33 @@ export default function PriceInput({ value, onChange, area, mode = "single" }) {
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">Max RM</span>
             <input
               type="text"
-              value={val.max?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") || ""}
+              value={val.max?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
               onChange={(e) => handleInputChange(e, "max")}
               className="pl-16 pr-4 py-2 border rounded w-full"
               placeholder="最高价格"
             />
           </div>
         </div>
+      )}
+
+      {perSqft && (
+        <p className="text-sm text-gray-500 mt-1">
+          每平方英尺: RM {parseFloat(perSqft).toLocaleString()}
+        </p>
+      )}
+
+      {showDropdown && mode === "single" && (
+        <ul className="absolute z-10 w-full bg-white border mt-1 max-h-60 overflow-y-auto rounded shadow">
+          {predefinedPrices.map((price) => (
+            <li
+              key={price}
+              onClick={() => handleSelect(price)}
+              className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+            >
+              RM {price.toLocaleString()}
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );
