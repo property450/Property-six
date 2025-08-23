@@ -266,12 +266,15 @@ const config = {
       customValue={customFacing}
       onCustomChange={setCustomFacing}
     />
-    <CarparkLevelSelector
-      value={carparkPosition}
-      onChange={handleCarparkPositionChange}
-      customValue={customCarparkPosition}
-      setCustomValue={setCustomCarparkPosition}
-    />
+        
+    <CarparkPositionSelector
+  value={carparkPosition}
+  onChange={setCarparkPosition}
+  customValue={customCarparkPosition}
+  setCustomValue={setCustomCarparkPosition}
+  mode={(type === "New Project / Under Construction" || type === "Completed Unit / Developer Unit") ? "range" : "single"}
+/>
+
     <FacilitiesSelector value={facilities} onChange={setFacilities} />
     <FurnitureSelector value={furniture} onChange={setFurniture} />
         <FloorPlanSelector value={floorPlans} onChange={setFloorPlans} />
