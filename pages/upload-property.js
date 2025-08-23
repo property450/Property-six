@@ -111,6 +111,7 @@ const config = {
   orientation: !!facing,
   facilities: facilities || [],
   extraSpaces: extraSpaces || [],
+  furniture: furniture || [],
 };
 
 
