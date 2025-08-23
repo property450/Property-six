@@ -82,6 +82,7 @@ export default function UploadProperty() {
   const [facilities, setFacilities] = useState([]);
   const [furniture, setFurniture] = useState([]);
   const [floorPlans, setFloorPlans] = useState([]);
+  const [propertyStatus, setPropertyStatus] = useState('');
   const [link, setLink] = useState('');
   const [loading, setLoading] = useState(false);
   const currentYear = new Date().getFullYear();
@@ -248,14 +249,20 @@ export default function UploadProperty() {
       <h1 className="text-2xl font-bold mb-4">上传房源</h1>
 
       <AddressSearchInput onLocationSelect={handleLocationSelect} />
-      <TypeSelector value={type} onChange={setType} />
+      <TypeSelector
+  value={type}
+  onChange={setType}
+  onFormChange={(formData) => setPropertyStatus(formData.propertyStatus)}
+/>
+
       <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
       <PriceInput
-        value={price}
-        onChange={(val) => setPrice(val)}
-        area={sizeInSqft}
-        type={type}
-      />
+  value={price}
+  onChange={setPrice}
+  area={sizeInSqft}
+  type={propertyStatus}
+/>
+
 
       <RoomCountSelector value={rooms} onChange={setRooms} />
       <CarparkCountSelector value={carpark} onChange={setCarpark} />
