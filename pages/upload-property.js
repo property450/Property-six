@@ -27,6 +27,7 @@ export default function UploadProperty() {
   const router = useRouter();
   const user = useUser();
 
+  // ---------- 面积数据 ----------
   const [areaData, setAreaData] = useState({
     types: ['buildUp'],
     units: { buildUp: 'square feet', land: 'square feet' },
@@ -36,6 +37,7 @@ export default function UploadProperty() {
   const [sizeInSqft, setSizeInSqft] = useState('');
   const [pricePerSqFt, setPricePerSqFt] = useState('');
 
+  // ---------- 停车位自定义 ----------
   const [carparkPosition, setCarparkPosition] = useState('');
   const [customCarparkPosition, setCustomCarparkPosition] = useState('');
   const handleCarparkPositionChange = (value) => {
@@ -66,10 +68,12 @@ export default function UploadProperty() {
   const [type, setType] = useState('');
   const [floor, setFloor] = useState('');
   const [buildYear, setBuildYear] = useState('');
-  const [bedrooms, setBedrooms] = useState('');
-  const [bathrooms, setBathrooms] = useState('');
-  const [kitchens, setKitchens] = useState('');
-  const [livingRooms, setLivingRooms] = useState('');
+  const [rooms, setRooms] = useState({
+    bedrooms: '',
+    bathrooms: '',
+    kitchens: '',
+    livingRooms: ''
+  });
   const [carpark, setCarpark] = useState("");
   const [store, setStore] = useState('');
   const [facilities, setFacilities] = useState([]);
@@ -82,12 +86,13 @@ export default function UploadProperty() {
   const [useCustomYear, setUseCustomYear] = useState(false);
   const [customBuildYear, setCustomBuildYear] = useState('');
   const [extraSpaces, setExtraSpaces] = useState([]);
-  const [rooms, setRooms] = useState({
-    bedrooms: '',
-    bathrooms: '',
-    kitchens: '',
-    livingRooms: ''
-  });
+
+  // ---------- 自动切换 PriceInput 模式 ----------
+  const mode =
+    type === "New Project / Under Construction" ||
+    type === "Completed Unit / Developer Unit"
+      ? "range"
+      : "single";
 
   useEffect(() => {
     if (mode === 'range') {
@@ -123,6 +128,7 @@ export default function UploadProperty() {
     setSizeInSqft(total > 0 ? total : '');
   };
 
+  // ---------- 每平方英尺价格 ----------
   useEffect(() => {
     if (mode === 'range') {
       setPricePerSqFt('');
@@ -138,6 +144,7 @@ export default function UploadProperty() {
   }, [price, sizeInSqft, mode]);
 
   const handleSubmit = async () => {
+    const { bedrooms, bathrooms, kitchens, livingRooms } = rooms;
     if (!title || !price || !address || !latitude || !longitude || images.length === 0) {
       toast.error('请填写完整信息并至少上传一张图片');
       return;
@@ -166,6 +173,8 @@ export default function UploadProperty() {
           built_year: useCustomYear ? customBuildYear : buildYear,
           bedrooms,
           bathrooms,
+          kitchens,
+          livingRooms,
           carpark,
           store,
           area: JSON.stringify(areaData),
@@ -219,22 +228,17 @@ export default function UploadProperty() {
         setLongitude(lng);
         setAddress(address);
       }} />
+
       <TypeSelector value={type} onChange={setType} />
       <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
 
-      // ... 前面 import 不变
-
-<PriceInput
-  value={price}
-  onChange={setPrice}
-  area={sizeInSqft}
-  mode={
-    type === "New Project / Under Construction" ||
-    type === "Completed Unit / Developer Unit"
-      ? "range"
-      : "single"
-  }
-/>
+      {/* ---------- 价格输入 ---------- */}
+      <PriceInput
+        value={price}
+        onChange={setPrice}
+        area={sizeInSqft}
+        mode={mode}
+      />
 
       <RoomCountSelector value={rooms} onChange={setRooms} />
       <CarparkCountSelector value={carpark} onChange={setCarpark} />
@@ -275,4 +279,4 @@ export default function UploadProperty() {
       </Button>
     </div>
   );
-}
+          }
