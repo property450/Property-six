@@ -253,7 +253,12 @@ const config = {
 />
 
     <RoomCountSelector value={rooms} onChange={setRooms} />
-    <CarparkCountSelector value={carpark} onChange={setCarpark} />
+    <CarparkCountSelector
+  value={carpark}
+  onChange={setCarpark}
+  mode={(type === "New Project / Under Construction" || type === "Completed Unit / Developer Unit") ? "range" : "single"}
+/>
+
     <ExtraSpacesSelector value={extraSpaces} onChange={setExtraSpaces} />
     <FacingSelector
       value={facing}
