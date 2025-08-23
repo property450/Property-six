@@ -1,62 +1,126 @@
-import { useState, useEffect } from "react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+// components/FloorPlanSelector.js
+"use client";
+
+import { useEffect, useRef, useState } from "react";
 import ImageUpload from "./ImageUpload";
 
-export default function FloorPlanSelector({ floorPlans, setFloorPlans }) {
-  const [floorCount, setFloorCount] = useState(1);
+// 千分位格式化
+const formatNumber = (num) => {
+  if (num === "" || num === undefined || num === null) return "";
+  const str = String(num).replace(/,/g, "");
+  if (str === "") return "";
+  return Number(str).toLocaleString();
+};
 
-  const predefinedOptions = [1,2,3,4,5,6,7,8,9,10];
+// 去除千分位
+const parseNumber = (str) => String(str || "").replace(/,/g, "");
 
-  // 当楼层数变化时，自动调整 floorPlans 数组长度
+// 下拉选项（1~10层 + 自定义）
+const FLOOR_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, "custom"];
+
+export default function FloorPlanSelector({ value = [], onChange }) {
+  const [floorCount, setFloorCount] = useState(value.length || 1);
+  const [open, setOpen] = useState(false);          // 控制下拉是否展开
+  const [isCustom, setIsCustom] = useState(false);  // 是否自定义
+  const ref = useRef(null);
+
+  // 点击页面其他地方时关闭下拉
   useEffect(() => {
-    const newPlans = [...floorPlans];
+    const onDocClick = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, []);
+
+  // 当楼层数变化时，调整数组长度
+  useEffect(() => {
+    const newPlans = [...value];
     if (floorCount > newPlans.length) {
-      // 添加空位
       for (let i = newPlans.length; i < floorCount; i++) {
         newPlans.push(null);
       }
     } else if (floorCount < newPlans.length) {
-      // 删除多余
       newPlans.length = floorCount;
     }
-    setFloorPlans(newPlans);
+    onChange(newPlans);
   }, [floorCount]);
 
-  const handleUpload = (index, url) => {
-    const newPlans = [...floorPlans];
-    newPlans[index] = url;
-    setFloorPlans(newPlans);
+  // 选择下拉选项
+  const handlePick = (opt) => {
+    if (opt === "custom") {
+      setIsCustom(true);
+      setFloorCount("");
+      setOpen(false);
+      return;
+    }
+    setIsCustom(false);
+    setFloorCount(opt);
+    setOpen(false);
   };
+
+  // 手动输入
+  const handleInput = (val) => {
+    const raw = parseNumber(val);
+    if (!/^\d*$/.test(raw)) return;
+    if (raw.length > 3) return; // 最多 999 层
+    setFloorCount(raw ? Number(raw) : "");
+  };
+
+  const renderOptions = () => {
+    return FLOOR_OPTIONS.map((opt) => {
+      const label = opt === "custom" ? "自定义" : `${opt} 层`;
+      return (
+        <li
+          key={String(opt)}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            handlePick(opt);
+          }}
+          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+        >
+          {label}
+        </li>
+      );
+    });
+  };
+
+  const display = typeof floorCount === "number" ? formatNumber(floorCount) : floorCount;
 
   return (
     <div className="space-y-3">
       <label className="font-medium">楼层数量</label>
-      <div className="flex items-center gap-2">
-        <select
-          value={floorCount}
-          onChange={(e) => setFloorCount(Number(e.target.value))}
-          className="border rounded p-2"
-        >
-          {predefinedOptions.map((num) => (
-            <option key={num} value={num}>{num} 层</option>
-          ))}
-        </select>
-        <Input
-          type="number"
-          placeholder="自定义楼层数"
-          value={floorCount}
-          onChange={(e) => setFloorCount(Number(e.target.value))}
+
+      <div className="relative" ref={ref}>
+        <input
+          type="text"
+          className="w-full border border-gray-300 rounded px-3 py-2 bg-white focus:outline-none focus:ring focus:border-blue-500"
+          placeholder={isCustom ? "请输入楼层数" : "选择或输入楼层数"}
+          value={display}
+          onChange={(e) => handleInput(e.target.value)}
+          onFocus={() => setOpen(true)}
+          onClick={() => setOpen(true)}
         />
+        {open && (
+          <ul className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+            {renderOptions()}
+          </ul>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {Array.from({ length: floorCount }).map((_, i) => (
+        {Array.from({ length: floorCount || 0 }).map((_, i) => (
           <div key={i} className="p-2 border rounded-lg">
             <p className="mb-2 font-semibold">第 {i + 1} 层 平面图</p>
             <ImageUpload
-              value={floorPlans[i]}
-              onUpload={(url) => handleUpload(i, url)}
+              value={value[i]}
+              onUpload={(url) => {
+                const newPlans = [...value];
+                newPlans[i] = url;
+                onChange(newPlans);
+              }}
             />
           </div>
         ))}
