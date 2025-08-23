@@ -64,6 +64,7 @@ export default function PriceInput({ value, onChange, area, mode }) {
 
   return (
     <div className="space-y-2 relative" ref={wrapperRef}>
+      {/* ---------- 输入框 ---------- */}
       {mode === "range" ? (
         <div className="flex gap-2">
           <input
@@ -94,7 +95,7 @@ export default function PriceInput({ value, onChange, area, mode }) {
         />
       )}
 
-      {/* 下拉选择价格 */}
+      {/* ---------- 下拉选择价格 ---------- */}
       {showDropdown && (
         <div className="absolute z-10 bg-white border rounded shadow mt-1 max-h-40 overflow-y-auto w-full">
           {predefinedPrices.map((p) => (
@@ -109,10 +110,10 @@ export default function PriceInput({ value, onChange, area, mode }) {
         </div>
       )}
 
-      {/* 每平方尺单价 */}
+      {/* ---------- 每平方尺单价 ---------- */}
       {mode !== "range" && area > 0 && singlePrice ? (
         <div>每平方尺单价: {(Number(singlePrice.replace(/,/g, "")) / area).toFixed(2)}</div>
-      )}
+      ) : null}
     </div>
   );
 }
