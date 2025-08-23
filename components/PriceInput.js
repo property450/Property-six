@@ -1,8 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 
-export default function PriceInput({ value, onChange, area }) {
+export default function PriceInput({ value, onChange, area, mode = "single" }) {
   const [showDropdown, setShowDropdown] = useState(false);
   const wrapperRef = useRef(null);
+
+  // 如果是 range 模式，用对象存 {min, max}
+  const val = typeof value === "object" ? value : { min: "", max: "" };
 
   const predefinedPrices = [
     50000, 100000, 200000, 300000, 500000,
@@ -11,14 +14,13 @@ export default function PriceInput({ value, onChange, area }) {
     50000000, 100000000,
   ];
 
-  const handleInputChange = (e) => {
-    const raw = e.target.value.replace(/[^\d]/g, '');
-    onChange(raw);
-  };
-
-  const handleSelect = (price) => {
-    onChange(price.toString());
-    setShowDropdown(false);
+  const handleInputChange = (e, key = "single") => {
+    const raw = e.target.value.replace(/[^\d]/g, "");
+    if (mode === "range") {
+      onChange({ ...val, [key]: raw });
+    } else {
+      onChange(raw);
+    }
   };
 
   useEffect(() => {
@@ -27,55 +29,65 @@ export default function PriceInput({ value, onChange, area }) {
         setShowDropdown(false);
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
-  // ✅ 每平方英尺价格计算
+  // ✅ 每平方英尺价格计算 (只在 single 模式计算)
   const perSqft =
-    area && value
+    mode === "single" && area && value
       ? (parseFloat(value) / parseFloat(area)).toFixed(2)
       : null;
 
   return (
     <div className="relative w-full" ref={wrapperRef}>
-      {/* 👇 这是“价格”文字标签 */}
       <label className="block text-sm font-medium text-gray-700">价格</label>
 
-      <div className="relative">
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">RM</span>
-        <input
-          type="text"
-          value={(value ?? "").toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
-onChange={handleInputChange}
-          onFocus={() => setShowDropdown(true)}
-          className="pl-12 pr-4 py-2 border rounded w-full"
-          placeholder="请输入价格"
-        />
-      </div>
-
-      {/* ✅ 显示每平方英尺价格 */}
-      {perSqft && (
-        <p className="text-sm text-gray-500 mt-1">
-          每平方英尺: RM {parseFloat(perSqft).toLocaleString()}
-        </p>
-      )}
-
-      {showDropdown && (
-        <ul className="absolute z-10 w-full bg-white border mt-1 max-h-60 overflow-y-auto rounded shadow">
-          {predefinedPrices.map((price) => (
-            <li
-              key={price}
-              onClick={() => handleSelect(price)}
-              className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-            >
-              RM {price.toLocaleString()}
-            </li>
-          ))}
-        </ul>
+      {mode === "single" ? (
+        <>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">RM</span>
+            <input
+              type="text"
+              value={(value ?? "").toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+              onChange={handleInputChange}
+              onFocus={() => setShowDropdown(true)}
+              className="pl-12 pr-4 py-2 border rounded w-full"
+              placeholder="请输入价格"
+            />
+          </div>
+          {perSqft && (
+            <p className="text-sm text-gray-500 mt-1">
+              每平方英尺: RM {parseFloat(perSqft).toLocaleString()}
+            </p>
+          )}
+        </>
+      ) : (
+        // 🚀 Range 模式
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">Min RM</span>
+            <input
+              type="text"
+              value={val.min.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+              onChange={(e) => handleInputChange(e, "min")}
+              className="pl-16 pr-4 py-2 border rounded w-full"
+              placeholder="最低价格"
+            />
+          </div>
+          <div className="relative flex-1">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">Max RM</span>
+            <input
+              type="text"
+              value={val.max.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+              onChange={(e) => handleInputChange(e, "max")}
+              className="pl-16 pr-4 py-2 border rounded w-full"
+              placeholder="最高价格"
+            />
+          </div>
+        </div>
       )}
     </div>
   );
