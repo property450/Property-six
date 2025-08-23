@@ -29,6 +29,7 @@ const [maxPrice, setMaxPrice] = useState('');
       saleType,
       usage,
       propertyStatus,
+      propertyStatusForUpload: propertyStatus, // <- 新增
       affordable,
       affordableType,
       tenure,
