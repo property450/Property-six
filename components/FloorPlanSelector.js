@@ -15,7 +15,7 @@ const formatNumber = (num) => {
 const parseNumber = (str) => String(str || "").replace(/,/g, "");
 
 // 下拉选项（1~10层 + 自定义）
-const FLOOR_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, "custom"];
+const FLOOR_OPTIONS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, "custom"];
 
 export default function FloorPlanSelector({ value = 0, onChange }) {
   const [count, setCount] = useState(value || 0);
