@@ -89,13 +89,6 @@ export default function UploadProperty() {
     livingRooms: ''
   });
 
-  // ---------- 新增功能：自动切换 PriceInput 模式 ----------
-  const mode =
-    type === "New Project / Under Construction" ||
-    type === "Completed Unit / Developer Unit"
-      ? "range"
-      : "single";
-
   useEffect(() => {
     if (mode === 'range') {
       if (typeof price !== 'object') setPrice({ min: '', max: '' });
@@ -229,13 +222,19 @@ export default function UploadProperty() {
       <TypeSelector value={type} onChange={setType} />
       <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
 
-      {/* 价格输入 */}
-      <PriceInput
-        value={price}
-        onChange={setPrice}
-        area={sizeInSqft}
-        mode={mode}
-      />
+      // ... 前面 import 不变
+
+<PriceInput
+  value={price}
+  onChange={setPrice}
+  area={sizeInSqft}
+  mode={
+    type === "New Project / Under Construction" ||
+    type === "Completed Unit / Developer Unit"
+      ? "range"
+      : "single"
+  }
+/>
 
       <RoomCountSelector value={rooms} onChange={setRooms} />
       <CarparkCountSelector value={carpark} onChange={setCarpark} />
