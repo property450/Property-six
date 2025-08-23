@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-export default function TypeSelector({ value, onChange }) {
+export default function TypeSelector({ value = '', onChange = () => {}, onFormChange }) {
   const [saleType, setSaleType] = useState('');
   const [usage, setUsage] = useState('');
   const [propertyStatus, setPropertyStatus] = useState('');
@@ -12,9 +12,6 @@ export default function TypeSelector({ value, onChange }) {
   const [subtype, setSubtype] = useState('');
   const [auctionDate, setAuctionDate] = useState('');
   const [showSubtype, setShowSubtype] = useState(false);
-  const [price, setPrice] = useState(''); // 单一价格
-  const [minPrice, setMinPrice] = useState('');
-  const [maxPrice, setMaxPrice] = useState('');
 
   const subtypeOptions = [
     'Penthouse',
@@ -24,12 +21,22 @@ export default function TypeSelector({ value, onChange }) {
     'None / Not Applicable',
   ];
 
+  // 初始化 finalType（如果父组件传了 value）
+  useEffect(() => {
+    if (value) setFinalType(value);
+  }, [value]);
+
+  // 当 finalType 改变时，只把 finalType（字符串）回传给父组件（你的 UploadProperty 期望的就是字符串）
+  useEffect(() => {
+    onChange(finalType);
+  }, [finalType, onChange]);
+
+  // 如果外部希望得到整个表单数据，可以传 onFormChange 回调（可选）
   useEffect(() => {
     const formData = {
       saleType,
       usage,
       propertyStatus,
-      propertyStatusForUpload: propertyStatus,
       affordable,
       affordableType,
       tenure,
@@ -37,11 +44,10 @@ export default function TypeSelector({ value, onChange }) {
       finalType,
       subtype,
       auctionDate,
-      price,
-      minPrice,
-      maxPrice,
     };
-    onChange(formData);
+    if (typeof onFormChange === 'function') {
+      onFormChange(formData);
+    }
   }, [
     saleType,
     usage,
@@ -53,9 +59,7 @@ export default function TypeSelector({ value, onChange }) {
     finalType,
     subtype,
     auctionDate,
-    price,
-    minPrice,
-    maxPrice,
+    onFormChange,
   ]);
 
   const categoryOptions = {
@@ -176,7 +180,9 @@ export default function TypeSelector({ value, onChange }) {
             <select className="w-full border rounded p-2" value={usage} onChange={(e) => setUsage(e.target.value)}>
               <option value="">请选择用途</option>
               {usageOptions.map((u) => (
-                <option key={u} value={u}>{u}</option>
+                <option key={u} value={u}>
+                  {u}
+                </option>
               ))}
             </select>
           </div>
@@ -186,7 +192,9 @@ export default function TypeSelector({ value, onChange }) {
             <select className="w-full border rounded p-2" value={propertyStatus} onChange={(e) => setPropertyStatus(e.target.value)}>
               <option value="">请选择</option>
               {saleTypeOptions.map((type) => (
-                <option key={type} value={type}>{type}</option>
+                <option key={type} value={type}>
+                  {type}
+                </option>
               ))}
             </select>
           </div>
@@ -213,7 +221,9 @@ export default function TypeSelector({ value, onChange }) {
               <select className="w-full border rounded p-2" value={affordableType} onChange={(e) => setAffordableType(e.target.value)}>
                 <option value="">请选择</option>
                 {affordableOptions.map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
                 ))}
               </select>
             </div>
@@ -224,7 +234,9 @@ export default function TypeSelector({ value, onChange }) {
             <select className="w-full border rounded p-2" value={tenure} onChange={(e) => setTenure(e.target.value)}>
               <option value="">请选择</option>
               {tenureOptions.map((t) => (
-                <option key={t} value={t}>{t}</option>
+                <option key={t} value={t}>
+                  {t}
+                </option>
               ))}
             </select>
           </div>
@@ -248,9 +260,16 @@ export default function TypeSelector({ value, onChange }) {
             >
               <option value="">请选择类别</option>
               {Object.keys(categoryOptions)
-                .filter((cat) => affordable !== 'Yes' || !['Business Property', 'Industrial Property', 'Land'].includes(cat))
+                .filter((cat) => {
+                  if (affordable === 'Yes') {
+                    return !['Business Property', 'Industrial Property', 'Land'].includes(cat);
+                  }
+                  return true;
+                })
                 .map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
                 ))}
             </select>
           </div>
@@ -265,12 +284,18 @@ export default function TypeSelector({ value, onChange }) {
                   onChange={(e) => {
                     const selected = e.target.value;
                     setFinalType(selected);
-                    setShowSubtype(category === 'Apartment / Condo / Service Residence' || category === 'Business Property');
+
+                    const shouldShow =
+                      category === 'Apartment / Condo / Service Residence' ||
+                      category === 'Business Property';
+                    setShowSubtype(shouldShow);
                   }}
                 >
                   <option value="">请选择具体类型</option>
                   {categoryOptions[category].map((item) => (
-                    <option key={item} value={item}>{item}</option>
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -278,10 +303,16 @@ export default function TypeSelector({ value, onChange }) {
               {showSubtype && (
                 <div>
                   <label className="block font-medium">Property Subtype</label>
-                  <select className="w-full border rounded p-2" value={subtype} onChange={(e) => setSubtype(e.target.value)}>
+                  <select
+                    className="w-full border rounded p-2"
+                    value={subtype}
+                    onChange={(e) => setSubtype(e.target.value)}
+                  >
                     <option value="">请选择 subtype（如有）</option>
                     {subtypeOptions.map((opt) => (
-                      <option key={opt} value={opt}>{opt}</option>
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -290,38 +321,6 @@ export default function TypeSelector({ value, onChange }) {
           )}
         </>
       )}
-
-      {/* 价格输入 */}
-      <div>
-        <label className="block font-medium">价格</label>
-        {(propertyStatus === 'New Project / Under Construction' ||
-          propertyStatus === 'Completed Unit / Developer Unit') ? (
-          <div className="flex gap-2">
-            <input
-              type="text"
-              placeholder="Min"
-              className="w-1/2 border rounded p-2"
-              value={minPrice}
-              onChange={(e) => setMinPrice(e.target.value.replace(/[^\d]/g, ""))}
-            />
-            <input
-              type="text"
-              placeholder="Max"
-              className="w-1/2 border rounded p-2"
-              value={maxPrice}
-              onChange={(e) => setMaxPrice(e.target.value.replace(/[^\d]/g, ""))}
-            />
-          </div>
-        ) : (
-          <input
-            type="text"
-            placeholder="Price"
-            className="w-full border rounded p-2"
-            value={price}
-            onChange={(e) => setPrice(e.target.value.replace(/[^\d]/g, ""))}
-          />
-        )}
-      </div>
     </div>
   );
 }
