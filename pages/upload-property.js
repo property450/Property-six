@@ -114,6 +114,7 @@ const config = {
   facilities: facilities || [],
   extraSpaces: extraSpaces || [],
   furniture: furniture || [],
+  floorPlans: Number(floorPlans) || 0,
 };
 
 
