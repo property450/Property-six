@@ -60,8 +60,11 @@ export default function UploadProperty() {
   }
 
   // ---------- 表单状态 ----------
-  const [price, setPrice] = useState(mode === "range" ? {min:"", max:""} : "");
- // PriceInput 会传回纯数字字符串 "1200000"
+  const [price, setPrice] = useState(""); // PriceInput 会传回纯数字字符串 "1200000"
+ // 根据 type 动态决定模式
+const mode = (type === "New Project / Under Construction" || type === "Completed Unit / Developer Unit") 
+  ? "range" 
+  : "single";
  const [customFacing, setCustomFacing] = useState('');
   const [facing, setFacing] = useState('');
   const [title, setTitle] = useState('');
@@ -102,11 +105,6 @@ export default function UploadProperty() {
     setLongitude(lng);
     setAddress(address);
   };
-
-// 根据 type 动态决定模式
-const mode = (type === "New Project / Under Construction" || type === "Completed Unit / Developer Unit") 
-  ? "range" 
-  : "single";
  
   // ---------- 动态生成 config ----------
 const config = {
@@ -160,6 +158,16 @@ const config = {
     const total = (buildUpSq || 0) + (landSq || 0);
     setSizeInSqft(total > 0 ? total : '');
   };
+
+ // 监听 mode 变化时，自动调整 price 的结构
+useEffect(() => {
+  if (mode === "range" && (typeof price !== "object" || price === "")) {
+    setPrice({ min: "", max: "" });
+  }
+  if (mode === "single" && typeof price === "object") {
+    setPrice("");
+  }
+}, [mode]);
 
   // 自动计算 pricePerSqFt（当 price 或 sizeInSqft 改变）
   useEffect(() => {
