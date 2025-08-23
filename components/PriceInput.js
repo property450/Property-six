@@ -14,7 +14,7 @@ export default function PriceInput({ value, onChange, area, mode = "single" }) {
   ];
 
   const formatNumber = (num) => {
-    if (!num) return "";
+    if (num === null || num === undefined || num === "") return "";
     const n = typeof num === "string" ? parseFloat(num.replace(/,/g, "")) : num;
     if (isNaN(n)) return "";
     return n.toLocaleString();
@@ -25,13 +25,15 @@ export default function PriceInput({ value, onChange, area, mode = "single" }) {
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
 
-  // ---------- 初始化 ----------
+  // ---------- 初始化 / 同步 props.value（当父组件切换 mode 或 value 时） ----------
   useEffect(() => {
     if (mode === "range") {
-      setMinPrice(value?.min || "");
-      setMaxPrice(value?.max || "");
+      // value 期望为对象 {min, max} 或空
+      setMinPrice(value?.min ?? "");
+      setMaxPrice(value?.max ?? "");
     } else {
-      setSinglePrice(value || "");
+      // value 期望为字符串数字
+      setSinglePrice(value ?? "");
     }
   }, [value, mode]);
 
@@ -54,23 +56,25 @@ export default function PriceInput({ value, onChange, area, mode = "single" }) {
     onChange({ min: minPrice, max: raw });
   };
 
+  // 选择下拉项
   const handleSelect = (price, type) => {
+    const priceStr = String(price);
     if (mode === "range") {
       if (type === "min") {
-        setMinPrice(price);
-        onChange({ min: price, max: maxPrice });
+        setMinPrice(priceStr);
+        onChange({ min: priceStr, max: maxPrice });
       } else {
-        setMaxPrice(price);
-        onChange({ min: minPrice, max: price });
+        setMaxPrice(priceStr);
+        onChange({ min: minPrice, max: priceStr });
       }
     } else {
-      setSinglePrice(price);
-      onChange(price.toString());
+      setSinglePrice(priceStr);
+      onChange(priceStr);
       setShowDropdown(false);
     }
   };
 
-  // ---------- 点击外部关闭下拉 ----------
+  // 点击外部关闭下拉
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
@@ -83,9 +87,11 @@ export default function PriceInput({ value, onChange, area, mode = "single" }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ---------- 每平方英尺价格 ----------
+  // 每平方英尺（仅 single）
   const perSqft =
-    area && singlePrice ? (parseFloat(singlePrice) / parseFloat(area)).toFixed(2) : null;
+    mode === "single" && area && singlePrice
+      ? (parseFloat(singlePrice) / parseFloat(area)).toFixed(2)
+      : null;
 
   return (
     <div className="relative w-full space-y-2" ref={wrapperRef}>
@@ -99,7 +105,10 @@ export default function PriceInput({ value, onChange, area, mode = "single" }) {
               value={formatNumber(minPrice)}
               onChange={handleMinChange}
               className="border p-2 w-full rounded"
-              onFocus={() => setShowDropdownMin(true)}
+              onFocus={() => {
+                setShowDropdownMin(true);
+                setShowDropdown(false);
+              }}
             />
             {showDropdownMin && (
               <ul className="absolute z-10 w-full bg-white border mt-1 max-h-60 overflow-y-auto rounded shadow">
@@ -124,7 +133,10 @@ export default function PriceInput({ value, onChange, area, mode = "single" }) {
               value={formatNumber(maxPrice)}
               onChange={handleMaxChange}
               className="border p-2 w-full rounded"
-              onFocus={() => setShowDropdownMax(true)}
+              onFocus={() => {
+                setShowDropdownMax(true);
+                setShowDropdown(false);
+              }}
             />
             {showDropdownMax && (
               <ul className="absolute z-10 w-full bg-white border mt-1 max-h-60 overflow-y-auto rounded shadow">
@@ -152,7 +164,11 @@ export default function PriceInput({ value, onChange, area, mode = "single" }) {
               onChange={handleSingleChange}
               className="pl-12 pr-4 py-2 border rounded w-full"
               placeholder="请输入价格"
-              onFocus={() => setShowDropdown(true)}
+              onFocus={() => {
+                setShowDropdown(true);
+                setShowDropdownMin(false);
+                setShowDropdownMax(false);
+              }}
             />
           </div>
 
