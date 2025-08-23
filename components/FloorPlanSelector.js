@@ -39,8 +39,9 @@ export default function FloorPlanSelector({ value = [], onChange }) {
   useEffect(() => {
     let newPlans = [...value];
     if (floorCount > newPlans.length) {
+      // 多出来的用 "" 占位，而不是 null
       for (let i = newPlans.length; i < floorCount; i++) {
-        newPlans.push(null);
+        newPlans.push("");
       }
     } else if (floorCount < newPlans.length) {
       newPlans.length = floorCount;
@@ -118,7 +119,7 @@ export default function FloorPlanSelector({ value = [], onChange }) {
           <div key={i} className="p-2 border rounded-lg">
             <p className="mb-2 font-semibold">第 {i + 1} 层 平面图</p>
             <ImageUpload
-              value={value[i]}
+              value={value[i] || ""}  // ✅ 确保传进去不是 null
               onUpload={(url) => {
                 const newPlans = [...value];
                 newPlans[i] = url;
