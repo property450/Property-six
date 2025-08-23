@@ -27,15 +27,14 @@ export default function UploadProperty() {
   const router = useRouter();
   const user = useUser();
 
-  // areaData 与 AreaSelector 的 onChange 返回结构一致：
   const [areaData, setAreaData] = useState({
     types: ['buildUp'],
     units: { buildUp: 'square feet', land: 'square feet' },
     values: { buildUp: '', land: '' },
   });
 
-  const [sizeInSqft, setSizeInSqft] = useState(''); // numeric value in sqft (number or empty string)
-  const [pricePerSqFt, setPricePerSqFt] = useState(''); // string like "12.34"
+  const [sizeInSqft, setSizeInSqft] = useState('');
+  const [pricePerSqFt, setPricePerSqFt] = useState('');
 
   const [carparkPosition, setCarparkPosition] = useState('');
   const [customCarparkPosition, setCustomCarparkPosition] = useState('');
@@ -47,20 +46,14 @@ export default function UploadProperty() {
   };
 
   useEffect(() => {
-    if (user === null) {
-      router.push('/login');
-    }
+    if (user === null) router.push('/login');
   }, [user, router]);
 
-  if (user === null) {
-    return <div>正在检查登录状态...</div>;
-  }
-  if (!user) {
-    return null;
-  }
+  if (user === null) return <div>正在检查登录状态...</div>;
+  if (!user) return null;
 
   // ---------- 表单状态 ----------
-  const [price, setPrice] = useState(''); // 单价时为字符串；区间时为 {min,max}
+  const [price, setPrice] = useState(''); // 单价或 {min,max} 对象
   const [customFacing, setCustomFacing] = useState('');
   const [facing, setFacing] = useState('');
   const [title, setTitle] = useState('');
@@ -68,7 +61,7 @@ export default function UploadProperty() {
   const [address, setAddress] = useState('');
   const [latitude, setLatitude] = useState(null);
   const [longitude, setLongitude] = useState(null);
-  const [images, setImages] = useState({});
+  const [images, setImages] = useState([]);
   const [coverIndex, setCoverIndex] = useState(0);
   const [type, setType] = useState('');
   const [floor, setFloor] = useState('');
@@ -85,7 +78,7 @@ export default function UploadProperty() {
   const [link, setLink] = useState('');
   const [loading, setLoading] = useState(false);
   const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 70 + 5 + 1 }, (_, i) => currentYear + 5 - i);
+  const years = Array.from({ length: 76 }, (_, i) => currentYear + 5 - i);
   const [useCustomYear, setUseCustomYear] = useState(false);
   const [customBuildYear, setCustomBuildYear] = useState('');
   const [extraSpaces, setExtraSpaces] = useState([]);
@@ -96,38 +89,22 @@ export default function UploadProperty() {
     livingRooms: ''
   });
 
-  // ---------- 关键新增：根据 type 切换模式 ----------
+  // ---------- 新增功能：自动切换 PriceInput 模式 ----------
   const mode =
     type === "New Project / Under Construction" ||
     type === "Completed Unit / Developer Unit"
       ? "range"
       : "single";
 
-  // 切换模式时，把 price 在 string 和 {min,max} 之间转换（最小改动，不影响其它逻辑）
   useEffect(() => {
     if (mode === 'range') {
       if (typeof price !== 'object') setPrice({ min: '', max: '' });
     } else {
       if (typeof price === 'object') setPrice('');
     }
-  }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mode]);
 
-  // ---------- 动态生成 config ----------
-  const config = {
-    bedrooms: rooms.bedrooms, // 保留原始值（可能是 "Studio" 或数字字符串）
-    bathrooms: Number(rooms.bathrooms) || 0,
-    kitchens: Number(rooms.kitchens) || 0,
-    livingRooms: Number(rooms.livingRooms) || 0,
-    carpark: Number(carpark) || 0,
-    storage: Number(store) || 0,
-    orientation: !!facing,
-    facilities: facilities || [],
-    extraSpaces: extraSpaces || [],
-    furniture: furniture || [],
-    floorPlans: Number(floorPlans) || 0,
-  };
-
-  // 单位转换函数（把任意 unit 转为 sqft）
+  // ---------- 单位转换 ----------
   const convertToSqft = (val, unit) => {
     const num = parseFloat(String(val || '').replace(/,/g, ''));
     if (isNaN(num) || num <= 0) return 0;
@@ -141,29 +118,18 @@ export default function UploadProperty() {
       case 'hectares':
         return num * 107639;
       default:
-        // assume square feet
         return num;
     }
   };
 
-  // 当 AreaSelector 改变时：更新 areaData，并计算 sizeInSqft = buildUp + land（都换算成 sqft）
   const handleAreaChange = (data) => {
     setAreaData(data);
-
-    const buildUpVal = data.values?.buildUp ?? '';
-    const landVal = data.values?.land ?? '';
-
-    const buildUpUnit = data.units?.buildUp ?? 'square feet';
-    const landUnit = data.units?.land ?? 'square feet';
-
-    const buildUpSq = convertToSqft(buildUpVal, buildUpUnit);
-    const landSq = convertToSqft(landVal, landUnit);
-
+    const buildUpSq = convertToSqft(data.values?.buildUp, data.units?.buildUp);
+    const landSq = convertToSqft(data.values?.land, data.units?.land);
     const total = (buildUpSq || 0) + (landSq || 0);
     setSizeInSqft(total > 0 ? total : '');
   };
 
-  // 自动计算 pricePerSqFt（仅在 single 模式计算）
   useEffect(() => {
     if (mode === 'range') {
       setPricePerSqFt('');
@@ -193,7 +159,6 @@ export default function UploadProperty() {
         .insert([{
           title,
           description,
-          // single 存数值；range 存 "min-max"
           price: mode === "range"
             ? `${price?.min || ""}-${price?.max || ""}`
             : Number(String(price).replace(/,/g, '')),
@@ -211,7 +176,6 @@ export default function UploadProperty() {
           carpark,
           store,
           area: JSON.stringify(areaData),
-          // 这里你之前写的是 amenities（未定义），和选择器不一致，会报错；改为 facilities
           facilities,
           facing: facing === '其他' ? customFacing : facing,
           carpark_position: carparkPosition === '其他（自定义）' ? customCarparkPosition : carparkPosition,
@@ -222,7 +186,6 @@ export default function UploadProperty() {
       if (error) throw error;
       const propertyId = propertyData.id;
 
-      // 上传图片
       for (let i = 0; i < images.length; i++) {
         const image = images[i];
         const fileName = `${Date.now()}_${image.name}`;
@@ -266,7 +229,7 @@ export default function UploadProperty() {
       <TypeSelector value={type} onChange={setType} />
       <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
 
-      {/* 价格输入：根据 type 自动切换 single / range */}
+      {/* 价格输入 */}
       <PriceInput
         value={price}
         onChange={setPrice}
@@ -275,7 +238,6 @@ export default function UploadProperty() {
       />
 
       <RoomCountSelector value={rooms} onChange={setRooms} />
-      {/* 如果后续你也要让车位支持区间，再给 CarparkCountSelector / CarparkLevelSelector 增加 mode 支持即可 */}
       <CarparkCountSelector value={carpark} onChange={setCarpark} />
       <ExtraSpacesSelector value={extraSpaces} onChange={setExtraSpaces} />
 
@@ -303,8 +265,7 @@ export default function UploadProperty() {
         onChange={(e) => setDescription(e.target.value)}
       />
 
-      {/* 动态生成的上传图片区域 */}
-      <ImageUpload config={config} images={images} setImages={setImages} />
+      <ImageUpload images={images} setImages={setImages} config={{}} />
 
       <Button
         onClick={handleSubmit}
@@ -315,4 +276,4 @@ export default function UploadProperty() {
       </Button>
     </div>
   );
-          }
+}
