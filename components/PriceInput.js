@@ -16,13 +16,12 @@ export default function PriceInput({ value, onChange, area, mode }) {
     return n.toLocaleString();
   };
 
-  // 单价模式输入框
+  // ---------- 内部状态 ----------
   const [singlePrice, setSinglePrice] = useState("");
-  // 区间模式输入框
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
 
-  // 初始化
+  // ---------- 初始化 ----------
   useEffect(() => {
     if (mode === "range") {
       setMinPrice(value?.min || "");
@@ -32,14 +31,13 @@ export default function PriceInput({ value, onChange, area, mode }) {
     }
   }, [value, mode]);
 
-  // 单价变化
+  // ---------- 事件 ----------
   const handleSingleChange = (e) => {
     const v = e.target.value.replace(/,/g, "");
     setSinglePrice(v);
     onChange(v);
   };
 
-  // 区间变化
   const handleMinChange = (e) => {
     const v = e.target.value.replace(/,/g, "");
     setMinPrice(v);
@@ -52,8 +50,20 @@ export default function PriceInput({ value, onChange, area, mode }) {
     onChange({ min: minPrice, max: v });
   };
 
+  const handleSelectPrice = (p) => {
+    if (mode === "range") {
+      setMinPrice(p);
+      setMaxPrice(p);
+      onChange({ min: p, max: p });
+    } else {
+      setSinglePrice(p);
+      onChange(p);
+    }
+    setShowDropdown(false);
+  };
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 relative" ref={wrapperRef}>
       {mode === "range" ? (
         <div className="flex gap-2">
           <input
@@ -62,6 +72,7 @@ export default function PriceInput({ value, onChange, area, mode }) {
             value={formatNumber(minPrice)}
             onChange={handleMinChange}
             className="border p-2 flex-1 rounded"
+            onFocus={() => setShowDropdown(true)}
           />
           <input
             type="text"
@@ -69,6 +80,7 @@ export default function PriceInput({ value, onChange, area, mode }) {
             value={formatNumber(maxPrice)}
             onChange={handleMaxChange}
             className="border p-2 flex-1 rounded"
+            onFocus={() => setShowDropdown(true)}
           />
         </div>
       ) : (
@@ -78,11 +90,29 @@ export default function PriceInput({ value, onChange, area, mode }) {
           value={formatNumber(singlePrice)}
           onChange={handleSingleChange}
           className="border p-2 w-full rounded"
+          onFocus={() => setShowDropdown(true)}
         />
       )}
+
+      {/* 下拉选择价格 */}
+      {showDropdown && (
+        <div className="absolute z-10 bg-white border rounded shadow mt-1 max-h-40 overflow-y-auto w-full">
+          {predefinedPrices.map((p) => (
+            <div
+              key={p}
+              className="px-2 py-1 hover:bg-gray-100 cursor-pointer"
+              onMouseDown={() => handleSelectPrice(p)}
+            >
+              {p.toLocaleString()}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 每平方尺单价 */}
       {mode !== "range" && area > 0 && singlePrice ? (
         <div>每平方尺单价: {(Number(singlePrice.replace(/,/g, "")) / area).toFixed(2)}</div>
-      ) : null}
+      )}
     </div>
   );
 }
