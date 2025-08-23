@@ -20,8 +20,8 @@ const FLOOR_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, "custom"];
 
 export default function FloorPlanSelector({ value = [], onChange }) {
   const [floorCount, setFloorCount] = useState(value.length || 1);
-  const [open, setOpen] = useState(false);          // 控制下拉是否展开
-  const [isCustom, setIsCustom] = useState(false);  // 是否自定义
+  const [open, setOpen] = useState(false);
+  const [isCustom, setIsCustom] = useState(false);
   const ref = useRef(null);
 
   // 点击页面其他地方时关闭下拉
@@ -35,9 +35,9 @@ export default function FloorPlanSelector({ value = [], onChange }) {
     return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
 
-  // 当楼层数变化时，调整数组长度
+  // 楼层数变化时，调整数组长度
   useEffect(() => {
-    const newPlans = [...value];
+    let newPlans = [...value];
     if (floorCount > newPlans.length) {
       for (let i = newPlans.length; i < floorCount; i++) {
         newPlans.push(null);
@@ -45,7 +45,9 @@ export default function FloorPlanSelector({ value = [], onChange }) {
     } else if (floorCount < newPlans.length) {
       newPlans.length = floorCount;
     }
-    onChange(newPlans);
+    if (typeof onChange === "function") {
+      onChange(newPlans);
+    }
   }, [floorCount]);
 
   // 选择下拉选项
@@ -69,8 +71,8 @@ export default function FloorPlanSelector({ value = [], onChange }) {
     setFloorCount(raw ? Number(raw) : "");
   };
 
-  const renderOptions = () => {
-    return FLOOR_OPTIONS.map((opt) => {
+  const renderOptions = () =>
+    FLOOR_OPTIONS.map((opt) => {
       const label = opt === "custom" ? "自定义" : `${opt} 层`;
       return (
         <li
@@ -85,9 +87,9 @@ export default function FloorPlanSelector({ value = [], onChange }) {
         </li>
       );
     });
-  };
 
-  const display = typeof floorCount === "number" ? formatNumber(floorCount) : floorCount;
+  const display =
+    typeof floorCount === "number" ? formatNumber(floorCount) : floorCount;
 
   return (
     <div className="space-y-3">
@@ -110,6 +112,7 @@ export default function FloorPlanSelector({ value = [], onChange }) {
         )}
       </div>
 
+      {/* 动态生成上传框 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {Array.from({ length: floorCount || 0 }).map((_, i) => (
           <div key={i} className="p-2 border rounded-lg">
@@ -119,7 +122,9 @@ export default function FloorPlanSelector({ value = [], onChange }) {
               onUpload={(url) => {
                 const newPlans = [...value];
                 newPlans[i] = url;
-                onChange(newPlans);
+                if (typeof onChange === "function") {
+                  onChange(newPlans);
+                }
               }}
             />
           </div>
