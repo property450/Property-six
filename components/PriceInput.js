@@ -71,7 +71,7 @@ export default function PriceInput({ value, onChange, area, mode = "single" }) {
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">Min RM</span>
             <input
               type="text"
-              value={val.min.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+              value={val.min?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") || ""}
               onChange={(e) => handleInputChange(e, "min")}
               className="pl-16 pr-4 py-2 border rounded w-full"
               placeholder="最低价格"
@@ -81,7 +81,7 @@ export default function PriceInput({ value, onChange, area, mode = "single" }) {
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">Max RM</span>
             <input
               type="text"
-              value={val.max.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+              value={val.max?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") || ""}
               onChange={(e) => handleInputChange(e, "max")}
               className="pl-16 pr-4 py-2 border rounded w-full"
               placeholder="最高价格"
