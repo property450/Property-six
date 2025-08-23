@@ -1,3 +1,4 @@
+// components/PriceInput.js
 import { useState, useRef, useEffect } from "react";
 
 function PriceDropdownInput({ value, onChange, placeholder }) {
@@ -10,7 +11,6 @@ function PriceDropdownInput({ value, onChange, placeholder }) {
     3000000, 5000000, 10000000
   ];
 
-  // 点击外部时关闭下拉
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
@@ -21,25 +21,27 @@ function PriceDropdownInput({ value, onChange, placeholder }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // 格式化千分位
   const formatNumber = (num) => {
-    if (!num) return "";
-    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    if (num === null || num === undefined || num === "") return "";
+    const n = typeof num === "number" ? num : Number(String(num).replace(/,/g, ""));
+    if (isNaN(n)) return "";
+    return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   };
 
   const parseNumber = (val) => {
-    if (!val) return "";
-    return val.toString().replace(/,/g, "");
+    if (val === null || val === undefined) return "";
+    const s = String(val).replace(/,/g, "").replace(/[^\d.-]/g, "");
+    return s === "" ? "" : s;
   };
 
   return (
     <div className="relative w-full" ref={wrapperRef}>
       <input
         type="text"
-        value={value ? formatNumber(value) : ""}
+        value={formatNumber(value)}
         onChange={(e) => {
           const raw = parseNumber(e.target.value);
-          onChange(raw ? Number(raw) : "");
+          onChange(raw === "" ? "" : Number(raw));
         }}
         onFocus={() => setShowDropdown(true)}
         placeholder={placeholder}
@@ -65,33 +67,46 @@ function PriceDropdownInput({ value, onChange, placeholder }) {
   );
 }
 
-export default function PriceInput({ status, price, setPrice, minPrice, setMinPrice, maxPrice, setMaxPrice }) {
-  const projectStatuses = ["New Project", "Under Construction", "Completed Unit", "Developer Unit"];
+export default function PriceInput({ mode = "single", price, setPrice }) {
+  // mode: "single" 或 "range"
+  const isRange = mode === "range";
 
-  // 如果是项目类，显示 Min/Max
-  if (projectStatuses.includes(status)) {
+  // helpers to update price state kept in parent (upload-property)
+  const setSinglePrice = (val) => {
+    // val is number or "" — keep parent consistent
+    setPrice(val === "" ? "" : Number(val));
+  };
+
+  const setMin = (val) => {
+    const newVal = val === "" ? "" : Number(val);
+    setPrice(prev => {
+      const base = (prev && typeof prev === "object") ? prev : {};
+      return { ...base, min: newVal };
+    });
+  };
+
+  const setMax = (val) => {
+    const newVal = val === "" ? "" : Number(val);
+    setPrice(prev => {
+      const base = (prev && typeof prev === "object") ? prev : {};
+      return { ...base, max: newVal };
+    });
+  };
+
+  if (isRange) {
+    const currentMin = (price && typeof price === "object") ? price.min : "";
+    const currentMax = (price && typeof price === "object") ? price.max : "";
     return (
       <div className="grid grid-cols-2 gap-2">
-        <PriceDropdownInput
-          value={minPrice}
-          onChange={setMinPrice}
-          placeholder="Min Price"
-        />
-        <PriceDropdownInput
-          value={maxPrice}
-          onChange={setMaxPrice}
-          placeholder="Max Price"
-        />
+        <PriceDropdownInput value={currentMin} onChange={setMin} placeholder="Min Price" />
+        <PriceDropdownInput value={currentMax} onChange={setMax} placeholder="Max Price" />
       </div>
     );
   }
 
-  // 否则单价输入
+  // single price
+  const currentPrice = (price && typeof price === "object") ? (price.min || "") : (price || "");
   return (
-    <PriceDropdownInput
-      value={price}
-      onChange={setPrice}
-      placeholder="Price"
-    />
+    <PriceDropdownInput value={currentPrice} onChange={setSinglePrice} placeholder="Price" />
   );
 }
