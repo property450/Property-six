@@ -138,6 +138,11 @@ if (config.furniture?.length) {
   });
 }
 
+    // 平面图
+    for (let i = 1; i <= (config.floorPlans || 0); i++) {
+      labels.push(`平面图${i}`);
+    }
+
     return [...new Set(labels)];
   };
 
