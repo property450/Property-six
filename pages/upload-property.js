@@ -268,7 +268,7 @@ const config = {
     />
     <FacilitiesSelector value={facilities} onChange={setFacilities} />
     <FurnitureSelector value={furniture} onChange={setFurniture} />
-        <FloorPlanSelector floorPlans={floorPlans} setFloorPlans={setFloorPlans} />
+        <FloorPlanSelector value={floorPlans} onChange={setFloorPlans} />
         <BuildYearSelector value={buildYear} onChange={setBuildYear} />
 
     <Input
