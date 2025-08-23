@@ -18,8 +18,14 @@ export default function PriceInput({ value, onChange, area, type }) {
   } else if (typeof type === "string") {
     propertyStatus = type;
   }
-  const isRange = !!(propertyStatus && propertyStatus.toString().includes("New Project"));
-
+  // ✅ 新的判断逻辑：只要包含 "New Project" 或 "Developer Unit" 就切换区间模式
+const isRange = !!(
+  propertyStatus &&
+  (
+    propertyStatus.includes("New Project") ||
+    propertyStatus.includes("Developer Unit")
+  )
+);
   // 本地状态（单价 / min / max）
   const [single, setSingle] = useState("");
   const [min, setMin] = useState("");
