@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { ReactSortable } from "react-sortablejs";
 
-export default function ImageUpload({ config, images, setImages }) {
-  
+export default function ImageUpload({ config = {}, images, setImages }) {
+
   const [localImages, setLocalImages] = useState(images || {});
 
   useEffect(() => {
