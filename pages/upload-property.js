@@ -19,6 +19,7 @@ import BuildYearSelector from '@/components/BuildYearSelector';
 import ExtraSpacesSelector from "@/components/ExtraSpacesSelector";
 import CarparkCountSelector from "@/components/CarparkCountSelector";
 import FurnitureSelector from "@/components/FurnitureSelector";
+import FloorPlanSelector from "@/components/FloorPlanSelector";
 
 const AddressSearchInput = dynamic(() => import('@/components/AddressSearchInput'), { ssr: false });
 
@@ -80,6 +81,7 @@ export default function UploadProperty() {
   const [store, setStore] = useState('');
   const [facilities, setFacilities] = useState([]);
   const [furniture, setFurniture] = useState([]);
+  const [floorPlans, setFloorPlans] = useState([]);
   const [link, setLink] = useState('');
   const [loading, setLoading] = useState(false);
   const currentYear = new Date().getFullYear();
@@ -265,6 +267,7 @@ const config = {
     />
     <FacilitiesSelector value={facilities} onChange={setFacilities} />
     <FurnitureSelector value={furniture} onChange={setFurniture} />
+        <FloorPlanSelector floorPlans={floorPlans} setFloorPlans={setFloorPlans} />
         <BuildYearSelector value={buildYear} onChange={setBuildYear} />
 
     <Input
