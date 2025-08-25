@@ -197,7 +197,8 @@ export default function UploadProperty() {
           link,
           type,
           floor,
-          built_year: useCustomYear ? customBuildYear : buildYear,
+          built_year: (useCustomYear ? customBuildYear : buildYear) + 
+            ((propertyStatus.includes("New Project") || propertyStatus.includes("Under Construction")) && quarter ? ` ${quarter}` : ""),
           bedrooms,
           bathrooms,
           carpark,
