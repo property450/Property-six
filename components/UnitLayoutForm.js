@@ -12,7 +12,7 @@ import FacilitiesSelector from "./FacilitiesSelector";
 import CarparkLevelSelector from "./CarparkLevelSelector";
 import RoomCountSelector from "./RoomCountSelector";
 import AreaSelector from "./AreaSelector";
-import ImageUpload from "./ImageUpload"; // ✅ 引入你现有的上传组件
+import ImageUpload from "./ImageUpload"; // ✅ 引入上传组件
 
 export default function UnitLayoutForm({ index, data, onChange }) {
   const [type, setType] = useState(data.type || "");
@@ -35,16 +35,13 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     livingRooms: Number(data.livingRooms) || 0,
     carpark: Number(data.carpark) || 0,
     extraSpaces: data.extraSpaces || [],
+    facilities: data.facilities || [],
+    furniture: data.furniture || [],
   };
 
   return (
     <div className="border rounded-lg p-4 shadow-sm bg-white">
       <h3 className="font-semibold mb-3">Layout {index + 1}</h3>
-
-      {/* 上传按钮（如果需要） */}
-      <button className="mb-3 px-3 py-2 bg-gray-100 border rounded hover:bg-gray-200 w-full">
-        点击上传 Layout
-      </button>
 
       {/* Type 名称 */}
       <input
@@ -58,17 +55,17 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         className="border p-2 rounded w-full mb-3"
       />
 
-      {/* ✅ 照片上传：使用你原本的 ImageUpload */}
+      {/* ✅ 照片上传：完全复用你原本的 ImageUpload */}
       <div className="mb-3">
         <label className="block mb-1 font-medium">上传照片</label>
         <ImageUpload
           config={config}
-          images={data.photos || {}}   // ✅ 照片按对象存储，和 upload-property.js 一致
+          images={data.photos || {}}   // 每个房型独立存储照片对象
           setImages={(updated) => handleChange("photos", updated)}
         />
       </div>
 
-      {/* ✅ 直接用你原本的组件 */}
+      {/* ✅ 直接用你原本的输入/选择组件 */}
       <AreaSelector
         value={data.buildUp}
         onChange={(val) => handleChange("buildUp", val)}
