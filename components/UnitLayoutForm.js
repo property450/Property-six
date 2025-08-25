@@ -47,6 +47,35 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         className="border p-2 rounded w-full mb-3"
       />
 
+          {/* 上传照片（独立绑定） */}
+<div className="mb-3">
+  <label className="block mb-1 font-medium">上传照片</label>
+  <input
+    type="file"
+    multiple
+    onChange={(e) => {
+      const files = Array.from(e.target.files);
+      handleChange("photos", files);
+    }}
+    className="border p-2 rounded w-full"
+  />
+</div>
+
+{/* 预览上传的照片 */}
+{data.photos && data.photos.length > 0 && (
+  <div className="grid grid-cols-3 gap-2 mt-2">
+    {data.photos.map((file, i) => (
+      <img
+        key={i}
+        src={URL.createObjectURL(file)}
+        alt={`photo-${i}`}
+        className="w-full h-24 object-cover rounded"
+      />
+    ))}
+  </div>
+)}
+
+
       {/* ✅ 直接用你原本的组件，不要手写 input */}
 
       <AreaSelector
@@ -118,30 +147,3 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 }
 
 
-{/* 上传照片（独立绑定） */}
-<div className="mb-3">
-  <label className="block mb-1 font-medium">上传照片</label>
-  <input
-    type="file"
-    multiple
-    onChange={(e) => {
-      const files = Array.from(e.target.files);
-      handleChange("photos", files);
-    }}
-    className="border p-2 rounded w-full"
-  />
-</div>
-
-{/* 预览上传的照片 */}
-{data.photos && data.photos.length > 0 && (
-  <div className="grid grid-cols-3 gap-2 mt-2">
-    {data.photos.map((file, i) => (
-      <img
-        key={i}
-        src={URL.createObjectURL(file)}
-        alt={`photo-${i}`}
-        className="w-full h-24 object-cover rounded"
-      />
-    ))}
-  </div>
-)}
