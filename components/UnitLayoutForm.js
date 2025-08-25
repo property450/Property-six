@@ -57,34 +57,22 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         />
       </div>
 
-          {/* 上传照片（独立绑定） */}
+          {/* ✅ 照片上传：使用原本的 ImageUpload */}
 <div className="mb-3">
   <label className="block mb-1 font-medium">上传照片</label>
-  <input
-    type="file"
-    multiple
-    onChange={(e) => {
-      const files = Array.from(e.target.files);
-      handleChange("photos", files);
+  <ImageUpload
+    config={{
+      bedrooms: Number(data.rooms) || 0,
+      bathrooms: Number(data.bathrooms) || 0,
+      kitchens: Number(data.kitchens) || 0,
+      livingRooms: Number(data.livingRooms) || 0,
+      carpark: Number(data.carpark) || 0,
+      extraSpaces: data.extraSpaces || [],
     }}
-    className="border p-2 rounded w-full"
+    images={data.photos || []}
+    setImages={(files) => handleChange("photos", files)}
   />
 </div>
-
-{/* 预览上传的照片 */}
-{data.photos && data.photos.length > 0 && (
-  <div className="grid grid-cols-3 gap-2 mt-2">
-    {data.photos.map((file, i) => (
-      <img
-        key={i}
-        src={URL.createObjectURL(file)}
-        alt={`photo-${i}`}
-        className="w-full h-24 object-cover rounded"
-      />
-    ))}
-  </div>
-)}
-
 
       {/* ✅ 直接用你原本的组件，不要手写 input */}
 
