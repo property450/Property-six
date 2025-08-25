@@ -86,7 +86,9 @@ export default function UploadProperty() {
   const [floorPlans, setFloorPlans] = useState([]);
   const [propertyStatus, setPropertyStatus] = useState('');
   const [quarter, setQuarter] = useState(''); 
-  const [unitLayouts, setUnitLayouts] = useState([]);
+  const [unitLayouts, setUnitLayouts] = useState([
+  { type: "", photos: {}, rooms: 0, bathrooms: 0, kitchens: 0, livingRooms: 0, carpark: 0, extraSpaces: [], facilities: [], furniture: [], facing: "" }
+]);
   const [link, setLink] = useState('');
   const [loading, setLoading] = useState(false);
   const currentYear = new Date().getFullYear();
