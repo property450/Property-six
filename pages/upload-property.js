@@ -294,6 +294,8 @@ export default function UploadProperty() {
   area={sizeInSqft}
   type={propertyStatus}
 />
+</>
+)
 
 
       <RoomCountSelector value={rooms} onChange={setRooms} />
