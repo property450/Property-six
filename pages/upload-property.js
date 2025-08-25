@@ -21,6 +21,7 @@ import CarparkCountSelector from "@/components/CarparkCountSelector";
 import FurnitureSelector from "@/components/FurnitureSelector";
 import FloorPlanSelector from "@/components/FloorPlanSelector";
 import UnitTypeSelector from "@/components/UnitTypeSelector";
+import UnitLayoutForm from '@/components/UnitLayoutForm';
 
 const AddressSearchInput = dynamic(() => import('@/components/AddressSearchInput'), { ssr: false });
 
@@ -85,6 +86,7 @@ export default function UploadProperty() {
   const [floorPlans, setFloorPlans] = useState([]);
   const [propertyStatus, setPropertyStatus] = useState('');
   const [quarter, setQuarter] = useState(''); 
+  const [unitLayouts, setUnitLayouts] = useState([]);
   const [link, setLink] = useState('');
   const [loading, setLoading] = useState(false);
   const currentYear = new Date().getFullYear();
@@ -189,6 +191,7 @@ export default function UploadProperty() {
         .insert([{
           title,
           description,
+          unit_layouts: JSON.stringify(unitLayouts), // 💾 存户型数据
           price: dbPrice, // ✅ 改成 dbPrice
           price_per_sq_ft: computedPricePerSqFt,
           address,
@@ -259,7 +262,28 @@ export default function UploadProperty() {
   onFormChange={(formData) => setPropertyStatus(formData.propertyStatus)}
 />
 
-    <UnitTypeSelector propertyStatus={propertyStatus} />
+    <UnitTypeSelector 
+  propertyStatus={propertyStatus}
+  onChange={(layouts) => setUnitLayouts(layouts)} // 💡 新增回调
+/>
+
+    {unitLayouts.length > 0 && (
+  <div className="space-y-4 mt-6">
+    <h2 className="text-xl font-semibold">户型详情</h2>
+    {unitLayouts.map((layout, index) => (
+      <UnitLayoutForm
+        key={index}
+        index={index}
+        data={layout}
+        onChange={(updatedLayout) => {
+          const newLayouts = [...unitLayouts];
+          newLayouts[index] = updatedLayout;
+          setUnitLayouts(newLayouts);
+        }}
+      />
+    ))}
+  </div>
+)}
 
 
       <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
