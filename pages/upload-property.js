@@ -1,4 +1,4 @@
-// pages/upload-property.js
+"use client";
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import dynamic from 'next/dynamic';
@@ -6,125 +6,86 @@ import { supabase } from '../supabaseClient';
 import { toast } from 'react-hot-toast';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import ImageUpload from '@/components/ImageUpload';
-import TypeSelector from '@/components/TypeSelector';
-import RoomCountSelector from '@/components/RoomCountSelector';
-import { useUser } from '@supabase/auth-helpers-react';
-import AreaSelector from '@/components/AreaSelector';
-import CarparkLevelSelector from '@/components/CarparkLevelSelector';
-import FacingSelector from '@/components/FacingSelector';
-import PriceInput from '@/components/PriceInput';
-import FacilitiesSelector from "@/components/FacilitiesSelector";
-import BuildYearSelector from '@/components/BuildYearSelector';
-import ExtraSpacesSelector from "@/components/ExtraSpacesSelector";
-import CarparkCountSelector from "@/components/CarparkCountSelector";
-import FurnitureSelector from "@/components/FurnitureSelector";
-import FloorPlanSelector from "@/components/FloorPlanSelector";
-import UnitTypeSelector from "@/components/UnitTypeSelector";
-import UnitLayoutForm from '@/components/UnitLayoutForm';
 
-const AddressSearchInput = dynamic(() => import('@/components/AddressSearchInput'), { ssr: false });
+import TypeSelector from '@/components/TypeSelector';
+import UnitTypeSelector from '@/components/UnitTypeSelector';
+import UnitLayoutForm from '@/components/UnitLayoutForm';
+import AreaSelector from '@/components/AreaSelector';
+import PriceInput from '@/components/PriceInput';
+import RoomCountSelector from '@/components/RoomCountSelector';
+import CarparkCountSelector from '@/components/CarparkCountSelector';
+import ExtraSpacesSelector from '@/components/ExtraSpacesSelector';
+import FacingSelector from '@/components/FacingSelector';
+import CarparkLevelSelector from '@/components/CarparkLevelSelector';
+import FacilitiesSelector from '@/components/FacilitiesSelector';
+import FurnitureSelector from '@/components/FurnitureSelector';
+import FloorPlanSelector from '@/components/FloorPlanSelector';
+import BuildYearSelector from '@/components/BuildYearSelector';
+import ImageUpload from '@/components/ImageUpload';
+
+import { useUser } from '@supabase/auth-helpers-react';
+
+const AddressSearchInput = dynamic(
+  () => import('@/components/AddressSearchInput'),
+  { ssr: false }
+);
 
 export default function UploadProperty() {
   const router = useRouter();
   const user = useUser();
 
-  // areaData 与 AreaSelector 的 onChange 返回结构一致：
-  const [areaData, setAreaData] = useState({
-    types: ['buildUp'],
-    units: { buildUp: 'square feet', land: 'square feet' },
-    values: { buildUp: '', land: '' },
-  });
-
-  const [sizeInSqft, setSizeInSqft] = useState('');
-  const [pricePerSqFt, setPricePerSqFt] = useState('');
-
-  const [carparkPosition, setCarparkPosition] = useState('');
-  const [customCarparkPosition, setCustomCarparkPosition] = useState('');
-  const handleCarparkPositionChange = (value) => {
-    setCarparkPosition(value);
-    if (value !== '其他（自定义）') {
-      setCustomCarparkPosition('');
-    }
-  };
-
   useEffect(() => {
-    if (user === null) {
-      router.push('/login');
-    }
+    if (user === null) router.push('/login');
   }, [user, router]);
 
-  if (user === null) {
-    return <div>正在检查登录状态...</div>;
-  }
-  if (!user) {
-    return null;
-  }
+  if (!user) return <div>正在检查登录状态...</div>;
 
-  // ---------- 表单状态 ----------
-  const [price, setPrice] = useState('');
-  const [customFacing, setCustomFacing] = useState('');
-  const [facing, setFacing] = useState('');
+  // ---------- 基本信息 ----------
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [address, setAddress] = useState('');
   const [latitude, setLatitude] = useState(null);
   const [longitude, setLongitude] = useState(null);
+  const [type, setType] = useState('');
+  const [propertyStatus, setPropertyStatus] = useState('');
+  const [unitLayouts, setUnitLayouts] = useState([]); // 多房型表单
+  const [singleFormData, setSingleFormData] = useState({
+    buildUp: '',
+    price: '',
+    rooms: 0,
+    bathrooms: 0,
+    kitchens: 0,
+    livingRooms: 0,
+    carpark: 0,
+    store: 0,
+    facilities: [],
+    furniture: [],
+    extraSpaces: [],
+    facing: '',
+    photos: {},
+    floorPlans: 0,
+    buildYear: '',
+    quarter: ''
+  });
+  const [areaData, setAreaData] = useState({
+    types: ['buildUp'],
+    units: { buildUp: 'square feet', land: 'square feet' },
+    values: { buildUp: '', land: '' },
+  });
+  const [sizeInSqft, setSizeInSqft] = useState('');
+  const [pricePerSqFt, setPricePerSqFt] = useState('');
   const [images, setImages] = useState([]);
   const [coverIndex, setCoverIndex] = useState(0);
-  const [type, setType] = useState('');
-  const [floor, setFloor] = useState('');
-  const [buildYear, setBuildYear] = useState('');
-  const [bedrooms, setBedrooms] = useState('');
-  const [bathrooms, setBathrooms] = useState('');
-  const [kitchens, setKitchens] = useState('');
-  const [livingRooms, setLivingRooms] = useState('');
-  const [carpark, setCarpark] = useState("");
-  const [store, setStore] = useState('');
-  const [facilities, setFacilities] = useState([]);
-  const [furniture, setFurniture] = useState([]);
-  const [floorPlans, setFloorPlans] = useState([]);
-  const [propertyStatus, setPropertyStatus] = useState('');
-  const [quarter, setQuarter] = useState(''); 
-  const [unitLayouts, setUnitLayouts] = useState([
-  { type: "", photos: {}, rooms: 0, bathrooms: 0, kitchens: 0, livingRooms: 0, carpark: 0, extraSpaces: [], facilities: [], furniture: [], facing: "" }
-]);
-  const [link, setLink] = useState('');
   const [loading, setLoading] = useState(false);
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 70 + 5 + 1 }, (_, i) => currentYear + 5 - i);
-  const [useCustomYear, setUseCustomYear] = useState(false);
-  const [customBuildYear, setCustomBuildYear] = useState('');
-  const [extraSpaces, setExtraSpaces] = useState([]);
-  const [rooms, setRooms] = useState({
-    bedrooms: '',
-    bathrooms: '',
-    kitchens: '',
-    livingRooms: ''
-  });
 
+  // ---------- 地址选择 ----------
   const handleLocationSelect = ({ lat, lng, address }) => {
     setLatitude(lat);
     setLongitude(lng);
     setAddress(address);
   };
 
-  // ---------- 动态生成 config ----------
-  const config = {
-    bedrooms: rooms.bedrooms,
-    bathrooms: Number(rooms.bathrooms) || 0,
-    kitchens: Number(rooms.kitchens) || 0,
-    livingRooms: Number(rooms.livingRooms) || 0,
-    carpark: Number(carpark) || 0,
-    storage: Number(store) || 0,
-    orientation: !!facing,
-    facilities: facilities || [],
-    extraSpaces: extraSpaces || [],
-    furniture: furniture || [],
-    floorPlans: Number(floorPlans) || 0,
-  };
-
-  // 单位转换函数
+  // ---------- 面积转换 ----------
   const convertToSqft = (val, unit) => {
     const num = parseFloat(String(val || '').replace(/,/g, ''));
     if (isNaN(num) || num <= 0) return 0;
@@ -141,105 +102,72 @@ export default function UploadProperty() {
         return num;
     }
   };
-
   const handleAreaChange = (data) => {
     setAreaData(data);
-
-    const buildUpVal = data.values?.buildUp ?? '';
-    const landVal = data.values?.land ?? '';
-
-    const buildUpUnit = data.units?.buildUp ?? 'square feet';
-    const landUnit = data.units?.land ?? 'square feet';
-
-    const buildUpSq = convertToSqft(buildUpVal, buildUpUnit);
-    const landSq = convertToSqft(landVal, landUnit);
-
-    const total = (buildUpSq || 0) + (landSq || 0);
-    setSizeInSqft(total > 0 ? total : '');
+    const buildUpSq = convertToSqft(data.values.buildUp, data.units.buildUp);
+    const landSq = convertToSqft(data.values.land, data.units.land);
+    setSizeInSqft(buildUpSq + landSq);
   };
 
   useEffect(() => {
-    const p = Number(String(price || '').replace(/,/g, '')) || 0;
-    const s = Number(sizeInSqft) || 0;
-    if (p > 0 && s > 0) {
-      setPricePerSqFt((p / s).toFixed(2));
+    const p = Number(String(singleFormData.price || '').replace(/,/g, '')) || 0;
+    if (p > 0 && sizeInSqft > 0) {
+      setPricePerSqFt((p / sizeInSqft).toFixed(2));
     } else {
       setPricePerSqFt('');
     }
-  }, [price, sizeInSqft]);
+  }, [singleFormData.price, sizeInSqft]);
 
+  // ---------- 提交 ----------
   const handleSubmit = async () => {
-    if (!title || !price || !address || !latitude || !longitude || images.length === 0) {
-      toast.error('请填写完整信息并至少上传一张图片');
+    if (!title || !address || !latitude || !longitude) {
+      toast.error('请填写完整信息');
       return;
-    }
-
-    const computedPricePerSqFt = pricePerSqFt ? Number(pricePerSqFt) : null;
-
-    // 🚀 这里是关键改动：统一处理单价和区间价格
-    let dbPrice;
-    if (price && typeof price === "object") {
-      dbPrice = `${price.min || ""}-${price.max || ""}`;
-    } else if (typeof price === "string" && price.includes("-")) {
-      dbPrice = price;
-    } else {
-      dbPrice = Number(String(price).replace(/,/g, "")) || null;
     }
 
     setLoading(true);
     try {
-      const { data: propertyData, error } = await supabase
-        .from('properties')
+      const { data: propertyData, error } = await supabase.from('properties')
         .insert([{
           title,
           description,
-          unit_layouts: JSON.stringify(unitLayouts), // 💾 存户型数据
-          price: dbPrice, // ✅ 改成 dbPrice
-          price_per_sq_ft: computedPricePerSqFt,
+          unit_layouts: JSON.stringify(unitLayouts.length > 0 ? unitLayouts : [singleFormData]),
+          price: singleFormData.price || undefined,
+          price_per_sq_ft: pricePerSqFt,
           address,
           lat: latitude,
           lng: longitude,
           user_id: user.id,
-          link,
           type,
-          floor,
-          built_year: (useCustomYear ? customBuildYear : buildYear) + 
-            ((propertyStatus.includes("New Project") || propertyStatus.includes("Under Construction")) && quarter ? ` ${quarter}` : ""),
-          bedrooms,
-          bathrooms,
-          carpark,
-          store,
+          build_year: singleFormData.buildYear,
+          bedrooms: singleFormData.rooms,
+          bathrooms: singleFormData.bathrooms,
+          carpark: singleFormData.carpark,
+          store: singleFormData.store,
           area: JSON.stringify(areaData),
-          amenities,
-          facing: facing === '其他' ? customFacing : facing,
-          carpark_position: carparkPosition === '其他（自定义）' ? customCarparkPosition : carparkPosition,
+          facilities: singleFormData.facilities,
+          furniture: singleFormData.furniture,
+          facing: singleFormData.facing,
         }])
         .select()
         .single();
-
       if (error) throw error;
+
       const propertyId = propertyData.id;
 
       // 上传图片
-      for (let i = 0; i < images.length; i++) {
-        const image = images[i];
-        const fileName = `${Date.now()}_${image.name}`;
+      const uploadImages = unitLayouts.length > 0
+        ? unitLayouts.flatMap(u => Object.values(u.photos).flat())
+        : images;
+
+      for (let i = 0; i < uploadImages.length; i++) {
+        const img = uploadImages[i];
+        const fileName = `${Date.now()}_${img.file?.name || i}`;
         const filePath = `${propertyId}/${fileName}`;
         const { error: uploadError } = await supabase.storage
           .from('property-images')
-          .upload(filePath, image);
+          .upload(filePath, img.file);
         if (uploadError) throw uploadError;
-
-        const { data: publicUrlData } = supabase.storage
-          .from('property-images')
-          .getPublicUrl(filePath);
-        const imageUrl = publicUrlData.publicUrl;
-
-        await supabase.from('property-images').insert([{
-          property_id: propertyId,
-          image_url: imageUrl,
-          is_cover: i === coverIndex,
-        }]);
       }
 
       toast.success('房源上传成功');
@@ -258,96 +186,64 @@ export default function UploadProperty() {
 
       <AddressSearchInput onLocationSelect={handleLocationSelect} />
 
-    <TypeSelector
-  value={type}
-  onChange={setType}
-  onFormChange={(formData) => setPropertyStatus(formData.propertyStatus)}
-/>
+      <TypeSelector value={type} onChange={setType} onFormChange={setPropertyStatus} />
 
-    <UnitTypeSelector 
-  propertyStatus={propertyStatus}
-  onChange={(layouts) => setUnitLayouts(layouts)} // 💡 新增回调
-/>
-
-    {/* ✅ 如果有房型 -> 显示 Layout 表单 */}
-{unitLayouts.length > 0 ? (
-  <div className="space-y-4 mt-6">
-    <h2 className="text-xl font-semibold">户型详情</h2>
-    {unitLayouts.map((layout, index) => (
-      <UnitLayoutForm
-        key={index}
-        index={index}
-        data={layout}
-        onChange={(updatedLayout) => {
-          const newLayouts = [...unitLayouts];
-          newLayouts[index] = updatedLayout;
-          setUnitLayouts(newLayouts);
-        }}
-      />
-    ))}
-  </div>
-) : (
-  <>
-  
-      <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
-      <PriceInput
-  value={price}
-  onChange={setPrice}
-  area={sizeInSqft}
-  type={propertyStatus}
-/>
-</>
-)}
-
-
-      <RoomCountSelector value={rooms} onChange={setRooms} />
-      <CarparkCountSelector
-  value={carpark}
-  onChange={setCarpark}
-  mode={
-    propertyStatus.includes("New Project") || propertyStatus.includes("Developer Unit")
-      ? "range"
-      : "single"
-  }
-/>
-
-      <ExtraSpacesSelector value={extraSpaces} onChange={setExtraSpaces} />
-      <FacingSelector
-        value={facing}
-        onChange={setFacing}
-        customValue={customFacing}
-        onCustomChange={setCustomFacing}
-      />
-      <CarparkLevelSelector
-  value={carparkPosition}
-  onChange={handleCarparkPositionChange}
-  customValue={customCarparkPosition}
-  setCustomValue={setCustomCarparkPosition}
-  mode={
-    propertyStatus.includes("New Project") || propertyStatus.includes("Developer Unit")
-      ? "range"
-      : "single"
-  }
-/>
-
-      <FacilitiesSelector value={facilities} onChange={setFacilities} />
-      <FurnitureSelector value={furniture} onChange={setFurniture} />
-      <FloorPlanSelector value={floorPlans} onChange={setFloorPlans} />
-      <BuildYearSelector
-  value={buildYear}
-  onChange={setBuildYear}
-  quarter={quarter}
-  onQuarterChange={setQuarter}
-  showQuarter={propertyStatus.includes("New Project") || propertyStatus.includes("Under Construction")}
-/>
-
-      <Input
-        placeholder="描述"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
+      <UnitTypeSelector
+        propertyStatus={propertyStatus}
+        onChange={(layouts) => setUnitLayouts(layouts)}
       />
 
-      <ImageUpload config={config} images={images} setImages={setImages} />
+      {/* ✅ 如果有房型 -> 显示多房型表单，否则显示单一表单 */}
+      {unitLayouts.length > 0 ? (
+        <div className="space-y-4 mt-6">
+          <h2 className="text-xl font-semibold">户型详情</h2>
+          {unitLayouts.map((layout, index) => (
+            <UnitLayoutForm
+              key={index}
+              index={index}
+              data={layout}
+              onChange={(updated) => {
+                const newLayouts = [...unitLayouts];
+                newLayouts[index] = updated;
+                setUnitLayouts(newLayouts);
+              }}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-4 mt-6">
+          <h2 className="text-xl font-semibold">资料输入</h2>
+          <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
+          <PriceInput
+            value={singleFormData.price}
+            onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
+          />
+          <RoomCountSelector
+            label="卧室"
+            value={singleFormData.rooms}
+            onChange={(val) => setSingleFormData({ ...singleFormData, rooms: val })}
+          />
+          <RoomCountSelector
+            label="浴室"
+            value={singleFormData.bathrooms}
+            onChange={(val) => setSingleFormData({ ...singleFormData, bathrooms: val })}
+          />
+          <ImageUpload
+            config={{
+              bedrooms: singleFormData.rooms,
+              bathrooms: singleFormData.bathrooms,
+              kitchens: singleFormData.kitchens,
+              livingRooms: singleFormData.livingRooms,
+              carpark: singleFormData.carpark,
+              extraSpaces: singleFormData.extraSpaces,
+              facilities: singleFormData.facilities,
+              furniture: singleFormData.furniture,
+            }}
+            images={singleFormData.photos}
+            setImages={(updated) => setSingleFormData({ ...singleFormData, photos: updated })}
+          />
+        </div>
+      )}
 
       <Button
         onClick={handleSubmit}
