@@ -1,6 +1,7 @@
+// components/BuildYearSelector.js
 import React, { useState, useRef, useEffect } from 'react';
 
-export default function BuildYearSelector({ value, onChange }) {
+export default function BuildYearSelector({ value, onChange, quarter, onQuarterChange, showQuarter }) {
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 70 + 5 + 1 }, (_, i) => currentYear + 5 - i);
 
@@ -38,32 +39,52 @@ export default function BuildYearSelector({ value, onChange }) {
   };
 
   return (
-    <div className="mb-4 relative" ref={containerRef}>
-      <label className="block font-medium mb-1">建造年份</label>
-      <input
-        type="text"
-        maxLength={4}
-        inputMode="numeric"
-        pattern="[0-9]*"
-        placeholder="请选择或输入建造年份"
-        className="w-full border p-2 rounded"
-        value={inputVal}
-        onChange={handleInputChange}
-        onFocus={() => setShowDropdown(true)}
-      />
-      {showDropdown && (
-        <ul className="absolute z-10 w-full max-h-40 overflow-auto border bg-white rounded mt-1 shadow-lg">
-          {years.map((year) => (
-            <li
-              key={year}
-              className="p-2 cursor-pointer hover:bg-blue-500 hover:text-white"
-              onClick={() => handleOptionClick(year)}
+    <div className="mb-4 relative">
+      <label className="block font-medium mb-1">预计交付时间</label>
+      <div className="flex gap-2 items-end">
+        <div className="flex-1 relative" ref={containerRef}>
+          <input
+            type="text"
+            maxLength={4}
+            inputMode="numeric"
+            pattern="[0-9]*"
+            placeholder="请选择或输入建造年份"
+            className="w-full border p-2 rounded"
+            value={inputVal}
+            onChange={handleInputChange}
+            onFocus={() => setShowDropdown(true)}
+          />
+          {showDropdown && (
+            <ul className="absolute z-10 w-full max-h-40 overflow-auto border bg-white rounded mt-1 shadow-lg">
+              {years.map((year) => (
+                <li
+                  key={year}
+                  className="p-2 cursor-pointer hover:bg-blue-500 hover:text-white"
+                  onClick={() => handleOptionClick(year)}
+                >
+                  {year}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {showQuarter && (
+          <div className="w-1/3">
+            <select
+              className="w-full border p-2 rounded"
+              value={quarter}
+              onChange={(e) => onQuarterChange(e.target.value)}
             >
-              {year}
-            </li>
-          ))}
-        </ul>
-      )}
+              <option value="">选择季度</option>
+              <option value="Q1">Q1</option>
+              <option value="Q2">Q2</option>
+              <option value="Q3">Q3</option>
+              <option value="Q4">Q4</option>
+            </select>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
