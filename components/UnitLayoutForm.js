@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 // ✅ 复用你现有的组件
 import PriceInput from "./PriceInput";
@@ -27,17 +27,22 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     onChange({ ...data, [field]: value });
   };
 
-  // ✅ 动态生成 config（和 upload-property.js 一致）
-  const config = {
-    bedrooms: Number(data.rooms) || 0,
-    bathrooms: Number(data.bathrooms) || 0,
-    kitchens: Number(data.kitchens) || 0,
-    livingRooms: Number(data.livingRooms) || 0,
-    carpark: Number(data.carpark) || 0,
-    extraSpaces: data.extraSpaces || [],
-    facilities: data.facilities || [],
-    furniture: data.furniture || [],
-  };
+  // ✅ 每次 data 更新时，自动生成 config
+  const [config, setConfig] = useState({});
+
+  useEffect(() => {
+    setConfig({
+      bedrooms: Number(data.rooms) || 0,
+      bathrooms: Number(data.bathrooms) || 0,
+      kitchens: Number(data.kitchens) || 0,
+      livingRooms: Number(data.livingRooms) || 0,
+      carpark: Number(data.carpark) || 0,
+      extraSpaces: data.extraSpaces || [],
+      facilities: data.facilities || [],
+      furniture: data.furniture || [],
+      orientation: data.facing || null,
+    });
+  }, [data]);
 
   return (
     <div className="border rounded-lg p-4 shadow-sm bg-white">
@@ -55,12 +60,12 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         className="border p-2 rounded w-full mb-3"
       />
 
-      {/* ✅ 照片上传：完全复用你原本的 ImageUpload */}
+      {/* ✅ 照片上传：复用 ImageUpload，并且根据 config 自动生成 */}
       <div className="mb-3">
         <label className="block mb-1 font-medium">上传照片</label>
         <ImageUpload
-          config={config}
-          images={data.photos || {}}   // 每个房型独立存储照片对象
+          config={config}                        // 💡 关键：联动房型输入
+          images={data.photos || {}}             // 每个房型独立存储照片对象
           setImages={(updated) => handleChange("photos", updated)}
         />
       </div>
