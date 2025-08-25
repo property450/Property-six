@@ -16,6 +16,12 @@ import AreaSelector from "./AreaSelector"; // 假设你原来有这个组件
 export default function UnitLayoutForm({ index, data, onChange }) {
   const [type, setType] = useState(data.type || "");
 
+  function PricePerSqft({ price, buildUp }) {
+  if (!price || !buildUp) return null;
+  const value = (price / buildUp).toFixed(2);
+  return <p className="text-sm text-gray-600">≈ RM {value} / sqft</p>;
+}
+
   const handleChange = (field, value) => {
     onChange({ ...data, [field]: value });
   };
@@ -44,15 +50,17 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       {/* ✅ 直接用你原本的组件，不要手写 input */}
 
       <AreaSelector
-        value={data.landArea}
-        onChange={(val) => handleChange("landArea", val)}
-      />
+        value={data.buildUp}
+  onChange={(val) => handleChange("buildUp", val)}
+/>
 
       <PriceInput
         value={data.price}
         onChange={(val) => handleChange("price", val)}
         type="range"
       />
+
+          <PricePerSqft price={data.price} buildUp={data.buildUp} />
 
       <RoomCountSelector
         label="卧室"
@@ -108,3 +116,32 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     </div>
   );
 }
+
+
+{/* 上传照片（独立绑定） */}
+<div className="mb-3">
+  <label className="block mb-1 font-medium">上传照片</label>
+  <input
+    type="file"
+    multiple
+    onChange={(e) => {
+      const files = Array.from(e.target.files);
+      handleChange("photos", files);
+    }}
+    className="border p-2 rounded w-full"
+  />
+</div>
+
+{/* 预览上传的照片 */}
+{data.photos && data.photos.length > 0 && (
+  <div className="grid grid-cols-3 gap-2 mt-2">
+    {data.photos.map((file, i) => (
+      <img
+        key={i}
+        src={URL.createObjectURL(file)}
+        alt={`photo-${i}`}
+        className="w-full h-24 object-cover rounded"
+      />
+    ))}
+  </div>
+)}
