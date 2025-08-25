@@ -197,26 +197,25 @@ export default function UploadProperty() {
         onChange={(layouts) => setUnitLayouts(layouts)}
       />
 
-      {/* ✅ 如果有房型 -> 显示多房型表单，否则显示单一表单 */}
-      {unitLayouts.length > 0 ? (
-        <div className="space-y-4 mt-6">
-          <h2 className="text-xl font-semibold">户型详情</h2>
-          {unitLayouts.map((layout, index) => (
-            <UnitLayoutForm
-              key={index}
-              index={index}
-              data={layout}
-              onChange={(updated) => {
-                const newLayouts = [...unitLayouts];
-                newLayouts[index] = updated;
-                setUnitLayouts(newLayouts);
-              }}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="space-y-4 mt-6">
-          <h2 className="text-xl font-semibold">资料输入</h2>
+      {/* 多房型切换逻辑 */}
+{unitLayouts.length > 0 ? (
+  <div className="space-y-4 mt-6">
+    {unitLayouts.map((layout, index) => (
+      <UnitLayoutForm
+        key={index}
+        index={index}
+        data={layout}
+        onChange={(updated) => {
+          const newLayouts = [...unitLayouts];
+          newLayouts[index] = updated;
+          setUnitLayouts(newLayouts);
+        }}
+      />
+    ))}
+  </div>
+) : (
+  <div className="space-y-4 mt-6">
+    {/* 单一表单 */}
           <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
           <PriceInput
             value={singleFormData.price}
