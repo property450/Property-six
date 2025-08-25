@@ -265,7 +265,16 @@ export default function UploadProperty() {
 
 
       <RoomCountSelector value={rooms} onChange={setRooms} />
-      <CarparkCountSelector value={carpark} onChange={setCarpark} />
+      <CarparkCountSelector
+  value={carpark}
+  onChange={setCarpark}
+  mode={
+    propertyStatus.includes("New Project") || propertyStatus.includes("Developer Unit")
+      ? "range"
+      : "single"
+  }
+/>
+
       <ExtraSpacesSelector value={extraSpaces} onChange={setExtraSpaces} />
       <FacingSelector
         value={facing}
