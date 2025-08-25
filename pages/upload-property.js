@@ -285,6 +285,7 @@ export default function UploadProperty() {
     ))}
   </div>
 ) : (
+  <>
   
       <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
       <PriceInput
