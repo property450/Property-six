@@ -29,7 +29,6 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 
   // ✅ 每次 data 更新时，自动生成 config
   const [config, setConfig] = useState({});
-
   useEffect(() => {
     setConfig({
       bedrooms: Number(data.rooms) || 0,
@@ -60,12 +59,12 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         className="border p-2 rounded w-full mb-3"
       />
 
-      {/* ✅ 照片上传：复用 ImageUpload，并且根据 config 自动生成 */}
+      {/* ✅ 照片上传：完全复用 ImageUpload.js */}
       <div className="mb-3">
         <label className="block mb-1 font-medium">上传照片</label>
         <ImageUpload
-          config={config}                        // 💡 关键：联动房型输入
-          images={data.photos || {}}             // 每个房型独立存储照片对象
+          config={config}                         // 💡 根据房型配置生成上传框架
+          images={data.photos || {}}              // 每个 Layout 独立的图片对象
           setImages={(updated) => handleChange("photos", updated)}
         />
       </div>
