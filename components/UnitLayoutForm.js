@@ -1,15 +1,19 @@
 "use client";
 import { useState } from "react";
+import PriceInput from "./PriceInput";
 import CarparkCountSelector from "./CarparkCountSelector";
 import BuildYearSelector from "./BuildYearSelector";
-// 这里可以引入你已有的 PriceRangeSelector, FacilitySelector, FurnitureSelector 等组件
+import ExtraSpacesSelector from "./ExtraSpacesSelector";
+import FacingSelector from "./FacingSelector";
+import FurnitureSelector from "./FurnitureSelector";
+import FacilitiesSelector from "./FacilitiesSelector";
+import CarparkLevelSelector from "./CarparkLevelSelector";
 
 export default function UnitLayoutForm({ index, data, onChange }) {
-  const [layout, setLayout] = useState(data.layout || null);
   const [type, setType] = useState(data.type || "");
 
   const handleChange = (field, value) => {
-    onChange({ [field]: value });
+    onChange({ ...data, [field]: value }); // ✅ 合并
   };
 
   return (
@@ -76,33 +80,98 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       </div>
 
       {/* 价格范围 */}
-      <div className="mb-3">
-        <label className="block mb-1 font-medium">价格范围</label>
-        {/* 用你现有的价格范围输入组件 */}
-      </div>
+      <PriceInput
+        value={data.price || ""}
+        onChange={(val) => handleChange("price", val)}
+        type="range"
+      />
 
       {/* 房间数量 */}
-      <div className="mb-3">
-        <label className="block mb-1 font-medium">房间数量</label>
-        <input
-          type="number"
-          className="border p-2 rounded w-full"
-          onChange={(e) => handleChange("rooms", e.target.value)}
-        />
-      </div>
+      <input
+        type="number"
+        placeholder="房间数量"
+        className="border p-2 rounded w-full mb-3"
+        onChange={(e) => handleChange("rooms", e.target.value)}
+      />
 
       {/* 浴室数量 */}
-      <div className="mb-3">
-        <label className="block mb-1 font-medium">浴室数量</label>
-        <input
-          type="number"
-          className="border p-2 rounded w-full"
-          onChange={(e) => handleChange("bathrooms", e.target.value)}
-        />
-      </div>
+      <input
+        type="number"
+        placeholder="浴室数量"
+        className="border p-2 rounded w-full mb-3"
+        onChange={(e) => handleChange("bathrooms", e.target.value)}
+      />
 
-      {/* 厨房、客厅、停车位数量范围、额外空间、朝向、家具、设施、完成日期... */}
-      {/* 都可以用你现有的组件，比如 CarparkCountSelector、BuildYearSelector 等 */}
+      {/* 厨房数量 */}
+      <input
+        type="number"
+        placeholder="厨房数量"
+        className="border p-2 rounded w-full mb-3"
+        onChange={(e) => handleChange("kitchens", e.target.value)}
+      />
+
+      {/* 客厅数量 */}
+      <input
+        type="number"
+        placeholder="客厅数量"
+        className="border p-2 rounded w-full mb-3"
+        onChange={(e) => handleChange("livingRooms", e.target.value)}
+      />
+
+      {/* 停车位数量范围 */}
+      <CarparkCountSelector
+        value={data.carpark || ""}
+        onChange={(val) => handleChange("carpark", val)}
+        mode="range"
+      />
+
+      {/* 总共有多少间 */}
+      <input
+        type="number"
+        placeholder="总套数"
+        className="border p-2 rounded w-full mb-3"
+        onChange={(e) => handleChange("totalUnits", e.target.value)}
+      />
+
+      {/* 额外空间 */}
+      <ExtraSpacesSelector
+        value={data.extraSpaces || []}
+        onChange={(val) => handleChange("extraSpaces", val)}
+      />
+
+      {/* 朝向 */}
+      <FacingSelector
+        value={data.facing || ""}
+        onChange={(val) => handleChange("facing", val)}
+      />
+
+      {/* 车位位置范围 */}
+      <CarparkLevelSelector
+        value={data.carparkPosition || ""}
+        onChange={(val) => handleChange("carparkPosition", val)}
+        mode="range"
+      />
+
+      {/* 家私 */}
+      <FurnitureSelector
+        value={data.furniture || []}
+        onChange={(val) => handleChange("furniture", val)}
+      />
+
+      {/* 设施 */}
+      <FacilitiesSelector
+        value={data.facilities || []}
+        onChange={(val) => handleChange("facilities", val)}
+      />
+
+      {/* 项目完成日期 */}
+      <BuildYearSelector
+        value={data.buildYear || ""}
+        onChange={(val) => handleChange("buildYear", val)}
+        quarter={data.quarter}
+        onQuarterChange={(val) => handleChange("quarter", val)}
+        showQuarter={true}
+      />
     </div>
   );
 }
