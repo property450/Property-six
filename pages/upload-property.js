@@ -83,6 +83,7 @@ export default function UploadProperty() {
   const [furniture, setFurniture] = useState([]);
   const [floorPlans, setFloorPlans] = useState([]);
   const [propertyStatus, setPropertyStatus] = useState('');
+  const [quarter, setQuarter] = useState(''); 
   const [link, setLink] = useState('');
   const [loading, setLoading] = useState(false);
   const currentYear = new Date().getFullYear();
@@ -297,7 +298,32 @@ export default function UploadProperty() {
       <FacilitiesSelector value={facilities} onChange={setFacilities} />
       <FurnitureSelector value={furniture} onChange={setFurniture} />
       <FloorPlanSelector value={floorPlans} onChange={setFloorPlans} />
-      <BuildYearSelector value={buildYear} onChange={setBuildYear} />
+      {propertyStatus.includes("New Project") || propertyStatus.includes("Under Construction") ? (
+  <div className="mb-4">
+    <label className="block font-medium mb-1">预计交付时间</label>
+    <div className="flex gap-2">
+      <div className="flex-1">
+        <BuildYearSelector value={buildYear} onChange={setBuildYear} />
+      </div>
+      <div className="w-1/3">
+        <select
+          className="w-full border p-2 rounded"
+          value={quarter}
+          onChange={(e) => setQuarter(e.target.value)}
+        >
+          <option value="">选择季度</option>
+          <option value="Q1">Q1</option>
+          <option value="Q2">Q2</option>
+          <option value="Q3">Q3</option>
+          <option value="Q4">Q4</option>
+        </select>
+      </div>
+    </div>
+  </div>
+) : (
+  <BuildYearSelector value={buildYear} onChange={setBuildYear} />
+)}
+  
 
       <Input
         placeholder="描述"
