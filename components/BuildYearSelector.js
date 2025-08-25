@@ -42,6 +42,7 @@ export default function BuildYearSelector({ value, onChange, quarter, onQuarterC
     <div className="mb-4 relative">
       <label className="block font-medium mb-1">预计交付时间</label>
       <div className="flex gap-2 items-end">
+        {/* 年份输入框 */}
         <div className="flex-1 relative" ref={containerRef}>
           <input
             type="text"
@@ -69,13 +70,7 @@ export default function BuildYearSelector({ value, onChange, quarter, onQuarterC
           )}
         </div>
 
-{propertyStatus.includes("New Project") || propertyStatus.includes("Under Construction") ? (
-  <div className="mb-4">
-    <label className="block font-medium mb-1">预计交付时间</label>
-    <div className="flex gap-2">
-      <div className="flex-1">
-        <BuildYearSelector value={buildYear} onChange={setBuildYear} />
-      </div>
+        {/* 季度下拉框 */}
         {showQuarter && (
           <div className="w-1/3">
             <select
