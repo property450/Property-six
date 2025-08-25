@@ -12,6 +12,7 @@ import FacilitiesSelector from "./FacilitiesSelector";
 import CarparkLevelSelector from "./CarparkLevelSelector";
 import RoomCountSelector from "./RoomCountSelector";  // 假设你原来有这个组件
 import AreaSelector from "./AreaSelector"; // 假设你原来有这个组件
+import ImageUpload from "./ImageUpload"; // ✅ 引入你现有的上传组件
 
 export default function UnitLayoutForm({ index, data, onChange }) {
   const [type, setType] = useState(data.type || "");
@@ -46,6 +47,15 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         }}
         className="border p-2 rounded w-full mb-3"
       />
+
+          {/* ✅ 用你原本的上传组件 */}
+      <div className="mb-3">
+        <label className="block mb-1 font-medium">上传照片</label>
+        <ImageUpload
+          value={data.photos || []} // 独立绑定每个房型的 photos
+          onChange={(files) => handleChange("photos", files)} 
+        />
+      </div>
 
           {/* 上传照片（独立绑定） */}
 <div className="mb-3">
