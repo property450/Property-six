@@ -252,14 +252,15 @@ export default function UploadProperty() {
       <h1 className="text-2xl font-bold mb-4">上传房源</h1>
 
       <AddressSearchInput onLocationSelect={handleLocationSelect} />
-      <UnitTypeSelector propertyStatus={propertyStatus} />
 
-    
     <TypeSelector
   value={type}
   onChange={setType}
   onFormChange={(formData) => setPropertyStatus(formData.propertyStatus)}
 />
+
+    <UnitTypeSelector propertyStatus={propertyStatus} />
+
 
       <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
       <PriceInput
