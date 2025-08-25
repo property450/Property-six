@@ -63,8 +63,8 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         <label className="block mb-1 font-medium">上传照片</label>
         <ImageUpload
           config={config}
-          images={data.photos || []}        // 每个房型独立的照片
-          setImages={(files) => handleChange("photos", files)}
+          images={data.photos || {}}   // ✅ 照片按对象存储，和 upload-property.js 一致
+          setImages={(updated) => handleChange("photos", updated)}
         />
       </div>
 
