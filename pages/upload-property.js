@@ -20,6 +20,7 @@ import ExtraSpacesSelector from "@/components/ExtraSpacesSelector";
 import CarparkCountSelector from "@/components/CarparkCountSelector";
 import FurnitureSelector from "@/components/FurnitureSelector";
 import FloorPlanSelector from "@/components/FloorPlanSelector";
+import UnitTypeSelector from "@/components/UnitTypeSelector";
 
 const AddressSearchInput = dynamic(() => import('@/components/AddressSearchInput'), { ssr: false });
 
@@ -251,7 +252,10 @@ export default function UploadProperty() {
       <h1 className="text-2xl font-bold mb-4">上传房源</h1>
 
       <AddressSearchInput onLocationSelect={handleLocationSelect} />
-      <TypeSelector
+      <UnitTypeSelector propertyStatus={propertyStatus} />
+
+    
+    <TypeSelector
   value={type}
   onChange={setType}
   onFormChange={(formData) => setPropertyStatus(formData.propertyStatus)}
