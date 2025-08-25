@@ -43,7 +43,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 
       {/* ✅ 直接用你原本的组件，不要手写 input */}
 
-      <LandAreaSelector
+      <AreaSelector
         value={data.landArea}
         onChange={(val) => handleChange("landArea", val)}
       />
