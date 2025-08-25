@@ -267,7 +267,7 @@ export default function UploadProperty() {
   onChange={(layouts) => setUnitLayouts(layouts)} // 💡 新增回调
 />
 
-    {unitLayouts.length > 0 && (
+    {unitLayouts.length > 0 ? (
   <div className="space-y-4 mt-6">
     <h2 className="text-xl font-semibold">户型详情</h2>
     {unitLayouts.map((layout, index) => (
