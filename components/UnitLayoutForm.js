@@ -12,7 +12,6 @@ import FacilitiesSelector from "./FacilitiesSelector";
 import CarparkLevelSelector from "./CarparkLevelSelector";
 import RoomCountSelector from "./RoomCountSelector";  // 假设你原来有这个组件
 import AreaSelector from "./AreaSelector"; // 假设你原来有这个组件
-import BuildUpAreaSelector from "./BuildUpAreaSelector"; // 假设你原来有这个组件
 
 export default function UnitLayoutForm({ index, data, onChange }) {
   const [type, setType] = useState(data.type || "");
