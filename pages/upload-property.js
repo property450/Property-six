@@ -285,6 +285,21 @@ export default function UploadProperty() {
   </div>
 )}
 
+  // UploadProperty.js
+{unitLayouts.map((layout, index) => (
+  <UnitLayoutForm
+    key={index}
+    index={index}
+    data={layout}
+    onChange={(newData) => {
+      const updated = [...unitLayouts];
+      updated[index] = newData;
+      setUnitLayouts(updated);
+    }}
+  />
+))}
+
+
 
       <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
       <PriceInput
