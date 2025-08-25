@@ -54,13 +54,13 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         type="range"
       />
 
-      <RoomSelector
+      <RoomCountSelector
         label="卧室"
         value={data.rooms}
         onChange={(val) => handleChange("rooms", val)}
       />
 
-      <RoomSelector
+      <RoomCountSelector
         label="浴室"
         value={data.bathrooms}
         onChange={(val) => handleChange("bathrooms", val)}
