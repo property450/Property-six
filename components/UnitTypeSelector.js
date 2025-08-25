@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import UnitLayoutForm from "./UnitLayoutForm";
 
 export default function UnitTypeSelector({ propertyStatus }) {
   const [count, setCount] = useState("");
@@ -24,7 +25,7 @@ export default function UnitTypeSelector({ propertyStatus }) {
       setCustomMode(false);
       const num = parseInt(val, 10);
       setCount(num);
-      setTypes(Array.from({ length: num }, () => ({ layout: null, type: "" })));
+      setTypes(Array.from({ length: num }, () => ({})));
     }
   };
 
@@ -33,16 +34,16 @@ export default function UnitTypeSelector({ propertyStatus }) {
       const num = val === "" ? "" : parseInt(val, 10);
       setCount(num);
       if (num) {
-        setTypes(Array.from({ length: num }, () => ({ layout: null, type: "" })));
+        setTypes(Array.from({ length: num }, () => ({})));
       } else {
         setTypes([]);
       }
     }
   };
 
-  const handleTypeNameChange = (index, val) => {
+  const updateLayout = (index, newData) => {
     const newTypes = [...types];
-    newTypes[index].type = val;
+    newTypes[index] = { ...newTypes[index], ...newData };
     setTypes(newTypes);
   };
 
@@ -75,25 +76,15 @@ export default function UnitTypeSelector({ propertyStatus }) {
         )}
       </div>
 
-      {/* 动态生成 Layout 卡片 */}
       {types.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
           {types.map((t, idx) => (
-            <div
+            <UnitLayoutForm
               key={idx}
-              className="border rounded-lg flex flex-col items-center justify-center p-4 aspect-square"
-            >
-              <button className="mb-2 px-3 py-2 bg-gray-100 border rounded hover:bg-gray-200">
-                点击上传 Layout
-              </button>
-              <input
-                type="text"
-                placeholder={`输入 Type 名称`}
-                value={t.type}
-                onChange={(e) => handleTypeNameChange(idx, e.target.value)}
-                className="border p-2 rounded w-full text-center"
-              />
-            </div>
+              index={idx}
+              data={t}
+              onChange={(newData) => updateLayout(idx, newData)}
+            />
           ))}
         </div>
       )}
