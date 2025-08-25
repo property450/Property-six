@@ -59,7 +59,9 @@ export default function CarparkCountSelector({ value, onChange, mode = "single" 
     // ---------- 范围模式 ----------
     return (
       <div className="flex flex-col" ref={ref}>
-        <label className="text-sm font-medium mb-1">停车位范围</label>
+        <label className="text-sm font-medium mb-1">
+          {mode === "range" ? "停车位范围" : "停车位"}
+        </label>
         <div className="flex gap-2">
           <input
             type="text"
@@ -85,7 +87,9 @@ export default function CarparkCountSelector({ value, onChange, mode = "single" 
 
   return (
     <div className="flex flex-col" ref={ref}>
-      <label className="text-sm font-medium mb-1">停车位</label>
+      <label className="text-sm font-medium mb-1">
+        {mode === "range" ? "停车位范围" : "停车位"}
+      </label>
       <div className="relative">
         <input
           type="text"
