@@ -285,7 +285,6 @@ export default function UploadProperty() {
   </div>
 )}
 
-  {layouts.map((layout, index) => (
   <UnitLayoutForm
     key={index}
     index={index}
