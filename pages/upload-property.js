@@ -284,25 +284,7 @@ export default function UploadProperty() {
     ))}
   </div>
 )}
-
-  {unitLayouts.length > 0 && (
-  <div className="space-y-4 mt-6">
-    <h2 className="text-xl font-semibold">户型详情</h2>
-    {unitLayouts.map((layout, index) => (
-      <UnitLayoutForm
-        key={index}
-        index={index}
-        data={layout}
-        onChange={(updatedLayout) => {
-          const newLayouts = [...unitLayouts];
-          newLayouts[index] = updatedLayout;
-          setUnitLayouts(newLayouts);
-        }}
-      />
-    ))}
-  </div>
-)}
-
+  
       <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
       <PriceInput
   value={price}
