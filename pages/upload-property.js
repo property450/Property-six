@@ -283,11 +283,17 @@ export default function UploadProperty() {
         onCustomChange={setCustomFacing}
       />
       <CarparkLevelSelector
-        value={carparkPosition}
-        onChange={handleCarparkPositionChange}
-        customValue={customCarparkPosition}
-        setCustomValue={setCustomCarparkPosition}
-      />
+  value={carparkPosition}
+  onChange={handleCarparkPositionChange}
+  customValue={customCarparkPosition}
+  setCustomValue={setCustomCarparkPosition}
+  mode={
+    propertyStatus.includes("New Project") || propertyStatus.includes("Developer Unit")
+      ? "range"
+      : "single"
+  }
+/>
+
       <FacilitiesSelector value={facilities} onChange={setFacilities} />
       <FurnitureSelector value={furniture} onChange={setFurniture} />
       <FloorPlanSelector value={floorPlans} onChange={setFloorPlans} />
