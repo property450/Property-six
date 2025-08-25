@@ -187,7 +187,7 @@ export default function UploadProperty() {
 
       <AddressSearchInput onLocationSelect={handleLocationSelect} />
 
-      <TypeSelector value={type} onChange={setType} onFormChange={setPropertyStatus} />
+      <TypeSelector value={type} onChange={setType} onFormChange={setpropertyStatus} />
 
       <UnitTypeSelector
         propertyStatus={propertyStatus}
