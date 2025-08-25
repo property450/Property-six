@@ -299,15 +299,13 @@ export default function UploadProperty() {
       <FacilitiesSelector value={facilities} onChange={setFacilities} />
       <FurnitureSelector value={furniture} onChange={setFurniture} />
       <FloorPlanSelector value={floorPlans} onChange={setFloorPlans} />
-      <BuildYearSelector 
-  value={buildYear} 
-  onChange={setBuildYear} 
+      <BuildYearSelector
+  value={buildYear}
+  onChange={setBuildYear}
   quarter={quarter}
   onQuarterChange={setQuarter}
   showQuarter={propertyStatus.includes("New Project") || propertyStatus.includes("Under Construction")}
 />
-
-  
 
       <Input
         placeholder="描述"
