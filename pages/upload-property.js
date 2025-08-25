@@ -295,7 +295,7 @@ export default function UploadProperty() {
   type={propertyStatus}
 />
 </>
-)
+)}
 
 
       <RoomCountSelector value={rooms} onChange={setRooms} />
