@@ -230,7 +230,7 @@ export default function UploadProperty() {
 
           <RoomCountSelector
             value={{
-              bedrooms: singleFormData.rooms,
+              bedrooms: singleFormData.bedrooms,
               bathrooms: singleFormData.bathrooms,
               kitchens: singleFormData.kitchens,
               livingRooms: singleFormData.livingRooms,
