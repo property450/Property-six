@@ -185,25 +185,31 @@ export default function UploadProperty() {
         onChange={setType}
         onFormChange={(formData) => setPropertyStatus(formData.propertyStatus)}
       />
-      <UnitTypeSelector
-        propertyStatus={propertyStatus}
-        onChange={(layouts) => setUnitLayouts(layouts)}
-      />
 
-        {unitLayouts.map((layout, index) => (
-  <UnitLayoutForm
-    key={index}
-    index={index}
-    data={{ ...layout, projectType: propertyStatus }}   // ✅ 传入 projectType
-    onChange={(updated) => {
-      const newLayouts = [...unitLayouts];
-      newLayouts[index] = updated;
-      setUnitLayouts(newLayouts);
-    }}
-  />
-))}
+          {/* 如果是 Developer/New 项目 → 只显示 UnitLayoutForm */}
+{propertyStatus === "New Project / Under Construction" ||
+ propertyStatus === "Completed Unit / Developer Unit" ? (
+  <>
+    <UnitTypeSelector
+      propertyStatus={propertyStatus}
+      onChange={(layouts) => setUnitLayouts(layouts)}
+    />
 
-          
+    {unitLayouts.map((layout, index) => (
+      <UnitLayoutForm
+        key={index}
+        index={index}
+        data={{ ...layout, projectType: propertyStatus }}
+        onChange={(updated) => {
+          const newLayouts = [...unitLayouts];
+          newLayouts[index] = updated;
+          setUnitLayouts(newLayouts);
+        }}
+      />
+    ))}
+  </>
+) : (
+
         <div className="space-y-4 mt-6">
           <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
           <PriceInput
