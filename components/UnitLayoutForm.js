@@ -64,7 +64,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         <label className="block mb-1 font-medium">上传照片</label>
         <ImageUpload
           config={config}
-          images={data.photos || {}}
+          images={data.photos || []}
           setImages={(updated) => handleChange("photos", updated)}
         />
       </div>
