@@ -37,10 +37,26 @@ function PricePerSqft({ price, area }) {
     maxPrice = minPrice;
   }
 
-  // ✅ 从 AreaSelector 取出面积（转换成 sqft）
-  const buildUp = parseFloat(area?.values?.buildUp || 0);
-  const land = parseFloat(area?.values?.land || 0);
-  const totalArea = (buildUp || 0) + (land || 0);
+  // ✅ 单位换算函数（和 AreaSelector 里的逻辑保持一致）
+  const convertToSqFt = (val, unit) => {
+    const num = parseFloat(val);
+    if (isNaN(num)) return 0;
+    switch (unit) {
+      case "acres":
+        return num * 43560;
+      case "hectares":
+        return num * 107639;
+      case "square meter":
+        return num * 10.7639;
+      default: // square feet
+        return num;
+    }
+  };
+
+  // ✅ 从 AreaSelector 获取数值并换算成 sqft
+  const buildUpSqft = convertToSqFt(area?.values?.buildUp, area?.units?.buildUp);
+  const landSqft = convertToSqFt(area?.values?.land, area?.units?.land);
+  const totalArea = (buildUpSqft || 0) + (landSqft || 0);
 
   if (minPrice > 0 && maxPrice > 0 && totalArea > 0) {
     const minValue = (minPrice / totalArea).toFixed(2);
