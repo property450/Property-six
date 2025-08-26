@@ -28,6 +28,14 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     onChange({ ...data, [field]: value });
   };
 
+  // ✅ 上传 layout 图片逻辑
+  const handleLayoutUpload = (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    const newPhotos = [...(data.layoutPhotos || []), ...files];
+    handleChange("layoutPhotos", newPhotos);
+  };
+
   // 每次 data 更新时生成 config
   const [config, setConfig] = useState({});
   useEffect(() => {
