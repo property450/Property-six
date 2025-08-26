@@ -190,22 +190,20 @@ export default function UploadProperty() {
         onChange={(layouts) => setUnitLayouts(layouts)}
       />
 
-      {unitLayouts.length > 0 ? (
-        <div className="space-y-4 mt-6">
-          {unitLayouts.map((layout, index) => (
-            <UnitLayoutForm
-              key={index}
-              index={index}
-              data={layout}
-              onChange={(updated) => {
-                const newLayouts = [...unitLayouts];
-                newLayouts[index] = updated;
-                setUnitLayouts(newLayouts);
-              }}
-            />
-          ))}
-        </div>
-      ) : (
+        {unitLayouts.map((layout, index) => (
+  <UnitLayoutForm
+    key={index}
+    index={index}
+    data={{ ...layout, projectType: propertyStatus }}   // ✅ 传入 projectType
+    onChange={(updated) => {
+      const newLayouts = [...unitLayouts];
+      newLayouts[index] = updated;
+      setUnitLayouts(newLayouts);
+    }}
+  />
+))}
+
+          
         <div className="space-y-4 mt-6">
           <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
           <PriceInput
