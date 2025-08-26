@@ -51,18 +51,18 @@ export default function UploadProperty() {
   const [singleFormData, setSingleFormData] = useState({
     buildUp: '',
     price: '',
-    rooms: 0,
-    bathrooms: 0,
-    kitchens: 0,
-    livingRooms: 0,
-    carpark: 0,
-    store: 0,
+    rooms: '',
+    bathrooms: '',
+    kitchens: '',
+    livingRooms: '',
+    carpark: '',
+    store: '',
     facilities: [],
     furniture: [],
     extraSpaces: [],
     facing: '',
     photos: {},
-    floorPlans: 0,
+    floorPlans: '',
     buildYear: '',
     quarter: ''
   });
@@ -213,8 +213,18 @@ export default function UploadProperty() {
             onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
           />
               
-<RoomCountSelector value={rooms} onChange={setRooms} />
-              
+<RoomCountSelector
+  value={{
+    bedrooms: singleFormData.rooms,
+    bathrooms: singleFormData.bathrooms,
+    kitchens: singleFormData.kitchens,
+    livingRooms: singleFormData.livingRooms,
+  }}
+  onChange={(updated) =>
+    setSingleFormData({ ...singleFormData, ...updated })
+  }
+/>
+
           <CarparkCountSelector
             value={singleFormData.carpark}
             onChange={(val) => setSingleFormData({ ...singleFormData, carpark: val })}
