@@ -49,13 +49,11 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 
   {/* 固定的 Layout 照片上传 */}
 <div className="mb-3">
-  <label className="block mb-1 font-medium">上传 Layout 照片</label>
   <ImageUpload
     images={data.layoutPhotos || []}
     setImages={(updated) => handleChange("layoutPhotos", updated)}
   />
 </div>
-
 
       {/* Type 名称 */}
       <input
