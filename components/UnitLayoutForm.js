@@ -18,12 +18,29 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   const [type, setType] = useState(data.type || "");
   const fileInputRef = useRef(null); // ✅ 这里加上
   
-  function PricePerSqft({ price, buildUp }) {
-    if (!price || !buildUp) return null;
-    const value = (price / buildUp).toFixed(2);
-    return <p className="text-sm text-gray-600">≈ RM {value} / sqft</p>;
-  }
+  function PricePerSqft({ price, buildUp, type }) {
+  if (!buildUp || buildUp <= 0) return null;
 
+  // ✅ range 模式 (min/max)
+  if (
+    type === "New Project / Under Construction" ||
+    type === "Completed Unit / Developer Unit"
+  ) {
+    const min = Number(price?.min) || 0;
+    const max = Number(price?.max) || 0;
+
+    if (min > 0 && max > 0) {
+      const minValue = (min / buildUp).toFixed(2);
+      const maxValue = (max / buildUp).toFixed(2);
+      return (
+        <p className="text-sm text-gray-600">
+          ≈ RM {minValue} – RM {maxValue} / sqft
+        </p>
+      );
+    }
+    return null;
+  }
+    
   const handleChange = (field, value) => {
     onChange({ ...data, [field]: value });
   };
