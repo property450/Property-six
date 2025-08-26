@@ -16,7 +16,8 @@ import ImageUpload from "./ImageUpload";
 
 export default function UnitLayoutForm({ index, data, onChange }) {
   const [type, setType] = useState(data.type || "");
-
+  const fileInputRef = useRef(null); // ✅ 这里加上
+  
   function PricePerSqft({ price, buildUp }) {
     if (!price || !buildUp) return null;
     const value = (price / buildUp).toFixed(2);
