@@ -50,7 +50,7 @@ export default function UploadProperty() {
   const [singleFormData, setSingleFormData] = useState({
     buildUp: "",
     price: "",
-    rooms: "",
+    bedrooms: "",
     bathrooms: "",
     kitchens: "",
     livingRooms: "",
