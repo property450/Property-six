@@ -303,7 +303,7 @@ export default function UploadProperty() {
 
           <ImageUpload
             config={{
-              bedrooms: singleFormData.rooms,
+              bedrooms: singleFormData.bedrooms,
               bathrooms: singleFormData.bathrooms,
               kitchens: singleFormData.kitchens,
               livingRooms: singleFormData.livingRooms,
