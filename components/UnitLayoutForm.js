@@ -95,10 +95,11 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 />
 
       {/* 🚗 停车位选择 */}
+{/* 🚗 停车位选择 */}
 <CarparkCountSelector
-  value={singleFormData.carpark}
-  onChange={(val) => setSingleFormData({ ...singleFormData, carpark: val })}
-  mode={propertyStatus === "new" || propertyStatus === "developer" ? "range" : "single"}   // ✅ 动态切换
+  value={data.carpark}
+  onChange={(val) => handleChange("carpark", val)}
+  mode={data.projectType === "new" || data.projectType === "developer" ? "range" : "single"} 
 />
 
       <ExtraSpacesSelector
