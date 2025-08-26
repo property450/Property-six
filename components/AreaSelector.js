@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 const AREA_TYPES = [
   { label: "Build up Area", value: "buildUp" },
@@ -7,117 +7,89 @@ const AREA_TYPES = [
 ];
 
 const UNITS = ["square feet", "square meter", "acres", "hectares"];
-
 const COMMON_VALUES = Array.from({ length: 149 }, (_, i) => 200 + i * 200); // 200–30,000
 
 export default function AreaSelector({ onChange = () => {}, initialValue = {} }) {
   const [selectedTypes, setSelectedTypes] = useState(initialValue.types || ["buildUp"]);
-
   const [units, setUnits] = useState({
     buildUp: initialValue.units?.buildUp || UNITS[0],
     land: initialValue.units?.land || UNITS[0],
   });
+  const [areaValues, setAreaValues] = useState(initialValue.values || { buildUp: "", land: "" });
+  const [displayValues, setDisplayValues] = useState({ buildUp: "", land: "" });
+  const [dropdownOpen, setDropdownOpen] = useState({ buildUp: false, land: false });
 
-  const [areaValues, setAreaValues] = useState(initialValue.values || {
-    buildUp: "",
-    land: "",
-  });
+  const wrapperRef = useRef({ buildUp: null, land: null });
 
-  const [displayValues, setDisplayValues] = useState({
-    buildUp: "",
-    land: "",
-  });
-
-  const [rawInputValues, setRawInputValues] = useState({
-    buildUp: "",
-    land: "",
-  });
+  // 点击外部关闭下拉
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      AREA_TYPES.forEach((type) => {
+        if (wrapperRef.current[type.value] && !wrapperRef.current[type.value].contains(event.target)) {
+          setDropdownOpen((prev) => ({ ...prev, [type.value]: false }));
+        }
+      });
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
-    if (selectedTypes.length === 0) {
-      setSelectedTypes(["buildUp"]);
-    }
+    if (selectedTypes.length === 0) setSelectedTypes(["buildUp"]);
   }, [selectedTypes]);
 
   useEffect(() => {
-    onChange({
-      types: selectedTypes,
-      units,
-      values: areaValues,
-    });
+    onChange({ types: selectedTypes, units, values: areaValues });
   }, [selectedTypes, units, areaValues]);
 
   const handleCheckboxChange = (value) => {
-  setSelectedTypes((prev) => {
-    if (prev.includes(value)) {
-      if (prev.length > 1) {
-        setAreaValues((prevVals) => ({ ...prevVals, [value]: "" }));
-        setRawInputValues((prevVals) => ({ ...prevVals, [value]: "" }));
-        setDisplayValues((prevVals) => ({ ...prevVals, [value]: "" }));
-
-        return prev.filter((v) => v !== value);
-      } else {
-        return prev;
-      }
-    } else {
-      return [...prev, value];
-    }
-  });
-};
+    setSelectedTypes((prev) => {
+      if (prev.includes(value)) {
+        if (prev.length > 1) {
+          setAreaValues((prevVals) => ({ ...prevVals, [value]: "" }));
+          setDisplayValues((prevVals) => ({ ...prevVals, [value]: "" }));
+          return prev.filter((v) => v !== value);
+        } else return prev;
+      } else return [...prev, value];
+    });
+  };
 
   const handleUnitChange = (type, unitVal) => {
     setUnits((prev) => ({ ...prev, [type]: unitVal }));
   };
-const handleValueChange = (type, input) => {
-  // 清除逗号
-  const plain = input.replace(/,/g, "");
 
-  // 校验合法输入：数字、小数点，只允许一个小数点
-  if (!/^\d*\.?\d*$/.test(plain)) return;
+  const handleInputChange = (type, input) => {
+    const plain = input.replace(/,/g, "");
+    if (!/^\d*\.?\d*$/.test(plain)) return;
 
-  // 限制最多 3 位小数
-  const parts = plain.split(".");
-  if (parts[1]?.length > 3) return;
+    const parts = plain.split(".");
+    if (parts[1]?.length > 3) return;
 
-  // 更新数值（提交用）
-  setAreaValues((prev) => ({ ...prev, [type]: plain }));
+    setAreaValues((prev) => ({ ...prev, [type]: plain }));
 
-  // 判断是否为小数点结尾，例如 "1234." 或 "0."
-  const isDotEnd = plain.endsWith(".") && parts.length === 2;
-  const isDecimalTyping = parts.length === 2 && !parts[1].endsWith("0") && input.endsWith("0");
-
-  // 格式化显示的值（带千分位），但保留小数点和正在输入的小数部分
-  let formatted = Number(plain).toLocaleString(undefined, {
-    minimumFractionDigits: parts[1]?.length || 0,
-    maximumFractionDigits: 3,
-  });
-
-  if (isDotEnd) {
-    formatted += ".";
-  } else if (isDecimalTyping) {
-    formatted += "0";
-  }
-
-  // 显示格式化值（含千分位）
-  setRawInputValues((prev) => ({ ...prev, [type]: formatted }));
-};
-
-  const handleSelectCommon = (type, val) => {
-    const str = String(val);
-    const formatted = Number(str).toLocaleString(undefined, {
+    let formatted = Number(plain).toLocaleString(undefined, {
+      minimumFractionDigits: parts[1]?.length || 0,
       maximumFractionDigits: 3,
     });
 
+    if (plain.endsWith(".")) formatted += ".";
+    if (parts.length === 2 && !parts[1].endsWith("0") && input.endsWith("0")) formatted += "0";
+
+    setDisplayValues((prev) => ({ ...prev, [type]: formatted }));
+  };
+
+  const handleSelectCommon = (type, val) => {
+    const str = String(val);
+    const formatted = Number(str).toLocaleString();
     setAreaValues((prev) => ({ ...prev, [type]: str }));
     setDisplayValues((prev) => ({ ...prev, [type]: formatted }));
-    setRawInputValues((prev) => ({ ...prev, [type]: formatted }));
+    setDropdownOpen((prev) => ({ ...prev, [type]: false }));
   };
 
   const convertToSqFt = (val, unit) => {
     const num = parseFloat(val);
     if (isNaN(num)) return "";
     let result;
-
     switch (unit) {
       case "acres":
         result = num * 43560;
@@ -131,7 +103,6 @@ const handleValueChange = (type, input) => {
       default:
         result = num;
     }
-
     return result.toLocaleString(undefined, { maximumFractionDigits: 2 });
   };
 
@@ -139,10 +110,10 @@ const handleValueChange = (type, input) => {
     const label = AREA_TYPES.find((t) => t.value === type)?.label;
     const unit = units[type];
     const val = areaValues[type] || "";
-    const displayVal = rawInputValues[type] || "";
+    const displayVal = displayValues[type] || "";
 
     return (
-      <div key={type} className="mb-6">
+      <div key={type} className="mb-6" ref={(el) => (wrapperRef.current[type] = el)}>
         <label className="block font-semibold mb-2">{label} Unit</label>
         <select
           className="border px-3 py-2 w-full mb-2 rounded"
@@ -157,36 +128,30 @@ const handleValueChange = (type, input) => {
         </select>
 
         <label className="block font-medium mb-1">{label} Size</label>
-        <div className="flex gap-2 mb-2">
-          <select
-            className="border px-3 py-2 w-1/2 rounded"
-            onChange={(e) => {
-              if (e.target.value !== "") {
-                handleSelectCommon(type, e.target.value);
-              }
-            }}
-          >
-            <option value="">选择常用值</option>
-            {COMMON_VALUES.map((v) => (
-              <option key={v} value={v}>
-                {v.toLocaleString()} {unit}
-              </option>
-            ))}
-          </select>
+        <div className="relative">
+          <input
+            type="text"
+            value={displayVal}
+            onChange={(e) => handleInputChange(type, e.target.value)}
+            onFocus={() => setDropdownOpen((prev) => ({ ...prev, [type]: true }))}
+            placeholder="输入面积或选择常用值"
+            className="border px-3 py-2 pr-20 w-full rounded"
+          />
+          <span className="absolute right-3 top-2.5 text-gray-500 pointer-events-none">{unit}</span>
 
-          <div className="relative w-1/2">
-            <input
-              type="text"
-              inputMode="decimal"
-              value={displayVal}
-              onChange={(e) => handleValueChange(type, e.target.value)}
-              placeholder="输入面积"
-              className="border px-3 py-2 pr-20 w-full rounded"
-            />
-            <span className="absolute right-3 top-2.5 text-gray-500 pointer-events-none">
-              {unit}
-            </span>
-          </div>
+          {dropdownOpen[type] && (
+            <ul className="absolute z-10 w-full bg-white border mt-1 max-h-60 overflow-y-auto rounded shadow">
+              {COMMON_VALUES.map((v) => (
+                <li
+                  key={v}
+                  onClick={() => handleSelectCommon(type, v)}
+                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                >
+                  {v.toLocaleString()} {unit}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         {val && (
