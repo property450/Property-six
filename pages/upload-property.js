@@ -26,254 +26,267 @@ import ImageUpload from '@/components/ImageUpload';
 import { useUser } from '@supabase/auth-helpers-react';
 
 const AddressSearchInput = dynamic(
-  () => import('@/components/AddressSearchInput'),
-  { ssr: false }
+  () => import('@/components/AddressSearchInput'),
+  { ssr: false }
 );
 
 export default function UploadProperty() {
-  const router = useRouter();
-  const user = useUser();
+  const router = useRouter();
+  const user = useUser();
 
-  useEffect(() => {
-    if (user === null) router.push('/login');
-  }, [user, router]);
+  useEffect(() => {
+    if (user === null) router.push('/login');
+  }, [user, router]);
 
-  if (!user) return <div>正在检查登录状态...</div>;
+  if (!user) return <div>正在检查登录状态...</div>;
 
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [address, setAddress] = useState('');
-  const [latitude, setLatitude] = useState(null);
-  const [longitude, setLongitude] = useState(null);
-  const [type, setType] = useState('');
-  const [propertyStatus, setPropertyStatus] = useState('');
-  const [unitLayouts, setUnitLayouts] = useState([]);
-  const [singleFormData, setSingleFormData] = useState({
-    buildUp: '',
-    price: '',
-    rooms: '',
-    bathrooms: '',
-    kitchens: '',
-    livingRooms: '',
-    carpark: '',
-    store: '',
-    facilities: [],
-    furniture: [],
-    extraSpaces: [],
-    facing: '',
-    photos: {},
-    floorPlans: '',
-    buildYear: '',
-    quarter: ''
-  });
-  const [areaData, setAreaData] = useState({
-    types: ['buildUp'],
-    units: { buildUp: 'square feet', land: 'square feet' },
-    values: { buildUp: '', land: '' },
-  });
-  const [sizeInSqft, setSizeInSqft] = useState('');
-  const [pricePerSqFt, setPricePerSqFt] = useState('');
-  const [images, setImages] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [address, setAddress] = useState('');
+  const [latitude, setLatitude] = useState(null);
+  const [longitude, setLongitude] = useState(null);
+  const [type, setType] = useState('');
+  const [propertyStatus, setPropertyStatus] = useState('');
+  const [unitLayouts, setUnitLayouts] = useState([]);
+  const [singleFormData, setSingleFormData] = useState({
+    buildUp: '',
+    price: '',
+    rooms: '',
+    bathrooms: '',
+    kitchens: '',
+    livingRooms: '',
+    carpark: '',
+    store: '',
+    facilities: [],
+    furniture: [],
+    extraSpaces: [],
+    facing: '',
+    photos: {},
+    floorPlans: '',
+    buildYear: '',
+    quarter: ''
+  });
+  const [areaData, setAreaData] = useState({
+    types: ['buildUp'],
+    units: { buildUp: 'square feet', land: 'square feet' },
+    values: { buildUp: '', land: '' },
+  });
+  const [sizeInSqft, setSizeInSqft] = useState('');
+  const [pricePerSqFt, setPricePerSqFt] = useState('');
+  const [images, setImages] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const handleLocationSelect = ({ lat, lng, address }) => {
-    setLatitude(lat);
-    setLongitude(lng);
-    setAddress(address);
-  };
+  const handleLocationSelect = ({ lat, lng, address }) => {
+    setLatitude(lat);
+    setLongitude(lng);
+    setAddress(address);
+  };
 
-  const convertToSqft = (val, unit) => {
-    const num = parseFloat(String(val || '').replace(/,/g, ''));
-    if (isNaN(num) || num <= 0) return 0;
-    switch (unit) {
-      case 'square meter':
-      case 'square metres':
-      case 'sq m':
-        return num * 10.7639;
-      case 'acres':
-        return num * 43560;
-      case 'hectares':
-        return num * 107639;
-      default:
-        return num;
-    }
-  };
-  const handleAreaChange = (data) => {
-    setAreaData(data);
-    const buildUpSq = convertToSqft(data.values.buildUp, data.units.buildUp);
-    const landSq = convertToSqft(data.values.land, data.units.land);
-    setSizeInSqft(buildUpSq + landSq);
-  };
+  const convertToSqft = (val, unit) => {
+    const num = parseFloat(String(val || '').replace(/,/g, ''));
+    if (isNaN(num) || num <= 0) return 0;
+    switch (unit) {
+      case 'square meter':
+      case 'square metres':
+      case 'sq m':
+        return num * 10.7639;
+      case 'acres':
+        return num * 43560;
+      case 'hectares':
+        return num * 107639;
+      default:
+        return num;
+    }
+  };
+  const handleAreaChange = (data) => {
+    setAreaData(data);
+    const buildUpSq = convertToSqft(data.values.buildUp, data.units.buildUp);
+    const landSq = convertToSqft(data.values.land, data.units.land);
+    setSizeInSqft(buildUpSq + landSq);
+  };
 
-  useEffect(() => {
-    const p = Number(String(singleFormData.price || '').replace(/,/g, '')) || 0;
-    if (p > 0 && sizeInSqft > 0) {
-      setPricePerSqFt((p / sizeInSqft).toFixed(2));
-    } else {
-      setPricePerSqFt('');
-    }
-  }, [singleFormData.price, sizeInSqft]);
+  useEffect(() => {
+    const p = Number(String(singleFormData.price || '').replace(/,/g, '')) || 0;
+    if (p > 0 && sizeInSqft > 0) {
+      setPricePerSqFt((p / sizeInSqft).toFixed(2));
+    } else {
+      setPricePerSqFt('');
+    }
+  }, [singleFormData.price, sizeInSqft]);
 
-  const handleSubmit = async () => {
-    if (!title || !address || !latitude || !longitude) {
-      toast.error('请填写完整信息');
-      return;
-    }
+  const handleSubmit = async () => {
+    if (!title || !address || !latitude || !longitude) {
+      toast.error('请填写完整信息');
+      return;
+    }
 
-    setLoading(true);
-    try {
-      const { data: propertyData, error } = await supabase.from('properties')
-        .insert([{
-          title,
-          description,
-          unit_layouts: JSON.stringify(unitLayouts.length > 0 ? unitLayouts : [singleFormData]),
-          price: singleFormData.price || undefined,
-          price_per_sq_ft: pricePerSqFt,
-          address,
-          lat: latitude,
-          lng: longitude,
-          user_id: user.id,
-          type,
-          build_year: singleFormData.buildYear,
-          bedrooms: singleFormData.rooms,
-          bathrooms: singleFormData.bathrooms,
-          carpark: singleFormData.carpark,
-          store: singleFormData.store,
-          area: JSON.stringify(areaData),
-          facilities: singleFormData.facilities,
-          furniture: singleFormData.furniture,
-          facing: singleFormData.facing,
-        }])
-        .select()
-        .single();
-      if (error) throw error;
+    setLoading(true);
+    try {
+      const { data: propertyData, error } = await supabase.from('properties')
+        .insert([{
+          title,
+          description,
+          unit_layouts: JSON.stringify(unitLayouts.length > 0 ? unitLayouts : [singleFormData]),
+          price: singleFormData.price || undefined,
+          price_per_sq_ft: pricePerSqFt,
+          address,
+          lat: latitude,
+          lng: longitude,
+          user_id: user.id,
+          type,
+          build_year: singleFormData.buildYear,
+          bedrooms: singleFormData.rooms,
+          bathrooms: singleFormData.bathrooms,
+          carpark: singleFormData.carpark,
+          store: singleFormData.store,
+          area: JSON.stringify(areaData),
+          facilities: singleFormData.facilities,
+          furniture: singleFormData.furniture,
+          facing: singleFormData.facing,
+        }])
+        .select()
+        .single();
+      if (error) throw error;
 
-      const propertyId = propertyData.id;
+      const propertyId = propertyData.id;
 
-      const uploadImages = unitLayouts.length > 0
-        ? unitLayouts.flatMap(u => Object.values(u.photos).flat())
-        : images;
+      const uploadImages = unitLayouts.length > 0
+        ? unitLayouts.flatMap(u => Object.values(u.photos).flat())
+        : images;
 
-      for (let i = 0; i < uploadImages.length; i++) {
-        const img = uploadImages[i];
-        const fileName = `${Date.now()}_${img.file?.name || i}`;
-        const filePath = `${propertyId}/${fileName}`;
-        const { error: uploadError } = await supabase.storage
-          .from('property-images')
-          .upload(filePath, img.file);
-        if (uploadError) throw uploadError;
-      }
+      for (let i = 0; i < uploadImages.length; i++) {
+        const img = uploadImages[i];
+        const fileName = `${Date.now()}_${img.file?.name || i}`;
+        const filePath = `${propertyId}/${fileName}`;
+        const { error: uploadError } = await supabase.storage
+          .from('property-images')
+          .upload(filePath, img.file);
+        if (uploadError) throw uploadError;
+      }
 
-      toast.success('房源上传成功');
-      router.push('/');
-    } catch (err) {
-      console.error(err);
-      toast.error('上传失败，请检查控制台');
-    } finally {
-      setLoading(false);
-    }
-  };
+      toast.success('房源上传成功');
+      router.push('/');
+    } catch (err) {
+      console.error(err);
+      toast.error('上传失败，请检查控制台');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  return (
-    <div className="max-w-3xl mx-auto p-4 space-y-4">
-      <h1 className="text-2xl font-bold mb-4">上传房源</h1>
+  return (
+    <div className="max-w-3xl mx-auto p-4 space-y-4">
+      <h1 className="text-2xl font-bold mb-4">上传房源</h1>
 
-      <AddressSearchInput onLocationSelect={handleLocationSelect} />
+      <AddressSearchInput onLocationSelect={handleLocationSelect} />
 
-      <TypeSelector
-        value={type}
-        onChange={setType}
-        onFormChange={(formData) => setPropertyStatus(formData.propertyStatus)}
-      />
-      <UnitTypeSelector
-        propertyStatus={propertyStatus}
-        onChange={(layouts) => setUnitLayouts(layouts)}
-      />
+      <TypeSelector
+        value={type}
+        onChange={setType}
+        onFormChange={(formData) => setPropertyStatus(formData.propertyStatus)}
+      />
+      <UnitTypeSelector
+        propertyStatus={propertyStatus}
+        onChange={(layouts) => setUnitLayouts(layouts)}
+      />
 
-        {unitLayouts.length === 0 && (
-  <div className="space-y-4 mt-6">
-    <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
-    <PriceInput
-      value={singleFormData.price}
-      onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
-    />
+        {unitLayouts.map((layout, index) => (
+  <UnitLayoutForm
+    key={index}
+    index={index}
+    data={{ ...layout, projectType: propertyStatus }}   // ✅ 传入 projectType
+    onChange={(updated) => {
+      const newLayouts = [...unitLayouts];
+      newLayouts[index] = updated;
+      setUnitLayouts(newLayouts);
+    }}
+  />
+))}
 
-    <RoomCountSelector
-      value={{
-        bedrooms: singleFormData.rooms,
-        bathrooms: singleFormData.bathrooms,
-        kitchens: singleFormData.kitchens,
-        livingRooms: singleFormData.livingRooms,
-      }}
-      onChange={(updated) =>
-        setSingleFormData({ ...singleFormData, ...updated })
-      }
-    />
+          
+        <div className="space-y-4 mt-6">
+          <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
+          <PriceInput
+            value={singleFormData.price}
+            onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
+          />
+              
+<RoomCountSelector
+  value={{
+    bedrooms: singleFormData.rooms,
+    bathrooms: singleFormData.bathrooms,
+    kitchens: singleFormData.kitchens,
+    livingRooms: singleFormData.livingRooms,
+  }}
+  onChange={(updated) =>
+    setSingleFormData({ ...singleFormData, ...updated })
+  }
+/>
 
-    <CarparkCountSelector
-      value={singleFormData.carpark}
-      onChange={(val) => setSingleFormData({ ...singleFormData, carpark: val })}
-      mode="range"
-    />
+          <CarparkCountSelector
+            value={singleFormData.carpark}
+            onChange={(val) => setSingleFormData({ ...singleFormData, carpark: val })}
+            mode="range"
+          />
 
-    <ExtraSpacesSelector
-      value={singleFormData.extraSpaces || []}
-      onChange={(val) => setSingleFormData({ ...singleFormData, extraSpaces: val })}
-    />
+          <ExtraSpacesSelector
+            value={singleFormData.extraSpaces || []}
+            onChange={(val) => setSingleFormData({ ...singleFormData, extraSpaces: val })}
+          />
 
-    <FacingSelector
-      value={singleFormData.facing}
-      onChange={(val) => setSingleFormData({ ...singleFormData, facing: val })}
-    />
+          <FacingSelector
+            value={singleFormData.facing}
+            onChange={(val) => setSingleFormData({ ...singleFormData, facing: val })}
+          />
 
-    <CarparkLevelSelector
-      value={singleFormData.carparkPosition}
-      onChange={(val) => setSingleFormData({ ...singleFormData, carparkPosition: val })}
-      mode="range"
-    />
+          <CarparkLevelSelector
+            value={singleFormData.carparkPosition}
+            onChange={(val) => setSingleFormData({ ...singleFormData, carparkPosition: val })}
+            mode="range"
+          />
 
-    <FurnitureSelector
-      value={singleFormData.furniture}
-      onChange={(val) => setSingleFormData({ ...singleFormData, furniture: val })}
-    />
+          <FurnitureSelector
+            value={singleFormData.furniture}
+            onChange={(val) => setSingleFormData({ ...singleFormData, furniture: val })}
+          />
 
-    <FacilitiesSelector
-      value={singleFormData.facilities}
-      onChange={(val) => setSingleFormData({ ...singleFormData, facilities: val })}
-    />
+          <FacilitiesSelector
+            value={singleFormData.facilities}
+            onChange={(val) => setSingleFormData({ ...singleFormData, facilities: val })}
+          />
 
-    <BuildYearSelector
-      value={singleFormData.buildYear}
-      onChange={(val) => setSingleFormData({ ...singleFormData, buildYear: val })}
-      quarter={singleFormData.quarter}
-      onQuarterChange={(val) => setSingleFormData({ ...singleFormData, quarter: val })}
-      showQuarter={true}
-    />
+          <BuildYearSelector
+            value={singleFormData.buildYear}
+            onChange={(val) => setSingleFormData({ ...singleFormData, buildYear: val })}
+            quarter={singleFormData.quarter}
+            onQuarterChange={(val) => setSingleFormData({ ...singleFormData, quarter: val })}
+            showQuarter={true}
+          />
 
-    <ImageUpload
-      config={{
-        bedrooms: singleFormData.rooms,
-        bathrooms: singleFormData.bathrooms,
-        kitchens: singleFormData.kitchens,
-        livingRooms: singleFormData.livingRooms,
-        carpark: singleFormData.carpark,
-        extraSpaces: singleFormData.extraSpaces,
-        facilities: singleFormData.facilities,
-        furniture: singleFormData.furniture,
-      }}
-      images={singleFormData.photos}
-      setImages={(updated) => setSingleFormData({ ...singleFormData, photos: updated })}
-    />
-  </div>
+          <ImageUpload
+            config={{
+              bedrooms: singleFormData.rooms,
+              bathrooms: singleFormData.bathrooms,
+              kitchens: singleFormData.kitchens,
+              livingRooms: singleFormData.livingRooms,
+              carpark: singleFormData.carpark,
+              extraSpaces: singleFormData.extraSpaces,
+              facilities: singleFormData.facilities,
+              furniture: singleFormData.furniture,
+            }}
+            images={singleFormData.photos}
+            setImages={(updated) => setSingleFormData({ ...singleFormData, photos: updated })}          
+    />
+  </div>
 )}
 
-      <Button
-        onClick={handleSubmit}
-        disabled={loading}
-        className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full"
-      >
-        {loading ? '上传中...' : '提交房源'}
-      </Button>
-    </div>
-  );
+      <Button
+        onClick={handleSubmit}
+        disabled={loading}
+        className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full"
+      >
+        {loading ? '上传中...' : '提交房源'}
+      </Button>
+    </div>
+  );
 }
