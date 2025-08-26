@@ -278,7 +278,6 @@ export default function UploadProperty() {
             setImages={(updated) => setSingleFormData({ ...singleFormData, photos: updated })}          
     />
   </div>
-)}
 
       <Button
         onClick={handleSubmit}
