@@ -94,12 +94,17 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   onChange={(updated) => onChange({ ...data, ...updated })}
 />
 
-      {/* 其他原本组件 */}
-      <CarparkCountSelector
-  value={data.carpark}
+      {/* 🚗 停车位选择 */}
+<CarparkCountSelector
+  value={
+    data.projectType === "new" || data.projectType === "developer"
+      ? data.carpark || { min: "", max: "" }   // 👉 新项目：范围对象
+      : data.carpark || ""                     // 👉 二手房：单个值
+  }
   onChange={(val) => handleChange("carpark", val)}
-  mode={data.projectType === "new" || data.projectType === "developer" ? "range" : "single"}  
+  mode={data.projectType === "new" || data.projectType === "developer" ? "range" : "single"}
 />
+      
 
       <ExtraSpacesSelector
         value={data.extraSpaces || []}
