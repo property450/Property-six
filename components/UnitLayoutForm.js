@@ -99,7 +99,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 <CarparkCountSelector
   value={data.carpark}
   onChange={(val) => handleChange("carpark", val)}
-  mode={data.projectType === "New Project/Developer Unit" ? "range" : "single"}
+  mode={data.projectType === "developer" || data.projectType === "new" ? "range" : "single"}
 />
 
       <ExtraSpacesSelector
