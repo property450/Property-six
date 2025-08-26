@@ -47,14 +47,10 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     <div className="border rounded-lg p-4 shadow-sm bg-white">
       <h3 className="font-semibold mb-3">Layout {index + 1}</h3>
 
-  {/* 固定的 Layout 照片上传 */}
-<div className="mb-3">
-  <label className="block mb-1 font-medium">上传 Layout 照片</label>
-  <ImageUpload
-    images={data.layoutPhotos || []}   // ✅ 专门存 layout 照片
-    setImages={(updated) => handleChange("layoutPhotos", updated)}
-  />
-</div>
+  {/* 上传按钮 */}
+      <button className="mb-3 px-3 py-2 bg-gray-100 border rounded hover:bg-gray-200 w-full">
+        点击上传 Layout
+      </button>
 
       {/* Type 名称 */}
       <input
