@@ -85,21 +85,21 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 
       {/* ✅ 只引入一次 RoomCountSelector，让它自己处理卧室/浴室/厨房/客厅 */}
       <RoomCountSelector
-        value={{
-          bedrooms: data.rooms,
-          bathrooms: data.bathrooms,
-          kitchens: data.kitchens,
-          livingRooms: data.livingRooms,
-        }}
-        onChange={(field, val) => handleChange(field, val)}
-      />
+  value={{
+    bedrooms: data.bedrooms,
+    bathrooms: data.bathrooms,
+    kitchens: data.kitchens,
+    livingRooms: data.livingRooms,
+  }}
+  onChange={(updated) => onChange({ ...data, ...updated })}
+/>
 
       {/* 其他原本组件 */}
       <CarparkCountSelector
-        value={data.carpark}
-        onChange={(val) => handleChange("carpark", val)}
-        mode="range"
-      />
+  value={data.carpark}
+  onChange={(val) => handleChange("carpark", val)}
+  mode="range"
+/>
 
       <ExtraSpacesSelector
         value={data.extraSpaces || []}
