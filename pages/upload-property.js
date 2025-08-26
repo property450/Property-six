@@ -216,7 +216,7 @@ export default function UploadProperty() {
 {/* ✅ 只引入一次 RoomCountSelector，让它自己处理卧室/浴室/厨房/客厅 */}
       <RoomCountSelector
         value={{
-          bedrooms: data.rooms,
+          bedrooms: data.bedrooms,
           bathrooms: data.bathrooms,
           kitchens: data.kitchens,
           livingRooms: data.livingRooms,
