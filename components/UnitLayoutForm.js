@@ -96,15 +96,10 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 
       {/* 🚗 停车位选择 */}
 <CarparkCountSelector
-  value={
-    data.projectType === "new" || data.projectType === "developer"
-      ? data.carpark || { min: "", max: "" }   // 👉 新项目：范围对象
-      : data.carpark || ""                     // 👉 二手房：单个值
-  }
-  onChange={(val) => handleChange("carpark", val)}
-  mode={data.projectType === "new" || data.projectType === "developer" ? "range" : "single"}
+  value={singleFormData.carpark}
+  onChange={(val) => setSingleFormData({ ...singleFormData, carpark: val })}
+  mode={propertyStatus === "new" || propertyStatus === "developer" ? "range" : "single"}   // ✅ 动态切换
 />
-      
 
       <ExtraSpacesSelector
         value={data.extraSpaces || []}
