@@ -190,92 +190,79 @@ export default function UploadProperty() {
         onChange={(layouts) => setUnitLayouts(layouts)}
       />
 
-        {unitLayouts.map((layout, index) => (
-  <UnitLayoutForm
-    key={index}
-    index={index}
-    data={{ ...layout, projectType: propertyStatus }}   // ✅ 传入 projectType
-    onChange={(updated) => {
-      const newLayouts = [...unitLayouts];
-      newLayouts[index] = updated;
-      setUnitLayouts(newLayouts);
-    }}
-  />
-))}
+        {unitLayouts.length === 0 && (
+  <div className="space-y-4 mt-6">
+    <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
+    <PriceInput
+      value={singleFormData.price}
+      onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
+    />
 
-          
-        <div className="space-y-4 mt-6">
-          <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
-          <PriceInput
-            value={singleFormData.price}
-            onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
-          />
-              
-<RoomCountSelector
-  value={{
-    bedrooms: singleFormData.rooms,
-    bathrooms: singleFormData.bathrooms,
-    kitchens: singleFormData.kitchens,
-    livingRooms: singleFormData.livingRooms,
-  }}
-  onChange={(updated) =>
-    setSingleFormData({ ...singleFormData, ...updated })
-  }
-/>
+    <RoomCountSelector
+      value={{
+        bedrooms: singleFormData.rooms,
+        bathrooms: singleFormData.bathrooms,
+        kitchens: singleFormData.kitchens,
+        livingRooms: singleFormData.livingRooms,
+      }}
+      onChange={(updated) =>
+        setSingleFormData({ ...singleFormData, ...updated })
+      }
+    />
 
-          <CarparkCountSelector
-            value={singleFormData.carpark}
-            onChange={(val) => setSingleFormData({ ...singleFormData, carpark: val })}
-            mode="range"
-          />
+    <CarparkCountSelector
+      value={singleFormData.carpark}
+      onChange={(val) => setSingleFormData({ ...singleFormData, carpark: val })}
+      mode="range"
+    />
 
-          <ExtraSpacesSelector
-            value={singleFormData.extraSpaces || []}
-            onChange={(val) => setSingleFormData({ ...singleFormData, extraSpaces: val })}
-          />
+    <ExtraSpacesSelector
+      value={singleFormData.extraSpaces || []}
+      onChange={(val) => setSingleFormData({ ...singleFormData, extraSpaces: val })}
+    />
 
-          <FacingSelector
-            value={singleFormData.facing}
-            onChange={(val) => setSingleFormData({ ...singleFormData, facing: val })}
-          />
+    <FacingSelector
+      value={singleFormData.facing}
+      onChange={(val) => setSingleFormData({ ...singleFormData, facing: val })}
+    />
 
-          <CarparkLevelSelector
-            value={singleFormData.carparkPosition}
-            onChange={(val) => setSingleFormData({ ...singleFormData, carparkPosition: val })}
-            mode="range"
-          />
+    <CarparkLevelSelector
+      value={singleFormData.carparkPosition}
+      onChange={(val) => setSingleFormData({ ...singleFormData, carparkPosition: val })}
+      mode="range"
+    />
 
-          <FurnitureSelector
-            value={singleFormData.furniture}
-            onChange={(val) => setSingleFormData({ ...singleFormData, furniture: val })}
-          />
+    <FurnitureSelector
+      value={singleFormData.furniture}
+      onChange={(val) => setSingleFormData({ ...singleFormData, furniture: val })}
+    />
 
-          <FacilitiesSelector
-            value={singleFormData.facilities}
-            onChange={(val) => setSingleFormData({ ...singleFormData, facilities: val })}
-          />
+    <FacilitiesSelector
+      value={singleFormData.facilities}
+      onChange={(val) => setSingleFormData({ ...singleFormData, facilities: val })}
+    />
 
-          <BuildYearSelector
-            value={singleFormData.buildYear}
-            onChange={(val) => setSingleFormData({ ...singleFormData, buildYear: val })}
-            quarter={singleFormData.quarter}
-            onQuarterChange={(val) => setSingleFormData({ ...singleFormData, quarter: val })}
-            showQuarter={true}
-          />
+    <BuildYearSelector
+      value={singleFormData.buildYear}
+      onChange={(val) => setSingleFormData({ ...singleFormData, buildYear: val })}
+      quarter={singleFormData.quarter}
+      onQuarterChange={(val) => setSingleFormData({ ...singleFormData, quarter: val })}
+      showQuarter={true}
+    />
 
-          <ImageUpload
-            config={{
-              bedrooms: singleFormData.rooms,
-              bathrooms: singleFormData.bathrooms,
-              kitchens: singleFormData.kitchens,
-              livingRooms: singleFormData.livingRooms,
-              carpark: singleFormData.carpark,
-              extraSpaces: singleFormData.extraSpaces,
-              facilities: singleFormData.facilities,
-              furniture: singleFormData.furniture,
-            }}
-            images={singleFormData.photos}
-            setImages={(updated) => setSingleFormData({ ...singleFormData, photos: updated })}          
+    <ImageUpload
+      config={{
+        bedrooms: singleFormData.rooms,
+        bathrooms: singleFormData.bathrooms,
+        kitchens: singleFormData.kitchens,
+        livingRooms: singleFormData.livingRooms,
+        carpark: singleFormData.carpark,
+        extraSpaces: singleFormData.extraSpaces,
+        facilities: singleFormData.facilities,
+        furniture: singleFormData.furniture,
+      }}
+      images={singleFormData.photos}
+      setImages={(updated) => setSingleFormData({ ...singleFormData, photos: updated })}
     />
   </div>
 )}
