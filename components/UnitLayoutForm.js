@@ -83,30 +83,15 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 
       <PricePerSqft price={data.price} buildUp={data.buildUp} />
 
-      {/* 卧室/浴室/厨房/客厅 单输入框 */}
+      {/* ✅ 只引入一次 RoomCountSelector，让它自己处理卧室/浴室/厨房/客厅 */}
       <RoomCountSelector
-        label="卧室"
-        value={data.rooms}
-        onChange={(val) => handleChange("rooms", val)}
-        singleInput={true}
-      />
-      <RoomCountSelector
-        label="浴室"
-        value={data.bathrooms}
-        onChange={(val) => handleChange("bathrooms", val)}
-        singleInput={true}
-      />
-      <RoomCountSelector
-        label="厨房"
-        value={data.kitchens}
-        onChange={(val) => handleChange("kitchens", val)}
-        singleInput={true}
-      />
-      <RoomCountSelector
-        label="客厅"
-        value={data.livingRooms}
-        onChange={(val) => handleChange("livingRooms", val)}
-        singleInput={true}
+        value={{
+          bedrooms: data.rooms,
+          bathrooms: data.bathrooms,
+          kitchens: data.kitchens,
+          livingRooms: data.livingRooms,
+        }}
+        onChange={(field, val) => handleChange(field, val)}
       />
 
       {/* 其他原本组件 */}
