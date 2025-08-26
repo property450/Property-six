@@ -226,7 +226,7 @@ export default function UploadProperty() {
          <CarparkCountSelector
   value={singleFormData.carpark}
   onChange={(val) => setSingleFormData({ ...singleFormData, carpark: val })}
-  mode={data.projectType === "developer" || data.projectType === "new" ? "range" : "single"}
+  mode={propertyStatus === "developer" || propertyStatus === "new" ? "range" : "single"}
 />
 
           <ExtraSpacesSelector
