@@ -20,7 +20,6 @@ import FacingSelector from '@/components/FacingSelector';
 import CarparkLevelSelector from '@/components/CarparkLevelSelector';
 import FacilitiesSelector from '@/components/FacilitiesSelector';
 import FurnitureSelector from '@/components/FurnitureSelector';
-import FloorPlanSelector from '@/components/FloorPlanSelector';
 import BuildYearSelector from '@/components/BuildYearSelector';
 import ImageUpload from '@/components/ImageUpload';
 
@@ -41,7 +40,6 @@ export default function UploadProperty() {
 
   if (!user) return <div>正在检查登录状态...</div>;
 
-  // ---------- 基本信息 ----------
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [address, setAddress] = useState('');
@@ -49,10 +47,14 @@ export default function UploadProperty() {
   const [longitude, setLongitude] = useState(null);
   const [type, setType] = useState('');
   const [propertyStatus, setPropertyStatus] = useState('');
-  const [unitLayouts, setUnitLayouts] = useState([]); // 多房型表单
+  const [unitLayouts, setUnitLayouts] = useState([]);
   const [singleFormData, setSingleFormData] = useState({
     buildUp: '',
     price: '',
+    rooms: 0,
+    bathrooms: 0,
+    kitchens: 0,
+    livingRooms: 0,
     carpark: 0,
     store: 0,
     facilities: [],
@@ -72,17 +74,14 @@ export default function UploadProperty() {
   const [sizeInSqft, setSizeInSqft] = useState('');
   const [pricePerSqFt, setPricePerSqFt] = useState('');
   const [images, setImages] = useState([]);
-  const [coverIndex, setCoverIndex] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  // ---------- 地址选择 ----------
   const handleLocationSelect = ({ lat, lng, address }) => {
     setLatitude(lat);
     setLongitude(lng);
     setAddress(address);
   };
 
-  // ---------- 面积转换 ----------
   const convertToSqft = (val, unit) => {
     const num = parseFloat(String(val || '').replace(/,/g, ''));
     if (isNaN(num) || num <= 0) return 0;
@@ -115,7 +114,6 @@ export default function UploadProperty() {
     }
   }, [singleFormData.price, sizeInSqft]);
 
-  // ---------- 提交 ----------
   const handleSubmit = async () => {
     if (!title || !address || !latitude || !longitude) {
       toast.error('请填写完整信息');
@@ -152,7 +150,6 @@ export default function UploadProperty() {
 
       const propertyId = propertyData.id;
 
-      // 上传图片
       const uploadImages = unitLayouts.length > 0
         ? unitLayouts.flatMap(u => Object.values(u.photos).flat())
         : images;
@@ -184,49 +181,104 @@ export default function UploadProperty() {
       <AddressSearchInput onLocationSelect={handleLocationSelect} />
 
       <TypeSelector
-  value={type}
-  onChange={setType}
-  onFormChange={(formData) => setPropertyStatus(formData.propertyStatus)}
-/>
+        value={type}
+        onChange={setType}
+        onFormChange={(formData) => setPropertyStatus(formData.propertyStatus)}
+      />
       <UnitTypeSelector
         propertyStatus={propertyStatus}
         onChange={(layouts) => setUnitLayouts(layouts)}
       />
 
-      {/* 多房型切换逻辑 */}
-{unitLayouts.length > 0 ? (
-  <div className="space-y-4 mt-6">
-    {unitLayouts.map((layout, index) => (
-      <UnitLayoutForm
-        key={index}
-        index={index}
-        data={layout}
-        onChange={(updated) => {
-          const newLayouts = [...unitLayouts];
-          newLayouts[index] = updated;
-          setUnitLayouts(newLayouts);
-        }}
-      />
-    ))}
-  </div>
-) : (
-  <div className="space-y-4 mt-6">
-    {/* 单一表单 */}
+      {unitLayouts.length > 0 ? (
+        <div className="space-y-4 mt-6">
+          {unitLayouts.map((layout, index) => (
+            <UnitLayoutForm
+              key={index}
+              index={index}
+              data={layout}
+              onChange={(updated) => {
+                const newLayouts = [...unitLayouts];
+                newLayouts[index] = updated;
+                setUnitLayouts(newLayouts);
+              }}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-4 mt-6">
           <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
           <PriceInput
             value={singleFormData.price}
             onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
           />
+
+          {/* 单输入框 RoomCountSelector */}
           <RoomCountSelector
             label="卧室"
             value={singleFormData.rooms}
             onChange={(val) => setSingleFormData({ ...singleFormData, rooms: val })}
+            singleInput={true}
           />
           <RoomCountSelector
             label="浴室"
             value={singleFormData.bathrooms}
             onChange={(val) => setSingleFormData({ ...singleFormData, bathrooms: val })}
+            singleInput={true}
           />
+          <RoomCountSelector
+            label="厨房"
+            value={singleFormData.kitchens}
+            onChange={(val) => setSingleFormData({ ...singleFormData, kitchens: val })}
+            singleInput={true}
+          />
+          <RoomCountSelector
+            label="客厅"
+            value={singleFormData.livingRooms}
+            onChange={(val) => setSingleFormData({ ...singleFormData, livingRooms: val })}
+            singleInput={true}
+          />
+
+          <CarparkCountSelector
+            value={singleFormData.carpark}
+            onChange={(val) => setSingleFormData({ ...singleFormData, carpark: val })}
+            mode="range"
+          />
+
+          <ExtraSpacesSelector
+            value={singleFormData.extraSpaces || []}
+            onChange={(val) => setSingleFormData({ ...singleFormData, extraSpaces: val })}
+          />
+
+          <FacingSelector
+            value={singleFormData.facing}
+            onChange={(val) => setSingleFormData({ ...singleFormData, facing: val })}
+          />
+
+          <CarparkLevelSelector
+            value={singleFormData.carparkPosition}
+            onChange={(val) => setSingleFormData({ ...singleFormData, carparkPosition: val })}
+            mode="range"
+          />
+
+          <FurnitureSelector
+            value={singleFormData.furniture}
+            onChange={(val) => setSingleFormData({ ...singleFormData, furniture: val })}
+          />
+
+          <FacilitiesSelector
+            value={singleFormData.facilities}
+            onChange={(val) => setSingleFormData({ ...singleFormData, facilities: val })}
+          />
+
+          <BuildYearSelector
+            value={singleFormData.buildYear}
+            onChange={(val) => setSingleFormData({ ...singleFormData, buildYear: val })}
+            quarter={singleFormData.quarter}
+            onQuarterChange={(val) => setSingleFormData({ ...singleFormData, quarter: val })}
+            showQuarter={true}
+          />
+
           <ImageUpload
             config={{
               bedrooms: singleFormData.rooms,
