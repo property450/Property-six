@@ -275,8 +275,7 @@ export default function UploadProperty() {
               furniture: singleFormData.furniture,
             }}
             images={singleFormData.photos}
-            setImages={(updated) => setSingleFormData({ ...singleFormData, photos: updated })}
-          }
+            setImages={(updated) => setSingleFormData({ ...singleFormData, photos: updated })}          
     />
   </div>
 )}
