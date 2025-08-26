@@ -56,31 +56,80 @@ export default function CarparkCountSelector({ value, onChange, mode = "single" 
   };
 
   if (mode === "range") {
-    // ---------- 范围模式 ----------
-    return (
-      <div className="flex flex-col" ref={ref}>
-        <label className="text-sm font-medium mb-1">
-          {mode === "range" ? "停车位范围" : "停车位"}
-        </label>
-        <div className="flex gap-2">
+  // ---------- 范围模式 ----------
+  return (
+    <div className="flex flex-col" ref={ref}>
+      <label className="text-sm font-medium mb-1">停车位范围</label>
+      <div className="flex gap-2">
+        {/* 最少 */}
+        <div className="relative flex-1">
           <input
             type="text"
             placeholder="最少"
             value={formatNumber(value?.min)}
             onChange={(e) => handleRangeInput("min", e.target.value)}
-            className="flex-1 border border-gray-300 rounded px-3 py-2 bg-white focus:outline-none focus:ring focus:border-blue-500"
+            onFocus={() => setOpen("min")}
+            className="w-full border border-gray-300 rounded px-3 py-2 bg-white focus:outline-none focus:ring focus:border-blue-500"
           />
+          {open === "min" && (
+            <ul className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+              {OPTIONS.map((opt) => (
+                <li
+                  key={`min-${opt}`}
+                  className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setOpen(false);
+                    if (opt === "custom") {
+                      handleRangeInput("min", "");
+                    } else {
+                      handleRangeInput("min", String(opt));
+                    }
+                  }}
+                >
+                  {opt === "custom" ? "自定义" : opt}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* 最大 */}
+        <div className="relative flex-1">
           <input
             type="text"
             placeholder="最多"
             value={formatNumber(value?.max)}
             onChange={(e) => handleRangeInput("max", e.target.value)}
-            className="flex-1 border border-gray-300 rounded px-3 py-2 bg-white focus:outline-none focus:ring focus:border-blue-500"
+            onFocus={() => setOpen("max")}
+            className="w-full border border-gray-300 rounded px-3 py-2 bg-white focus:outline-none focus:ring focus:border-blue-500"
           />
+          {open === "max" && (
+            <ul className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+              {OPTIONS.map((opt) => (
+                <li
+                  key={`max-${opt}`}
+                  className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setOpen(false);
+                    if (opt === "custom") {
+                      handleRangeInput("max", "");
+                    } else {
+                      handleRangeInput("max", String(opt));
+                    }
+                  }}
+                >
+                  {opt === "custom" ? "自定义" : opt}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
   // ---------- 单值模式 ----------
   const display = isCustom ? value : formatNumber(value);
