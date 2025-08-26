@@ -18,11 +18,37 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   const [type, setType] = useState(data.type || "");
   const fileInputRef = useRef(null); // ✅ 这里加上
   
-  function PricePerSqft({ price, buildUp }) {
-    if (!price || !buildUp) return null;
-    const value = (price / buildUp).toFixed(2);
-    return <p className="text-sm text-gray-600">≈ RM {value} / sqft</p>;
+  // ✅ 自动计算每平方尺价格 (min/max，支持 buildUp + landArea)
+function PricePerSqft({ price, buildUp, landArea }) {
+  if (!price) return null;
+
+  const minPrice = Number(price.min) || 0;
+  const maxPrice = Number(price.max) || 0;
+
+  const minBuildUp = buildUp?.min ? Number(buildUp.min) : 0;
+  const maxBuildUp = buildUp?.max ? Number(buildUp.max) : 0;
+
+  const minLand = landArea?.min ? Number(landArea.min) : 0;
+  const maxLand = landArea?.max ? Number(landArea.max) : 0;
+
+  // ✅ 总面积 = buildUp + landArea
+  const minTotalArea = (minBuildUp || 0) + (minLand || 0);
+  const maxTotalArea = (maxBuildUp || 0) + (maxLand || 0);
+
+  if (minPrice > 0 && maxPrice > 0 && minTotalArea > 0 && maxTotalArea > 0) {
+    const minValue = (minPrice / maxTotalArea).toFixed(2);
+    const maxValue = (maxPrice / minTotalArea).toFixed(2);
+
+    return (
+      <p className="text-sm text-gray-600">
+        ≈ RM {minValue} – RM {maxValue} / sqft
+      </p>
+    );
   }
+
+  return null;
+}
+
 
   const handleChange = (field, value) => {
     onChange({ ...data, [field]: value });
@@ -116,8 +142,11 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   area={data.buildUp}
 />
 
-
-      <PricePerSqft price={data.price} buildUp={data.buildUp} />
+<PricePerSqft 
+  price={data.price} 
+  buildUp={data.buildUp} 
+  landArea={data.landArea}
+/>
 
       {/* ✅ 只引入一次 RoomCountSelector，让它自己处理卧室/浴室/厨房/客厅 */}
       <RoomCountSelector
