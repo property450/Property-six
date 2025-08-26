@@ -19,25 +19,32 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   const fileInputRef = useRef(null); // ✅ 这里加上
   
   // ✅ 自动计算每平方尺价格 (min/max，支持 buildUp + landArea)
-function PricePerSqft({ price, buildUp, landArea }) {
-  if (!price) return null;
+function PricePerSqft({ price, area }) {
+  if (!price || !area) return null;
 
-  const minPrice = Number(price.min) || 0;
-  const maxPrice = Number(price.max) || 0;
+  let minPrice = 0, maxPrice = 0;
 
-  const minBuildUp = buildUp?.min ? Number(buildUp.min) : 0;
-  const maxBuildUp = buildUp?.max ? Number(buildUp.max) : 0;
+  // ✅ 兼容对象格式 {min, max} 和字符串 "500000-800000"
+  if (typeof price === "string" && price.includes("-")) {
+    const [minStr, maxStr] = price.split("-");
+    minPrice = Number(minStr) || 0;
+    maxPrice = Number(maxStr) || 0;
+  } else if (typeof price === "object") {
+    minPrice = Number(price.min) || 0;
+    maxPrice = Number(price.max) || 0;
+  } else if (typeof price === "string" || typeof price === "number") {
+    minPrice = Number(price) || 0;
+    maxPrice = minPrice;
+  }
 
-  const minLand = landArea?.min ? Number(landArea.min) : 0;
-  const maxLand = landArea?.max ? Number(landArea.max) : 0;
+  // ✅ 从 AreaSelector 取出面积（转换成 sqft）
+  const buildUp = parseFloat(area?.values?.buildUp || 0);
+  const land = parseFloat(area?.values?.land || 0);
+  const totalArea = (buildUp || 0) + (land || 0);
 
-  // ✅ 总面积 = buildUp + landArea
-  const minTotalArea = (minBuildUp || 0) + (minLand || 0);
-  const maxTotalArea = (maxBuildUp || 0) + (maxLand || 0);
-
-  if (minPrice > 0 && maxPrice > 0 && minTotalArea > 0 && maxTotalArea > 0) {
-    const minValue = (minPrice / maxTotalArea).toFixed(2);
-    const maxValue = (maxPrice / minTotalArea).toFixed(2);
+  if (minPrice > 0 && maxPrice > 0 && totalArea > 0) {
+    const minValue = (minPrice / totalArea).toFixed(2);
+    const maxValue = (maxPrice / totalArea).toFixed(2);
 
     return (
       <p className="text-sm text-gray-600">
@@ -142,12 +149,10 @@ function PricePerSqft({ price, buildUp, landArea }) {
   area={data.buildUp}
 />
 
-<PricePerSqft 
-  price={data.price} 
-  buildUp={data.buildUp} 
-  landArea={data.landArea}
+<PricePerSqft
+  price={data.price}
+  area={data.buildUp}   // ✅ buildUp 实际上是整个 AreaSelector 返回的对象
 />
-
       {/* ✅ 只引入一次 RoomCountSelector，让它自己处理卧室/浴室/厨房/客厅 */}
       <RoomCountSelector
   value={{
