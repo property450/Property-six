@@ -10,28 +10,25 @@ import FacingSelector from "./FacingSelector";
 import FurnitureSelector from "./FurnitureSelector";
 import FacilitiesSelector from "./FacilitiesSelector";
 import CarparkLevelSelector from "./CarparkLevelSelector";
-import RoomCountSelector from "./RoomCountSelector"; // ✅ 使用 RoomCountSelector
+import RoomCountSelector from "./RoomCountSelector"; 
 import AreaSelector from "./AreaSelector";
 import ImageUpload from "./ImageUpload";
 
 export default function UnitLayoutForm({ index, data, onChange }) {
   const [type, setType] = useState(data.type || "");
-  const fileInputRef = useRef(null); // ✅ 这里加上
-  
-  function PricePerSqft({ price, buildUp, type }) {
-  if (!buildUp || buildUp <= 0) return null;
+  const fileInputRef = useRef(null);
 
-  // ✅ range 模式 (min/max)
-  if (
-    type === "New Project / Under Construction" ||
-    type === "Completed Unit / Developer Unit"
-  ) {
-    const min = Number(price?.min) || 0;
-    const max = Number(price?.max) || 0;
+  // ✅ 计算单价区间
+  function PricePerSqft({ price, buildUp }) {
+    const minPrice = Number(price?.min) || 0;
+    const maxPrice = Number(price?.max) || 0;
+    const minBuildUp = Number(buildUp?.min) || 0;
+    const maxBuildUp = Number(buildUp?.max) || 0;
 
-    if (min > 0 && max > 0) {
-      const minValue = (min / buildUp).toFixed(2);
-      const maxValue = (max / buildUp).toFixed(2);
+    if (minPrice > 0 && maxPrice > 0 && minBuildUp > 0 && maxBuildUp > 0) {
+      const minValue = (minPrice / maxBuildUp).toFixed(2);
+      const maxValue = (maxPrice / minBuildUp).toFixed(2);
+
       return (
         <p className="text-sm text-gray-600">
           ≈ RM {minValue} – RM {maxValue} / sqft
@@ -40,7 +37,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     }
     return null;
   }
-    
+
   const handleChange = (field, value) => {
     onChange({ ...data, [field]: value });
   };
@@ -73,7 +70,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     <div className="border rounded-lg p-4 shadow-sm bg-white">
       <h3 className="font-semibold mb-3">Layout {index + 1}</h3>
 
-  {/* ✅ 上传 Layout 按钮 */}
+      {/* ✅ 上传 Layout 按钮 */}
       <div className="mb-3">
         <button
           type="button"
@@ -91,7 +88,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
           onChange={handleLayoutUpload}
         />
 
-            {/* 已上传的 Layout 图片预览 */}
+        {/* 已上传的 Layout 图片预览 */}
         <ImageUpload
           images={data.layoutPhotos || []}
           setImages={(updated) => handleChange("layoutPhotos", updated)}
@@ -120,44 +117,40 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         />
       </div>
 
-      {/* 面积、价格 */}
+      {/* ✅ 面积范围 */}
       <AreaSelector
         value={data.buildUp}
         onChange={(val) => handleChange("buildUp", val)}
+        mode="range"
       />
 
+      {/* ✅ 价格范围 */}
       <PriceInput
-  value={data.price}
-  onChange={(val) => handleChange("price", val)}
-  type={data.projectType}  // 传给 PriceInput，让它自己判断
-  area={data.buildUp}
-/>
+        value={data.price}
+        onChange={(val) => handleChange("price", val)}
+        mode="range"
+      />
 
+      {/* ✅ 单价范围 */}
       <PricePerSqft price={data.price} buildUp={data.buildUp} />
 
-      {/* ✅ 只引入一次 RoomCountSelector，让它自己处理卧室/浴室/厨房/客厅 */}
+      {/* ✅ 房间数 */}
       <RoomCountSelector
-  value={{
-    bedrooms: data.bedrooms,
-    bathrooms: data.bathrooms,
-    kitchens: data.kitchens,
-    livingRooms: data.livingRooms,
-  }}
-  onChange={(updated) => onChange({ ...data, ...updated })}
-/>
+        value={{
+          bedrooms: data.bedrooms,
+          bathrooms: data.bathrooms,
+          kitchens: data.kitchens,
+          livingRooms: data.livingRooms,
+        }}
+        onChange={(updated) => onChange({ ...data, ...updated })}
+      />
 
       {/* 🚗 停车位选择 */}
-<CarparkCountSelector
-  value={data.carpark}
-  onChange={(val) => handleChange("carpark", val)}
-  mode={
-    data.projectType === "New Project / Under Construction" ||
-    data.projectType === "Completed Unit / Developer Unit"
-      ? "range"
-      : "single"
-  }
-/>
-
+      <CarparkCountSelector
+        value={data.carpark}
+        onChange={(val) => handleChange("carpark", val)}
+        mode="range"
+      />
 
       <ExtraSpacesSelector
         value={data.extraSpaces || []}
