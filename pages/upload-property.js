@@ -212,32 +212,17 @@ export default function UploadProperty() {
             value={singleFormData.price}
             onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
           />
-
-          {/* 单输入框 RoomCountSelector */}
-          <RoomCountSelector
-            label="卧室"
-            value={singleFormData.rooms}
-            onChange={(val) => setSingleFormData({ ...singleFormData, rooms: val })}
-            singleInput={true}
-          />
-          <RoomCountSelector
-            label="浴室"
-            value={singleFormData.bathrooms}
-            onChange={(val) => setSingleFormData({ ...singleFormData, bathrooms: val })}
-            singleInput={true}
-          />
-          <RoomCountSelector
-            label="厨房"
-            value={singleFormData.kitchens}
-            onChange={(val) => setSingleFormData({ ...singleFormData, kitchens: val })}
-            singleInput={true}
-          />
-          <RoomCountSelector
-            label="客厅"
-            value={singleFormData.livingRooms}
-            onChange={(val) => setSingleFormData({ ...singleFormData, livingRooms: val })}
-            singleInput={true}
-          />
+              
+{/* ✅ 只引入一次 RoomCountSelector，让它自己处理卧室/浴室/厨房/客厅 */}
+      <RoomCountSelector
+        value={{
+          bedrooms: data.rooms,
+          bathrooms: data.bathrooms,
+          kitchens: data.kitchens,
+          livingRooms: data.livingRooms,
+        }}
+        onChange={(field, val) => handleChange(field, val)}
+      />
 
           <CarparkCountSelector
             value={singleFormData.carpark}
