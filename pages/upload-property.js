@@ -213,19 +213,8 @@ export default function UploadProperty() {
             onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
           />
               
-{/* ✅ 只引入一次 RoomCountSelector，让它自己处理卧室/浴室/厨房/客厅 */}
-      <RoomCountSelector
-  value={{
-    bedrooms: singleFormData.rooms,
-    bathrooms: singleFormData.bathrooms,
-    kitchens: singleFormData.kitchens,
-    livingRooms: singleFormData.livingRooms,
-  }}
-  onChange={(field, val) =>
-    setSingleFormData({ ...singleFormData, [field]: val })
-  }
-/>
-
+<RoomCountSelector value={rooms} onChange={setRooms} />
+              
           <CarparkCountSelector
             value={singleFormData.carpark}
             onChange={(val) => setSingleFormData({ ...singleFormData, carpark: val })}
