@@ -110,10 +110,11 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       />
 
       <PriceInput
-        value={data.price}
-        onChange={(val) => handleChange("price", val)}
-        type="range"
-      />
+  value={data.price}
+  onChange={(val) => handleChange("price", val)}
+  type={data.projectType}  // 传给 PriceInput，让它自己判断
+  area={data.buildUp}
+/>
 
       <PricePerSqft price={data.price} buildUp={data.buildUp} />
 
