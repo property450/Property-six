@@ -226,6 +226,7 @@ export default function UploadProperty() {
             onChange={(val) =>
               setSingleFormData({ ...singleFormData, price: val })
             }
+              area={sizeInSqft}  // ✅ 添加这个 prop
           />
 
           <RoomCountSelector
