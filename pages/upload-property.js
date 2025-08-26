@@ -209,97 +209,114 @@ export default function UploadProperty() {
     ))}
   </>
 ) : (
+  <>
+    <div className="space-y-4 mt-6">
+      <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
+      <PriceInput
+        value={singleFormData.price}
+        onChange={(val) =>
+          setSingleFormData({ ...singleFormData, price: val })
+        }
+      />
 
-        <div className="space-y-4 mt-6">
-          <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
-          <PriceInput
-            value={singleFormData.price}
-            onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
-          />
-              
-<RoomCountSelector
-  value={{
-    bedrooms: singleFormData.rooms,
-    bathrooms: singleFormData.bathrooms,
-    kitchens: singleFormData.kitchens,
-    livingRooms: singleFormData.livingRooms,
-  }}
-  onChange={(updated) =>
-    setSingleFormData({ ...singleFormData, ...updated })
-  }
-/>
+      <RoomCountSelector
+        value={{
+          bedrooms: singleFormData.rooms,
+          bathrooms: singleFormData.bathrooms,
+          kitchens: singleFormData.kitchens,
+          livingRooms: singleFormData.livingRooms,
+        }}
+        onChange={(updated) =>
+          setSingleFormData({ ...singleFormData, ...updated })
+        }
+      />
 
-         <CarparkCountSelector
-  value={singleFormData.carpark}
-  onChange={(val) => setSingleFormData({ ...singleFormData, carpark: val })}
-  mode={
-    propertyStatus === "New Project / Under Construction" ||
-    propertyStatus === "Completed Unit / Developer Unit"
-      ? "range"
-      : "single"
-  }
-/>
+      <CarparkCountSelector
+        value={singleFormData.carpark}
+        onChange={(val) =>
+          setSingleFormData({ ...singleFormData, carpark: val })
+        }
+        mode={
+          propertyStatus === "New Project / Under Construction" ||
+          propertyStatus === "Completed Unit / Developer Unit"
+            ? "range"
+            : "single"
+        }
+      />
 
-          <ExtraSpacesSelector
-            value={singleFormData.extraSpaces || []}
-            onChange={(val) => setSingleFormData({ ...singleFormData, extraSpaces: val })}
-          />
+      <ExtraSpacesSelector
+        value={singleFormData.extraSpaces || []}
+        onChange={(val) =>
+          setSingleFormData({ ...singleFormData, extraSpaces: val })
+        }
+      />
 
-          <FacingSelector
-            value={singleFormData.facing}
-            onChange={(val) => setSingleFormData({ ...singleFormData, facing: val })}
-          />
+      <FacingSelector
+        value={singleFormData.facing}
+        onChange={(val) =>
+          setSingleFormData({ ...singleFormData, facing: val })
+        }
+      />
 
-          <CarparkLevelSelector
-            value={singleFormData.carparkPosition}
-            onChange={(val) => setSingleFormData({ ...singleFormData, carparkPosition: val })}
-            mode="range"
-          />
+      <CarparkLevelSelector
+        value={singleFormData.carparkPosition}
+        onChange={(val) =>
+          setSingleFormData({ ...singleFormData, carparkPosition: val })
+        }
+        mode="range"
+      />
 
-          <FurnitureSelector
-            value={singleFormData.furniture}
-            onChange={(val) => setSingleFormData({ ...singleFormData, furniture: val })}
-          />
+      <FurnitureSelector
+        value={singleFormData.furniture}
+        onChange={(val) =>
+          setSingleFormData({ ...singleFormData, furniture: val })
+        }
+      />
 
-          <FacilitiesSelector
-            value={singleFormData.facilities}
-            onChange={(val) => setSingleFormData({ ...singleFormData, facilities: val })}
-          />
+      <FacilitiesSelector
+        value={singleFormData.facilities}
+        onChange={(val) =>
+          setSingleFormData({ ...singleFormData, facilities: val })
+        }
+      />
 
-          <BuildYearSelector
-            value={singleFormData.buildYear}
-            onChange={(val) => setSingleFormData({ ...singleFormData, buildYear: val })}
-            quarter={singleFormData.quarter}
-            onQuarterChange={(val) => setSingleFormData({ ...singleFormData, quarter: val })}
-            showQuarter={true}
-          />
+      <BuildYearSelector
+        value={singleFormData.buildYear}
+        onChange={(val) =>
+          setSingleFormData({ ...singleFormData, buildYear: val })
+        }
+        quarter={singleFormData.quarter}
+        onQuarterChange={(val) =>
+          setSingleFormData({ ...singleFormData, quarter: val })
+        }
+        showQuarter={true}
+      />
 
-          <ImageUpload
-            config={{
-              bedrooms: singleFormData.rooms,
-              bathrooms: singleFormData.bathrooms,
-              kitchens: singleFormData.kitchens,
-              livingRooms: singleFormData.livingRooms,
-              carpark: singleFormData.carpark,
-              extraSpaces: singleFormData.extraSpaces,
-              facilities: singleFormData.facilities,
-              furniture: singleFormData.furniture,
-            }}
-            images={singleFormData.photos}
-            setImages={(updated) => setSingleFormData({ ...singleFormData, photos: updated })}          
-    }
+      <ImageUpload
+        config={{
+          bedrooms: singleFormData.rooms,
+          bathrooms: singleFormData.bathrooms,
+          kitchens: singleFormData.kitchens,
+          livingRooms: singleFormData.livingRooms,
+          carpark: singleFormData.carpark,
+          extraSpaces: singleFormData.extraSpaces,
+          facilities: singleFormData.facilities,
+          furniture: singleFormData.furniture,
+        }}
+        images={singleFormData.photos}
+        setImages={(updated) =>
+          setSingleFormData({ ...singleFormData, photos: updated })
+        }
       />
     </div>
   </>
 )}
 
-      <Button
-        onClick={handleSubmit}
-        disabled={loading}
-        className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full"
-      >
-        {loading ? '上传中...' : '提交房源'}
-      </Button>
-    </div>
-  );
-}
+{/* ✅ 按钮始终在外层 */}
+<Button
+  onClick={handleSubmit}
+  disabled={loading}
+  className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full"
+>
+  {loading ? "上传中..." : "提交房源"}
+</Button>
