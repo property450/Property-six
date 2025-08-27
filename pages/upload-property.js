@@ -304,8 +304,10 @@ export default function UploadProperty() {
   onQuarterChange={(val) =>
     setSingleFormData({ ...singleFormData, quarter: val })
   }
-  showQuarter={propertyStatus?.trim() === "New Project / Under Construction"} // 加 trim 避免空格问题
+  // ✅ 只在 New Project / Under Construction 时才显示季度
+  showQuarter={propertyStatus?.trim() === "New Project / Under Construction"}
 />
+
           <ImageUpload
             config={{
               bedrooms: singleFormData.bedrooms,
