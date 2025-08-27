@@ -70,17 +70,17 @@ const transitData = {
   "Custom": [] // 自定义
 };
 
-export default function TransitSelector() {
+export default function TransitSelector({ onChange }) {
   const [nearTransit, setNearTransit] = useState(null);
-  const [selectedLines, setSelectedLines] = useState([]); // ✅ 改为数组
-  const [selectedStations, setSelectedStations] = useState({}); // 每条路线对应不同站点
+  const [selectedLines, setSelectedLines] = useState([]);
+  const [selectedStations, setSelectedStations] = useState({});
 
   useEffect(() => {
     if (onChange) {
       onChange({ nearTransit, selectedLines, selectedStations });
     }
   }, [nearTransit, selectedLines, selectedStations, onChange]);
-  
+
   return (
     <div className="space-y-4">
       {/* Step 1 */}
