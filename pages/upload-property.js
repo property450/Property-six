@@ -34,6 +34,15 @@ export default function UploadProperty() {
   const router = useRouter();
   const user = useUser();
 
+  const fileInputRef = useRef(null);
+
+const handleLayoutUpload = (e) => {
+  const files = Array.from(e.target.files);
+  if (!files.length) return;
+  const newPhotos = [...(singleFormData.layoutPhotos || []), ...files];
+  setSingleFormData({ ...singleFormData, layoutPhotos: newPhotos });
+};
+
   useEffect(() => {
     if (user === null) router.push("/login");
   }, [user, router]);
@@ -123,16 +132,6 @@ export default function UploadProperty() {
       toast.error("请填写完整信息");
       return;
     }
-
-    const fileInputRef = useRef(null);
-
-const handleLayoutUpload = (e) => {
-  const files = Array.from(e.target.files);
-  if (!files.length) return;
-  const newPhotos = [...(singleFormData.layoutPhotos || []), ...files];
-  setSingleFormData({ ...singleFormData, layoutPhotos: newPhotos });
-};
-
 
     setLoading(true);
     try {
