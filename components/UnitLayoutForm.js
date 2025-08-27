@@ -199,9 +199,9 @@ function PricePerSqft({ price, area }) {
       />
 
       <FacingSelector
-        value={data.facing}
-        onChange={(val) => handleChange("facing", val)}
-      />
+  value={data.facing || []}
+  onChange={(val) => handleChange("facing", val)}
+/>
 
       <CarparkLevelSelector
         value={data.carparkPosition}
