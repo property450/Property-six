@@ -1,11 +1,17 @@
 // components/FacingSelector.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 export default function FacingSelector({ value = [], onChange }) {
   const options = ["东", "南", "西", "北", "东南", "东北", "西南", "西北", "其他"];
   const [customValue, setCustomValue] = useState(
     value.find((v) => !options.includes(v)) || ""
   );
+
+  useEffect(() => {
+    // 当外部 value 改变，保持 customValue 同步
+    const other = value.find((v) => !options.includes(v));
+    setCustomValue(other || "");
+  }, [value]);
 
   const handleToggle = (option) => {
     if (option === "其他") {
@@ -26,18 +32,18 @@ export default function FacingSelector({ value = [], onChange }) {
 
   const handleCustomChange = (val) => {
     setCustomValue(val);
-    const newValue = value.filter((v) => v !== customValue); // 移除旧的自定义
-    onChange([...newValue, val]);
+    const newValue = value.filter((v) => v !== customValue && v !== "其他");
+    onChange([...newValue, "其他", val]);
   };
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-2 items-center">
       {options.map((o) => (
-        <div key={o} className="flex items-center">
+        <div key={o} className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => handleToggle(o)}
-            className={`px-3 py-1 border rounded mr-2 ${
+            className={`px-3 py-1 border rounded ${
               value.includes(o) ? "bg-blue-500 text-white" : "bg-white text-gray-700"
             }`}
           >
