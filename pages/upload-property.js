@@ -296,19 +296,16 @@ export default function UploadProperty() {
           />
 
           <BuildYearSelector
-  value={singleFormData.buildYear}
-  onChange={(val) =>
-    setSingleFormData({ ...singleFormData, buildYear: val })
-  }
-  quarter={singleFormData.quarter}
-  onQuarterChange={(val) =>
-    setSingleFormData({ ...singleFormData, quarter: val })
-  }
-  // ✅ 只在 New Project / Under Construction 时才显示季度
-  {propertyType === "New Project/Under construction" && (
-  <QuarterSelector value={quarter} onChange={setQuarter} />
-)}
-
+            value={singleFormData.buildYear}
+            onChange={(val) =>
+              setSingleFormData({ ...singleFormData, buildYear: val })
+            }
+            quarter={singleFormData.quarter}
+            onQuarterChange={(val) =>
+              setSingleFormData({ ...singleFormData, quarter: val })
+            }
+            showQuarter={true}
+          />
 
           <ImageUpload
             config={{
@@ -339,4 +336,4 @@ export default function UploadProperty() {
       </Button>
     </div>
   );
-        }
+              }
