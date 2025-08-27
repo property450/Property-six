@@ -54,7 +54,7 @@ export default function UploadProperty() {
     bathrooms: "",
     kitchens: "",
     livingRooms: "",
-    carpark: "",
+    carparkPosition: "",   // ✅ 加上这个
     store: "",
     facilities: [],
     furniture: [],
