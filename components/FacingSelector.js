@@ -17,18 +17,22 @@ const facingOptions = [
 ].map((label) => ({ value: label, label }));
 
 export default function FacingSelector({ value = [], onChange }) {
-  // value: ["东", "南"] 这种格式
+  // 确保 value 一定是数组
+  const normalizedValue = Array.isArray(value) ? value : [];
+
   const [selectedOptions, setSelectedOptions] = useState(
-    value.map((v) => ({ value: v, label: v }))
+    normalizedValue.map((v) => ({ value: v, label: v }))
   );
 
   useEffect(() => {
-    setSelectedOptions(value.map((v) => ({ value: v, label: v })));
+    setSelectedOptions(
+      (Array.isArray(value) ? value : []).map((v) => ({ value: v, label: v }))
+    );
   }, [value]);
 
   const handleChange = (selected) => {
     setSelectedOptions(selected || []);
-    onChange(selected ? selected.map((opt) => opt.value) : []);
+    onChange?.(selected ? selected.map((opt) => opt.value) : []);
   };
 
   return (
