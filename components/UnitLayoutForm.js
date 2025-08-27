@@ -13,11 +13,13 @@ import CarparkLevelSelector from "./CarparkLevelSelector";
 import RoomCountSelector from "./RoomCountSelector"; // ✅ 使用 RoomCountSelector
 import AreaSelector from "./AreaSelector";
 import ImageUpload from "./ImageUpload";
+import TransitSelector from "./TransitSelector";
 
 export default function UnitLayoutForm({ index, data, onChange }) {
   const [type, setType] = useState(data.type || "");
   const fileInputRef = useRef(null); // ✅ 这里加上
-  
+  const [transitInfo, setTransitInfo] = useState(data.transit || null);
+
   // ✅ 自动计算每平方尺价格 (min/max，支持 buildUp + landArea)
 function PricePerSqft({ price, area }) {
   if (!price || !area) return null;
@@ -98,6 +100,9 @@ function PricePerSqft({ price, area }) {
       facilities: data.facilities || [],
       furniture: data.furniture || [],
       orientation: data.facing || null,
+      transit: null, // ✅ 初始化
+      unit_layouts: JSON.stringify(unitLayouts.length > 0 ? unitLayouts : [singleFormData]),
+
     });
   }, [data]);
 
@@ -218,6 +223,17 @@ function PricePerSqft({ price, area }) {
         value={data.facilities}
         onChange={(val) => handleChange("facilities", val)}
       />
+
+          <div className="mb-4">
+  <label className="font-medium">交通信息</label>
+  <TransitSelector
+    onChange={(val) => {
+      setTransitInfo(val);
+      handleChange("transit", val); // 直接更新父组件的 layout 数据
+    }}
+  />
+</div>
+
 
       <BuildYearSelector
         value={data.buildYear}
