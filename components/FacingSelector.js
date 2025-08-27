@@ -1,15 +1,35 @@
 // components/FacingSelector.js
 import React from 'react';
 
-export default function FacingSelector({ value, onChange, customValue, onCustomChange }) {
+export default function FacingSelector({ value = [], onChange }) {
+  const options = ["North", "South", "East", "West", "North-East", "North-West", "South-East", "South-West"];
+
+  const handleToggle = (option) => {
+    if (value.includes(option)) {
+      onChange(value.filter((v) => v !== option));
+    } else {
+      onChange([...value, option]);
+    }
+  };
+
   return (
-    <div className="space-y-2">
-      <label className="block text-sm font-medium text-gray-700">朝向</label>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-      >
+    <div className="flex flex-wrap gap-2">
+      {options.map((o) => (
+        <button
+          type="button"
+          key={o}
+          onClick={() => handleToggle(o)}
+          className={`px-3 py-1 border rounded ${
+            value.includes(o) ? "bg-blue-500 text-white" : "bg-white text-gray-700"
+          }`}
+        >
+          {o}
+        </button>
+      ))}
+    </div>
+  );
+}
+
         <option value="">请选择朝向</option>
         <option value="东">东</option>
         <option value="南">南</option>
