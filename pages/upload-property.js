@@ -142,7 +142,7 @@ export default function UploadProperty() {
             user_id: user.id,
             type,
             build_year: singleFormData.buildYear,
-            bedrooms: singleFormData.rooms,
+            bedrooms: singleFormData.bedrooms,
             bathrooms: singleFormData.bathrooms,
             carpark: singleFormData.carpark,
             store: singleFormData.store,
