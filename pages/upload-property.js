@@ -307,12 +307,15 @@ export default function UploadProperty() {
             showQuarter={true}
           />
 
-              <textarea
-  placeholder="请输入房源描述"
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+  描述
+</label>
+<Input
+  placeholder="请输入房产描述"
   value={description}
   onChange={(e) => setDescription(e.target.value)}
-  className="w-full border rounded p-2 h-32"
 />
+
 
           <ImageUpload
             config={{
