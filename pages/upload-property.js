@@ -21,6 +21,7 @@ import FacilitiesSelector from "@/components/FacilitiesSelector";
 import FurnitureSelector from "@/components/FurnitureSelector";
 import BuildYearSelector from "@/components/BuildYearSelector";
 import ImageUpload from "@/components/ImageUpload";
+import TransitSelector from "@/components/TransitSelector";
 
 import { useUser } from "@supabase/auth-helpers-react";
 
@@ -46,7 +47,8 @@ export default function UploadProperty() {
   const [longitude, setLongitude] = useState(null);
   const [type, setType] = useState("");
   const [propertyStatus, setPropertyStatus] = useState("");
-  const [unitLayouts, setUnitLayouts] = useState([]);
+  const [transitInfo, setTransitInfo] = useState(null);
+  const [unitLayouts, setUnitLayouts] = useState([]);
   const [singleFormData, setSingleFormData] = useState({
     buildUp: "",
     price: "",
@@ -148,6 +150,8 @@ export default function UploadProperty() {
             facilities: singleFormData.facilities,
             furniture: singleFormData.furniture,
             facing: singleFormData.facing,
+            transit: JSON.stringify(transitInfo),
+
           },
         ])
         .select()
@@ -294,6 +298,9 @@ export default function UploadProperty() {
               setSingleFormData({ ...singleFormData, facilities: val })
             }
           />
+
+                <TransitSelector onChange={setTransitInfo} />
+
 
           <BuildYearSelector
   value={singleFormData.buildYear}
