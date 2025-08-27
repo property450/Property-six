@@ -6,6 +6,7 @@ export default function CarparkLevelSelector({
   mode = "single", // "single" | "range"
 }) {
   const [customValue, setCustomValue] = useState({ min: "", max: "", single: "" });
+  const [isCustom, setIsCustom] = useState({ min: false, max: false, single: false });
 
   const groupedOptions = {
     "🔻 地下楼层（Basement）": [
@@ -24,13 +25,12 @@ export default function CarparkLevelSelector({
   };
 
   if (mode === "range") {
-    // -------- 范围模式 --------
     return (
       <div className="space-y-2">
         <label className="block text-sm font-medium text-gray-700">车位位置范围</label>
         <div className="flex gap-2">
           {/* 最小楼层 */}
-          {value?.min === "自定义" ? (
+          {isCustom.min ? (
             <input
               type="text"
               placeholder="请输入最小楼层"
@@ -46,7 +46,12 @@ export default function CarparkLevelSelector({
               value={value?.min || ""}
               onChange={(e) => {
                 const v = e.target.value;
-                onChange({ ...value, min: v });
+                if (v === "自定义") {
+                  setIsCustom({ ...isCustom, min: true });
+                  onChange({ ...value, min: "" }); // 先清空
+                } else {
+                  onChange({ ...value, min: v });
+                }
               }}
               className="w-1/2 border border-gray-300 rounded px-3 py-2"
             >
@@ -63,7 +68,7 @@ export default function CarparkLevelSelector({
           )}
 
           {/* 最大楼层 */}
-          {value?.max === "自定义" ? (
+          {isCustom.max ? (
             <input
               type="text"
               placeholder="请输入最大楼层"
@@ -79,7 +84,12 @@ export default function CarparkLevelSelector({
               value={value?.max || ""}
               onChange={(e) => {
                 const v = e.target.value;
-                onChange({ ...value, max: v });
+                if (v === "自定义") {
+                  setIsCustom({ ...isCustom, max: true });
+                  onChange({ ...value, max: "" });
+                } else {
+                  onChange({ ...value, max: v });
+                }
               }}
               className="w-1/2 border border-gray-300 rounded px-3 py-2"
             >
@@ -104,7 +114,7 @@ export default function CarparkLevelSelector({
     <div className="space-y-2">
       <label className="block text-sm font-medium text-gray-700">车位位置</label>
 
-      {value === "自定义" ? (
+      {isCustom.single ? (
         <input
           type="text"
           placeholder="请输入车位位置"
@@ -117,8 +127,16 @@ export default function CarparkLevelSelector({
         />
       ) : (
         <select
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
+          value={value || ""}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (v === "自定义") {
+              setIsCustom({ ...isCustom, single: true });
+              onChange(""); // 进入自定义模式时清空
+            } else {
+              onChange(v);
+            }
+          }}
           className="w-full border border-gray-300 rounded px-3 py-2"
         >
           <option value="">请选择车位位置</option>
