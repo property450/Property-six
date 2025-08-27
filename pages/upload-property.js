@@ -305,8 +305,10 @@ export default function UploadProperty() {
     setSingleFormData({ ...singleFormData, quarter: val })
   }
   // ✅ 只在 New Project / Under Construction 时才显示季度
-  showQuarter={propertyStatus?.trim() === "New Project / Under Construction"}
-/>
+  {propertyType === "New Project/Under construction" && (
+  <QuarterSelector value={quarter} onChange={setQuarter} />
+)}
+
 
           <ImageUpload
             config={{
