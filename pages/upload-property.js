@@ -269,12 +269,17 @@ export default function UploadProperty() {
           />
 
           <CarparkLevelSelector
-            value={singleFormData.carparkPosition}
-            onChange={(val) =>
-              setSingleFormData({ ...singleFormData, carparkPosition: val })
-            }
-            mode="range"
-          />
+  value={singleFormData.carparkPosition}
+  onChange={(val) =>
+    setSingleFormData({ ...singleFormData, carparkPosition: val })
+  }
+  mode={
+    propertyStatus === "New Project / Under Construction" ||
+    propertyStatus === "Completed Unit / Developer Unit"
+      ? "range"
+      : "single"
+  }
+/>
 
           <FurnitureSelector
             value={singleFormData.furniture}
