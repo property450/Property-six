@@ -1,6 +1,6 @@
 //components/TransitSelector.js
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Select from "react-select";
 import CreatableSelect from "react-select/creatable";
 
