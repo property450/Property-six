@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-export default function CarparkPositionSelector({
+export default function CarparkLevelSelector ({
   value,
   onChange,
   mode = "single", // "single" | "range"
