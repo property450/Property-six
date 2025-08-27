@@ -296,18 +296,16 @@ export default function UploadProperty() {
           />
 
           <BuildYearSelector
-            value={singleFormData.buildYear}
-            onChange={(val) =>
-              setSingleFormData({ ...singleFormData, buildYear: val })
-            }
-            quarter={singleFormData.quarter}
-            onQuarterChange={(val) =>
-              setSingleFormData({ ...singleFormData, quarter: val })
-            }
-            showQuarter={true}
-              propertyStatus === "New Project / Under Construction"
-}
-          />
+  value={singleFormData.buildYear}
+  onChange={(val) =>
+    setSingleFormData({ ...singleFormData, buildYear: val })
+  }
+  quarter={singleFormData.quarter}
+  onQuarterChange={(val) =>
+    setSingleFormData({ ...singleFormData, quarter: val })
+  }
+  showQuarter={propertyStatus === "New Project / Under Construction"}
+/>
 
           <ImageUpload
             config={{
