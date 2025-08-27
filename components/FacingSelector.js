@@ -1,38 +1,40 @@
 // components/FacingSelector.js
 import React, { useState, useEffect } from "react";
 
-export default function FacingSelector({ value = [], onChange }) {
+export default function FacingSelector({ value, onChange }) {
+  // 如果 value 不是数组，就强制转换为空数组
+  const arrValue = Array.isArray(value) ? value : [];
+
   const options = ["东", "南", "西", "北", "东南", "东北", "西南", "西北", "其他"];
   const [customValue, setCustomValue] = useState(
-    value.find((v) => !options.includes(v)) || ""
+    arrValue.find((v) => !options.includes(v)) || ""
   );
 
   useEffect(() => {
-    // 当外部 value 改变，保持 customValue 同步
-    const other = value.find((v) => !options.includes(v));
+    const other = arrValue.find((v) => !options.includes(v));
     setCustomValue(other || "");
-  }, [value]);
+  }, [arrValue]);
 
   const handleToggle = (option) => {
     if (option === "其他") {
-      if (value.includes("其他")) {
-        onChange(value.filter((v) => v !== "其他"));
+      if (arrValue.includes("其他")) {
+        onChange(arrValue.filter((v) => v !== "其他"));
         setCustomValue("");
       } else {
-        onChange([...value, "其他"]);
+        onChange([...arrValue, "其他"]);
       }
     } else {
-      if (value.includes(option)) {
-        onChange(value.filter((v) => v !== option));
+      if (arrValue.includes(option)) {
+        onChange(arrValue.filter((v) => v !== option));
       } else {
-        onChange([...value, option]);
+        onChange([...arrValue, option]);
       }
     }
   };
 
   const handleCustomChange = (val) => {
     setCustomValue(val);
-    const newValue = value.filter((v) => v !== customValue && v !== "其他");
+    const newValue = arrValue.filter((v) => v !== customValue && v !== "其他");
     onChange([...newValue, "其他", val]);
   };
 
@@ -44,12 +46,12 @@ export default function FacingSelector({ value = [], onChange }) {
             type="button"
             onClick={() => handleToggle(o)}
             className={`px-3 py-1 border rounded ${
-              value.includes(o) ? "bg-blue-500 text-white" : "bg-white text-gray-700"
+              arrValue.includes(o) ? "bg-blue-500 text-white" : "bg-white text-gray-700"
             }`}
           >
             {o}
           </button>
-          {o === "其他" && value.includes("其他") && (
+          {o === "其他" && arrValue.includes("其他") && (
             <input
               type="text"
               className="border p-1 rounded"
