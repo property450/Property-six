@@ -1,59 +1,41 @@
 // components/FacingSelector.js
-import React, { useState, useEffect } from 'react';
+"use client";
 
-export default function FacingSelector({ value = [], onChange, customValue, onCustomChange }) {
-  const options = ["东", "南", "西", "北", "东南", "东北", "西南", "西北", "其他"];
+import React, { useState, useEffect } from "react";
+import CreatableSelect from "react-select/creatable";
 
-  const handleToggle = (option) => {
-    if (option === "其他") {
-      if (value.includes("其他")) {
-        onChange(value.filter((v) => v !== "其他"));
-        onCustomChange("");
-      } else {
-        onChange([...value, "其他"]);
-      }
-    } else {
-      if (value.includes(option)) {
-        onChange(value.filter((v) => v !== option));
-      } else {
-        onChange([...value, option]);
-      }
-    }
-  };
+const defaultOptions = [
+  "东", "南", "西", "北", "东南", "东北", "西南", "西北"
+].map(label => ({ label, value: label }));
 
-  const handleCustomChange = (val) => {
-    onCustomChange(val);
-    const newValue = value.filter((v) => v !== customValue && v !== "其他");
-    onChange([...newValue, "其他", val]);
+export default function FacingSelector({ value = [], onChange }) {
+  // value 是数组 [{label: "东"}] 或 [{label: "自定义"}]
+  const [selected, setSelected] = useState(value);
+
+  useEffect(() => {
+    setSelected(value);
+  }, [value]);
+
+  const handleChange = (newValue) => {
+    setSelected(newValue);
+    onChange?.(newValue); // 输出父组件 [{label:"东"},{label:"其他"}]
   };
 
   return (
     <div className="space-y-2">
       <label className="block text-sm font-medium text-gray-700">朝向</label>
-      <div className="flex flex-wrap gap-2">
-        {options.map((o) => (
-          <div key={o} className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => handleToggle(o)}
-              className={`px-3 py-1 border rounded ${
-                value.includes(o) ? "bg-blue-500 text-white" : "bg-white text-gray-700"
-              }`}
-            >
-              {o}
-            </button>
-            {o === "其他" && value.includes("其他") && (
-              <input
-                type="text"
-                className="border p-1 rounded"
-                placeholder="请输入其他朝向"
-                value={customValue}
-                onChange={(e) => handleCustomChange(e.target.value)}
-              />
-            )}
-          </div>
-        ))}
-      </div>
+      <CreatableSelect
+        isMulti
+        closeMenuOnSelect={false}
+        placeholder="选择或输入朝向..."
+        options={defaultOptions}
+        value={selected}
+        onChange={handleChange}
+        formatCreateLabel={(inputValue) => `添加自定义: ${inputValue}`}
+        styles={{
+          menu: (provided) => ({ ...provided, zIndex: 9999 }),
+        }}
+      />
     </div>
   );
 }
