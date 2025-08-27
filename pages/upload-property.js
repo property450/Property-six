@@ -295,14 +295,6 @@ export default function UploadProperty() {
             }
           />
 
-          {/* 假设这里有个类型选择 */}
-      <select value={propertyType} onChange={(e) => setPropertyType(e.target.value)}>
-        <option value="">请选择类型</option>
-        <option value="new property">New Property</option>
-        <option value="under construction">Under Construction</option>
-        <option value="resale">二手房</option>
-      </select>
-
       <BuildYearSelector
         value={buildYear}
         onChange={setBuildYear}
