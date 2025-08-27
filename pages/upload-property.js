@@ -307,6 +307,13 @@ export default function UploadProperty() {
             showQuarter={true}
           />
 
+              <textarea
+  placeholder="请输入房源描述"
+  value={description}
+  onChange={(e) => setDescription(e.target.value)}
+  className="w-full border rounded p-2 h-32"
+/>
+
           <ImageUpload
             config={{
               bedrooms: singleFormData.bedrooms,
