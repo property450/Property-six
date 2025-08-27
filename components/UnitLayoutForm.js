@@ -230,20 +230,3 @@ function PricePerSqft({ price, area }) {
   );
 }
 
-{/* 描述输入框 */}
-<div className="space-y-2">
-  <label
-    htmlFor="description"
-    className="block text-sm font-medium text-gray-700"
-  >
-    户型描述
-  </label>
-  <textarea
-    id="description"
-    value={data.description || ""}
-    onChange={(e) => handleChange("description", e.target.value)}
-    placeholder="请输入户型的详细描述..."
-    rows={4}
-    className="w-full border rounded-lg p-2 resize-y"
-  />
-</div>
