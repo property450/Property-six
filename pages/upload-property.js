@@ -66,6 +66,7 @@ export default function UploadProperty() {
     floorPlans: "",
     buildYear: "",
     quarter: "",
+    layoutPhotos: [],   // ✅ 需要加上这个
   });
   const [areaData, setAreaData] = useState({
     types: ["buildUp"],
@@ -122,6 +123,16 @@ export default function UploadProperty() {
       toast.error("请填写完整信息");
       return;
     }
+
+    const fileInputRef = useRef(null);
+
+const handleLayoutUpload = (e) => {
+  const files = Array.from(e.target.files);
+  if (!files.length) return;
+  const newPhotos = [...(singleFormData.layoutPhotos || []), ...files];
+  setSingleFormData({ ...singleFormData, layoutPhotos: newPhotos });
+};
+
 
     setLoading(true);
     try {
