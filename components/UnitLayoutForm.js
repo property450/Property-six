@@ -101,8 +101,6 @@ function PricePerSqft({ price, area }) {
       furniture: data.furniture || [],
       orientation: data.facing || null,
       transit: null, // ✅ 初始化
-      unit_layouts: JSON.stringify(unitLayouts.length > 0 ? unitLayouts : [singleFormData]),
-
     });
   }, [data]);
 
