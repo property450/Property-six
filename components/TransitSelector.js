@@ -79,7 +79,7 @@ export default function TransitSelector() {
     if (onChange) {
       onChange({ nearTransit, selectedLines, selectedStations });
     }
-  }, [nearTransit, selectedLines, selectedStations]);
+  }, [nearTransit, selectedLines, selectedStations, onChange]);
   
   return (
     <div className="space-y-4">
