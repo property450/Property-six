@@ -32,7 +32,7 @@ export default function FacingSelector({ value = [], onChange }) {
         onChange={handleChange}
         formatCreateLabel={(inputValue) => `添加自定义: ${inputValue}`}
         components={{
-          MultiValueRemove: () => null, // 隐藏每个标签上的 ❌ 删除按钮
+          ClearIndicator: () => null, // 去掉输入框右侧的大 ❌
         }}
         styles={{
           menu: (provided) => ({ ...provided, zIndex: 9999 }),
