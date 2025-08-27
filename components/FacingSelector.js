@@ -4,38 +4,49 @@
 import React, { useState, useEffect } from "react";
 import CreatableSelect from "react-select/creatable";
 
-const defaultOptions = [
-  "东", "南", "西", "北", "东南", "东北", "西南", "西北"
-].map(label => ({ label, value: label }));
+// 默认朝向选项
+const facingOptions = [
+  "东",
+  "南",
+  "西",
+  "北",
+  "东南",
+  "东北",
+  "西南",
+  "西北",
+].map((label) => ({ value: label, label }));
 
 export default function FacingSelector({ value = [], onChange }) {
-  const [selected, setSelected] = useState(value);
+  // value: ["东", "南"] 这种格式
+  const [selectedOptions, setSelectedOptions] = useState(
+    value.map((v) => ({ value: v, label: v }))
+  );
 
   useEffect(() => {
-    setSelected(value);
+    setSelectedOptions(value.map((v) => ({ value: v, label: v })));
   }, [value]);
 
-  const handleChange = (newValue) => {
-    setSelected(newValue);
-    onChange?.(newValue); // 输出父组件 [{label:"东"},{label:"其他"}]
+  const handleChange = (selected) => {
+    setSelectedOptions(selected || []);
+    onChange(selected ? selected.map((opt) => opt.value) : []);
   };
 
   return (
-    <div className="space-y-2">
-      <label className="block text-sm font-medium text-gray-700">朝向</label>
+    <div className="mb-4">
+      <label className="block font-medium mb-1">朝向</label>
       <CreatableSelect
         isMulti
-        closeMenuOnSelect={false}
         placeholder="选择或输入朝向..."
-        options={defaultOptions}
-        value={selected}
+        options={facingOptions}
+        value={selectedOptions}
         onChange={handleChange}
         formatCreateLabel={(inputValue) => `添加自定义: ${inputValue}`}
-        components={{
-          ClearIndicator: () => null, // 去掉输入框右侧的大 ❌
-        }}
+        closeMenuOnSelect={false} // ✅ 选中后不关闭菜单
         styles={{
-          menu: (provided) => ({ ...provided, zIndex: 9999 }),
+          menu: (provided) => ({
+            ...provided,
+            zIndex: 9999,
+          }),
         }}
       />
     </div>
