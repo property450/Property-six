@@ -236,13 +236,13 @@ function PricePerSqft({ price, area }) {
     htmlFor="description"
     className="block text-sm font-medium text-gray-700"
   >
-    房源描述
+    户型描述
   </label>
   <textarea
     id="description"
-    value={description}
-    onChange={(e) => setDescription(e.target.value)}
-    placeholder="请输入房源详细描述..."
+    value={data.description || ""}
+    onChange={(e) => handleChange("description", e.target.value)}
+    placeholder="请输入户型的详细描述..."
     rows={4}
     className="w-full border rounded-lg p-2 resize-y"
   />
