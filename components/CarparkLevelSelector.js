@@ -95,15 +95,28 @@ export default function CarparkPositionSelector({
         <option value="其他（自定义）">其他（自定义）</option>
       </select>
 
-      {value === "其他（自定义）" && (
-        <input
-          type="text"
-          placeholder="请输入自定义车位位置"
-          value={customValue}
-          onChange={(e) => setCustomValue(e.target.value)}
-          className="w-full border border-gray-300 rounded px-3 py-2"
-        />
-      )}
-    </div>
-  );
-}
+{value === "其他（自定义）" ? (
+  <input
+    type="text"
+    placeholder="请输入自定义车位位置"
+    value={customValue}
+    onChange={(e) => setCustomValue(e.target.value)}
+    className="w-full border border-gray-300 rounded px-3 py-2"
+  />
+) : (
+  <select
+    value={value}
+    onChange={(e) => onChange(e.target.value)}
+    className="w-full border border-gray-300 rounded px-3 py-2"
+  >
+    <option value="">请选择车位位置</option>
+    {Object.entries(groupedOptions).map(([groupLabel, options]) => (
+      <optgroup key={groupLabel} label={groupLabel}>
+        {options.map((opt) => (
+          <option key={opt} value={opt}>{opt}</option>
+        ))}
+      </optgroup>
+    ))}
+    <option value="其他（自定义）">其他（自定义）</option>
+  </select>
+)}
