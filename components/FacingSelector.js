@@ -3,14 +3,12 @@
 
 import React, { useState, useEffect } from "react";
 import CreatableSelect from "react-select/creatable";
-import { components } from "react-select";
 
 const defaultOptions = [
   "东", "南", "西", "北", "东南", "东北", "西南", "西北"
 ].map(label => ({ label, value: label }));
 
 export default function FacingSelector({ value = [], onChange }) {
-  // value 是数组 [{label: "东"}] 或 [{label: "自定义"}]
   const [selected, setSelected] = useState(value);
 
   useEffect(() => {
@@ -27,19 +25,19 @@ export default function FacingSelector({ value = [], onChange }) {
       <label className="block text-sm font-medium text-gray-700">朝向</label>
       <CreatableSelect
         isMulti
-        <CreatableSelect
-  isMulti
-  closeMenuOnSelect={false}
-  placeholder="选择或输入朝向..."
-  options={defaultOptions}
-  value={selected}
-  onChange={handleChange}
-  formatCreateLabel={(inputValue) => `添加自定义: ${inputValue}`}
-  components={{
-    MultiValueRemove: () => null, // 隐藏删除叉号
-  }}
-  styles={{
-    menu: (provided) => ({ ...provided, zIndex: 9999 }),
-  }}
-/>
-
+        closeMenuOnSelect={false}
+        placeholder="选择或输入朝向..."
+        options={defaultOptions}
+        value={selected}
+        onChange={handleChange}
+        formatCreateLabel={(inputValue) => `添加自定义: ${inputValue}`}
+        components={{
+          MultiValueRemove: () => null, // 隐藏每个标签上的 ❌ 删除按钮
+        }}
+        styles={{
+          menu: (provided) => ({ ...provided, zIndex: 9999 }),
+        }}
+      />
+    </div>
+  );
+}
