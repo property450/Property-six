@@ -1,39 +1,64 @@
 // components/FacingSelector.js
-import React from "react";
+import React, { useState, useEffect } from "react";
 
 export default function FacingSelector({ value = [], onChange, customValue, onCustomChange }) {
   const options = ["东", "南", "西", "北", "东南", "东北", "西南", "西北", "其他"];
 
-  const handleChange = (e) => {
-    const selectedOptions = Array.from(e.target.selectedOptions).map((o) => o.value);
-    onChange(selectedOptions);
+  // 同步 customValue，如果 value 中有不是选项的，就是自定义值
+  useEffect(() => {
+    const other = value.find((v) => !options.includes(v));
+    if (other) {
+      onCustomChange(other);
+    }
+  }, [value]);
+
+  const handleToggle = (option) => {
+    if (option === "其他") {
+      if (value.includes("其他")) {
+        onChange(value.filter((v) => v !== "其他"));
+        onCustomChange("");
+      } else {
+        onChange([...value, "其他"]);
+      }
+    } else {
+      if (value.includes(option)) {
+        onChange(value.filter((v) => v !== option));
+      } else {
+        onChange([...value, option]);
+      }
+    }
+  };
+
+  const handleCustomChange = (val) => {
+    onCustomChange(val);
+    const newValue = value.filter((v) => v !== customValue && v !== "其他");
+    onChange([...newValue, "其他", val]);
   };
 
   return (
-    <div className="space-y-2">
-      <label className="block text-sm font-medium text-gray-700">朝向</label>
-      <select
-        multiple
-        value={value}
-        onChange={handleChange}
-        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-      >
-        {options.map((o) => (
-          <option key={o} value={o}>
+    <div className="flex flex-wrap gap-2 items-center">
+      {options.map((o) => (
+        <div key={o} className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => handleToggle(o)}
+            className={`px-3 py-1 border rounded ${
+              value.includes(o) ? "bg-blue-500 text-white" : "bg-white text-gray-700"
+            }`}
+          >
             {o}
-          </option>
-        ))}
-      </select>
-
-      {value.includes("其他") && (
-        <input
-          type="text"
-          className="mt-2 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-          placeholder="请输入其他朝向"
-          value={customValue}
-          onChange={(e) => onCustomChange(e.target.value)}
-        />
-      )}
+          </button>
+          {o === "其他" && value.includes("其他") && (
+            <input
+              type="text"
+              className="border p-1 rounded"
+              placeholder="请输入其他朝向"
+              value={customValue}
+              onChange={(e) => handleCustomChange(e.target.value)}
+            />
+          )}
+        </div>
+      ))}
     </div>
   );
 }
