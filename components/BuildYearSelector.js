@@ -1,16 +1,22 @@
 // components/BuildYearSelector.js
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from "react";
 
-export default function BuildYearSelector({ value, onChange, quarter, onQuarterChange, showQuarter }) {
+export default function BuildYearSelector({
+  value,
+  onChange,
+  quarter,
+  onQuarterChange,
+  showQuarter,
+}) {
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 70 + 5 + 1 }, (_, i) => currentYear + 5 - i);
 
-  const [inputVal, setInputVal] = useState(value || '');
+  const [inputVal, setInputVal] = useState(value || "");
   const [showDropdown, setShowDropdown] = useState(false);
   const containerRef = useRef(null);
 
   useEffect(() => {
-    setInputVal(value || '');
+    setInputVal(value || "");
   }, [value]);
 
   // 点击页面外关闭下拉
@@ -20,13 +26,13 @@ export default function BuildYearSelector({ value, onChange, quarter, onQuarterC
         setShowDropdown(false);
       }
     }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const handleInputChange = (e) => {
     const val = e.target.value;
-    if (val === '' || /^\d{0,4}$/.test(val)) {
+    if (val === "" || /^\d{0,4}$/.test(val)) {
       setInputVal(val);
       onChange(val);
     }
@@ -38,9 +44,15 @@ export default function BuildYearSelector({ value, onChange, quarter, onQuarterC
     setShowDropdown(false);
   };
 
+  // ✅ 根据 showQuarter 切换 label 和 placeholder
+  const labelText = showQuarter ? "预计交付时间" : "完成年份";
+  const placeholderText = showQuarter
+    ? "请选择或输入建造年份"
+    : "请选择或输入完成年份";
+
   return (
     <div className="mb-4 relative">
-      <label className="block font-medium mb-1">预计交付时间</label>
+      <label className="block font-medium mb-1">{labelText}</label>
       <div className="flex gap-2 items-end">
         {/* 年份输入框 */}
         <div className="flex-1 relative" ref={containerRef}>
@@ -49,7 +61,7 @@ export default function BuildYearSelector({ value, onChange, quarter, onQuarterC
             maxLength={4}
             inputMode="numeric"
             pattern="[0-9]*"
-            placeholder="请选择或输入建造年份"
+            placeholder={placeholderText}
             className="w-full border p-2 rounded"
             value={inputVal}
             onChange={handleInputChange}
