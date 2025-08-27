@@ -75,6 +75,12 @@ export default function TransitSelector() {
   const [selectedLines, setSelectedLines] = useState([]); // ✅ 改为数组
   const [selectedStations, setSelectedStations] = useState({}); // 每条路线对应不同站点
 
+  useEffect(() => {
+    if (onChange) {
+      onChange({ nearTransit, selectedLines, selectedStations });
+    }
+  }, [nearTransit, selectedLines, selectedStations]);
+  
   return (
     <div className="space-y-4">
       {/* Step 1 */}
