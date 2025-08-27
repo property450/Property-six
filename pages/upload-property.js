@@ -224,38 +224,32 @@ export default function UploadProperty() {
       ) : (
         <div className="space-y-4 mt-6">
 
-        // ✅ 上传 layout 图片逻辑
-  const handleLayoutUpload = (e) => {
-    const files = Array.from(e.target.files);
-    if (!files.length) return;
-    const newPhotos = [...(data.layoutPhotos || []), ...files];
-    handleChange("layoutPhotos", newPhotos);
-  };
+        <div className="mb-3">
+  <button
+    type="button"
+    className="mb-3 px-3 py-2 bg-gray-100 border rounded hover:bg-gray-200 w-full"
+    onClick={() => fileInputRef.current.click()}
+  >
+    点击上传 Layout
+  </button>
+  <input
+    ref={fileInputRef}
+    type="file"
+    accept="image/*"
+    multiple
+    className="hidden"
+    onChange={handleLayoutUpload}
+  />
 
- {/* ✅ 上传 Layout 按钮 */}
-      <div className="mb-3">
-        <button
-          type="button"
-          className="mb-3 px-3 py-2 bg-gray-100 border rounded hover:bg-gray-200 w-full"
-          onClick={() => fileInputRef.current.click()}
-        >
-          点击上传 Layout
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          className="hidden"
-          onChange={handleLayoutUpload}
-        />
+  {/* 已上传的 Layout 图片预览 */}
+  <ImageUpload
+    images={singleFormData.layoutPhotos || []}
+    setImages={(updated) =>
+      setSingleFormData({ ...singleFormData, layoutPhotos: updated })
+    }
+  />
+</div>
 
-            {/* 已上传的 Layout 图片预览 */}
-        <ImageUpload
-          images={data.layoutPhotos || []}
-          setImages={(updated) => handleChange("layoutPhotos", updated)}
-        />
-      </div>
           
           <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
 
