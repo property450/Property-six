@@ -1,15 +1,15 @@
 // components/AdvancedAvailabilityCalendar.js
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 
-// 本地日期格式化，避免时区错位
+// 日期格式化函数 (dd-mm-yyyy)
 const formatDate = (date) => {
   if (!date || !(date instanceof Date)) return "";
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
-  return `${day}-${month}-${year}`; // ✅ 改成 dd-mm-yyyy
+  return `${day}-${month}-${year}`;
 };
 
 // 千分位格式化
@@ -22,11 +22,37 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
   const [status, setStatus] = useState("available");
   const [checkIn, setCheckIn] = useState("14:00");
   const [checkOut, setCheckOut] = useState("12:00");
-  const inputRef = useRef(null);
+
+  const wrapperRef = useRef(null);
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  // ✅ 预定义价格 (50 ~ 50,000)
+  const predefinedPrices = Array.from({ length: 1000 }, (_, i) => (i + 1) * 50);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // 日期选择
   const handleSelect = (range) => {
-    setSelectedRange(range);
+    if (!range) return;
+
+    // ✅ 如果用户只选择了 "from" (check-in)，自动把 "to" 设为 +1 天
+    if (range.from && !range.to) {
+      const autoTo = new Date(range.from);
+      autoTo.setDate(autoTo.getDate() + 1);
+      setSelectedRange({ from: range.from, to: autoTo });
+    } else {
+      setSelectedRange(range);
+    }
+
+    // ✅ 单天 → 回填数据
     if (range?.from && range?.to === range.from) {
       const key = formatDate(range.from);
       const info = value[key];
@@ -68,20 +94,17 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
   const modifiers = {
     available: Object.keys(value)
       .filter((d) => value[d]?.status === "available")
-      .map((d) => new Date(d)),
+      .map((d) => new Date(d.split("-").reverse().join("-"))),
     booked: Object.keys(value)
       .filter((d) => value[d]?.status === "booked")
-      .map((d) => new Date(d)),
+      .map((d) => new Date(d.split("-").reverse().join("-"))),
     peak: Object.keys(value)
       .filter((d) => value[d]?.status === "peak")
-      .map((d) => new Date(d)),
+      .map((d) => new Date(d.split("-").reverse().join("-"))),
   };
 
-  // ✅ 下拉价格列表
-  const priceOptions = Array.from({ length: 1000 }, (_, i) => (i + 1) * 50); // 50~50,000
-
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" ref={wrapperRef}>
       <label className="block font-medium">房源日历管理</label>
 
       <DayPicker
@@ -115,46 +138,46 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
 
       {selectedRange && (
         <div className="space-y-2 border p-3 rounded bg-gray-50">
-          {/* ✅ 改成更直观的 Check-in / Check-out 日期显示 */}
+          {/* ✅ Check-in / Check-out 日期显示 */}
           <div className="flex justify-between">
             <p>Check-in 日期: {formatDate(selectedRange.from)}</p>
             <p>Check-out 日期: {formatDate(selectedRange.to)}</p>
           </div>
 
-          {/* ✅ 输入框 + 下拉选择 */}
+          {/* ✅ 价格输入 + 下拉选择 (像 PriceInput.js 一样) */}
           <div className="relative">
             <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-600">
               RM
             </span>
             <input
-              ref={inputRef}
               type="text"
               placeholder="价格"
               value={price}
-              list="price-options"
               onChange={(e) => {
                 const raw = e.target.value.replace(/,/g, "");
                 if (/^\d*$/.test(raw)) {
                   setPrice(formatPrice(raw));
                 }
               }}
-              onClick={() => {
-                const input = inputRef.current;
-                if (input) {
-                  const len = input.value.length;
-                  setTimeout(() => {
-                    input.setSelectionRange(len, len);
-                  }, 0);
-                }
-              }}
+              onFocus={() => setShowDropdown(true)}
               className="pl-10 border p-2 w-full rounded"
             />
-            {/* ✅ 下拉价格建议 */}
-            <datalist id="price-options">
-              {priceOptions.map((p) => (
-                <option key={p} value={formatPrice(p)} />
-              ))}
-            </datalist>
+            {showDropdown && (
+              <ul className="absolute z-10 w-full bg-white border mt-1 max-h-60 overflow-y-auto rounded shadow">
+                {predefinedPrices.map((p) => (
+                  <li
+                    key={p}
+                    onClick={() => {
+                      setPrice(formatPrice(p));
+                      setShowDropdown(false);
+                    }}
+                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                  >
+                    RM {p.toLocaleString()}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           {/* ✅ 状态选择 */}
