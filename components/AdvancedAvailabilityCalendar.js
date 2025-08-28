@@ -36,23 +36,30 @@ const formatDate = (date) => {
 
   // 自定义渲染单元格
   const renderDay = (day) => {
-    const key = formatDate(day);
-    const info = value[key];
-    if (!info) return <div>{day.getDate()}</div>;
+  if (!(day instanceof Date)) return <div />; // 避免 undefined 报错
 
-    const colors = {
-      available: "bg-green-200",
-      booked: "bg-red-300",
-      peak: "bg-yellow-300",
-    };
+  const key = formatDate(day);
+  const info = value[key];
 
-    return (
-      <div className={`h-16 w-16 flex flex-col items-center justify-center rounded ${colors[info.status] || ""}`}>
-        <span>{day.getDate()}</span>
-        <span className="text-xs">RM {info.price}</span>
-      </div>
-    );
+  if (!info) {
+    return <div className="h-16 w-16 flex items-center justify-center">
+      {day.getDate()}
+    </div>;
+  }
+
+  const colors = {
+    available: "bg-green-200",
+    booked: "bg-red-300",
+    peak: "bg-yellow-300",
   };
+
+  return (
+    <div className={`h-16 w-16 flex flex-col items-center justify-center rounded ${colors[info.status] || ""}`}>
+      <span>{day.getDate()}</span>
+      <span className="text-xs">RM {info.price}</span>
+    </div>
+  );
+};
 
   return (
     <div className="space-y-4">
