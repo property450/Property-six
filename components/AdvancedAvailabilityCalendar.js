@@ -120,17 +120,16 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
         }}
         components={{
           DayContent: ({ date }) => {
-            const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-            const key = formatDate(date);
+            const key = formatDate(date); // ✅ 使用原始日期格式，不做时区调整
             const info = value[key];
             return (
-              <div className="relative flex flex-col items-center justify-center border p-1">
+              <div className="relative h-16 w-16 flex flex-col items-center justify-center">
                 {/* 日期号 */}
                 <span className="text-sm">{date.getDate()}</span>
                 {/* 价格显示 */}
                 {info?.price && (
                   <span className="text-[11px] text-green-700 font-medium mt-1">
-      RM {formatPrice(info.price)}
+                    RM {formatPrice(info.price)}
                   </span>
                 )}
               </div>
