@@ -357,7 +357,7 @@ export default function UploadProperty() {
                 showQuarter={propertyStatus === "New Project / Under Construction"}
               />
             </>
-          )}
+          ) : null}
 
           {/* 描述 */}
           <div className="space-y-2">
