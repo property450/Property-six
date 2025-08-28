@@ -120,20 +120,18 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
         }}
         components={{
           DayContent: ({ date }) => {
-            const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
-const info = value[key];
-
-            return (
+            const key = formatDate(date);
+            const info = value[key];
+           return (
               <div className="relative h-16 w-16 flex flex-col items-center justify-center">
                 {/* 日期号 */}
                 <span className="text-sm">{date.getDate()}</span>
                 {/* 价格显示 */}
-                {info?.price && (
-                  <span className="text-[11px] text-green-700 font-medium mt-1">
-                    RM {formatPrice(info.price)}
-                  </span>
-                )}
-              </div>
+                {info?.price != null && info?.price !== 0 && (
+  <span className="text-[11px] text-green-700 font-medium mt-1">
+    RM {formatPrice(info.price)}
+  </span>
+)}
             );
           },
         }}
