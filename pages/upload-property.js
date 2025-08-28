@@ -311,6 +311,22 @@ const handleLayoutUpload = (e) => {
             }
           />
 
+              <FurnitureSelector
+            value={singleFormData.furniture}
+            onChange={(val) =>
+              setSingleFormData({ ...singleFormData, furniture: val })
+            }
+          />
+
+          <FacilitiesSelector
+            value={singleFormData.facilities}
+            onChange={(val) =>
+              setSingleFormData({ ...singleFormData, facilities: val })
+            }
+          />
+
+                <TransitSelector onChange={setTransitInfo} />
+
           {/* CarparkLevelSelector & BuildYearSelector 正常显示，但 Homestay/Hotel 隐藏 */}
 {!(type === "Homestay" || type === "Hotel / Resort") && (
   <>
@@ -327,23 +343,7 @@ const handleLayoutUpload = (e) => {
       }
     />
 
-          <FurnitureSelector
-            value={singleFormData.furniture}
-            onChange={(val) =>
-              setSingleFormData({ ...singleFormData, furniture: val })
-            }
-          />
-
-          <FacilitiesSelector
-            value={singleFormData.facilities}
-            onChange={(val) =>
-              setSingleFormData({ ...singleFormData, facilities: val })
-            }
-          />
-
-                <TransitSelector onChange={setTransitInfo} />
-
-
+          
           <BuildYearSelector
       value={singleFormData.buildYear}
       onChange={(val) =>
