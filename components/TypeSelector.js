@@ -69,8 +69,7 @@ useEffect(() => {
   }
   onChange(newValue);
 }, [finalType]); // 只依赖 finalType
-}, [finalType, saleType, onChange]);
-
+  
   // 如果外部希望得到整个表单数据，可以传 onFormChange 回调（可选）
   useEffect(() => {
     const formData = {
