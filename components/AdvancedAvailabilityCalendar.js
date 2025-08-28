@@ -9,7 +9,7 @@ const formatDate = (date) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return `${day}-${month}-${year}`; // ✅ 改成 dd-mm-yyyy
 };
 
 // 千分位格式化
@@ -20,15 +20,14 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
   const [selectedRange, setSelectedRange] = useState(null);
   const [price, setPrice] = useState("");
   const [status, setStatus] = useState("available");
-  const [checkIn, setCheckIn] = useState("14:00"); // 默认下午2点
-  const [checkOut, setCheckOut] = useState("12:00"); // 默认中午12点
+  const [checkIn, setCheckIn] = useState("14:00");
+  const [checkOut, setCheckOut] = useState("12:00");
   const inputRef = useRef(null);
 
   // 日期选择
   const handleSelect = (range) => {
     setSelectedRange(range);
     if (range?.from && range?.to === range.from) {
-      // 单天 → 回填数据
       const key = formatDate(range.from);
       const info = value[key];
       if (info) {
@@ -78,6 +77,9 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
       .map((d) => new Date(d)),
   };
 
+  // ✅ 下拉价格列表
+  const priceOptions = Array.from({ length: 1000 }, (_, i) => (i + 1) * 50); // 50~50,000
+
   return (
     <div className="space-y-4">
       <label className="block font-medium">房源日历管理</label>
@@ -89,9 +91,9 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
         showOutsideDays
         modifiers={modifiers}
         modifiersStyles={{
-          available: { backgroundColor: "#bbf7d0" }, // 绿色
-          booked: { backgroundColor: "#fca5a5" }, // 红色
-          peak: { backgroundColor: "#fde047" }, // 黄色
+          available: { backgroundColor: "#bbf7d0" },
+          booked: { backgroundColor: "#fca5a5" },
+          peak: { backgroundColor: "#fde047" },
         }}
         components={{
           DayContent: ({ date }) => {
@@ -113,12 +115,13 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
 
       {selectedRange && (
         <div className="space-y-2 border p-3 rounded bg-gray-50">
-          <p>
-            设置区间:{" "}
-            {formatDate(selectedRange.from)} → {formatDate(selectedRange.to)}
-          </p>
+          {/* ✅ 改成更直观的 Check-in / Check-out 日期显示 */}
+          <div className="flex justify-between">
+            <p>Check-in 日期: {formatDate(selectedRange.from)}</p>
+            <p>Check-out 日期: {formatDate(selectedRange.to)}</p>
+          </div>
 
-          {/* ✅ 单一价格输入框 */}
+          {/* ✅ 输入框 + 下拉选择 */}
           <div className="relative">
             <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-600">
               RM
@@ -128,6 +131,7 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
               type="text"
               placeholder="价格"
               value={price}
+              list="price-options"
               onChange={(e) => {
                 const raw = e.target.value.replace(/,/g, "");
                 if (/^\d*$/.test(raw)) {
@@ -145,6 +149,12 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
               }}
               className="pl-10 border p-2 w-full rounded"
             />
+            {/* ✅ 下拉价格建议 */}
+            <datalist id="price-options">
+              {priceOptions.map((p) => (
+                <option key={p} value={formatPrice(p)} />
+              ))}
+            </datalist>
           </div>
 
           {/* ✅ 状态选择 */}
@@ -161,7 +171,9 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
           {/* ✅ Check-in / Check-out 时间选择 */}
           <div className="flex gap-2">
             <div className="flex flex-col w-1/2">
-              <label className="text-sm text-gray-600">Check-in</label>
+              <label className="text-sm text-gray-600">
+                Check-in 时间 ({formatDate(selectedRange.from)})
+              </label>
               <input
                 type="time"
                 value={checkIn}
@@ -172,7 +184,9 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
               />
             </div>
             <div className="flex flex-col w-1/2">
-              <label className="text-sm text-gray-600">Check-out</label>
+              <label className="text-sm text-gray-600">
+                Check-out 时间 ({formatDate(selectedRange.to)})
+              </label>
               <input
                 type="time"
                 value={checkOut}
@@ -194,4 +208,4 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
       )}
     </div>
   );
-                  }
+}
