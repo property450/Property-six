@@ -139,10 +139,21 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
       {selectedRange && (
         <div className="space-y-2 border p-3 rounded bg-gray-50">
           {/* ✅ Check-in / Check-out 日期显示 */}
-          <div className="flex justify-between">
-            <p>Check-in 日期: {formatDate(selectedRange.from)}</p>
-            <p>Check-out 日期: {formatDate(selectedRange.to)}</p>
-          </div>
+<div className="flex justify-between">
+  <p>Check-in 日期: {formatDate(selectedRange.from)}</p>
+  <p>
+    Check-out 日期:{" "}
+    {selectedRange.to
+      ? formatDate(
+          (() => {
+            const d = new Date(selectedRange.to);
+            d.setDate(d.getDate() + 1); // ✅ 自动加一天
+            return d;
+          })()
+        )
+      : ""}
+  </p>
+</div>
 
           {/* ✅ 价格输入 + 下拉选择 */}
           <div className="relative">
