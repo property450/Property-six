@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 
-// 日期格式化函数 (dd-mm-yyyy)
+// ✅ 日期格式化函数 (yyyy-mm-dd，避免错位)
 const formatDate = (date) => {
   if (!date || !(date instanceof Date)) return "";
   const year = date.getFullYear();
@@ -94,13 +94,13 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
   const modifiers = {
     available: Object.keys(value)
       .filter((d) => value[d]?.status === "available")
-      .map((d) => new Date(d.split("-").reverse().join("-"))),
+      .map((d) => new Date(d)),
     booked: Object.keys(value)
       .filter((d) => value[d]?.status === "booked")
-      .map((d) => new Date(d.split("-").reverse().join("-"))),
+      .map((d) => new Date(d)),
     peak: Object.keys(value)
       .filter((d) => value[d]?.status === "peak")
-      .map((d) => new Date(d.split("-").reverse().join("-"))),
+      .map((d) => new Date(d)),
   };
 
   return (
@@ -108,29 +108,31 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
       <label className="block font-medium">房源日历管理</label>
 
       <DayPicker
-  mode="range"
-  selected={selectedRange}
-  onSelect={handleSelect}
-  showOutsideDays
-  modifiers={modifiers}
-  modifiersStyles={{
-    available: { backgroundColor: "#bbf7d0" },
-    booked: { backgroundColor: "#fca5a5" },
-    peak: { backgroundColor: "#fde047" },
-  }}
+        mode="range"
+        selected={selectedRange}
+        onSelect={handleSelect}
+        showOutsideDays
+        modifiers={modifiers}
+        modifiersStyles={{
+          available: { backgroundColor: "#bbf7d0" },
+          booked: { backgroundColor: "#fca5a5" },
+          peak: { backgroundColor: "#fde047" },
+        }}
         components={{
-    DayContent: ({ date }) => {
-      const key = formatDate(date);
-      const info = value[key]; // ✅ 现在能对上了
-      return (
-        <div className="relative h-16 w-16 flex flex-col items-center justify-center">
-          <span className="text-sm">{date.getDate()}</span>
-          {info?.price && (
-            <span className="absolute bottom-1 right-1 text-[11px] text-green-700 font-medium">
-              RM {formatPrice(info.price)}
-            </span>
-          )}
-        </div>
+          DayContent: ({ date }) => {
+            const key = formatDate(date);
+            const info = value[key];
+            return (
+              <div className="relative h-16 w-16 flex flex-col items-center justify-center">
+                {/* 日期号 */}
+                <span className="text-sm">{date.getDate()}</span>
+                {/* 价格显示 */}
+                {info?.price && (
+                  <span className="absolute bottom-1 right-1 text-[11px] text-green-700 font-medium">
+                    RM {formatPrice(info.price)}
+                  </span>
+                )}
+              </div>
             );
           },
         }}
@@ -241,18 +243,16 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
               />
             </div>
           </div>
+
+          {/* ✅ 确认按钮 */}
+          <button
+            onClick={applySettings}
+            className="bg-blue-600 text-white px-4 py-2 rounded w-full"
+          >
+            确认应用到区间
+          </button>
         </div>
       )}
     </div>
   );
 }
-
-{/* ✅ 补回确认按钮 */}
-    <button
-      onClick={applySettings}
-      className="bg-blue-600 text-white px-4 py-2 rounded w-full"
-    >
-      确认应用到区间
-    </button>
-  </div>
-)
