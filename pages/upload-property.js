@@ -332,13 +332,6 @@ export default function UploadProperty() {
       onChange={setAvailability}
     />
 
-    {/* 调试用，实时查看 availability */}
-    <pre className="bg-gray-100 p-2 text-xs">
-      {JSON.stringify(availability, null, 2)}
-    </pre>
-  </>
-) : (
-<>
               <CarparkLevelSelector
                 value={singleFormData.carparkPosition}
                 onChange={(val) =>
