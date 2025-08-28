@@ -9,7 +9,7 @@ const formatDate = (date) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
-  return `${day}-${month}-${year}`;
+  return `${year}-${month}-${day}`;
 };
 
 // 千分位格式化
@@ -108,31 +108,29 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
       <label className="block font-medium">房源日历管理</label>
 
       <DayPicker
-        mode="range"
-        selected={selectedRange}
-        onSelect={handleSelect}
-        showOutsideDays
-        modifiers={modifiers}
-        modifiersStyles={{
-          available: { backgroundColor: "#bbf7d0" },
-          booked: { backgroundColor: "#fca5a5" },
-          peak: { backgroundColor: "#fde047" },
-        }}
+  mode="range"
+  selected={selectedRange}
+  onSelect={handleSelect}
+  showOutsideDays
+  modifiers={modifiers}
+  modifiersStyles={{
+    available: { backgroundColor: "#bbf7d0" },
+    booked: { backgroundColor: "#fca5a5" },
+    peak: { backgroundColor: "#fde047" },
+  }}
         components={{
-          DayContent: ({ date }) => {
-            const key = formatDate(date);
-            const info = value[key];
-            return (
-              <div className="relative h-16 w-16 flex flex-col items-center justify-center">
-                {/* 日期号 */}
-                <span className="text-sm">{date.getDate()}</span>
-                {/* 价格显示 */}
-                {info?.price && (
-                  <span className="text-[11px] text-green-700 font-medium mt-1">
-                    RM {formatPrice(info.price)}
-                  </span>
-                )}
-              </div>
+    DayContent: ({ date }) => {
+      const key = formatDate(date);
+      const info = value[key]; // ✅ 现在能对上了
+      return (
+        <div className="relative h-16 w-16 flex flex-col items-center justify-center">
+          <span className="text-sm">{date.getDate()}</span>
+          {info?.price && (
+            <span className="absolute bottom-1 right-1 text-[11px] text-green-700 font-medium">
+              RM {formatPrice(info.price)}
+            </span>
+          )}
+        </div>
             );
           },
         }}
@@ -248,3 +246,13 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     </div>
   );
 }
+
+{/* ✅ 补回确认按钮 */}
+    <button
+      onClick={applySettings}
+      className="bg-blue-600 text-white px-4 py-2 rounded w-full"
+    >
+      确认应用到区间
+    </button>
+  </div>
+)}
