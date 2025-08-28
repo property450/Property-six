@@ -61,11 +61,14 @@ export default function TypeSelector({ value = '', onChange = () => {}, onFormCh
 
   // 当 finalType 改变时，把 saleType 和 finalType 一起回传
 useEffect(() => {
+  let newValue;
   if (saleType === "Homestay" || saleType === "Hotel/Resort") {
-    onChange(`${saleType} - ${finalType}`);
+    newValue = finalType ? `${saleType} - ${finalType}` : '';
   } else {
-    onChange(finalType);
+    newValue = finalType;
   }
+  onChange(newValue);
+}, [finalType]); // 只依赖 finalType
 }, [finalType, saleType, onChange]);
 
   // 如果外部希望得到整个表单数据，可以传 onFormChange 回调（可选）
