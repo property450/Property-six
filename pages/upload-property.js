@@ -338,7 +338,7 @@ export default function UploadProperty() {
     </pre>
   </>
 ) : (
-)}
+<>
               <CarparkLevelSelector
                 value={singleFormData.carparkPosition}
                 onChange={(val) =>
