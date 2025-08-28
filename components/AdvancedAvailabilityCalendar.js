@@ -124,9 +124,11 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
             const info = value[key];
             return (
               <div className="relative h-16 w-16 flex flex-col items-center justify-center">
-                <span>{date.getDate()}</span>
+                {/* 日期号 */}
+                <span className="text-sm">{date.getDate()}</span>
+                {/* 价格显示 */}
                 {info?.price && (
-                  <span className="absolute bottom-1 right-1 text-[10px] text-gray-700">
+                  <span className="text-[11px] text-green-700 font-medium mt-1">
                     RM {formatPrice(info.price)}
                   </span>
                 )}
@@ -139,21 +141,21 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
       {selectedRange && (
         <div className="space-y-2 border p-3 rounded bg-gray-50">
           {/* ✅ Check-in / Check-out 日期显示 */}
-<div className="flex justify-between">
-  <p>Check-in 日期: {formatDate(selectedRange.from)}</p>
-  <p>
-    Check-out 日期:{" "}
-    {selectedRange.to
-      ? formatDate(
-          (() => {
-            const d = new Date(selectedRange.to);
-            d.setDate(d.getDate() + 1); // ✅ 自动加一天
-            return d;
-          })()
-        )
-      : ""}
-  </p>
-</div>
+          <div className="flex justify-between">
+            <p>Check-in 日期: {formatDate(selectedRange.from)}</p>
+            <p>
+              Check-out 日期:{" "}
+              {selectedRange.to
+                ? formatDate(
+                    (() => {
+                      const d = new Date(selectedRange.to);
+                      d.setDate(d.getDate() + 1); // ✅ 自动加一天
+                      return d;
+                    })()
+                  )
+                : ""}
+            </p>
+          </div>
 
           {/* ✅ 价格输入 + 下拉选择 */}
           <div className="relative">
