@@ -58,7 +58,7 @@ export default function UploadProperty() {
   const [type, setType] = useState("");
   const [propertyStatus, setPropertyStatus] = useState("");
   const [transitInfo, setTransitInfo] = useState(null);
-  const [availability, setAvailability] = useState([]); // ✅ 管理日期
+  const [availability, setAvailability] = useState({}); // ✅ 管理日期
   const [unitLayouts, setUnitLayouts] = useState([]);
   const [singleFormData, setSingleFormData] = useState({
     buildUp: "",
