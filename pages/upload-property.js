@@ -326,12 +326,20 @@ export default function UploadProperty() {
 
           {/* ✅ 如果是 Homestay / Hotel 显示日期选择，否则显示车位位置和建成年份 */}
           {(type?.includes("Homestay") || type?.includes("Hotel")) ? (
-            <AdvancedAvailabilityCalendar
-        value={availability}
-        onChange={setAvailability}
-      />
-          ) : (
-            <>
+  <>
+    <AdvancedAvailabilityCalendar
+      value={availability}
+      onChange={setAvailability}
+    />
+
+    {/* 调试用，实时查看 availability */}
+    <pre className="bg-gray-100 p-2 text-xs">
+      {JSON.stringify(availability, null, 2)}
+    </pre>
+  </>
+) : (
+  ...
+)}
               <CarparkLevelSelector
                 value={singleFormData.carparkPosition}
                 onChange={(val) =>
