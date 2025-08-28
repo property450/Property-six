@@ -325,7 +325,7 @@ export default function UploadProperty() {
           <TransitSelector onChange={setTransitInfo} />
 
           {/* ✅ 如果是 Homestay / Hotel 显示日期选择，否则显示车位位置和建成年份 */}
-          {saleType === "Homestay" || saleTtype === "Hotel / Resort" ? (
+          {(type?.includes("Homestay") || type?.includes("Hotel")) ? (
             <AvailabilitySelector
               value={availability}
               onChange={setAvailability}
