@@ -44,16 +44,16 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     if (!range) return;
 
     // ✅ 如果用户只选择了 "from" (check-in)，自动把 "to" 设为 +1 天
-if (range.from && !range.to) {
+    if (range.from && !range.to) {
       const autoTo = new Date(range.from);
       autoTo.setDate(autoTo.getDate() + 1);
       setSelectedRange({ from: range.from, to: autoTo });
     } else {
       setSelectedRange(range);
-}
+    }
 
     // ✅ 单天 → 回填数据
-    if (range?.from && range?.to === range.from) {
+    if (range?.from && range?.to && range.to.getTime() === range.from.getTime()) {
       const key = formatDate(range.from);
       const info = value[key];
       if (info) {
@@ -144,7 +144,7 @@ if (range.from && !range.to) {
             <p>Check-out 日期: {formatDate(selectedRange.to)}</p>
           </div>
 
-          {/* ✅ 价格输入 + 下拉选择 (像 PriceInput.js 一样) */}
+          {/* ✅ 价格输入 + 下拉选择 */}
           <div className="relative">
             <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-600">
               RM
@@ -192,40 +192,46 @@ if (range.from && !range.to) {
           </select>
 
           {/* ✅ Check-in / Check-out 时间选择 */}
-<div className="flex gap-2">
-  <div className="flex flex-col w-1/2">
-    <label className="text-sm text-gray-600">
-      Check-in 时间 ({formatDate(selectedRange.from)})
-    </label>
-    <input
-      type="time"
-      value={checkIn}
-      onChange={(e) => setCheckIn(e.target.value)}
-      className="border p-2 rounded"
-      min="00:00"
-      max="23:59"
-    />
-  </div>
-  <div className="flex flex-col w-1/2">
-    <label className="text-sm text-gray-600">
-      {/* ✅ 这里把 checkout 日期强制 +1 天 */}
-      Check-out 时间 (
-      {formatDate(
-        (() => {
-          const d = new Date(selectedRange.to);
-          d.setDate(d.getDate() + 1);
-          return d;
-        })()
+          <div className="flex gap-2">
+            <div className="flex flex-col w-1/2">
+              <label className="text-sm text-gray-600">
+                Check-in 时间 ({formatDate(selectedRange.from)})
+              </label>
+              <input
+                type="time"
+                value={checkIn}
+                onChange={(e) => setCheckIn(e.target.value)}
+                className="border p-2 rounded"
+                min="00:00"
+                max="23:59"
+              />
+            </div>
+            <div className="flex flex-col w-1/2">
+              <label className="text-sm text-gray-600">
+                Check-out 时间 (
+                {selectedRange.to
+                  ? formatDate(
+                      (() => {
+                        const d = new Date(selectedRange.to);
+                        d.setDate(d.getDate() + 1);
+                        return d;
+                      })()
+                    )
+                  : ""}
+                )
+              </label>
+              <input
+                type="time"
+                value={checkOut}
+                onChange={(e) => setCheckOut(e.target.value)}
+                className="border p-2 rounded"
+                min="00:00"
+                max="23:59"
+              />
+            </div>
+          </div>
+        </div>
       )}
-      )
-    </label>
-    <input
-      type="time"
-      value={checkOut}
-      onChange={(e) => setCheckOut(e.target.value)}
-      className="border p-2 rounded"
-      min="00:00"
-      max="23:59"
-    />
-  </div>
-</div>
+    </div>
+  );
+}
