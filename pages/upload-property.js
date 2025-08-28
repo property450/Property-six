@@ -328,13 +328,16 @@ const handleLayoutUpload = (e) => {
               
 <TransitSelector onChange={setTransitInfo} />
 
+              
 {/* ✅ Homestay & Hotel/Resort 特殊逻辑 */}
 {(type === "Homestay" || type === "Hotel / Resort") ? (
-  // 👉 只显示日期选择器
-  <AvailabilitySelector value={availability} onChange={setAvailability} />
-) : (
-  // 👉 其他类型显示停车位置和建成年份
   <>
+    {/* 👉 只显示可用日期选择 */}
+    <AvailabilitySelector value={availability} onChange={setAvailability} />
+  </>
+) : (
+  <>
+    {/* 👉 其他类型显示停车位置 + 建成年份 */}
     <CarparkLevelSelector
       value={singleFormData.carparkPosition}
       onChange={(val) =>
