@@ -325,10 +325,15 @@ const handleLayoutUpload = (e) => {
             }
           />
 
-                <TransitSelector onChange={setTransitInfo} />
+              
+<TransitSelector onChange={setTransitInfo} />
 
-          {/* CarparkLevelSelector & BuildYearSelector 正常显示，但 Homestay/Hotel 隐藏 */}
-{!(type === "Homestay" || type === "Hotel / Resort") && (
+{/* ✅ Homestay & Hotel/Resort 特殊逻辑 */}
+{(type === "Homestay" || type === "Hotel / Resort") ? (
+  // 👉 只显示日期选择器
+  <AvailabilitySelector value={availability} onChange={setAvailability} />
+) : (
+  // 👉 其他类型显示停车位置和建成年份
   <>
     <CarparkLevelSelector
       value={singleFormData.carparkPosition}
@@ -343,8 +348,7 @@ const handleLayoutUpload = (e) => {
       }
     />
 
-          
-          <BuildYearSelector
+    <BuildYearSelector
       value={singleFormData.buildYear}
       onChange={(val) =>
         setSingleFormData({ ...singleFormData, buildYear: val })
@@ -358,10 +362,6 @@ const handleLayoutUpload = (e) => {
   </>
 )}
 
-{/* ✅ Homestay 和 Hotel/Resort 才显示可用日期选择 */}
-{(type === "Homestay" || type === "Hotel / Resort") && (
-  <AvailabilitySelector value={availability} onChange={setAvailability} />
-)}
 
     {/* 描述输入框 */}
 <div className="space-y-2">
