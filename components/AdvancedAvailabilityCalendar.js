@@ -1,5 +1,5 @@
 // components/AdvancedAvailabilityCalendar.js
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 
@@ -7,6 +7,7 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
   const [selectedRange, setSelectedRange] = useState(null);
   const [price, setPrice] = useState("");
   const [status, setStatus] = useState("available");
+  const inputRef = useRef(null);
 
   // 格式化日期
   const formatDate = (date) => {
@@ -19,13 +20,13 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     num ? num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "";
 
   const parsePrice = (str) => {
-    const cleaned = str.replace(/,/g, ""); // 去掉逗号
+    const cleaned = str.replace(/,/g, "");
     const num = parseInt(cleaned, 10);
     if (isNaN(num)) return "";
     return Math.min(50000, Math.max(50, num)); // 限制范围
   };
 
-  // 区间选择逻辑
+  // 选择日期区间
   const handleSelect = (range) => {
     setSelectedRange(range);
   };
@@ -42,13 +43,13 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
       day.setDate(day.getDate() + 1);
     }
 
-    onChange(updated); // 通知父组件
+    onChange(updated);
     setSelectedRange(null);
     setPrice("");
     setStatus("available");
   };
 
-  // 转换 availability 数据到 modifiers
+  // 区分不同状态的日期
   const availableDays = Object.keys(value)
     .filter((d) => value[d]?.status === "available")
     .map((d) => new Date(d));
@@ -76,9 +77,9 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
           peak: peakDays,
         }}
         modifiersStyles={{
-          available: { backgroundColor: "#bbf7d0" }, // 绿色
-          booked: { backgroundColor: "#fca5a5" }, // 红色
-          peak: { backgroundColor: "#fde047" }, // 黄色
+          available: { backgroundColor: "#bbf7d0" },
+          booked: { backgroundColor: "#fca5a5" },
+          peak: { backgroundColor: "#fde047" },
         }}
         components={{
           DayContent: ({ date }) => {
@@ -106,12 +107,13 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
             {formatDate(selectedRange.from)} → {formatDate(selectedRange.to)}
           </p>
 
-          {/* ✅ 带千分位、限制数字、始终带 RM 前缀 */}
+          {/* ✅ 带千分位、只能输入数字、始终带 RM 前缀 */}
           <div className="relative">
             <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-600">
               RM
             </span>
             <input
+              ref={inputRef}
               type="text"
               placeholder="价格"
               value={price}
@@ -119,11 +121,30 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
                 const num = parsePrice(e.target.value);
                 setPrice(num ? formatPrice(num) : "");
               }}
+              onKeyDown={(e) => {
+                if (
+                  !/[0-9]/.test(e.key) &&
+                  !["Backspace", "Delete", "ArrowLeft", "ArrowRight"].includes(
+                    e.key
+                  )
+                ) {
+                  e.preventDefault();
+                }
+              }}
+              onClick={() => {
+                const input = inputRef.current;
+                if (input) {
+                  const len = input.value.length;
+                  setTimeout(() => {
+                    input.setSelectionRange(len, len);
+                  }, 0);
+                }
+              }}
               className="pl-10 border p-2 w-full rounded"
             />
           </div>
 
-          {/* 下拉快速选择 */}
+          {/* ✅ 下拉快速选择价格 */}
           <select
             onChange={(e) => setPrice(formatPrice(parseInt(e.target.value)))}
             className="border p-2 w-full rounded"
