@@ -197,43 +197,40 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
           </select>
 
           {/* ✅ Check-in / Check-out 时间选择 */}
-          <div className="flex gap-2">
-            <div className="flex flex-col w-1/2">
-              <label className="text-sm text-gray-600">
-                Check-in 时间 ({formatDate(selectedRange.from)})
-              </label>
-              <input
-                type="time"
-                value={checkIn}
-                onChange={(e) => setCheckIn(e.target.value)}
-                className="border p-2 rounded"
-                min="00:00"
-                max="23:59"
-              />
-            </div>
-            <div className="flex flex-col w-1/2">
-              <label className="text-sm text-gray-600">
-                Check-out 时间 ({formatDate(selectedRange.to)})
-              </label>
-              <input
-                type="time"
-                value={checkOut}
-                onChange={(e) => setCheckOut(e.target.value)}
-                className="border p-2 rounded"
-                min="00:00"
-                max="23:59"
-              />
-            </div>
-          </div>
-
-          <button
-            onClick={applySettings}
-            className="bg-blue-600 text-white px-4 py-2 rounded w-full"
-          >
-            确认应用到区间
-          </button>
-        </div>
+<div className="flex gap-2">
+  <div className="flex flex-col w-1/2">
+    <label className="text-sm text-gray-600">
+      Check-in 时间 ({formatDate(selectedRange.from)})
+    </label>
+    <input
+      type="time"
+      value={checkIn}
+      onChange={(e) => setCheckIn(e.target.value)}
+      className="border p-2 rounded"
+      min="00:00"
+      max="23:59"
+    />
+  </div>
+  <div className="flex flex-col w-1/2">
+    <label className="text-sm text-gray-600">
+      {/* ✅ 这里把 checkout 日期强制 +1 天 */}
+      Check-out 时间 (
+      {formatDate(
+        (() => {
+          const d = new Date(selectedRange.to);
+          d.setDate(d.getDate() + 1);
+          return d;
+        })()
       )}
-    </div>
-  );
-}
+      )
+    </label>
+    <input
+      type="time"
+      value={checkOut}
+      onChange={(e) => setCheckOut(e.target.value)}
+      className="border p-2 rounded"
+      min="00:00"
+      max="23:59"
+    />
+  </div>
+</div>
