@@ -57,6 +57,7 @@ const handleLayoutUpload = (e) => {
   const [type, setType] = useState("");
   const [propertyStatus, setPropertyStatus] = useState("");
   const [transitInfo, setTransitInfo] = useState(null);
+  const [availability, setAvailability] = useState([]); // 选择的可用日期
   const [unitLayouts, setUnitLayouts] = useState([]);
   const [singleFormData, setSingleFormData] = useState({
     buildUp: "",
@@ -161,7 +162,7 @@ const handleLayoutUpload = (e) => {
             furniture: singleFormData.furniture,
             facing: singleFormData.facing,
             transit: JSON.stringify(transitInfo),
-
+            availability: JSON.stringify(availability), // ✅ 保存可用日期
           },
         ])
         .select()
@@ -310,18 +311,21 @@ const handleLayoutUpload = (e) => {
             }
           />
 
-          <CarparkLevelSelector
-  value={singleFormData.carparkPosition}
-  onChange={(val) =>
-    setSingleFormData({ ...singleFormData, carparkPosition: val })
-  }
-  mode={
-    propertyStatus === "New Project / Under Construction" ||
-    propertyStatus === "Completed Unit / Developer Unit"
-      ? "range"
-      : "single"
-  }
-/>
+          {/* CarparkLevelSelector & BuildYearSelector 正常显示，但 Homestay/Hotel 隐藏 */}
+{!(type === "Homestay" || type === "Hotel / Resort") && (
+  <>
+    <CarparkLevelSelector
+      value={singleFormData.carparkPosition}
+      onChange={(val) =>
+        setSingleFormData({ ...singleFormData, carparkPosition: val })
+      }
+      mode={
+        propertyStatus === "New Project / Under Construction" ||
+        propertyStatus === "Completed Unit / Developer Unit"
+          ? "range"
+          : "single"
+      }
+    />
 
           <FurnitureSelector
             value={singleFormData.furniture}
@@ -341,16 +345,23 @@ const handleLayoutUpload = (e) => {
 
 
           <BuildYearSelector
-  value={singleFormData.buildYear}
-  onChange={(val) =>
-    setSingleFormData({ ...singleFormData, buildYear: val })
-  }
-  quarter={singleFormData.quarter}
-  onQuarterChange={(val) =>
-    setSingleFormData({ ...singleFormData, quarter: val })
-  }
-  showQuarter={propertyStatus === "New Project / Under Construction"}
-/>
+      value={singleFormData.buildYear}
+      onChange={(val) =>
+        setSingleFormData({ ...singleFormData, buildYear: val })
+      }
+      quarter={singleFormData.quarter}
+      onQuarterChange={(val) =>
+        setSingleFormData({ ...singleFormData, quarter: val })
+      }
+      showQuarter={propertyStatus === "New Project / Under Construction"}
+    />
+  </>
+)}
+
+{/* ✅ Homestay 和 Hotel/Resort 才显示可用日期选择 */}
+{(type === "Homestay" || type === "Hotel / Resort") && (
+  <AvailabilitySelector value={availability} onChange={setAvailability} />
+)}
 
     {/* 描述输入框 */}
 <div className="space-y-2">
