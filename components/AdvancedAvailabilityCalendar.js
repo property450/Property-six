@@ -8,7 +8,10 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
   const [selectedRange, setSelectedRange] = useState(null);
 
   // 格式化日期
-  const formatDate = (date) => date.toISOString().split("T")[0];
+const formatDate = (date) => {
+  if (!date || !(date instanceof Date)) return "";
+  return date.toISOString().split("T")[0];
+};
 
   // 区间选择逻辑
   const handleSelect = (range) => {
