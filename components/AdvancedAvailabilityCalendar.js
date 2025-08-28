@@ -44,18 +44,13 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     if (!range) return;
 
     // ✅ 如果用户只选择了 "from" (check-in)，自动把 "to" 设为 +1 天
-    if (range.from && !range.to) {
-    const autoTo = new Date(range.from);
-    autoTo.setDate(autoTo.getDate() + 1);
-    setSelectedRange({ from: range.from, to: autoTo });
-  } else if (range.from && range.to && range.to.getTime() === range.from.getTime()) {
-    // ✅ 兼容用户点了同一天两次的情况
-    const autoTo = new Date(range.from);
-    autoTo.setDate(autoTo.getDate() + 1);
-    setSelectedRange({ from: range.from, to: autoTo });
-  } else {
-    setSelectedRange(range);
-    }
+if (range.from && !range.to) {
+      const autoTo = new Date(range.from);
+      autoTo.setDate(autoTo.getDate() + 1);
+      setSelectedRange({ from: range.from, to: autoTo });
+    } else {
+      setSelectedRange(range);
+}
 
     // ✅ 单天 → 回填数据
     if (range?.from && range?.to === range.from) {
