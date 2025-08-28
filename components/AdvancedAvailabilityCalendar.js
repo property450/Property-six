@@ -37,36 +37,18 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     setStatus("available");
   };
 
-  // 自定义渲染单元格
-  const renderDay = (day) => {
-    if (!(day instanceof Date)) return <div />;
+  // 🔑 转换 availability 数据到 modifiers
+  const availableDays = Object.keys(value)
+    .filter((d) => value[d]?.status === "available")
+    .map((d) => new Date(d));
 
-    const key = formatDate(day);
-    const info = value[key];
+  const bookedDays = Object.keys(value)
+    .filter((d) => value[d]?.status === "booked")
+    .map((d) => new Date(d));
 
-    if (!info) {
-      return (
-        <div className="h-16 w-16 flex items-center justify-center">
-          {day.getDate()}
-        </div>
-      );
-    }
-
-    const colors = {
-      available: "bg-green-200",
-      booked: "bg-red-300",
-      peak: "bg-yellow-300",
-    };
-
-    return (
-      <div
-        className={`h-16 w-16 flex flex-col items-center justify-center rounded ${colors[info.status] || ""}`}
-      >
-        <span>{day.getDate()}</span>
-        <span className="text-xs">RM {info.price}</span>
-      </div>
-    );
-  };
+  const peakDays = Object.keys(value)
+    .filter((d) => value[d]?.status === "peak")
+    .map((d) => new Date(d));
 
   return (
     <div className="space-y-4">
@@ -77,8 +59,15 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
         selected={selectedRange}
         onSelect={handleSelect}
         showOutsideDays
-        components={{
-          Day: ({ date }) => renderDay(date),
+        modifiers={{
+          available: availableDays,
+          booked: bookedDays,
+          peak: peakDays,
+        }}
+        modifiersStyles={{
+          available: { backgroundColor: "#bbf7d0" }, // 绿色
+          booked: { backgroundColor: "#fca5a5" },    // 红色
+          peak: { backgroundColor: "#fde047" },      // 黄色
         }}
       />
 
@@ -112,6 +101,15 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
           </button>
         </div>
       )}
+
+      {/* ✅ 价格展示 */}
+      <div className="grid grid-cols-7 gap-2 text-xs">
+        {Object.keys(value).map((d) => (
+          <div key={d} className="p-1 border rounded">
+            {d}: RM {value[d].price} ({value[d].status})
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
