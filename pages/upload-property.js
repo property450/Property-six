@@ -22,7 +22,7 @@ import FurnitureSelector from "@/components/FurnitureSelector";
 import BuildYearSelector from "@/components/BuildYearSelector";
 import ImageUpload from "@/components/ImageUpload";
 import TransitSelector from "@/components/TransitSelector";
-import AvailabilitySelector from "@/components/AvailabilitySelector"; // ✅ 新增
+import AdvancedAvailabilityCalendar from "@/components/AdvancedAvailabilityCalendar";
 
 import { useUser } from "@supabase/auth-helpers-react";
 
@@ -326,10 +326,10 @@ export default function UploadProperty() {
 
           {/* ✅ 如果是 Homestay / Hotel 显示日期选择，否则显示车位位置和建成年份 */}
           {(type?.includes("Homestay") || type?.includes("Hotel")) ? (
-            <AvailabilitySelector
-              value={availability}
-              onChange={setAvailability}
-            />
+            <AdvancedAvailabilityCalendar
+        value={availability}
+        onChange={setAvailability}
+      />
           ) : (
             <>
               <CarparkLevelSelector
