@@ -120,7 +120,7 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
         }}
         components={{
           DayContent: ({ date }) => {
-            const key = formatDate(date); // ✅ 使用原始日期格式，不做时区调整
+            const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
             const info = value[key];
             return (
               <div className="relative h-16 w-16 flex flex-col items-center justify-center">
