@@ -14,6 +14,17 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     return date.toISOString().split("T")[0];
   };
 
+  // 千分位格式化
+  const formatPrice = (num) =>
+    num ? num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "";
+
+  const parsePrice = (str) => {
+    const cleaned = str.replace(/,/g, ""); // 去掉逗号
+    const num = parseInt(cleaned, 10);
+    if (isNaN(num)) return "";
+    return Math.min(50000, Math.max(50, num)); // 限制范围
+  };
+
   // 区间选择逻辑
   const handleSelect = (range) => {
     setSelectedRange(range);
@@ -27,7 +38,7 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
 
     while (day <= selectedRange.to) {
       const key = formatDate(day);
-      updated[key] = { price: Number(price), status };
+      updated[key] = { price: parsePrice(price), status };
       day.setDate(day.getDate() + 1);
     }
 
@@ -37,7 +48,7 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     setStatus("available");
   };
 
-  // 🔑 转换 availability 数据到 modifiers
+  // 转换 availability 数据到 modifiers
   const availableDays = Object.keys(value)
     .filter((d) => value[d]?.status === "available")
     .map((d) => new Date(d));
@@ -66,8 +77,25 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
         }}
         modifiersStyles={{
           available: { backgroundColor: "#bbf7d0" }, // 绿色
-          booked: { backgroundColor: "#fca5a5" },    // 红色
-          peak: { backgroundColor: "#fde047" },      // 黄色
+          booked: { backgroundColor: "#fca5a5" }, // 红色
+          peak: { backgroundColor: "#fde047" }, // 黄色
+        }}
+        components={{
+          DayContent: ({ date }) => {
+            const key = formatDate(date);
+            const info = value[key];
+
+            return (
+              <div className="relative h-16 w-16 flex flex-col items-center justify-center">
+                <span>{date.getDate()}</span>
+                {info?.price && (
+                  <span className="absolute bottom-1 right-1 text-[10px] text-gray-700">
+                    RM {formatPrice(info.price)}
+                  </span>
+                )}
+              </div>
+            );
+          },
         }}
       />
 
@@ -77,13 +105,39 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
             设置区间:{" "}
             {formatDate(selectedRange.from)} → {formatDate(selectedRange.to)}
           </p>
-          <input
-            type="number"
-            placeholder="价格 (RM)"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
+
+          {/* ✅ 带千分位、限制数字、始终带 RM 前缀 */}
+          <div className="relative">
+            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-600">
+              RM
+            </span>
+            <input
+              type="text"
+              placeholder="价格"
+              value={price}
+              onChange={(e) => {
+                const num = parsePrice(e.target.value);
+                setPrice(num ? formatPrice(num) : "");
+              }}
+              className="pl-10 border p-2 w-full rounded"
+            />
+          </div>
+
+          {/* 下拉快速选择 */}
+          <select
+            onChange={(e) => setPrice(formatPrice(parseInt(e.target.value)))}
             className="border p-2 w-full rounded"
-          />
+          >
+            <option value="">快速选择价格</option>
+            {[50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000].map(
+              (p) => (
+                <option key={p} value={p}>
+                  RM {formatPrice(p)}
+                </option>
+              )
+            )}
+          </select>
+
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value)}
@@ -101,15 +155,6 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
           </button>
         </div>
       )}
-
-      {/* ✅ 价格展示 */}
-      <div className="grid grid-cols-7 gap-2 text-xs">
-        {Object.keys(value).map((d) => (
-          <div key={d} className="p-1 border rounded">
-            {d}: RM {value[d].price} ({value[d].status})
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
