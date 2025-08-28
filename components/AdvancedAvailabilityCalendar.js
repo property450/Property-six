@@ -130,13 +130,12 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
                 {info?.price != null && info?.price !== 0 && (
   <span className="text-[11px] text-green-700 font-medium mt-1">
     RM {formatPrice(info.price)}
-  </span>
-)}
-</div>
-    );
-  },
+    </span>
+    )}
+ </div>
+  );
+ },
 }}
-
       {selectedRange && (
         <div className="space-y-2 border p-3 rounded bg-gray-50">
           {/* ✅ Check-in / Check-out 日期显示 */}
