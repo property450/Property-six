@@ -125,7 +125,7 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     const key = formatDate(date);
     const info = value[key];
     return (
-      <div className="relative h-16 w-16 flex flex-col items-center justify-center">
+      <div className="relative h-20 w-20 flex flex-col items-center justify-center">
                 {/* 日期号 */}
                 <span className="text-sm">{date.getDate()}</span>
                 {/* 价格显示 */}
