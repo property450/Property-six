@@ -105,25 +105,31 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
       .map((d) => new Date(d)),
   };
 
-  // 辅助：尝试从 value 中找出与 date 同一天的 info（兼容多种 key 格式）
-  const findInfoForDate = (date) => {
+// 辅助：尝试从 value 中找出与 date 同一天的 info（兼容多种 key 格式）
+const findInfoForDate = (date) => {
+  if (!date) return undefined;
+
+  // ⚡ 关键：把 date 归零（去掉时区）
   const local = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   const k = formatDate(local);
-  return value?.[k];
+
+  if (value && Object.prototype.hasOwnProperty.call(value, k)) {
+    return value[k];
+  }
+
+  // 🔄 回退方案：防止 value 里存的 key 不是 yyyy-mm-dd，而是 Date.toString() 之类
+  const altKey = Object.keys(value).find((key) => {
+    const parsed = new Date(key);
+    if (isNaN(parsed)) return false;
+    return (
+      parsed.getFullYear() === date.getFullYear() &&
+      parsed.getMonth() === date.getMonth() &&
+      parsed.getDate() === date.getDate()
+    );
+  });
+
+  return altKey ? value[altKey] : undefined;
 };
-  
-    // 回退：遍历 keys，尝试用 Date(key) 与目标 date 比较年/月/日
-    const altKey = Object.keys(value).find((key) => {
-      const parsed = new Date(key);
-      if (isNaN(parsed)) return false;
-      return (
-        parsed.getFullYear() === date.getFullYear() &&
-        parsed.getMonth() === date.getMonth() &&
-        parsed.getDate() === date.getDate()
-      );
-    });
-    return altKey ? value[altKey] : undefined;
-  };
 
   return (
     <div className="space-y-4" ref={wrapperRef}>
