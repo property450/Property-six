@@ -139,7 +139,6 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
           peak: { backgroundColor: "#fde047" },
         }}
         components={{
-        components={{
   DayContent: ({ date }) => {
     const info = findInfoForDate(date);
     const priceNum = info?.price != null ? Number(info.price) : null;
