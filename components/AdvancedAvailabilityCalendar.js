@@ -67,28 +67,30 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
 
   // 应用设置
   const applySettings = () => {
-    if (!selectedRange?.from || !selectedRange?.to) return;
-    let updated = { ...value };
-    let day = new Date(selectedRange.from);
+  if (!selectedRange?.from || !selectedRange?.to) return;
+  let updated = { ...value }; // 这里浅拷贝，但后面修改 day 可能会 mutate 原对象
+  let day = new Date(selectedRange.from);
 
-    while (day <= selectedRange.to) {
-      const key = formatDate(day);
-      updated[key] = {
-        price: parseInt(price.replace(/,/g, "")) || "",
-        status,
-        checkIn,
-        checkOut,
-      };
-      day.setDate(day.getDate() + 1);
-    }
+  while (day <= selectedRange.to) {
+    const key = formatDate(day);
+    updated[key] = {
+      price: parseInt(price.replace(/,/g, "")) || "",
+      status,
+      checkIn,
+      checkOut,
+    };
+    day.setDate(day.getDate() + 1);
+  }
 
-    onChange(updated);
-    setSelectedRange(null);
-    setPrice("");
-    setStatus("available");
-    setCheckIn("14:00");
-    setCheckOut("12:00");
-  };
+  // ✅ 强制生成全新对象
+  onChange({ ...updated });
+
+  setSelectedRange(null);
+  setPrice("");
+  setStatus("available");
+  setCheckIn("14:00");
+  setCheckOut("12:00");
+};
 
   // 状态日期高亮
   const modifiers = {
