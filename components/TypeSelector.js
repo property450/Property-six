@@ -67,8 +67,11 @@ useEffect(() => {
   } else {
     newValue = finalType;
   }
-  onChange(newValue);
-}, [finalType]); // ⚠️ 只依赖 finalType
+  // 避免父组件和子组件无限互相 setState
+  if (newValue !== value) {
+    onChange(newValue);
+  }
+}, [saleType, finalType, value, onChange]);
   
   // 如果外部希望得到整个表单数据，可以传 onFormChange 回调（可选）
   useEffect(() => {
