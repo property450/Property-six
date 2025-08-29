@@ -136,6 +136,7 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     );
   },
 }}
+/>
       {selectedRange && (
         <div className="space-y-2 border p-3 rounded bg-gray-50">
           {/* ✅ Check-in / Check-out 日期显示 */}
