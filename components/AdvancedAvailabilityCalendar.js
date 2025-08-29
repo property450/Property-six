@@ -108,37 +108,40 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     <div className="space-y-4" ref={wrapperRef}>
       <label className="block font-medium">房源日历管理</label>
 
-      <DayPicker
-        mode="range"
-        selected={selectedRange}
-        onSelect={handleSelect}
-        showOutsideDays
-        modifiers={modifiers}
-        modifiersStyles={{
-          available: { backgroundColor: "#bbf7d0" },
-          booked: { backgroundColor: "#fca5a5" },
-          peak: { backgroundColor: "#fde047" },
-        }}
-        components={{
-  DayContent: ({ date }) => {
-    const key = formatDate(date);
-    const info = value[key];
-    return (
-      <div className="relative h-20 w-20 flex flex-col items-center justify-start p-1">
-        {/* 日期号 */}
-        <span className="text-sm">{date.getDate()}</span>
+      {/* ✅ 用 Tailwind 覆盖默认格子大小 */}
+      <div className="[&_.rdp-day]:h-20 [&_.rdp-day]:w-20 [&_.rdp-day]:p-1">
+        <DayPicker
+          mode="range"
+          selected={selectedRange}
+          onSelect={handleSelect}
+          showOutsideDays
+          modifiers={modifiers}
+          modifiersStyles={{
+            available: { backgroundColor: "#bbf7d0" },
+            booked: { backgroundColor: "#fca5a5" },
+            peak: { backgroundColor: "#fde047" },
+          }}
+          components={{
+            DayContent: ({ date }) => {
+              const key = formatDate(date);
+              const info = value[key];
+              return (
+                <div className="flex flex-col items-center justify-start w-full h-full">
+                  {/* 日期号 */}
+                  <span className="text-sm">{date.getDate()}</span>
 
-        {/* 价格显示 */}
-        {info?.price && (
-          <span className="text-[10px] text-green-700 font-medium mt-1">
-            RM {formatPrice(info.price)}
-          </span>
-        )}
+                  {/* 价格显示 */}
+                  {info?.price && (
+                    <span className="text-xs text-green-700 font-semibold mt-1">
+                      RM {formatPrice(info.price)}
+                    </span>
+                  )}
+                </div>
+              );
+            },
+          }}
+        />
       </div>
-    );
-  },
-}}
-      />
 
       {selectedRange && (
         <div className="space-y-2 border p-3 rounded bg-gray-50">
