@@ -54,12 +54,15 @@ export default function TypeSelector({ value = '', onChange = () => {}, onFormCh
     'Airport Hotel',
   ];
 
-  // 初始化 finalType（如果父组件传了 value）
-  useEffect(() => {
-    if (value && value !== finalType) setFinalType(value);
-  }, [value]);
-  
-  // 当 finalType 改变时，把 saleType 和 finalType 一起回传
+  // 初始化 finalType（只在父组件第一次传入时同步一次）
+useEffect(() => {
+  if (value && value !== finalType) {
+    setFinalType(value);
+  }
+  // ⚠️ 不依赖 finalType，否则每次都会循环
+}, [value]);
+
+// 当 finalType 或 saleType 改变时，计算新值并回传
 useEffect(() => {
   let newValue;
   if (saleType === "Homestay" || saleType === "Hotel/Resort") {
@@ -67,11 +70,13 @@ useEffect(() => {
   } else {
     newValue = finalType;
   }
-  // 避免父组件和子组件无限互相 setState
-  if (newValue !== value) {
+
+  // 只在确实不同的时候才回传
+  if (newValue && newValue !== value) {
     onChange(newValue);
   }
-}, [saleType, finalType, value, onChange]);
+  // ⚠️ 注意这里不依赖 value，否则会循环
+}, [saleType, finalType, onChange]);
   
   // 如果外部希望得到整个表单数据，可以传 onFormChange 回调（可选）
   useEffect(() => {
