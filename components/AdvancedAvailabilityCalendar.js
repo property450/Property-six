@@ -1,6 +1,6 @@
 // components/AdvancedAvailabilityCalendar.js
 import { useState, useRef, useEffect } from "react";
-import { DayPicker, Day } from "react-day-picker";
+import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 
 // ✅ 日期格式化函数 (yyyy-mm-dd，避免错位)
@@ -104,11 +104,13 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
       .map((d) => new Date(d)),
   };
 
-  // 辅助：尝试从 value 中找出与 date 同一天的 info
+  // 辅助：尝试从 value 中找出与 date 同一天的 info（兼容多种 key 格式）
   const findInfoForDate = (date) => {
+    // 先按 yyyy-mm-dd 快速查找
     const k = formatDate(date);
     if (value && Object.prototype.hasOwnProperty.call(value, k)) return value[k];
 
+    // 回退：遍历 keys，尝试用 Date(key) 与目标 date 比较年/月/日
     const altKey = Object.keys(value).find((key) => {
       const parsed = new Date(key);
       if (isNaN(parsed)) return false;
@@ -137,27 +139,24 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
           peak: { backgroundColor: "#fde047" },
         }}
         components={{
-          // ✅ 正确方式：Day 替代 DayContent
-          Day: (dayProps) => {
-            const info = findInfoForDate(dayProps.date);
+          DayContent: ({ date }) => {
+            // 使用更稳健的匹配函数查找 info
+            const info = findInfoForDate(date);
             const priceNum = info?.price != null ? Number(info.price) : null;
-            const showPrice =
-              priceNum !== null && !isNaN(priceNum) && priceNum > 0;
+            const showPrice = priceNum !== null && !isNaN(priceNum) && priceNum > 0;
 
             return (
-              <Day {...dayProps} className="relative w-full h-full">
-                {/* 日期号（左上角） */}
-                <span className="absolute top-1 left-1 text-[12px]">
-                  {dayProps.date.getDate()}
-                </span>
+              <div className="flex flex-col justify-between items-center w-full h-full p-1">
+                {/* 日期号（上方） */}
+                <span className="text-[12px] leading-none">{date.getDate()}</span>
 
-                {/* 价格（右下角） */}
+                {/* 价格（下方） */}
                 {showPrice && (
-                  <span className="absolute bottom-1 right-1 text-[10px] text-green-700 font-medium">
+                  <span className="text-[10px] text-green-700 font-medium">
                     RM {formatPrice(priceNum)}
                   </span>
                 )}
-              </Day>
+              </div>
             );
           },
         }}
