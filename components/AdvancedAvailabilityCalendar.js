@@ -43,7 +43,6 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
   const handleSelect = (range) => {
     if (!range) return;
 
-    // ✅ 如果用户只选择了 "from" (check-in)，自动把 "to" 设为 +1 天
     if (range.from && !range.to) {
       const autoTo = new Date(range.from);
       autoTo.setDate(autoTo.getDate() + 1);
@@ -67,30 +66,30 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
 
   // 应用设置
   const applySettings = () => {
-  if (!selectedRange?.from || !selectedRange?.to) return;
-  let updated = { ...value }; // 这里浅拷贝，但后面修改 day 可能会 mutate 原对象
-  let day = new Date(selectedRange.from);
+    if (!selectedRange?.from || !selectedRange?.to) return;
+    let updated = { ...value };
+    let day = new Date(selectedRange.from);
 
-  while (day <= selectedRange.to) {
-    const key = formatDate(day);
-    updated[key] = {
-      price: parseInt(price.replace(/,/g, "")) || "",
-      status,
-      checkIn,
-      checkOut,
-    };
-    day.setDate(day.getDate() + 1);
-  }
+    while (day <= selectedRange.to) {
+      const key = formatDate(day);
+      updated[key] = {
+        price: parseInt(price.replace(/,/g, "")) || "",
+        status,
+        checkIn,
+        checkOut,
+      };
+      day.setDate(day.getDate() + 1);
+    }
 
-  // ✅ 强制生成全新对象
-  onChange({ ...updated });
+    // ✅ 确保新引用
+    onChange({ ...updated });
 
-  setSelectedRange(null);
-  setPrice("");
-  setStatus("available");
-  setCheckIn("14:00");
-  setCheckOut("12:00");
-};
+    setSelectedRange(null);
+    setPrice("");
+    setStatus("available");
+    setCheckIn("14:00");
+    setCheckOut("12:00");
+  };
 
   // 状态日期高亮
   const modifiers = {
@@ -121,24 +120,23 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
           peak: { backgroundColor: "#fde047" },
         }}
         components={{
-  DayContent: ({ date }) => {
-    const key = formatDate(date);
-    const info = value[key];
-    return (
-      <div className="relative h-20 w-20 flex flex-col items-center justify-center">
-                {/* 日期号 */}
+          DayContent: ({ date }) => {
+            const key = formatDate(date);
+            const info = value[key];
+            return (
+              <div className="relative h-20 w-20 flex flex-col items-center justify-center">
                 <span className="text-sm">{date.getDate()}</span>
-                {/* 价格显示 */}
                 {info?.price != null && info?.price !== 0 && (
-          <span className="text-[11px] text-green-700 font-medium mt-1">
-            RM {formatPrice(info.price)}
-          </span>
-        )}
-      </div>
-    );
-  },
-}}
-/>
+                  <span className="text-[11px] text-green-700 font-medium mt-1">
+                    RM {formatPrice(info.price)}
+                  </span>
+                )}
+              </div>
+            );
+          },
+        }}
+      />
+
       {selectedRange && (
         <div className="space-y-2 border p-3 rounded bg-gray-50">
           {/* ✅ Check-in / Check-out 日期显示 */}
@@ -150,7 +148,7 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
                 ? formatDate(
                     (() => {
                       const d = new Date(selectedRange.to);
-                      d.setDate(d.getDate() + 1); // ✅ 自动加一天
+                      d.setDate(d.getDate() + 1);
                       return d;
                     })()
                   )
