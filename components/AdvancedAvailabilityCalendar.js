@@ -66,30 +66,29 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
 
   // 应用设置
   const applySettings = () => {
-    if (!selectedRange?.from || !selectedRange?.to) return;
-    let updated = { ...value };
-    let day = new Date(selectedRange.from);
+  if (!selectedRange?.from || !selectedRange?.to) return;
+  let updated = { ...value };
+  let day = new Date(selectedRange.from);
 
-    while (day <= selectedRange.to) {
-      const key = formatDate(day);
-      updated[key] = {
-        price: parseInt(price.replace(/,/g, "")) || "",
-        status,
-        checkIn,
-        checkOut,
-      };
-      day.setDate(day.getDate() + 1);
-    }
+  while (day <= selectedRange.to) {
+    const key = formatDate(day);
+    updated[key] = {
+      price: price ? parseInt(price.replace(/,/g, "")) : null, // ✅ 用 null 代替空字符串
+      status,
+      checkIn,
+      checkOut,
+    };
+    day.setDate(day.getDate() + 1);
+  }
 
     // ✅ 确保新引用
     onChange({ ...updated });
-
-    setSelectedRange(null);
-    setPrice("");
-    setStatus("available");
-    setCheckIn("14:00");
-    setCheckOut("12:00");
-  };
+  setSelectedRange(null);
+  setPrice("");
+  setStatus("available");
+  setCheckIn("14:00");
+  setCheckOut("12:00");
+};
 
   // 状态日期高亮
   const modifiers = {
@@ -109,41 +108,36 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
       <label className="block font-medium">房源日历管理</label>
 
       <DayPicker
-        mode="range"
-        selected={selectedRange}
-        onSelect={handleSelect}
-        showOutsideDays
-        modifiers={modifiers}
-        modifiersStyles={{
-          available: { backgroundColor: "#bbf7d0" },
-          booked: { backgroundColor: "#fca5a5" },
-          peak: { backgroundColor: "#fde047" },
-        }}
-        components={{
-          DayContent: ({ date }) => {
-            const key = formatDate(date);
-            const info = value[key];
-            const hasPrice =
-              info && info.price !== "" && info.price !== null && info.price !== undefined;
-            return (
-              // ✅ 相对定位容器，价格固定到底部，小格也能显示
-              <div className="relative w-full h-full">
-                {/* 日期号（左上角） */}
-                <span className="absolute top-1 left-1 text-[12px] leading-none">
-                  {date.getDate()}
-                </span>
+  mode="range"
+  selected={selectedRange}
+  onSelect={handleSelect}
+  showOutsideDays
+  modifiers={modifiers}
+  modifiersStyles={{
+    available: { backgroundColor: "#bbf7d0" },
+    booked: { backgroundColor: "#fca5a5" },
+    peak: { backgroundColor: "#fde047" },
+  }}
+  components={{
+    DayContent: ({ date }) => {
+      const key = formatDate(date);
+      const info = value[key];
+      return (
+        <div className="flex flex-col justify-between items-center w-12 h-12 relative">
+          {/* 日期号（上方） */}
+          <span className="text-[12px] leading-none">{date.getDate()}</span>
 
-                {/* 价格（底部居中） */}
-                {hasPrice && (
-                  <span className="absolute bottom-1 left-1 right-1 text-[10px] leading-none text-center text-green-700 font-medium">
-                    RM {formatPrice(info.price)}
-                  </span>
-                )}
-              </div>
-            );
-          },
-        }}
-      />
+          {/* 价格（下方） */}
+          {info?.price && (
+            <span className="text-[10px] text-green-700 font-medium">
+              RM {formatPrice(info.price)}
+            </span>
+          )}
+        </div>
+      );
+    },
+  }}
+/>
 
       {selectedRange && (
         <div className="space-y-2 border p-3 rounded bg-gray-50">
