@@ -1,6 +1,6 @@
 // components/AdvancedAvailabilityCalendar.js
 import { useState, useRef, useEffect } from "react";
-import { DayPicker, Day } from "react-day-picker";
+import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 
 // ✅ 日期格式化函数 (yyyy-mm-dd，避免错位)
@@ -104,22 +104,22 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
       .map((d) => new Date(d)),
   };
 
-  // 辅助：尝试从 value 中找出与 date 同一天的 info
-const findInfoForDate = (date) => {
-  const k = formatDate(date);
-  if (value && Object.prototype.hasOwnProperty.call(value, k)) return value[k];
+  // 辅助：尝试从 value 中找出与 date 同一天的 info（兼容多种 key 格式）
+  const findInfoForDate = (date) => {
+    const k = formatDate(date);
+    if (value && Object.prototype.hasOwnProperty.call(value, k)) return value[k];
 
-  const altKey = Object.keys(value).find((key) => {
-    const parsed = new Date(key);
-    if (isNaN(parsed.getTime())) return false; // 🔥 正确判断 Invalid Date
-    return (
-      parsed.getFullYear() === date.getFullYear() &&
-      parsed.getMonth() === date.getMonth() &&
-      parsed.getDate() === date.getDate()
-    );
-  });
-  return altKey ? value[altKey] : undefined;
-};
+    const altKey = Object.keys(value).find((key) => {
+      const parsed = new Date(key);
+      if (isNaN(parsed)) return false;
+      return (
+        parsed.getFullYear() === date.getFullYear() &&
+        parsed.getMonth() === date.getMonth() &&
+        parsed.getDate() === date.getDate()
+      );
+    });
+    return altKey ? value[altKey] : undefined;
+  };
 
   return (
     <div className="space-y-4" ref={wrapperRef}>
@@ -137,35 +137,34 @@ const findInfoForDate = (date) => {
           peak: { backgroundColor: "#fde047" },
         }}
         components={{
-  Day: (dayProps) => {
-    if (!dayProps.date) {
-      return <div {...dayProps} />; // 空格子
-    }
+          Day: (dayProps) => {
+            if (!dayProps.date) return <div {...dayProps} />;
 
-    const info = findInfoForDate(dayProps.date);
-    const priceNum = info?.price != null ? Number(info.price) : null;
-    const showPrice = priceNum !== null && !isNaN(priceNum) && priceNum > 0;
+            const info = findInfoForDate(dayProps.date);
+            const priceNum = info?.price != null ? Number(info.price) : null;
+            const showPrice =
+              priceNum !== null && !isNaN(priceNum) && priceNum > 0;
 
-    return (
-      <div
-        {...dayProps}
-        className="relative w-full h-full cursor-pointer p-1"
-      >
-        {/* 日期号 */}
-        <span className="absolute top-1 left-1 text-[12px]">
-          {dayProps.date.getDate()}
-        </span>
+            return (
+              <div
+                {...dayProps}
+                className="relative w-full h-full cursor-pointer p-1"
+              >
+                {/* 日期号 */}
+                <span className="absolute top-1 left-1 text-[12px]">
+                  {dayProps.date.getDate()}
+                </span>
 
-        {/* 价格 */}
-        {showPrice && (
-          <span className="absolute bottom-1 right-1 text-[10px] text-green-700 font-medium">
-            RM {formatPrice(priceNum)}
-          </span>
-        )}
-      </div>
-    );
-  },
-}}
+                {/* 价格 */}
+                {showPrice && (
+                  <span className="absolute bottom-1 right-1 text-[10px] text-green-700 font-medium">
+                    RM {formatPrice(priceNum)}
+                  </span>
+                )}
+              </div>
+            );
+          },
+        }}
       />
 
       {selectedRange && (
