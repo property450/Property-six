@@ -119,22 +119,22 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
           peak: { backgroundColor: "#fde047" },
         }}
         components={{
-          DayContent: ({ date }) => {
-            const key = formatDate(date);
-            const info = value[key];
-           return (
-              <div className="relative h-16 w-16 flex flex-col items-center justify-center">
+  DayContent: ({ date }) => {
+    const key = formatDate(date);
+    const info = value[key];
+    return (
+      <div className="relative h-16 w-16 flex flex-col items-center justify-center">
                 {/* 日期号 */}
                 <span className="text-sm">{date.getDate()}</span>
                 {/* 价格显示 */}
                 {info?.price != null && info?.price !== 0 && (
-  <span className="text-[11px] text-green-700 font-medium mt-1">
-    RM {formatPrice(info.price)}
-    </span>
-    )}
- </div>
-  );
- },
+          <span className="text-[11px] text-green-700 font-medium mt-1">
+            RM {formatPrice(info.price)}
+          </span>
+        )}
+      </div>
+    );
+  },
 }}
       {selectedRange && (
         <div className="space-y-2 border p-3 rounded bg-gray-50">
