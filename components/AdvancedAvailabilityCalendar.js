@@ -108,40 +108,42 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     <div className="space-y-4" ref={wrapperRef}>
       <label className="block font-medium">房源日历管理</label>
 
-      {/* ✅ 用 Tailwind 覆盖默认格子大小 */}
-      <div className="[&_.rdp-day]:h-20 [&_.rdp-day]:w-20 [&_.rdp-day]:p-1">
-        <DayPicker
-          mode="range"
-          selected={selectedRange}
-          onSelect={handleSelect}
-          showOutsideDays
-          modifiers={modifiers}
-          modifiersStyles={{
-            available: { backgroundColor: "#bbf7d0" },
-            booked: { backgroundColor: "#fca5a5" },
-            peak: { backgroundColor: "#fde047" },
-          }}
-          components={{
-            DayContent: ({ date }) => {
-              const key = formatDate(date);
-              const info = value[key];
-              return (
-                <div className="flex flex-col items-center justify-start w-full h-full">
-                  {/* 日期号 */}
-                  <span className="text-sm">{date.getDate()}</span>
+      <DayPicker
+        mode="range"
+        selected={selectedRange}
+        onSelect={handleSelect}
+        showOutsideDays
+        modifiers={modifiers}
+        modifiersStyles={{
+          available: { backgroundColor: "#bbf7d0" },
+          booked: { backgroundColor: "#fca5a5" },
+          peak: { backgroundColor: "#fde047" },
+        }}
+        components={{
+          DayContent: ({ date }) => {
+            const key = formatDate(date);
+            const info = value[key];
+            const hasPrice =
+              info && info.price !== "" && info.price !== null && info.price !== undefined;
+            return (
+              // ✅ 相对定位容器，价格固定到底部，小格也能显示
+              <div className="relative w-full h-full">
+                {/* 日期号（左上角） */}
+                <span className="absolute top-1 left-1 text-[12px] leading-none">
+                  {date.getDate()}
+                </span>
 
-                  {/* 价格显示 */}
-                  {info?.price && (
-                    <span className="text-xs text-green-700 font-semibold mt-1">
-                      RM {formatPrice(info.price)}
-                    </span>
-                  )}
-                </div>
-              );
-            },
-          }}
-        />
-      </div>
+                {/* 价格（底部居中） */}
+                {hasPrice && (
+                  <span className="absolute bottom-1 left-1 right-1 text-[10px] leading-none text-center text-green-700 font-medium">
+                    RM {formatPrice(info.price)}
+                  </span>
+                )}
+              </div>
+            );
+          },
+        }}
+      />
 
       {selectedRange && (
         <div className="space-y-2 border p-3 rounded bg-gray-50">
