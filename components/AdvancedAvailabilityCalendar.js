@@ -71,15 +71,16 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     let day = new Date(selectedRange.from);
 
     while (day <= selectedRange.to) {
-      const key = formatDate(day);
-      updated[key] = {
-        price: price ? parseInt(price.replace(/,/g, "")) : null, // 用 null 代替空字符串
-        status,
-        checkIn,
-        checkOut,
-      };
-      day.setDate(day.getDate() + 1);
-    }
+  const localDay = new Date(day.getFullYear(), day.getMonth(), day.getDate()); 
+  const key = formatDate(localDay);
+  updated[key] = {
+    price: price ? parseInt(price.replace(/,/g, "")) : null,
+    status,
+    checkIn,
+    checkOut,
+  };
+  day.setDate(day.getDate() + 1);
+}
 
     // ✅ 确保新引用
     onChange({ ...updated });
@@ -106,10 +107,11 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
 
   // 辅助：尝试从 value 中找出与 date 同一天的 info（兼容多种 key 格式）
   const findInfoForDate = (date) => {
-    // 先按 yyyy-mm-dd 快速查找
-    const k = formatDate(date);
-    if (value && Object.prototype.hasOwnProperty.call(value, k)) return value[k];
-
+  const local = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const k = formatDate(local);
+  return value?.[k];
+};
+  
     // 回退：遍历 keys，尝试用 Date(key) 与目标 date 比较年/月/日
     const altKey = Object.keys(value).find((key) => {
       const parsed = new Date(key);
@@ -160,6 +162,8 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
   },
 }}
       />
+
+console.log("渲染格子:", date, "key:", formatDate(new Date(date.getFullYear(), date.getMonth(), date.getDate())), "info:", findInfoForDate(date));
 
       {selectedRange && (
         <div className="space-y-2 border p-3 rounded bg-gray-50">
