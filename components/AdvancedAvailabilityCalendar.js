@@ -137,34 +137,35 @@ const findInfoForDate = (date) => {
           peak: { backgroundColor: "#fde047" },
         }}
         components={{
-          // ✅ 正确方式：Day 替代 DayContent
-          Day: (dayProps) => {
-  if (!dayProps.date) {
-    return <Day {...dayProps} />; // 🔥 没有 date，直接返回默认 Day
-  }
+  Day: (dayProps) => {
+    if (!dayProps.date) {
+      return <div {...dayProps} />; // 空格子
+    }
 
-  const info = findInfoForDate(dayProps.date);
-  const priceNum = info?.price != null ? Number(info.price) : null;
-  const showPrice =
-    priceNum !== null && !isNaN(priceNum) && priceNum > 0;
+    const info = findInfoForDate(dayProps.date);
+    const priceNum = info?.price != null ? Number(info.price) : null;
+    const showPrice = priceNum !== null && !isNaN(priceNum) && priceNum > 0;
 
-  return (
-    <Day {...dayProps} className="relative w-full h-full">
-      {/* 日期号（左上角） */}
-      <span className="absolute top-1 left-1 text-[12px]">
-        {dayProps.date.getDate()}
-      </span>
-
-      {/* 价格（右下角） */}
-      {showPrice && (
-        <span className="absolute bottom-1 right-1 text-[10px] text-green-700 font-medium">
-          RM {formatPrice(priceNum)}
+    return (
+      <div
+        {...dayProps}
+        className="relative w-full h-full cursor-pointer p-1"
+      >
+        {/* 日期号 */}
+        <span className="absolute top-1 left-1 text-[12px]">
+          {dayProps.date.getDate()}
         </span>
-      )}
-    </Day>
-  );
-}
-        }}
+
+        {/* 价格 */}
+        {showPrice && (
+          <span className="absolute bottom-1 right-1 text-[10px] text-green-700 font-medium">
+            RM {formatPrice(priceNum)}
+          </span>
+        )}
+      </div>
+    );
+  },
+}}
       />
 
       {selectedRange && (
