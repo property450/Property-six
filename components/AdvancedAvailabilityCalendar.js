@@ -108,7 +108,7 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     while (day <= selectedRange.to) {
   const key = formatDate(day); // 永远存 yyyy-mm-dd
   updated[key] = {
-    price: price ? parseInt(String(price).replace(/,/g, "")) : null,
+    price: price !== "" ? parseInt(String(price).replace(/,/g, ""), 10) : null,
     status,
     checkIn,
     checkOut,
@@ -144,7 +144,7 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     const key = formatDate(date);
     const info = priceMap[key];
     const priceNum = info?.price != null ? Number(info.price) : null;
-    const showPrice = priceNum !== null && !isNaN(priceNum) && priceNum > 0;
+    const showPrice = priceNum !== null && !isNaN(priceNum);
 
     return (
       <div className="flex flex-col items-center justify-center w-full h-full">
