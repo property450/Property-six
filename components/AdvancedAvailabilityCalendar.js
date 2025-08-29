@@ -105,21 +105,21 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
   };
 
   // 辅助：尝试从 value 中找出与 date 同一天的 info
-  const findInfoForDate = (date) => {
-    const k = formatDate(date);
-    if (value && Object.prototype.hasOwnProperty.call(value, k)) return value[k];
+const findInfoForDate = (date) => {
+  const k = formatDate(date);
+  if (value && Object.prototype.hasOwnProperty.call(value, k)) return value[k];
 
-    const altKey = Object.keys(value).find((key) => {
-      const parsed = new Date(key);
-      if (isNaN(parsed)) return false;
-      return (
-        parsed.getFullYear() === date.getFullYear() &&
-        parsed.getMonth() === date.getMonth() &&
-        parsed.getDate() === date.getDate()
-      );
-    });
-    return altKey ? value[altKey] : undefined;
-  };
+  const altKey = Object.keys(value).find((key) => {
+    const parsed = new Date(key);
+    if (isNaN(parsed.getTime())) return false; // 🔥 正确判断 Invalid Date
+    return (
+      parsed.getFullYear() === date.getFullYear() &&
+      parsed.getMonth() === date.getMonth() &&
+      parsed.getDate() === date.getDate()
+    );
+  });
+  return altKey ? value[altKey] : undefined;
+};
 
   return (
     <div className="space-y-4" ref={wrapperRef}>
