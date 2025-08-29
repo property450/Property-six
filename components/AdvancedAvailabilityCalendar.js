@@ -56,20 +56,20 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
 
   // —— 关键：把传进来的 value 预处理成 priceMap (yyyy-mm-dd -> info)
   const { priceMap, priceDates } = useMemo(() => {
-    const map = {};
-    const dates = [];
-    if (value && typeof value === "object") {
-      Object.keys(value).forEach((key) => {
-        const local = parseKeyToLocalDate(key);
-        if (local) {
-          const k = formatDate(local);
-          map[k] = value[key];
-          dates.push(local);
-        }
-      });
-    }
-    return { priceMap: map, priceDates: dates };
-  }, [value]);
+  const map = {};
+  const dates = [];
+  if (value && typeof value === "object") {
+    Object.keys(value).forEach((key) => {
+      const local = parseKeyToLocalDate(key);
+      if (local) {
+        const k = formatDate(local); // 强制转 yyyy-mm-dd
+        map[k] = value[key];
+        dates.push(local);
+      }
+    });
+  }
+  return { priceMap: map, priceDates: dates };
+}, [value]);
 
   // 日期选择
   const handleSelect = (range) => {
@@ -106,15 +106,16 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     let day = new Date(selectedRange.from);
 
     while (day <= selectedRange.to) {
-      const key = formatDate(day);
-      updated[key] = {
-        price: price ? parseInt(String(price).replace(/,/g, "")) : null,
-        status,
-        checkIn,
-        checkOut,
-      };
-      day.setDate(day.getDate() + 1);
-    }
+  const key = formatDate(day); // 永远存 yyyy-mm-dd
+  updated[key] = {
+    price: price ? parseInt(String(price).replace(/,/g, "")) : null,
+    status,
+    checkIn,
+    checkOut,
+  };
+  day.setDate(day.getDate() + 1);
+}
+
 
     onChange({ ...updated });
     setSelectedRange(null);
