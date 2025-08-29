@@ -152,6 +152,8 @@ const findInfoForDate = (date) => {
     const priceNum = info?.price != null ? Number(info.price) : null;
     const showPrice = priceNum !== null && !isNaN(priceNum) && priceNum > 0;
 
+    console.log("渲染格子:", date, "key:", formatDate(new Date(date.getFullYear(), date.getMonth(), date.getDate())), "info:", findInfoForDate(date));
+
     return (
       <div className="flex flex-col items-center justify-center w-full h-full">
         {/* 日期号 */}
@@ -168,8 +170,6 @@ const findInfoForDate = (date) => {
   },
 }}
       />
-
-console.log("渲染格子:", date, "key:", formatDate(new Date(date.getFullYear(), date.getMonth(), date.getDate())), "info:", findInfoForDate(date));
 
       {selectedRange && (
         <div className="space-y-2 border p-3 rounded bg-gray-50">
