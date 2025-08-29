@@ -1,4 +1,3 @@
-// components/AdvancedAvailabilityCalendar.js
 import { useState, useRef, useEffect, useMemo } from "react";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
@@ -13,7 +12,10 @@ const formatDate = (date) => {
 };
 
 // 千分位格式化
-const formatPrice = (num) => (num || num === 0 ? String(num).replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "");
+const formatPrice = (num) =>
+  num || num === 0
+    ? String(num).replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+    : "";
 
 // 辅助：把一个 key（可能是 "yyyy-mm-dd" 或 ISO）解析成本地 Date（去掉时区偏差）
 const parseKeyToLocalDate = (key) => {
@@ -24,7 +26,6 @@ const parseKeyToLocalDate = (key) => {
   }
   const parsed = new Date(key);
   if (!isNaN(parsed)) {
-    // 归零到本地年月日，去掉时区时间部分
     return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
   }
   return null;
@@ -82,11 +83,9 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
       setSelectedRange(range);
     }
 
-    // 单天 → 回填数据（用格式化 key 查）
     if (range?.from && range?.to && range.to.getTime() === range.from.getTime()) {
-      const local = new Date(range.from.getFullYear(), range.from.getMonth(), range.from.getDate());
-      const key = formatDate(local);
-      const info = priceMap[key] ?? value?.[key];
+      const key = formatDate(range.from);
+      const info = priceMap[key];
       if (info) {
         setPrice(formatPrice(info.price ?? ""));
         setStatus(info.status || "available");
@@ -101,15 +100,13 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     }
   };
 
-  // 应用设置（存的时候也用本地年月日 key）
   const applySettings = () => {
     if (!selectedRange?.from || !selectedRange?.to) return;
     let updated = { ...value };
     let day = new Date(selectedRange.from);
 
     while (day <= selectedRange.to) {
-      const localDay = new Date(day.getFullYear(), day.getMonth(), day.getDate());
-      const key = formatDate(localDay);
+      const key = formatDate(day);
       updated[key] = {
         price: price ? parseInt(String(price).replace(/,/g, "")) : null,
         status,
@@ -119,10 +116,7 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
       day.setDate(day.getDate() + 1);
     }
 
-    // 回传新的对象引用
     onChange({ ...updated });
-
-    // 重置编辑框
     setSelectedRange(null);
     setPrice("");
     setStatus("available");
@@ -130,43 +124,26 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     setCheckOut("12:00");
   };
 
-  // modifiers 用于高亮（把 priceDates 也归为本地 date）
   const modifiers = {
-    available: Object.keys(priceMap).filter((d) => priceMap[d]?.status === "available").map((d) => {
-      const parsed = parseKeyToLocalDate(d);
-      return parsed;
-    }),
-    booked: Object.keys(priceMap).filter((d) => priceMap[d]?.status === "booked").map((d) => parseKeyToLocalDate(d)),
-    peak: Object.keys(priceMap).filter((d) => priceMap[d]?.status === "peak").map((d) => parseKeyToLocalDate(d)),
-    hasPrice: priceDates.map((d) => new Date(d.getFullYear(), d.getMonth(), d.getDate())),
+    available: Object.keys(priceMap)
+      .filter((d) => priceMap[d]?.status === "available")
+      .map((d) => parseKeyToLocalDate(d)),
+    booked: Object.keys(priceMap)
+      .filter((d) => priceMap[d]?.status === "booked")
+      .map((d) => parseKeyToLocalDate(d)),
+    peak: Object.keys(priceMap)
+      .filter((d) => priceMap[d]?.status === "peak")
+      .map((d) => parseKeyToLocalDate(d)),
+    hasPrice: priceDates.map(
+      (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate())
+    ),
   };
 
-  // 查找 info（用 priceMap，保证一致）
-  const findInfoForDate = (date) => {
-    if (!date) return undefined;
-    const local = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    const k = formatDate(local);
-    if (priceMap[k]) return priceMap[k];
-
-    // 备用：遍历 keys（如果 priceMap 里没，但 value 里用其它 key 格式）
-    const altKey = Object.keys(value || {}).find((key) => {
-      const parsed = parseKeyToLocalDate(key);
-      if (!parsed) return false;
-      return parsed.getFullYear() === date.getFullYear() &&
-             parsed.getMonth() === date.getMonth() &&
-             parsed.getDate() === date.getDate();
-    });
-    return altKey ? value[altKey] : undefined;
-  };
-
-  // 自定义 DayContent（在这里渲染价格）
   const DayContent = ({ date }) => {
-    const info = findInfoForDate(date);
+    const key = formatDate(date);
+    const info = priceMap[key];
     const priceNum = info?.price != null ? Number(info.price) : null;
     const showPrice = priceNum !== null && !isNaN(priceNum) && priceNum > 0;
-
-    // 调试：打开控制台看每个格子的 key 和 info（如果不想看可以删掉这行）
-    // console.log("渲染格子:", date, "key:", formatDate(new Date(date.getFullYear(), date.getMonth(), date.getDate())), "info:", info);
 
     return (
       <div className="flex flex-col items-center justify-center w-full h-full">
@@ -194,7 +171,6 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
           available: { backgroundColor: "#bbf7d0" },
           booked: { backgroundColor: "#fca5a5" },
           peak: { backgroundColor: "#fde047" },
-          // 为有价格的日期稍微增加内边距（可视化辅助）
           hasPrice: { paddingBottom: "0.5rem" },
         }}
         components={{ DayContent }}
@@ -206,15 +182,7 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
             <p>Check-in 日期: {formatDate(selectedRange.from)}</p>
             <p>
               Check-out 日期:{" "}
-              {selectedRange.to
-                ? formatDate(
-                    (() => {
-                      const d = new Date(selectedRange.to);
-                      d.setDate(d.getDate() + 1);
-                      return d;
-                    })()
-                  )
-                : ""}
+              {selectedRange.to ? formatDate(selectedRange.to) : ""}
             </p>
           </div>
 
@@ -265,39 +233,21 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
 
           <div className="flex gap-2">
             <div className="flex flex-col w-1/2">
-              <label className="text-sm text-gray-600">
-                Check-in 时间 ({formatDate(selectedRange.from)})
-              </label>
+              <label className="text-sm text-gray-600">Check-in 时间</label>
               <input
                 type="time"
                 value={checkIn}
                 onChange={(e) => setCheckIn(e.target.value)}
                 className="border p-2 rounded"
-                min="00:00"
-                max="23:59"
               />
             </div>
             <div className="flex flex-col w-1/2">
-              <label className="text-sm text-gray-600">
-                Check-out 时间 (
-                {selectedRange.to
-                  ? formatDate(
-                      (() => {
-                        const d = new Date(selectedRange.to);
-                        d.setDate(d.getDate() + 1);
-                        return d;
-                      })()
-                    )
-                  : ""}
-                )
-              </label>
+              <label className="text-sm text-gray-600">Check-out 时间</label>
               <input
                 type="time"
                 value={checkOut}
                 onChange={(e) => setCheckOut(e.target.value)}
                 className="border p-2 rounded"
-                min="00:00"
-                max="23:59"
               />
             </div>
           </div>
