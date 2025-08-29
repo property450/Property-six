@@ -3,7 +3,6 @@ import { useState, useRef, useEffect } from "react";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 
-// ✅ 日期格式化函数 (yyyy-mm-dd，避免错位)
 const formatDate = (date) => {
   if (!date || !(date instanceof Date)) return "";
   const year = date.getFullYear();
@@ -12,7 +11,6 @@ const formatDate = (date) => {
   return `${year}-${month}-${day}`;
 };
 
-// 千分位格式化
 const formatPrice = (num) =>
   num ? num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "";
 
@@ -26,7 +24,6 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
   const wrapperRef = useRef(null);
   const [showDropdown, setShowDropdown] = useState(false);
 
-  // ✅ 预定义价格 (50 ~ 50,000)
   const predefinedPrices = Array.from({ length: 1000 }, (_, i) => (i + 1) * 50);
 
   useEffect(() => {
@@ -39,10 +36,8 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // 日期选择
   const handleSelect = (range) => {
     if (!range) return;
-
     if (range.from && !range.to) {
       const autoTo = new Date(range.from);
       autoTo.setDate(autoTo.getDate() + 1);
@@ -50,8 +45,6 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     } else {
       setSelectedRange(range);
     }
-
-    // ✅ 单天 → 回填数据
     if (range?.from && range?.to && range.to.getTime() === range.from.getTime()) {
       const key = formatDate(range.from);
       const info = value[key];
@@ -64,26 +57,21 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     }
   };
 
-  // 应用设置
   const applySettings = () => {
     if (!selectedRange?.from || !selectedRange?.to) return;
     let updated = { ...value };
     let day = new Date(selectedRange.from);
-
     while (day <= selectedRange.to) {
       const key = formatDate(day);
       updated[key] = {
-        price: price ? parseInt(price.replace(/,/g, "")) : null, // 用 null 代替空字符串
+        price: price ? parseInt(price.replace(/,/g, "")) : null,
         status,
         checkIn,
         checkOut,
       };
       day.setDate(day.getDate() + 1);
     }
-
-    // ✅ 确保新引用
     onChange({ ...updated });
-
     setSelectedRange(null);
     setPrice("");
     setStatus("available");
@@ -91,7 +79,6 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     setCheckOut("12:00");
   };
 
-  // 状态日期高亮
   const modifiers = {
     available: Object.keys(value)
       .filter((d) => value[d]?.status === "available")
@@ -104,13 +91,9 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
       .map((d) => new Date(d)),
   };
 
-  // 辅助：尝试从 value 中找出与 date 同一天的 info（兼容多种 key 格式）
   const findInfoForDate = (date) => {
-    // 先按 yyyy-mm-dd 快速查找
     const k = formatDate(date);
     if (value && Object.prototype.hasOwnProperty.call(value, k)) return value[k];
-
-    // 回退：遍历 keys，尝试用 Date(key) 与目标 date 比较年/月/日
     const altKey = Object.keys(value).find((key) => {
       const parsed = new Date(key);
       if (isNaN(parsed)) return false;
@@ -140,19 +123,22 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
         }}
         components={{
           DayContent: ({ date }) => {
-            // 使用更稳健的匹配函数查找 info
             const info = findInfoForDate(date);
-            const priceNum = info?.price != null ? Number(info.price) : null;
-            const showPrice = priceNum !== null && !isNaN(priceNum) && priceNum > 0;
+            const priceNum =
+              info?.price != null ? Number(info.price) : null;
+            const showPrice =
+              priceNum !== null && !isNaN(priceNum) && priceNum > 0;
 
             return (
-              <div className="flex flex-col justify-between items-center w-full h-full p-1">
-                {/* 日期号（上方） */}
-                <span className="text-[12px] leading-none">{date.getDate()}</span>
+              <div className="relative w-full h-full flex items-start justify-start">
+                {/* 日期号（左上角） */}
+                <span className="absolute top-1 left-1 text-[12px]">
+                  {date.getDate()}
+                </span>
 
-                {/* 价格（下方） */}
+                {/* 价格（右下角） */}
                 {showPrice && (
-                  <span className="text-[10px] text-green-700 font-medium">
+                  <span className="absolute bottom-1 right-1 text-[10px] text-green-700 font-medium">
                     RM {formatPrice(priceNum)}
                   </span>
                 )}
@@ -164,7 +150,7 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
 
       {selectedRange && (
         <div className="space-y-2 border p-3 rounded bg-gray-50">
-          {/* ✅ Check-in / Check-out 日期显示 */}
+          {/* ✅ 其它表单保持原样 */}
           <div className="flex justify-between">
             <p>Check-in 日期: {formatDate(selectedRange.from)}</p>
             <p>
@@ -181,7 +167,6 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
             </p>
           </div>
 
-          {/* ✅ 价格输入 + 下拉选择 */}
           <div className="relative">
             <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-600">
               RM
@@ -217,7 +202,6 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
             )}
           </div>
 
-          {/* ✅ 状态选择 */}
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value)}
@@ -228,7 +212,6 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
             <option value="peak">高峰期</option>
           </select>
 
-          {/* ✅ Check-in / Check-out 时间选择 */}
           <div className="flex gap-2">
             <div className="flex flex-col w-1/2">
               <label className="text-sm text-gray-600">
@@ -268,7 +251,6 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
             </div>
           </div>
 
-          {/* ✅ 确认按钮 */}
           <button
             onClick={applySettings}
             className="bg-blue-600 text-white px-4 py-2 rounded w-full"
