@@ -56,9 +56,9 @@ export default function TypeSelector({ value = '', onChange = () => {}, onFormCh
 
   // 初始化 finalType（如果父组件传了 value）
   useEffect(() => {
-  if (value && value !== finalType) setFinalType(value);
-}, [value, finalType]);
-
+    if (value && value !== finalType) setFinalType(value);
+  }, [value]);
+  
   // 当 finalType 改变时，把 saleType 和 finalType 一起回传
 useEffect(() => {
   let newValue;
