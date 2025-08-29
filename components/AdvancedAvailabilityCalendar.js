@@ -139,27 +139,27 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
           peak: { backgroundColor: "#fde047" },
         }}
         components={{
-          DayContent: ({ date }) => {
-            // 使用更稳健的匹配函数查找 info
-            const info = findInfoForDate(date);
-            const priceNum = info?.price != null ? Number(info.price) : null;
-            const showPrice = priceNum !== null && !isNaN(priceNum) && priceNum > 0;
+        components={{
+  DayContent: ({ date }) => {
+    const info = findInfoForDate(date);
+    const priceNum = info?.price != null ? Number(info.price) : null;
+    const showPrice = priceNum !== null && !isNaN(priceNum) && priceNum > 0;
 
-            return (
-              <div className="flex flex-col justify-between items-center w-full h-full p-1">
-                {/* 日期号（上方） */}
-                <span className="text-[12px] leading-none">{date.getDate()}</span>
+    return (
+      <div className="flex flex-col items-center justify-center w-full h-full">
+        {/* 日期号 */}
+        <span className="text-sm font-medium">{date.getDate()}</span>
 
-                {/* 价格（下方） */}
-                {showPrice && (
-                  <span className="text-[10px] text-green-700 font-medium">
-                    RM {formatPrice(priceNum)}
-                  </span>
-                )}
-              </div>
-            );
-          },
-        }}
+        {/* 价格 */}
+        {showPrice && (
+          <span className="text-xs text-gray-700">
+            MYR {formatPrice(priceNum)}
+          </span>
+        )}
+      </div>
+    );
+  },
+}}
       />
 
       {selectedRange && (
