@@ -3,7 +3,6 @@ import { useState } from "react";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 
-// 工具函数：格式化日期 yyyy-mm-dd
 const formatDate = (date) => {
   if (!date) return "";
   const y = date.getFullYear();
@@ -12,7 +11,6 @@ const formatDate = (date) => {
   return `${y}-${m}-${d}`;
 };
 
-// 千分位格式化
 const formatPrice = (num) =>
   num || num === 0
     ? String(num).replace(/\B(?=(\d{3})+(?!\d))/g, ",")
@@ -23,18 +21,13 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
   const [price, setPrice] = useState("");
   const [priceMap, setPriceMap] = useState(value || {});
 
-  // 选择某一天
   const handleSelect = (day) => {
+    if (!day) return;
     setSelectedDay(day);
     const key = formatDate(day);
-    if (priceMap[key]) {
-      setPrice(formatPrice(priceMap[key].price));
-    } else {
-      setPrice("");
-    }
+    setPrice(priceMap[key]?.price ? String(priceMap[key].price) : "");
   };
 
-  // 保存设置
   const applySettings = () => {
     if (!selectedDay) return;
     const key = formatDate(selectedDay);
@@ -46,7 +39,6 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     };
     setPriceMap(newMap);
     onChange && onChange(newMap);
-
     setSelectedDay(null);
     setPrice("");
   };
@@ -57,43 +49,39 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
         mode="single"
         selected={selectedDay}
         onSelect={handleSelect}
+        modifiersClassNames={{
+          selected: "bg-blue-500 text-white", // 点击时高亮
+        }}
         components={{
+          // 👇 注意：用 span，React-Day-Picker 会自动包裹在 button 里，不会挡掉点击
           DayContent: ({ date }) => {
             const key = formatDate(date);
             const info = priceMap[key];
-            const priceNum = info?.price != null ? Number(info.price) : null;
-
             return (
-              <div className="flex flex-col items-center w-full">
-                <span className="text-sm">{date.getDate()}</span>
-                {priceNum !== null && !isNaN(priceNum) && (
+              <span className="flex flex-col items-center w-full">
+                <span>{date.getDate()}</span>
+                {info?.price != null && (
                   <span className="text-[10px] text-gray-700">
-                    MYR {formatPrice(priceNum)}
+                    MYR {formatPrice(info.price)}
                   </span>
                 )}
-              </div>
+              </span>
             );
           },
         }}
       />
 
-      {/* 表单区 */}
+      {/* 编辑框 */}
       {selectedDay && (
         <div className="flex flex-col gap-2 border p-3 rounded-lg shadow-sm">
-          <div>
-            日期: {formatDate(selectedDay)}
-          </div>
-
-          <div>
-            <input
-              type="text"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              placeholder="输入价格 (如 100)"
-              className="border rounded p-1 w-full"
-            />
-          </div>
-
+          <div>日期: {formatDate(selectedDay)}</div>
+          <input
+            type="text"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            placeholder="输入价格 (如 100)"
+            className="border rounded p-1 w-full"
+          />
           <button
             onClick={applySettings}
             className="bg-blue-500 text-white px-3 py-1 rounded"
