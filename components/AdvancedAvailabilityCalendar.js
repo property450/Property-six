@@ -1,32 +1,30 @@
+// AdvancedAvailabilityCalendar.js
 import { useState } from "react";
 import { DayPicker, useDayRender } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 
 const formatDate = (date) => {
   if (!date) return "";
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
+  return date.toISOString().split("T")[0]; // yyyy-mm-dd
 };
 
-export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
+export default function AdvancedAvailabilityCalendar() {
   const [selectedDay, setSelectedDay] = useState(null);
+  const [prices, setPrices] = useState({});
   const [price, setPrice] = useState("");
 
-  const applySettings = () => {
+  const savePrice = () => {
     if (!selectedDay) return;
     const key = formatDate(selectedDay);
-    const updated = {
-      ...value,
-      [key]: { price: price !== "" ? parseInt(price, 10) : null },
-    };
-    onChange?.(updated);
+    setPrices({
+      ...prices,
+      [key]: price,
+    });
     setSelectedDay(null);
     setPrice("");
   };
 
-  // ✅ 正确写法：保留 useDayRender 提供的 props
+  // ✅ 关键：保留 useDayRender 的 props
   function CustomDay(props) {
     const { buttonProps, divProps } = useDayRender(
       props.date,
@@ -34,26 +32,22 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
       props
     );
     const key = formatDate(props.date);
-    const info = value[key];
+    const dayPrice = prices[key];
 
     return (
       <div {...divProps} className="rdp-day">
         <button
           {...buttonProps}
           onClick={(e) => {
-            // 保留原本的 daypicker 逻辑
-            buttonProps.onClick?.(e);
-            // 更新自定义逻辑
+            buttonProps.onClick?.(e); // 必须保留
             setSelectedDay(props.date);
-            setPrice(info?.price?.toString() || "");
+            setPrice(dayPrice || "");
           }}
           className="w-full h-full flex flex-col items-center justify-center"
         >
           <span>{props.date.getDate()}</span>
-          {info?.price != null && (
-            <span className="text-[10px] text-gray-600">
-              MYR {info.price}
-            </span>
+          {dayPrice && (
+            <span className="text-[10px] text-blue-600">MYR {dayPrice}</span>
           )}
         </button>
       </div>
@@ -61,7 +55,7 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
   }
 
   return (
-    <div className="w-full flex flex-col gap-4">
+    <div className="p-4">
       <DayPicker
         mode="single"
         selected={selectedDay}
@@ -70,17 +64,17 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
       />
 
       {selectedDay && (
-        <div className="border p-3 rounded-lg">
+        <div className="mt-4 border p-3 rounded">
           <div>选择日期: {formatDate(selectedDay)}</div>
           <input
             type="number"
             value={price}
             onChange={(e) => setPrice(e.target.value)}
             placeholder="输入价格"
-            className="border rounded p-1 w-full"
+            className="border rounded p-1 w-full mt-2"
           />
           <button
-            onClick={applySettings}
+            onClick={savePrice}
             className="bg-blue-500 text-white px-3 py-1 rounded mt-2"
           >
             保存
