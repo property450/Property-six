@@ -41,9 +41,6 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
   const wrapperRef = useRef(null);
   const [showDropdown, setShowDropdown] = useState(false);
 
-  // 预定义价格 (50 ~ 50,000)
-  const predefinedPrices = Array.from({ length: 1000 }, (_, i) => (i + 1) * 50);
-
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
@@ -76,14 +73,14 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     if (!range) return;
 
     if (range.from && !range.to) {
+      // 单选 → 自动设为一天
       const autoTo = new Date(range.from);
-      autoTo.setDate(autoTo.getDate() + 1);
       setSelectedRange({ from: range.from, to: autoTo });
     } else {
       setSelectedRange(range);
     }
 
-    if (range?.from && range?.to && range.to.getTime() === range.from.getTime()) {
+    if (range?.from && range?.to) {
       const key = formatDate(range.from);
       const info = priceMap[key];
       if (info) {
@@ -142,35 +139,40 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
   return (
     <div className="w-full flex flex-col gap-4">
       <DayPicker
-        mode="single"
+        mode="range"
         selected={selectedRange}
         onSelect={handleSelect}
         modifiers={modifiers}
         components={{
-  Day: (props) => {
-    const { date } = props;
-    if (!date) return null;
+          Day: (props) => {
+            const { date } = props;
+            if (!date) return null;
 
-    const key = formatDate(date);
-    const info = priceMap[key];
-    const priceNum = info?.price != null ? Number(info.price) : null;
-    const showPrice = priceNum !== null && !isNaN(priceNum);
+            const key = formatDate(date);
+            const info = priceMap[key];
+            const priceNum = info?.price != null ? Number(info.price) : null;
+            const showPrice = priceNum !== null && !isNaN(priceNum);
 
-    return (
-      <div className="flex flex-col items-center justify-center w-full h-full">
-        <span className="text-sm font-medium select-none">
-          {date.getDate()}
-        </span>
-        {showPrice && (
-          <span className="text-xs text-gray-700 select-none mt-0.5">
-            MYR {formatPrice(priceNum)}
-          </span>
-        )}
-      </div>
-    );
-  },
-}}
-/>
+            // ✅ 必须用 button 并传入 {...props}，才能保证点击日期有反应
+            return (
+              <button
+                {...props}
+                className="w-full h-full flex flex-col items-center justify-center focus:outline-none"
+              >
+                <span className="text-sm font-medium select-none">
+                  {date.getDate()}
+                </span>
+                {showPrice && (
+                  <span className="text-xs text-gray-700 select-none mt-0.5">
+                    MYR {formatPrice(priceNum)}
+                  </span>
+                )}
+              </button>
+            );
+          },
+        }}
+      />
+
       {/* 表单区 */}
       {selectedRange?.from && (
         <div className="flex flex-col gap-2 border p-3 rounded-lg shadow-sm">
