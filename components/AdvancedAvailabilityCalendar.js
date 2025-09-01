@@ -28,8 +28,6 @@ export default function AdvancedAvailabilityCalendar() {
       ...prev,
       [key]: price !== "" ? parseInt(String(price).replace(/,/g, ""), 10) : null,
     }));
-    // ⚠️ 不要清空 selectedDay，否则后面点击新日期没反应
-    // setSelectedDay(null);
   };
 
   return (
@@ -37,14 +35,10 @@ export default function AdvancedAvailabilityCalendar() {
       <DayPicker
         mode="single"
         selected={selectedDay}
-        onSelect={(day) => {
+        onDayClick={(day) => {
           setSelectedDay(day);
           const key = formatDate(day);
-          if (priceMap[key]) {
-            setPrice(priceMap[key].toString());
-          } else {
-            setPrice("");
-          }
+          setPrice(priceMap[key] ? priceMap[key].toString() : "");
         }}
         components={{
           DayContent: (props) => {
