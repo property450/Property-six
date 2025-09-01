@@ -21,12 +21,12 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
       ...value,
       [key]: { price: price !== "" ? parseInt(price, 10) : null },
     };
-    onChange(updated);
+    onChange?.(updated);
     setSelectedDay(null);
     setPrice("");
   };
 
-  // ✅ 自定义日期格子，必须用 useDayRender
+  // ✅ 正确写法：保留 useDayRender 提供的 props
   function CustomDay(props) {
     const { buttonProps, divProps } = useDayRender(
       props.date,
@@ -41,7 +41,9 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
         <button
           {...buttonProps}
           onClick={(e) => {
-            buttonProps.onClick?.(e); // 保留 daypicker 内部逻辑
+            // 保留原本的 daypicker 逻辑
+            buttonProps.onClick?.(e);
+            // 更新自定义逻辑
             setSelectedDay(props.date);
             setPrice(info?.price?.toString() || "");
           }}
