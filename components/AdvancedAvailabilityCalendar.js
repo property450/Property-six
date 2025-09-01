@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { DayPicker } from "react-day-picker";
+import { DayPicker, useDayRender } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 
 // 日期格式化函数 (yyyy-mm-dd)
@@ -17,7 +17,7 @@ const formatPrice = (num) =>
     ? String(num).replace(/\B(?=(\d{3})+(?!\d))/g, ",")
     : "";
 
-// 辅助：把一个 key（可能是 "yyyy-mm-dd" 或 ISO）解析成本地 Date（去掉时区偏差）
+// 把 key 解析成本地 Date
 const parseKeyToLocalDate = (key) => {
   if (!key) return null;
   const m = String(key).match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -30,6 +30,35 @@ const parseKeyToLocalDate = (key) => {
   }
   return null;
 };
+
+// ✅ 自定义 Day 组件，保留点击逻辑 + 显示价格
+function CustomDay(props) {
+  const { date, priceMap } = props;
+  const { buttonProps } = useDayRender(date, props.displayMonth, props);
+
+  if (!date) return null;
+
+  const key = formatDate(date);
+  const info = priceMap?.[key];
+  const priceNum = info?.price != null ? Number(info.price) : null;
+  const showPrice = priceNum !== null && !isNaN(priceNum);
+
+  return (
+    <button
+      {...buttonProps} // ✅ 保留点击、选中逻辑
+      className="w-full h-full flex flex-col items-center justify-center focus:outline-none"
+    >
+      <span className="text-sm font-medium select-none">
+        {date.getDate()}
+      </span>
+      {showPrice && (
+        <span className="text-xs text-gray-700 select-none mt-0.5">
+          MYR {formatPrice(priceNum)}
+        </span>
+      )}
+    </button>
+  );
+}
 
 export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
   const [selectedRange, setSelectedRange] = useState(null);
@@ -51,7 +80,7 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // —— 关键：把传进来的 value 预处理成 priceMap (yyyy-mm-dd -> info)
+  // —— 把 value 预处理成 priceMap
   const { priceMap, priceDates } = useMemo(() => {
     const map = {};
     const dates = [];
@@ -59,7 +88,7 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
       Object.keys(value).forEach((key) => {
         const local = parseKeyToLocalDate(key);
         if (local) {
-          const k = formatDate(local); // 强制转 yyyy-mm-dd
+          const k = formatDate(local);
           map[k] = value[key];
           dates.push(local);
         }
@@ -73,14 +102,14 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     if (!range) return;
 
     if (range.from && !range.to) {
-      // 单选 → 自动设为一天
       const autoTo = new Date(range.from);
+      autoTo.setDate(autoTo.getDate() + 1);
       setSelectedRange({ from: range.from, to: autoTo });
     } else {
       setSelectedRange(range);
     }
 
-    if (range?.from && range?.to) {
+    if (range?.from && range?.to && range.to.getTime() === range.from.getTime()) {
       const key = formatDate(range.from);
       const info = priceMap[key];
       if (info) {
@@ -97,13 +126,14 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     }
   };
 
+  // 应用设置
   const applySettings = () => {
     if (!selectedRange?.from || !selectedRange?.to) return;
     let updated = { ...value };
     let day = new Date(selectedRange.from);
 
     while (day <= selectedRange.to) {
-      const key = formatDate(day); // 永远存 yyyy-mm-dd
+      const key = formatDate(day);
       updated[key] = {
         price: price !== "" ? parseInt(String(price).replace(/,/g, ""), 10) : null,
         status,
@@ -144,32 +174,7 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
         onSelect={handleSelect}
         modifiers={modifiers}
         components={{
-          Day: (props) => {
-            const { date } = props;
-            if (!date) return null;
-
-            const key = formatDate(date);
-            const info = priceMap[key];
-            const priceNum = info?.price != null ? Number(info.price) : null;
-            const showPrice = priceNum !== null && !isNaN(priceNum);
-
-            // ✅ 必须用 button 并传入 {...props}，才能保证点击日期有反应
-            return (
-              <button
-                {...props}
-                className="w-full h-full flex flex-col items-center justify-center focus:outline-none"
-              >
-                <span className="text-sm font-medium select-none">
-                  {date.getDate()}
-                </span>
-                {showPrice && (
-                  <span className="text-xs text-gray-700 select-none mt-0.5">
-                    MYR {formatPrice(priceNum)}
-                  </span>
-                )}
-              </button>
-            );
-          },
+          Day: (props) => <CustomDay {...props} priceMap={priceMap} />,
         }}
       />
 
