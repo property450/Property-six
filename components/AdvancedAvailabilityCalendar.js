@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { DayPicker } from "react-day-picker";
+import { DayPicker, useDayRender } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 
 // 格式化日期 yyyy-mm-dd
@@ -32,17 +32,6 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     return map;
   }, [value]);
 
-  // 点击日期
-  const handleDayClick = (day) => {
-    const key = formatDate(day);
-    setSelectedDay(day);
-    if (priceMap[key]) {
-      setPrice(priceMap[key].price?.toString() || "");
-    } else {
-      setPrice("");
-    }
-  };
-
   // 保存设置
   const applySettings = () => {
     if (!selectedDay) return;
@@ -58,34 +47,42 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     setPrice("");
   };
 
+  // 自定义日期格子 (用 useDayRender)
+  function CustomDay(props) {
+    const button = useDayRender(props.date, props.displayMonth, props);
+    const key = formatDate(props.date);
+    const info = priceMap[key];
+    const showPrice = info?.price != null;
+
+    return (
+      <button
+        {...button.buttonProps}
+        className="rdp-day w-full h-full flex flex-col items-center justify-center"
+        onClick={() => {
+          setSelectedDay(props.date);
+          if (info) {
+            setPrice(info.price?.toString() || "");
+          } else {
+            setPrice("");
+          }
+        }}
+      >
+        <span>{props.date.getDate()}</span>
+        {showPrice && (
+          <span className="text-[10px] text-gray-600">
+            MYR {formatPrice(info.price)}
+          </span>
+        )}
+      </button>
+    );
+  }
+
   return (
     <div className="w-full flex flex-col gap-4">
       <DayPicker
         mode="single"
         selected={selectedDay}
-        onDayClick={handleDayClick}
-        components={{
-          Day: (props) => {
-            const { date } = props;
-            const key = formatDate(date);
-            const info = priceMap[key];
-            const showPrice = info?.price != null;
-
-            return (
-              <button
-                {...props}
-                className="rdp-day w-full h-full flex flex-col items-center justify-center"
-              >
-                <span>{date.getDate()}</span>
-                {showPrice && (
-                  <span className="text-[10px] text-gray-600">
-                    MYR {formatPrice(info.price)}
-                  </span>
-                )}
-              </button>
-            );
-          },
-        }}
+        components={{ Day: CustomDay }}
       />
 
       {selectedDay && (
