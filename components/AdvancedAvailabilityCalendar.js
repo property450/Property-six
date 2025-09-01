@@ -28,8 +28,8 @@ export default function AdvancedAvailabilityCalendar() {
       ...prev,
       [key]: price !== "" ? parseInt(String(price).replace(/,/g, ""), 10) : null,
     }));
-    setPrice("");
-    setSelectedDay(null);
+    // ⚠️ 不要清空 selectedDay，否则后面点击新日期没反应
+    // setSelectedDay(null);
   };
 
   return (
