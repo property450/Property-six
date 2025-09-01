@@ -142,7 +142,7 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
   return (
     <div className="w-full flex flex-col gap-4">
       <DayPicker
-        mode="range"
+        mode="single"
         selected={selectedRange}
         onSelect={handleSelect}
         modifiers={modifiers}
