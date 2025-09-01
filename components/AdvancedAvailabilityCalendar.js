@@ -56,20 +56,20 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
 
   // —— 关键：把传进来的 value 预处理成 priceMap (yyyy-mm-dd -> info)
   const { priceMap, priceDates } = useMemo(() => {
-  const map = {};
-  const dates = [];
-  if (value && typeof value === "object") {
-    Object.keys(value).forEach((key) => {
-      const local = parseKeyToLocalDate(key);
-      if (local) {
-        const k = formatDate(local); // 强制转 yyyy-mm-dd
-        map[k] = value[key];
-        dates.push(local);
-      }
-    });
-  }
-  return { priceMap: map, priceDates: dates };
-}, [value]);
+    const map = {};
+    const dates = [];
+    if (value && typeof value === "object") {
+      Object.keys(value).forEach((key) => {
+        const local = parseKeyToLocalDate(key);
+        if (local) {
+          const k = formatDate(local); // 强制转 yyyy-mm-dd
+          map[k] = value[key];
+          dates.push(local);
+        }
+      });
+    }
+    return { priceMap: map, priceDates: dates };
+  }, [value]);
 
   // 日期选择
   const handleSelect = (range) => {
@@ -106,16 +106,15 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     let day = new Date(selectedRange.from);
 
     while (day <= selectedRange.to) {
-  const key = formatDate(day); // 永远存 yyyy-mm-dd
-  updated[key] = {
-    price: price !== "" ? parseInt(String(price).replace(/,/g, ""), 10) : null,
-    status,
-    checkIn,
-    checkOut,
-  };
-  day.setDate(day.getDate() + 1);
-}
-
+      const key = formatDate(day); // 永远存 yyyy-mm-dd
+      updated[key] = {
+        price: price !== "" ? parseInt(String(price).replace(/,/g, ""), 10) : null,
+        status,
+        checkIn,
+        checkOut,
+      };
+      day.setDate(day.getDate() + 1);
+    }
 
     onChange({ ...updated });
     setSelectedRange(null);
@@ -140,122 +139,94 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     ),
   };
 
-  const DayContent = ({ date }) => {
-    const key = formatDate(date);
-    const info = priceMap[key];
-    const priceNum = info?.price != null ? Number(info.price) : null;
-    const showPrice = priceNum !== null && !isNaN(priceNum);
-
-    return (
-      <div className="flex flex-col items-center justify-center w-full h-full">
-        <span className="text-sm font-medium select-none">{date.getDate()}</span>
-        {showPrice && (
-          <span className="text-xs text-gray-700 select-none mt-0.5">
-            MYR {formatPrice(priceNum)}
-          </span>
-        )}
-      </div>
-    );
-  };
-
   return (
-    <div className="space-y-4" ref={wrapperRef}>
-      <label className="block font-medium">房源日历管理</label>
-
+    <div className="w-full flex flex-col gap-4">
       <DayPicker
         mode="range"
         selected={selectedRange}
         onSelect={handleSelect}
-        showOutsideDays
         modifiers={modifiers}
-        modifiersStyles={{
-          available: { backgroundColor: "#bbf7d0" },
-          booked: { backgroundColor: "#fca5a5" },
-          peak: { backgroundColor: "#fde047" },
-          hasPrice: { paddingBottom: "0.5rem" },
+        components={{
+          Day: (props) => {
+            const key = formatDate(props.date);
+            const info = priceMap[key];
+            const priceNum = info?.price != null ? Number(info.price) : null;
+            const showPrice = priceNum !== null && !isNaN(priceNum);
+
+            return (
+              <div
+                {...props}
+                className="flex flex-col items-center justify-center w-full h-full"
+              >
+                <span className="text-sm font-medium select-none">
+                  {props.date.getDate()}
+                </span>
+                {showPrice && (
+                  <span className="text-xs text-gray-700 select-none mt-0.5">
+                    MYR {formatPrice(priceNum)}
+                  </span>
+                )}
+              </div>
+            );
+          },
         }}
-        components={{ DayContent }}
       />
 
-      {selectedRange && (
-        <div className="space-y-2 border p-3 rounded bg-gray-50">
-          <div className="flex justify-between">
-            <p>Check-in 日期: {formatDate(selectedRange.from)}</p>
-            <p>
-              Check-out 日期:{" "}
-              {selectedRange.to ? formatDate(selectedRange.to) : ""}
-            </p>
+      {/* 表单区 */}
+      {selectedRange?.from && (
+        <div className="flex flex-col gap-2 border p-3 rounded-lg shadow-sm">
+          <div>
+            Check-in 日期: {formatDate(selectedRange.from)}
+            <br />
+            Check-out 日期: {formatDate(selectedRange.to || selectedRange.from)}
           </div>
 
-          <div className="relative">
-            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-600">
-              RM
-            </span>
+          <div>
             <input
               type="text"
-              placeholder="价格"
               value={price}
-              onChange={(e) => {
-                const raw = e.target.value.replace(/,/g, "");
-                if (/^\d*$/.test(raw)) {
-                  setPrice(formatPrice(raw));
-                }
-              }}
-              onFocus={() => setShowDropdown(true)}
-              className="pl-10 border p-2 w-full rounded"
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder="输入价格 (如 100)"
+              className="border rounded p-1 w-full"
             />
-            {showDropdown && (
-              <ul className="absolute z-10 w-full bg-white border mt-1 max-h-60 overflow-y-auto rounded shadow">
-                {predefinedPrices.map((p) => (
-                  <li
-                    key={p}
-                    onClick={() => {
-                      setPrice(formatPrice(p));
-                      setShowDropdown(false);
-                    }}
-                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                  >
-                    RM {p.toLocaleString()}
-                  </li>
-                ))}
-              </ul>
-            )}
           </div>
 
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className="border p-2 w-full rounded"
-          >
-            <option value="available">可预订</option>
-            <option value="booked">已订满</option>
-            <option value="peak">高峰期</option>
-          </select>
+          <div>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="border rounded p-1 w-full"
+            >
+              <option value="available">可预订</option>
+              <option value="booked">已预订</option>
+              <option value="peak">高峰期</option>
+            </select>
+          </div>
 
           <div className="flex gap-2">
-            <div className="flex flex-col w-1/2">
-              <label className="text-sm text-gray-600">Check-in 时间</label>
+            <label>
+              Check-in 时间
               <input
                 type="time"
                 value={checkIn}
                 onChange={(e) => setCheckIn(e.target.value)}
-                className="border p-2 rounded"
+                className="border rounded p-1"
               />
-            </div>
-            <div className="flex flex-col w-1/2">
-              <label className="text-sm text-gray-600">Check-out 时间</label>
+            </label>
+            <label>
+              Check-out 时间
               <input
                 type="time"
                 value={checkOut}
                 onChange={(e) => setCheckOut(e.target.value)}
-                className="border p-2 rounded"
+                className="border rounded p-1"
               />
-            </div>
+            </label>
           </div>
 
           <button
             onClick={applySettings}
-            className="bg-blue-600 text-white px-4 py-2 rounded w-full"
+            className="bg-blue-500 text-white px-3 py-1 rounded"
           >
             确认应用到区间
           </button>
