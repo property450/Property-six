@@ -16,17 +16,17 @@ const formatPrice = (num) =>
     : "";
 
 export default function AdvancedAvailabilityCalendar() {
-  const [selectedDay, setSelectedDay] = useState(null);
+  const [selectedKey, setSelectedKey] = useState(null); // 存 "2025-08-29"
   const [price, setPrice] = useState("");
   const [priceMap, setPriceMap] = useState({}); // { "2025-08-29": 100 }
 
   // 保存价格
   const applySettings = () => {
-    if (!selectedDay) return;
-    const key = formatDate(selectedDay);
+    if (!selectedKey) return;
     setPriceMap((prev) => ({
       ...prev,
-      [key]: price !== "" ? parseInt(String(price).replace(/,/g, ""), 10) : null,
+      [selectedKey]:
+        price !== "" ? parseInt(String(price).replace(/,/g, ""), 10) : null,
     }));
   };
 
@@ -34,11 +34,11 @@ export default function AdvancedAvailabilityCalendar() {
     <div className="p-4 flex flex-col gap-4">
       <DayPicker
         mode="single"
-        selected={selectedDay}
+        selected={selectedKey ? new Date(selectedKey) : undefined}
         onSelect={(day) => {
           if (!day) return;
-          setSelectedDay(day);
           const key = formatDate(day);
+          setSelectedKey(key);
           setPrice(priceMap[key] ? priceMap[key].toString() : "");
         }}
         components={{
@@ -61,10 +61,10 @@ export default function AdvancedAvailabilityCalendar() {
       />
 
       {/* 编辑区 */}
-      {selectedDay && (
+      {selectedKey && (
         <div className="flex flex-col gap-2 border p-3 rounded">
           <div>
-            选择的日期: <b>{formatDate(selectedDay)}</b>
+            选择的日期: <b>{selectedKey}</b>
           </div>
           <input
             type="text"
