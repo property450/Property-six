@@ -4,10 +4,7 @@ import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 
 // 格式化日期 yyyy-mm-dd
-const formatDate = (date) => {
-  if (!date) return "";
-  return date.toISOString().split("T")[0];
-};
+const formatDate = (date) => date.toISOString().split("T")[0];
 
 // 千分位格式化
 const formatPrice = (num) =>
@@ -16,17 +13,23 @@ const formatPrice = (num) =>
     : "";
 
 export default function AdvancedAvailabilityCalendar() {
-  const [selectedKey, setSelectedKey] = useState(null); // 存 "2025-08-29"
+  const [selectedKey, setSelectedKey] = useState(null); // yyyy-mm-dd
   const [price, setPrice] = useState("");
   const [priceMap, setPriceMap] = useState({}); // { "2025-08-29": 100 }
 
-  // 保存价格
+  const handleSelect = (day) => {
+    if (!day) return;
+    const key = formatDate(day);
+    setSelectedKey(key);
+    setPrice(priceMap[key] ? priceMap[key].toString() : "");
+  };
+
   const applySettings = () => {
     if (!selectedKey) return;
     setPriceMap((prev) => ({
       ...prev,
       [selectedKey]:
-        price !== "" ? parseInt(String(price).replace(/,/g, ""), 10) : null,
+        price !== "" ? parseInt(price.replace(/,/g, ""), 10) : null,
     }));
   };
 
@@ -34,13 +37,8 @@ export default function AdvancedAvailabilityCalendar() {
     <div className="p-4 flex flex-col gap-4">
       <DayPicker
         mode="single"
-        selected={selectedKey ? new Date(selectedKey) : undefined}
-        onSelect={(day) => {
-          if (!day) return;
-          const key = formatDate(day);
-          setSelectedKey(key);
-          setPrice(priceMap[key] ? priceMap[key].toString() : "");
-        }}
+        // ❌ 去掉 selected，让 DayPicker 自己管选中状态
+        onSelect={handleSelect}
         components={{
           DayContent: (props) => {
             const { date } = props;
