@@ -35,12 +35,10 @@ export default function AdvancedAvailabilityCalendar() {
       <DayPicker
         mode="single"
         selected={selectedDay}
-        onDayClick={(day) => {
-          // ⚡ 确保每次都是新对象
-          const picked = new Date(day);
-          setSelectedDay(picked);
-
-          const key = formatDate(picked);
+        onSelect={(day) => {
+          if (!day) return;
+          setSelectedDay(day);
+          const key = formatDate(day);
           setPrice(priceMap[key] ? priceMap[key].toString() : "");
         }}
         components={{
