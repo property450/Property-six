@@ -3,10 +3,7 @@ import { useState } from "react";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 
-// 格式化日期 yyyy-mm-dd
 const formatDate = (date) => date.toISOString().split("T")[0];
-
-// 千分位格式化
 const formatPrice = (num) =>
   num || num === 0
     ? String(num).replace(/\B(?=(\d{3})+(?!\d))/g, ",")
@@ -15,10 +12,10 @@ const formatPrice = (num) =>
 export default function AdvancedAvailabilityCalendar() {
   const [selectedKey, setSelectedKey] = useState(null); // yyyy-mm-dd
   const [price, setPrice] = useState("");
-  const [priceMap, setPriceMap] = useState({}); // { "2025-08-29": 100 }
+  const [priceMap, setPriceMap] = useState({}); // { "2025-08-29": 120 }
 
-  const handleSelect = (day) => {
-    if (!day) return;
+  // ✅ 直接用 onDayClick，避免受控模式卡顿
+  const handleDayClick = (day) => {
     const key = formatDate(day);
     setSelectedKey(key);
     setPrice(priceMap[key] ? priceMap[key].toString() : "");
@@ -37,8 +34,8 @@ export default function AdvancedAvailabilityCalendar() {
     <div className="p-4 flex flex-col gap-4">
       <DayPicker
         mode="single"
-        // ❌ 去掉 selected，让 DayPicker 自己管选中状态
-        onSelect={handleSelect}
+        onDayClick={handleDayClick} // ✅ 用 onDayClick 替代 onSelect
+        selected={selectedKey ? new Date(selectedKey) : undefined}
         components={{
           DayContent: (props) => {
             const { date } = props;
@@ -58,7 +55,6 @@ export default function AdvancedAvailabilityCalendar() {
         }}
       />
 
-      {/* 编辑区 */}
       {selectedKey && (
         <div className="flex flex-col gap-2 border p-3 rounded">
           <div>
