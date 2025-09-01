@@ -36,8 +36,11 @@ export default function AdvancedAvailabilityCalendar() {
         mode="single"
         selected={selectedDay}
         onDayClick={(day) => {
-          setSelectedDay(day);
-          const key = formatDate(day);
+          // ⚡ 确保每次都是新对象
+          const picked = new Date(day);
+          setSelectedDay(picked);
+
+          const key = formatDate(picked);
           setPrice(priceMap[key] ? priceMap[key].toString() : "");
         }}
         components={{
