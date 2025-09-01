@@ -170,7 +170,7 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     );
   },
 }}
-
+/>
       {/* 表单区 */}
       {selectedRange?.from && (
         <div className="flex flex-col gap-2 border p-3 rounded-lg shadow-sm">
