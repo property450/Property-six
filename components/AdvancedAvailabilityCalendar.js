@@ -147,7 +147,8 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
         onSelect={handleSelect}
         modifiers={modifiers}
         components={{
-          Day: (props) => {
+          Day: ({ date, displayMonth, ...rest }) => {
+  if (!date) return null; // 空格子直接不渲染
             const key = formatDate(props.date);
             const info = priceMap[key];
             const priceNum = info?.price != null ? Number(info.price) : null;
