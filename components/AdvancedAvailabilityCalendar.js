@@ -147,32 +147,29 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
         onSelect={handleSelect}
         modifiers={modifiers}
         components={{
-          Day: ({ date, displayMonth, ...rest }) => {
-            if (!date) return null; // 空格子直接不渲染
+  Day: (props) => {
+    const { date } = props;
+    if (!date) return null;
 
-            const key = formatDate(date);
-            const info = priceMap[key];
-            const priceNum = info?.price != null ? Number(info.price) : null;
-            const showPrice = priceNum !== null && !isNaN(priceNum);
+    const key = formatDate(date);
+    const info = priceMap[key];
+    const priceNum = info?.price != null ? Number(info.price) : null;
+    const showPrice = priceNum !== null && !isNaN(priceNum);
 
-            return (
-              <div
-                {...rest}
-                className="flex flex-col items-center justify-center w-full h-full"
-              >
-                <span className="text-sm font-medium select-none">
-                  {date.getDate()}
-                </span>
-                {showPrice && (
-                  <span className="text-xs text-gray-700 select-none mt-0.5">
-                    MYR {formatPrice(priceNum)}
-                  </span>
-                )}
-              </div>
-            );
-          },
-        }}
-      />
+    return (
+      <div className="flex flex-col items-center justify-center w-full h-full">
+        <span className="text-sm font-medium select-none">
+          {date.getDate()}
+        </span>
+        {showPrice && (
+          <span className="text-xs text-gray-700 select-none mt-0.5">
+            MYR {formatPrice(priceNum)}
+          </span>
+        )}
+      </div>
+    );
+  },
+}}
 
       {/* 表单区 */}
       {selectedRange?.from && (
