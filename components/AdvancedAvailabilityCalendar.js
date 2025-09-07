@@ -25,7 +25,7 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
   const [checkIn, setCheckIn] = useState("14:00");
   const [checkOut, setCheckOut] = useState("12:00");
 
-  // ✅ 把外部 value 转成映射表，避免每次点击重建
+  // ✅ 把外部 value 转成映射表
   const { priceMap } = useMemo(() => {
     const map = {};
     if (value && typeof value === "object") {
@@ -93,13 +93,19 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     );
   };
 
+  // ✅ 用 useMemo 避免无限循环
+  const selectedDate = useMemo(
+    () => (selectedKey ? new Date(selectedKey) : undefined),
+    [selectedKey]
+  );
+
   return (
     <div className="w-full flex flex-col gap-4">
       <DayPicker
         mode="single"
         onDayClick={handleDayClick}
-        selected={selectedDate}   // ✅ 这里不再每次 new
-    modifiersClassNames={{
+        selected={selectedDate}  // ✅ 不会再死循环
+        modifiersClassNames={{
           selected: "bg-blue-200 rounded-full",
         }}
         components={{
