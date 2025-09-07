@@ -21,7 +21,7 @@ const digitsOnly = (s) => (s || "").replace(/[^\d]/g, "");
 const withCommas = (s) =>
   s ? String(s).replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "";
 
-/** 显示规则 */
+/** 显示规则：≥1,000,000 -> RM x.xM；≥100,000 -> RM xxxk；其他 -> 千分位 */
 const toDisplayPrice = (num) => {
   if (!num) return undefined;
   if (num >= 1_000_000) return `RM ${(num / 1_000_000).toFixed(1)}M`;
@@ -29,7 +29,7 @@ const toDisplayPrice = (num) => {
   return `RM ${num.toLocaleString()}`;
 };
 
-/** 单元格 */
+/** 单元格：日期 + 价格（上下两行） */
 const DayCell = React.memo(function DayCell({ date, prices }) {
   const price = prices[toKey(date)];
   let currency = "";
@@ -54,16 +54,20 @@ const DayCell = React.memo(function DayCell({ date, prices }) {
   );
 });
 
-/** 主组件 */
+/** ============ 主组件 ============ */
 export default function AdvancedAvailabilityCalendar() {
   const [prices, setPrices] = useState({});
   const [range, setRange] = useState(null);
   const [tempPriceRaw, setTempPriceRaw] = useState("");
+
+  // ✅ 新增：check-in / check-out 时间
   const [checkInTime, setCheckInTime] = useState("15:00");
   const [checkOutTime, setCheckOutTime] = useState("11:00");
+
   const [showDropdown, setShowDropdown] = useState(false);
   const panelRef = useRef(null);
 
+  // ✅ 点击空白处关闭输入面板
   useEffect(() => {
     const onDocClick = (e) => {
       if (panelRef.current && !panelRef.current.contains(e.target)) {
@@ -81,15 +85,15 @@ export default function AdvancedAvailabilityCalendar() {
     []
   );
 
-  /** 点击日期 */
+  // ✅ 改为区间选择逻辑
   const handleDayClick = useCallback(
     (day) => {
       if (!range || (range.from && range.to)) {
-        // 第一次点击 → 单日
-        setRange({ from: day, to: day });
+        // 第一次点击 → 起点
+        setRange({ from: day, to: undefined });
         setTempPriceRaw("");
       } else if (range.from && !range.to) {
-        // 第二次点击 → 区间
+        // 第二次点击 → 终点，并排序
         let from = range.from;
         let to = day;
         if (to < from) [from, to] = [to, from];
@@ -99,17 +103,16 @@ export default function AdvancedAvailabilityCalendar() {
     [range]
   );
 
-  /** 保存价格 */
   const handleSave = useCallback(() => {
     if (!range?.from) return;
+    const from = range.from;
+    const to = range.to || range.from; // ✅ 如果只有一个日期，就只保存当天
     const num = Number(digitsOnly(tempPriceRaw));
     const display = toDisplayPrice(num);
-    if (!display) return;
 
     const next = { ...prices };
-    const cursor = new Date(range.from);
-    const end = range.to || range.from; // 单日也支持
-    while (cursor <= end) {
+    const cursor = new Date(from);
+    while (cursor <= to) {
       next[toKey(cursor)] = display;
       cursor.setDate(cursor.getDate() + 1);
     }
@@ -126,18 +129,13 @@ export default function AdvancedAvailabilityCalendar() {
 
   const checkInText = useMemo(() => (range?.from ? ymd(range.from) : ""), [range]);
   const checkOutText = useMemo(
-    () =>
-      range?.to
-        ? ymd(addDays(range.to, 1)) // 自动 +1 天
-        : range?.from
-        ? ymd(addDays(range.from, 1))
-        : "",
+    () => (range?.to ? ymd(addDays(range.to, 1)) : range?.from ? ymd(addDays(range.from, 1)) : ""),
     [range]
   );
 
   return (
     <div>
-      {/* 日历 */}
+      {/* ✅ 日历 */}
       <div className="scale-110 origin-top">
         <DayPicker
           mode="range"
@@ -168,7 +166,7 @@ export default function AdvancedAvailabilityCalendar() {
         }
       `}</style>
 
-      {/* 输入面板 */}
+      {/* ✅ 输入面板：单日 或 区间 都能出现 */}
       {range?.from && (
         <div
           className="p-3 border rounded bg-gray-50 space-y-3 mt-3"
@@ -186,7 +184,7 @@ export default function AdvancedAvailabilityCalendar() {
             </div>
           </div>
 
-          {/* 时间输入框 */}
+          {/* ✅ 时间输入框 */}
           <div className="flex items-center justify-between text-sm text-gray-700 gap-4">
             <div>
               <span className="font-medium">Check-in 时间：</span>
@@ -249,7 +247,7 @@ export default function AdvancedAvailabilityCalendar() {
               onClick={handleSave}
               className="bg-blue-600 text-white px-4 py-2 rounded"
             >
-              保存价格
+              保存价格（应用到{range.to ? "整个区间" : "当天"}）
             </button>
           </div>
         </div>
