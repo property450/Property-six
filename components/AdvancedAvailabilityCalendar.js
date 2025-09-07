@@ -92,13 +92,24 @@ export default function AdvancedAvailabilityCalendar() {
   );
 
   // ✅ 改动：完全交给 DayPicker 自己处理 range，不再手动覆盖
-  const handleSelect = useCallback((selectedRange) => {
-    setRange(selectedRange);
-    if (selectedRange?.from && selectedRange.to) {
-      // 如果是完整区间，清空价格输入框
+  // ✅ 修改 handleSelect
+const handleSelect = useCallback(
+  (day) => {
+    if (!range || (range?.from && range?.to)) {
+      // 第一次点击 或者已有完整区间 → 新建 { from: day, to: day }
+      const newRange = { from: day, to: day };
+      setRange(newRange);
+      setTempPriceRaw("");
+    } else if (range?.from && !range?.to) {
+      // 第二次点击 → 扩展区间
+      const newRange =
+        day > range.from ? { from: range.from, to: day } : { from: day, to: range.from };
+      setRange(newRange);
       setTempPriceRaw("");
     }
-  }, []);
+  },
+  [range]
+);
 
   const handleSave = useCallback(() => {
     if (!range?.from || !range?.to) return;
@@ -133,13 +144,12 @@ export default function AdvancedAvailabilityCalendar() {
       {/* 日历 */}
       <div className="scale-110 origin-top">
         <DayPicker
-          mode="range"
-          selected={range || undefined}
-          onSelect={handleSelect}
-          components={{ DayContent }}
-          className="rdp-custom"
-        />
-      </div>
+  mode="single" // ⚠️ 用 single，不要用 range
+  selected={range ? [range.from, range.to] : []}
+  onDayClick={handleSelect}
+  components={{ DayContent }}
+  className="rdp-custom"
+/>
 
       <style jsx global>{`
         .rdp-custom .rdp-day {
