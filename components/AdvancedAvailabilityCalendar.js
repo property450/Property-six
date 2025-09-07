@@ -56,16 +56,29 @@ export default function AdvancedAvailabilityCalendar() {
   );
 
   return (
-    <div className="space-y-4">
-      {/* ✅ 日历整体放大 */}
-      <div className="scale-125 origin-top">
-        <DayPicker
-          mode="single"
-          selected={selectedDay}
-          onDayClick={handleDayClick}
-          components={{ DayContent }}
-        />
-      </div>
+    <div className="scale-110 origin-top">
+  <DayPicker
+    mode="single"
+    selected={selectedDay}
+    onDayClick={handleDayClick}
+    components={{ DayContent }}
+    className="rdp-custom"
+  />
+</div>
+
+<style jsx global>{`
+  /* ✅ 调整日历格子大小（让格子更长方形） */
+  .rdp-custom .rdp-day {
+    width: 60px !important;   /* 默认大约40px，可以加宽 */
+    height: 50px !important;  /* 默认大约40px，可以略高 */
+    padding: 0 !important;
+  }
+
+  /* ✅ 调整星期栏（周日~周六）宽度一致 */
+  .rdp-custom .rdp-head_cell {
+    width: 60px !important;
+  }
+`}</style>
 
       {selectedDay && (
         <div className="p-3 border rounded bg-gray-50 space-y-2">
