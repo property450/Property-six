@@ -3,17 +3,19 @@ import React, { useState, useCallback } from "react";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 
-// ✅ 单元格组件（优化字体大小）
+// ✅ 单元格组件（日期左上角，价格右下角）
 const DayCell = React.memo(function DayCell({ date, prices }) {
   const key = date.toDateString();
   const price = prices[key];
   return (
-    <div className="flex flex-col items-center w-full h-full py-1">
-      {/* 日期 */}
-      <span className="text-sm font-medium">{date.getDate()}</span>
-      {/* 价格（更小更淡） */}
+    <div className="relative w-full h-full p-1">
+      {/* 日期 左上角 */}
+      <span className="absolute top-0 left-0 text-sm font-medium">
+        {date.getDate()}
+      </span>
+      {/* 价格 右下角 */}
       {price && (
-        <span className="text-[10px] text-gray-600 mt-0.5">
+        <span className="absolute bottom-0 right-0 text-[9px] text-gray-600">
           {price}
         </span>
       )}
@@ -42,7 +44,9 @@ export default function AdvancedAvailabilityCalendar() {
       const key = selectedDay.toDateString();
       setPrices((prev) => ({
         ...prev,
-        [key]: tempPrice ? `MYR ${Number(tempPrice).toLocaleString()}` : undefined,
+        [key]: tempPrice
+          ? `MYR ${Number(tempPrice).toLocaleString()}`
+          : undefined,
       }));
       setSelectedDay(null);
       setTempPrice("");
@@ -57,8 +61,8 @@ export default function AdvancedAvailabilityCalendar() {
 
   return (
     <div className="space-y-4">
-      {/* ✅ 日历整体放大 */}
-      <div className="scale-110 origin-top">
+      {/* ✅ 日历整体更大 */}
+      <div className="scale-125 origin-top">
         <DayPicker
           mode="single"
           selected={selectedDay}
