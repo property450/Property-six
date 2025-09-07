@@ -98,8 +98,8 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
       <DayPicker
         mode="single"
         onDayClick={handleDayClick}
-        selected={selectedKey ? new Date(selectedKey) : undefined}
-        modifiersClassNames={{
+        selected={selectedDate}   // ✅ 这里不再每次 new
+    modifiersClassNames={{
           selected: "bg-blue-200 rounded-full",
         }}
         components={{
