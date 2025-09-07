@@ -66,6 +66,7 @@ const DayCell = React.memo(function DayCell({ date, prices }) {
 export default function AdvancedAvailabilityCalendar() {
   const [prices, setPrices] = useState({});
   const [range, setRange] = useState(null);
+  const [selecting, setSelecting] = useState(false); // ✅ 标记是否已经选了起点
   const [tempPriceRaw, setTempPriceRaw] = useState("");
 
   const [checkInTime, setCheckInTime] = useState("15:00");
@@ -79,6 +80,7 @@ export default function AdvancedAvailabilityCalendar() {
     const onDocClick = (e) => {
       if (panelRef.current && !panelRef.current.contains(e.target)) {
         setRange(null);
+        setSelecting(false);
         setTempPriceRaw("");
         setShowDropdown(false);
       }
@@ -92,21 +94,26 @@ export default function AdvancedAvailabilityCalendar() {
     []
   );
 
-  /** ✅ 关键：批量选择区间 */
-  const handleSelect = useCallback(
-    (r) => {
-      if (!r) return;
-      // 单点：from=to
-      if (r.from && !r.to) {
-        setRange({ from: r.from, to: r.from });
-        setTempPriceRaw(displayToNumber(prices[toKey(r.from)]).toString() || "");
-      }
-      // 区间：from~to
-      else if (r.from && r.to) {
-        setRange(r);
+  /** ✅ 点击日期逻辑：单选 / 区间 */
+  const handleDayClick = useCallback(
+    (day) => {
+      if (!selecting) {
+        // 第一次点击 → 设置起点
+        setRange({ from: day, to: day });
+        setSelecting(true);
+        setTempPriceRaw(displayToNumber(prices[toKey(day)]).toString() || "");
+      } else {
+        // 第二次点击 → 设置区间
+        setRange((prev) => {
+          if (!prev?.from) return { from: day, to: day };
+          const from = prev.from < day ? prev.from : day;
+          const to = prev.from < day ? day : prev.from;
+          return { from, to };
+        });
+        setSelecting(false);
       }
     },
-    [prices]
+    [selecting, prices]
   );
 
   const handleSave = useCallback(() => {
@@ -122,6 +129,7 @@ export default function AdvancedAvailabilityCalendar() {
     }
     setPrices(next);
     setRange(null);
+    setSelecting(false);
     setTempPriceRaw("");
     setShowDropdown(false);
   }, [range, tempPriceRaw, prices]);
@@ -144,7 +152,7 @@ export default function AdvancedAvailabilityCalendar() {
         <DayPicker
           mode="range"
           selected={range || undefined}
-          onSelect={handleSelect}
+          onDayClick={handleDayClick}
           components={{ DayContent }}
           className="rdp-custom"
         />
