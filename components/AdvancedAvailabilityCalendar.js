@@ -3,13 +3,13 @@ import { useState, useMemo } from "react";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 
-// ✅ 格式化日期
+// ✅ 格式化日期 (yyyy-mm-dd)
 const formatDate = (date) => {
   if (!date || !(date instanceof Date)) return "";
   return date.toISOString().split("T")[0];
 };
 
-// ✅ 千分位格式化
+// ✅ 千分位价格格式化
 const formatPrice = (num) =>
   num || num === 0
     ? String(num).replace(/\B(?=(\d{3})+(?!\d))/g, ",")
@@ -22,7 +22,7 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
   const [checkIn, setCheckIn] = useState("14:00");
   const [checkOut, setCheckOut] = useState("12:00");
 
-  // ✅ 转换 value → map
+  // ✅ 转成映射表
   const priceMap = useMemo(() => {
     const map = {};
     if (value && typeof value === "object") {
@@ -31,9 +31,10 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     return map;
   }, [value]);
 
-  // ✅ 点击日期
-  const handleDayClick = (day) => {
-    const key = formatDate(day);
+  // ✅ 日期选择（替代 onDayClick，不会卡）
+  const handleSelect = (date) => {
+    if (!date) return;
+    const key = formatDate(date);
     setSelectedKey(key);
 
     const info = priceMap[key];
@@ -66,7 +67,7 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     onChange?.(updated);
   };
 
-  // ✅ 自定义单元格
+  // ✅ 自定义日历单元格
   const DayCell = ({ date }) => {
     if (!date) return null;
     const key = formatDate(date);
@@ -95,7 +96,8 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     <div className="w-full flex flex-col gap-4">
       <DayPicker
         mode="single"
-        onDayClick={handleDayClick} // ✅ 只靠这个
+        onSelect={handleSelect} // ✅ 用 onSelect，不再用 onDayClick
+        selected={selectedKey ? new Date(selectedKey) : undefined}
         components={{ DayContent: DayCell }}
       />
 
@@ -103,6 +105,7 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
         <div className="flex flex-col gap-3 border p-3 rounded-lg shadow-sm">
           <div>选择日期: {selectedKey}</div>
 
+          {/* ✅ 价格输入 */}
           <input
             type="text"
             value={price}
@@ -116,6 +119,7 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
             className="border rounded p-1 w-full"
           />
 
+          {/* ✅ 状态选择 */}
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value)}
@@ -126,6 +130,7 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
             <option value="peak">高峰期</option>
           </select>
 
+          {/* ✅ Check-in / Check-out */}
           <div className="flex gap-2">
             <label className="flex flex-col w-1/2">
               <span className="text-sm text-gray-600">Check-in 时间</span>
