@@ -9,11 +9,11 @@ const DayCell = React.memo(function DayCell({ date, prices }) {
   const price = prices[key];
   return (
     <div className="flex flex-col items-center w-full h-full py-1">
-      {/* 日期 */}
-      <span className="text-sm font-medium">{date.getDate()}</span>
-      {/* 价格（更小更淡） */}
+      {/* 日期（稍大一点） */}
+      <span className="text-base font-medium">{date.getDate()}</span>
+      {/* 价格（比日期小一点） */}
       {price && (
-        <span className="text-[10px] text-gray-600 mt-0.5">
+        <span className="text-[11px] text-gray-600 mt-0.5">
           {price}
         </span>
       )}
@@ -58,7 +58,7 @@ export default function AdvancedAvailabilityCalendar() {
   return (
     <div className="space-y-4">
       {/* ✅ 日历整体放大 */}
-      <div className="scale-110 origin-top">
+      <div className="scale-125 origin-top">
         <DayPicker
           mode="single"
           selected={selectedDay}
