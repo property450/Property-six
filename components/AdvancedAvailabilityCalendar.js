@@ -89,21 +89,28 @@ export default function AdvancedAvailabilityCalendar() {
   const predefined = useMemo(() => Array.from({ length: 1000 }, (_, i) => (i + 1) * 50), []);
 
   /**
-   * ✅ 点击逻辑（满足你的三步期望）：
-   * - 第一次点击（无 range）：设置 single day {from:day, to:day}，面板立即出现（回填该日价格）
-   * - 第二次点击（当前是 single day）：扩展成区间 {from, to}（自动排序），高亮显示区间，面板保留用于填写批量价格
-   * - 第三次点击（当前是区间）：重置为新的 single day（from=to=clicked），并回填该日价格（面板仍然出现）
-   */
-  const handleDayClick = useCallback(
-    (day) => {
-      // 没有 range -> 第一次点击：单日
-      if (!range) {
-        const key = toKey(day);
-        const existing = prices[key];
-        setRange({ from: day, to: day });
-        setTempPriceRaw(String(displayToNumber(existing) || ""));
-        return;
+  // 点击日期逻辑
+  const handleDayClick = (day) => {
+    if (step === 0) {
+      // 第一次点击
+      setRange({ from: day, to: day });
+      setStep(1);
+      setShowPanel(true);
+    } else if (step === 1) {
+      // 第二次点击，扩展区间
+      if (day < range.from) {
+        setRange({ from: day, to: range.from });
+      } else {
+        setRange({ from: range.from, to: day });
       }
+      setStep(2);
+    } else {
+      // 第三次点击，重置
+      setRange({ from: day, to: day });
+      setStep(1);
+      setShowPanel(true);
+    }
+  };
 
       // 如果 current 是 single day (from === to)
       if (range?.from && range?.to && range.from.getTime() === range.to.getTime()) {
