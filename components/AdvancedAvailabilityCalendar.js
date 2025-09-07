@@ -97,6 +97,7 @@ export default function AdvancedAvailabilityCalendar() {
     []
   );
 
+  // ✅ 多选逻辑：点第一个日期作为起点，再点第二个日期作为终点 → 自动生成区间
   const handleDayClick = useCallback(
     (day) => {
       if (!selecting) {
@@ -107,7 +108,8 @@ export default function AdvancedAvailabilityCalendar() {
         setTempPriceRaw(displayToNumber(existing).toString() || "");
       } else {
         setRange((r) => {
-          const from = r && r.from ? r.from : day;
+          if (!r?.from) return { from: day, to: day };
+          const from = r.from;
           const to = day < from ? from : day;
           return { from: day < from ? day : from, to };
         });
