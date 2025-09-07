@@ -67,7 +67,7 @@ const DayCell = React.memo(function DayCell({ date, prices }) {
 /** ============ 主组件 ============ */
 export default function AdvancedAvailabilityCalendar() {
   const [prices, setPrices] = useState({});
-  const [range, setRange] = useState(null);
+  const [ranges, setRanges] = useState([]);
   const [selecting, setSelecting] = useState(false);
   const [tempPriceRaw, setTempPriceRaw] = useState("");
 
