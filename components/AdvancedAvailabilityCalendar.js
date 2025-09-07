@@ -98,28 +98,26 @@ export default function AdvancedAvailabilityCalendar() {
   );
 
   // ✅ 多选逻辑：点第一个日期作为起点，再点第二个日期作为终点 → 自动生成区间
-  // 点击日期逻辑
-  const handleDayClick = (day) => {
-    if (step === 0) {
-      // 第一次点击
-      setRange({ from: day, to: day });
-      setStep(1);
-      setShowPanel(true);
-    } else if (step === 1) {
-      // 第二次点击，扩展区间
-      if (day < range.from) {
-        setRange({ from: day, to: range.from });
+  const handleDayClick = useCallback(
+    (day) => {
+      if (!selecting) {
+        const key = toKey(day);
+        const existing = prices[key];
+        setRange({ from: day, to: day });
+        setSelecting(true);
+        setTempPriceRaw(displayToNumber(existing).toString() || "");
       } else {
-        setRange({ from: range.from, to: day });
+        setRange((r) => {
+          if (!r?.from) return { from: day, to: day };
+          const from = r.from;
+          const to = day < from ? from : day;
+          return { from: day < from ? day : from, to };
+        });
+        setSelecting(false);
       }
-      setStep(2);
-    } else {
-      // 第三次点击，重置
-      setRange({ from: day, to: day });
-      setStep(1);
-      setShowPanel(true);
-    }
-  };
+    },
+    [selecting, prices]
+  );
 
   const handleSave = useCallback(() => {
     if (!range?.from || !range?.to) return;
@@ -271,4 +269,4 @@ export default function AdvancedAvailabilityCalendar() {
       )}
     </div>
   );
-}
+                }
