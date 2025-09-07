@@ -70,15 +70,27 @@ export default function AdvancedAvailabilityCalendar() {
 
       {/* ✅ 样式覆盖：格子长方形 */}
       <style jsx global>{`
-        .rdp-custom .rdp-day {
-          width: 150px !important;   /* 默认大约40px，可以加宽 */
-          height: 70px !important;  /* 默认大约40px，可以略高 */
-          padding: 0 !important;
-        }
-        .rdp-custom .rdp-head_cell {
-          width: 150px !important;
-        }
-      `}</style>
+  /* ✅ PC 默认：固定宽度，高度 */
+  .rdp-custom .rdp-day {
+    width: 120px !important;
+    height: 55px !important;
+    padding: 0 !important;
+  }
+  .rdp-custom .rdp-head_cell {
+    width: 120px !important;
+  }
+
+  /* ✅ 移动端（小于768px）：自适应，保证7列刚好填满 */
+  @media (max-width: 768px) {
+    .rdp-custom .rdp-day {
+      width: calc(100% / 7) !important;
+      height: 50px !important; /* 稍微低一点 */
+    }
+    .rdp-custom .rdp-head_cell {
+      width: calc(100% / 7) !important;
+    }
+  }
+`}</style>
 
       {/* ✅ 输入价格框 */}
       {selectedDay && (
