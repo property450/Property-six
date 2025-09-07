@@ -42,7 +42,7 @@ export default function AdvancedAvailabilityCalendar() {
       const key = selectedDay.toDateString();
       setPrices((prev) => ({
         ...prev,
-        [key]: tempPrice ? `MYR ${Number(tempPrice).toLocaleString()}` : undefined,
+        [key]: tempPrice ? `RM ${Number(tempPrice).toLocaleString()}` : undefined,
       }));
       setSelectedDay(null);
       setTempPrice("");
