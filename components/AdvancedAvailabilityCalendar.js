@@ -142,7 +142,7 @@ const handleDayClick = useCallback(
     setSelecting(false);
     setTempPriceRaw("");
     setShowDropdown(false);
-  }, [range, tempPriceRaw, prices]);
+  }, [ranges, tempRange, tempPriceRaw, prices]);
 
   const DayContent = useCallback(
     (props) => <DayCell {...props} prices={prices} />,
