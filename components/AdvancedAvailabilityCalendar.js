@@ -1,18 +1,18 @@
-// AdvancedAvailabilityCalendar.js
+// components/AdvancedAvailabilityCalendar.js
 import { useState, useMemo } from "react";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 
-// 日期格式化函数 (yyyy-mm-dd)
+// ✅ 格式化日期 (yyyy-mm-dd)
 const formatDate = (date) => {
   if (!date || !(date instanceof Date)) return "";
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 };
 
-// 千分位格式化
+// ✅ 千分位价格格式化
 const formatPrice = (num) =>
   num || num === 0
     ? String(num).replace(/\B(?=(\d{3})+(?!\d))/g, ",")
@@ -25,7 +25,7 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
   const [checkIn, setCheckIn] = useState("14:00");
   const [checkOut, setCheckOut] = useState("12:00");
 
-  // 把外部 value 转成价格映射表
+  // ✅ 把外部 value 转成映射表，避免每次点击重建
   const { priceMap } = useMemo(() => {
     const map = {};
     if (value && typeof value === "object") {
@@ -36,7 +36,7 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     return { priceMap: map };
   }, [value]);
 
-  // 点击日期
+  // ✅ 点击日期（单日模式，不再卡顿）
   const handleDayClick = (day) => {
     const key = formatDate(day);
     setSelectedKey(key);
@@ -55,27 +55,23 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
     }
   };
 
-  // 保存设置
+  // ✅ 保存设置
   const applySettings = () => {
     if (!selectedKey) return;
-
     const updated = {
       ...value,
       [selectedKey]: {
-        price: price !== "" ? parseInt(String(price).replace(/,/g, ""), 10) : null,
+        price:
+          price !== "" ? parseInt(String(price).replace(/,/g, ""), 10) : null,
         status,
         checkIn,
         checkOut,
       },
     };
-
     onChange?.(updated);
-
-    // 清空选中状态（如果你想点完后自动取消选中）
-    // setSelectedKey(null);
   };
 
-  // 自定义日历单元格
+  // ✅ 自定义日历单元格
   const DayCell = ({ date }) => {
     if (!date) return null;
     const key = formatDate(date);
@@ -102,9 +98,7 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
       <DayPicker
         mode="single"
         onDayClick={handleDayClick}
-        modifiers={{
-          selected: selectedKey ? [new Date(selectedKey)] : [],
-        }}
+        selected={selectedKey ? new Date(selectedKey) : undefined}
         modifiersClassNames={{
           selected: "bg-blue-200 rounded-full",
         }}
@@ -113,36 +107,42 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
         }}
       />
 
-      {/* 表单区 */}
+      {/* ✅ 表单区 */}
       {selectedKey && (
-        <div className="flex flex-col gap-2 border p-3 rounded-lg shadow-sm">
+        <div className="flex flex-col gap-3 border p-3 rounded-lg shadow-sm">
           <div>选择日期: {selectedKey}</div>
 
-          <div>
-            <input
-              type="text"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              placeholder="输入价格 (如 100)"
-              className="border rounded p-1 w-full"
-            />
-          </div>
+          {/* ✅ 价格输入 */}
+          <input
+            type="text"
+            value={price}
+            onChange={(e) => {
+              const raw = e.target.value.replace(/,/g, "");
+              if (/^\d*$/.test(raw)) {
+                setPrice(formatPrice(raw));
+              }
+            }}
+            placeholder="输入价格 (如 100)"
+            className="border rounded p-1 w-full"
+          />
 
-          <div>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="border rounded p-1 w-full"
-            >
-              <option value="available">可预订</option>
-              <option value="booked">已预订</option>
-              <option value="peak">高峰期</option>
-            </select>
-          </div>
+          {/* ✅ 状态选择 */}
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            className="border rounded p-1 w-full"
+          >
+            <option value="available">可预订</option>
+            <option value="booked">已预订</option>
+            <option value="peak">高峰期</option>
+          </select>
 
+          {/* ✅ Check-in / Check-out 时间 */}
           <div className="flex gap-2">
-            <label>
-              Check-in 时间
+            <label className="flex flex-col w-1/2">
+              <span className="text-sm text-gray-600">
+                Check-in 时间 ({selectedKey})
+              </span>
               <input
                 type="time"
                 value={checkIn}
@@ -150,8 +150,11 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
                 className="border rounded p-1"
               />
             </label>
-            <label>
-              Check-out 时间
+
+            <label className="flex flex-col w-1/2">
+              <span className="text-sm text-gray-600">
+                Check-out 时间 ({selectedKey})
+              </span>
               <input
                 type="time"
                 value={checkOut}
@@ -165,7 +168,7 @@ export default function AdvancedAvailabilityCalendar({ value = {}, onChange }) {
             onClick={applySettings}
             className="bg-blue-500 text-white px-3 py-1 rounded"
           >
-            保存价格
+            保存设置
           </button>
         </div>
       )}
