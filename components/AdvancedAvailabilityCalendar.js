@@ -76,10 +76,15 @@ export default function AdvancedAvailabilityCalendar() {
   const [checkOutTime, setCheckOutTime] = useState("11:00");
 
   const [showDropdown, setShowDropdown] = useState(false);
-  const dropdownRef = useRef(null);
+  const panelRef = useRef(null);
+
+  // ✅ 点击空白处关闭输入面板
   useEffect(() => {
     const onDocClick = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+      if (panelRef.current && !panelRef.current.contains(e.target)) {
+        setRange(null);
+        setSelecting(false);
+        setTempPriceRaw("");
         setShowDropdown(false);
       }
     };
@@ -176,7 +181,10 @@ export default function AdvancedAvailabilityCalendar() {
 
       {/* ✅ 输入面板 */}
       {range?.from && range?.to && (
-        <div className="p-3 border rounded bg-gray-50 space-y-3 mt-3" ref={dropdownRef}>
+        <div
+          className="p-3 border rounded bg-gray-50 space-y-3 mt-3"
+          ref={panelRef}
+        >
           {/* Check-in / Check-out 日期 */}
           <div className="flex items-center justify-between text-sm text-gray-700">
             <div>
@@ -221,7 +229,10 @@ export default function AdvancedAvailabilityCalendar() {
               inputMode="numeric"
               placeholder="输入价格"
               value={withCommas(digitsOnly(tempPriceRaw))}
-              onChange={(e) => setTempPriceRaw(digitsOnly(e.target.value))}
+              onChange={(e) => {
+                setTempPriceRaw(digitsOnly(e.target.value));
+                setShowDropdown(false); // ✅ 编辑时关闭下拉
+              }}
               onFocus={() => setShowDropdown(true)}
               className="pl-10 border p-2 w-full rounded"
             />
@@ -250,17 +261,6 @@ export default function AdvancedAvailabilityCalendar() {
               className="bg-blue-600 text-white px-4 py-2 rounded"
             >
               保存价格（应用到整个区间）
-            </button>
-            <button
-              onClick={() => {
-                setRange(null);
-                setSelecting(false);
-                setTempPriceRaw("");
-                setShowDropdown(false);
-              }}
-              className="px-4 py-2 rounded border"
-            >
-              取消选择
             </button>
           </div>
         </div>
