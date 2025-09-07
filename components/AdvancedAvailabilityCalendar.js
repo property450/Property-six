@@ -84,31 +84,33 @@ export default function AdvancedAvailabilityCalendar() {
   );
 
   /** ✅ 点击日期逻辑：支持单点和范围 */
-  // 点击日期逻辑
+// 点击日期逻辑（安全版）
 const handleDayClick = (day) => {
-  if (!range.from) {
+  if (!range || !range.from) {
     // 第一次点击：设置 from=to=当天，立刻弹出面板
-    setRange({ from: day, to: day });
+    const newRange = { from: day, to: day };
+    setRange(newRange);
     setShowPanel(true);
     setCheckIn(day);
     setCheckOut(new Date(day.getTime() + 24 * 60 * 60 * 1000));
   } else if (range.from && !range.to) {
     // 第二次点击：扩展区间
     const from = range.from;
-    const to = day >= from ? day : from; // 允许逆序选择
-    const newRange = { from: from, to: to };
+    const to = day >= from ? day : from; // 支持逆序选择
+    const newRange = { from, to };
     setRange(newRange);
     setCheckIn(newRange.from);
     setCheckOut(new Date(newRange.to.getTime() + 24 * 60 * 60 * 1000));
   } else {
-    // 如果已经有完整区间，再点新日期就重新开始
-    setRange({ from: day, to: day });
+    // 已经有完整区间 → 重新开始
+    const newRange = { from: day, to: day };
+    setRange(newRange);
     setCheckIn(day);
     setCheckOut(new Date(day.getTime() + 24 * 60 * 60 * 1000));
     setShowPanel(true);
   }
 };
-
+  
   /** ✅ 保存价格 */
   const handleSave = useCallback(() => {
     if (!range?.from || !range?.to) return;
