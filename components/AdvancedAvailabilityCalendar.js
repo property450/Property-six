@@ -83,33 +83,24 @@ export default function AdvancedAvailabilityCalendar() {
     []
   );
 
-  /** ✅ 点击日期逻辑：支持单点和范围 */
-// 点击日期逻辑（修正版，不再用 setShowPanel）
-const handleDayClick = (day) => {
-  if (!range || !range.from) {
-    // 第一次点击 → 默认 from=to=当天，立即显示面板
-    const newRange = { from: day, to: day };
-    setRange(newRange);
-    setCheckIn(day);
-    setCheckOut(new Date(day.getTime() + 24 * 60 * 60 * 1000));
-  } else if (range.from && !range.to) {
-    // 第二次点击 → 扩展区间
-    const from = range.from;
-    const to = day >= from ? day : from; // 允许逆序选择
-    const newRange = { from, to };
-    setRange(newRange);
-    setCheckIn(newRange.from);
-    setCheckOut(new Date(newRange.to.getTime() + 24 * 60 * 60 * 1000));
-  } else {
-    // 已经有完整区间 → 重置为新的单日选择
-    const newRange = { from: day, to: day };
-    setRange(newRange);
-    setCheckIn(day);
-    setCheckOut(new Date(day.getTime() + 24 * 60 * 60 * 1000));
-  }
-};
-  
-  /** ✅ 保存价格 */
+  /** ✅ 点击日期逻辑：一次点击=当天，二次点击=区间，三次点击=新起点 */
+  const handleDayClick = (day) => {
+    if (!range || !range.from) {
+      // 第一次点击 → 单日
+      const newRange = { from: day, to: day };
+      setRange(newRange);
+    } else if (range.from && !range.to) {
+      // 第二次点击 → 选区间
+      const from = range.from;
+      const to = day >= from ? day : from; // 允许逆序
+      setRange({ from, to });
+    } else {
+      // 第三次点击 → 重置
+      setRange({ from: day, to: day });
+    }
+    setTempPriceRaw("");
+  };
+
   const handleSave = useCallback(() => {
     if (!range?.from || !range?.to) return;
     const num = Number(digitsOnly(tempPriceRaw));
@@ -127,7 +118,6 @@ const handleDayClick = (day) => {
     setShowDropdown(false);
   }, [range, tempPriceRaw, prices]);
 
-  /** ✅ 渲染单元格 */
   const DayContent = useCallback(
     (props) => <DayCell {...props} prices={prices} />,
     [prices]
@@ -144,22 +134,14 @@ const handleDayClick = (day) => {
       {/* 日历 */}
       <div className="scale-110 origin-top">
         <DayPicker
-          mode="single" // ⚠️ 我们自己接管点击逻辑
-          selected={
-            range ? [range.from, ...(range.to ? [range.to] : [])] : undefined
-          }
+          mode="range"
+          selected={range || undefined}
           onDayClick={handleDayClick}
-          modifiers={
-            range?.from && range?.to
-              ? { selected: { from: range.from, to: range.to } }
-              : {}
-          }
           components={{ DayContent }}
           className="rdp-custom"
         />
       </div>
 
-      {/* 样式：格子长方形 */}
       <style jsx global>{`
         .rdp-custom .rdp-day {
           width: 120px !important;
@@ -181,13 +163,11 @@ const handleDayClick = (day) => {
       `}</style>
 
       {/* 输入面板 */}
-{range?.from && (
-  <div className="p-3 border rounded bg-gray-50 space-y-2">
-    <p>
-      你选择的区间： <strong>
-        {range.from.toLocaleDateString()} → {range.to?.toLocaleDateString() || range.from.toLocaleDateString()}
-      </strong>
-    </p>
+      {range?.from && (
+        <div
+          className="p-3 border rounded bg-gray-50 space-y-3 mt-3"
+          ref={panelRef}
+        >
           {/* Check-in / Check-out 日期 */}
           <div className="flex items-center justify-between text-sm text-gray-700">
             <div>
