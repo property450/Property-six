@@ -13,7 +13,7 @@ const DayCell = React.memo(function DayCell({ date, prices }) {
       <span className="text-sm">{date.getDate()}</span>
       {/* 价格（更小，贴近日期，不会掉到底部） */}
       {price && (
-        <span className="text-[10px] text-gray-600 mt-0.5">
+        <span className="text-[9px] text-gray-600 mt-0.5">
           {price}
         </span>
       )}
