@@ -23,27 +23,41 @@ export default function AdvancedAvailabilityCalendar() {
   const [checkOut, setCheckOut] = useState("12:00");
 
   // 点击日期逻辑
-  const handleDayClick = (day) => {
-    if (step === 0) {
-      // 第一次点击
+  const handleDayClick = useCallback(
+  (day) => {
+    // 如果还没选过，或者之前是完整区间（from≠to），开始新单日
+    if (!range || (range?.from && range?.to && range.from.getTime() !== range.to.getTime() && !selecting)) {
+      const key = toKey(day);
+      const existing = prices[key];
       setRange({ from: day, to: day });
-      setStep(1);
-      setShowPanel(true);
-    } else if (step === 1) {
-      // 第二次点击，扩展区间
+      setSelecting(true);
+      setTempPriceRaw(displayToNumber(existing).toString() || "");
+      return;
+    }
+
+    // 如果当前只有单日 → 扩展成区间
+    if (range?.from && range?.to && range.from.getTime() === range.to.getTime() && selecting) {
       if (day < range.from) {
         setRange({ from: day, to: range.from });
       } else {
         setRange({ from: range.from, to: day });
       }
-      setStep(2);
-    } else {
-      // 第三次点击，重置
-      setRange({ from: day, to: day });
-      setStep(1);
-      setShowPanel(true);
+      setSelecting(false);
+      return;
     }
-  };
+
+    // 如果已经是区间 → 第三次点击，重置为新的单日
+    if (range?.from && range?.to && range.from.getTime() !== range.to.getTime()) {
+      const key = toKey(day);
+      const existing = prices[key];
+      setRange({ from: day, to: day });
+      setSelecting(true);
+      setTempPriceRaw(displayToNumber(existing).toString() || "");
+      return;
+    }
+  },
+  [range, selecting, prices]
+);
 
   // 批量保存价格
   const handleSave = () => {
