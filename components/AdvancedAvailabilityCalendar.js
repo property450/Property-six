@@ -3,18 +3,36 @@ import React, { useState, useCallback } from "react";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 
-// ✅ 单元格组件（修复价格太靠下问题）
+// ✅ 单元格组件（价格拆成 RM 和数值两行）
 const DayCell = React.memo(function DayCell({ date, prices }) {
   const key = date.toDateString();
   const price = prices[key];
+
+  // 拆分：比如 "RM 1.2M" → ["RM", "1.2M"]
+  let currency = "";
+  let amount = "";
+  if (price) {
+    const parts = price.split(" ");
+    currency = parts[0] || "";
+    amount = parts[1] || "";
+  }
+
   return (
     <div className="flex flex-col items-center w-full h-full py-0.5 leading-tight">
-      {/* 日期（小一点，避免挤压价格） */}
+      {/* 日期 */}
       <span className="text-sm">{date.getDate()}</span>
-      {/* 价格（更小，贴近日期，不会掉到底部） */}
-      {price && (
-        <span className="text-[9px] text-gray-600 mt-0.5">
-          {price}
+
+      {/* 币种 */}
+      {currency && (
+        <span className="text-[8px] text-gray-500 leading-none mt-0.5">
+          {currency}
+        </span>
+      )}
+
+      {/* 金额 */}
+      {amount && (
+        <span className="text-[9px] text-gray-700 leading-none">
+          {amount}
         </span>
       )}
     </div>
