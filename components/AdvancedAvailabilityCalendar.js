@@ -3,7 +3,7 @@ import React, { useState, useCallback, useMemo, useRef, useEffect } from "react"
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 
-/** ============ 小工具 ============ */
+/** ============ 工具函数 ============ */
 const addDays = (date, n) => {
   const d = new Date(date);
   d.setDate(d.getDate() + n);
@@ -21,15 +21,13 @@ const digitsOnly = (s) => (s || "").replace(/[^\d]/g, "");
 const withCommas = (s) =>
   s ? String(s).replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "";
 
-/** 显示规则：≥1,000,000 -> RM x.xM；≥100,000 -> RM xxxk；其他 -> 千分位 */
+/** 显示规则 */
 const toDisplayPrice = (num) => {
   if (!num) return undefined;
   if (num >= 1_000_000) return `RM ${(num / 1_000_000).toFixed(1)}M`;
   if (num >= 100_000) return `RM ${Math.round(num / 1_000)}k`;
   return `RM ${num.toLocaleString()}`;
 };
-
-/** 从显示文本还原数字（支持 k/M）用于回填输入框 */
 const displayToNumber = (text) => {
   if (!text) return 0;
   const s = text.toLowerCase().replace(/rm|\s|,/g, "");
@@ -39,7 +37,7 @@ const displayToNumber = (text) => {
   return Number.isFinite(n) ? n : 0;
 };
 
-/** ============ 单元格：日期 + 价格（上下两行） ============ */
+/** ============ 单元格：日期 + 价格 ============ */
 const DayCell = React.memo(function DayCell({ date, prices }) {
   const price = prices[toKey(date)];
   let currency = "";
@@ -68,22 +66,19 @@ const DayCell = React.memo(function DayCell({ date, prices }) {
 export default function AdvancedAvailabilityCalendar() {
   const [prices, setPrices] = useState({});
   const [range, setRange] = useState(null);
-  const [selecting, setSelecting] = useState(false);
   const [tempPriceRaw, setTempPriceRaw] = useState("");
 
-  // ✅ 新增：check-in / check-out 时间
   const [checkInTime, setCheckInTime] = useState("15:00");
   const [checkOutTime, setCheckOutTime] = useState("11:00");
 
   const [showDropdown, setShowDropdown] = useState(false);
   const panelRef = useRef(null);
 
-  // ✅ 点击空白处关闭输入面板
+  // 点击空白处关闭输入面板
   useEffect(() => {
     const onDocClick = (e) => {
       if (panelRef.current && !panelRef.current.contains(e.target)) {
         setRange(null);
-        setSelecting(false);
         setTempPriceRaw("");
         setShowDropdown(false);
       }
@@ -97,26 +92,21 @@ export default function AdvancedAvailabilityCalendar() {
     []
   );
 
-  // ✅ 多选逻辑：点第一个日期作为起点，再点第二个日期作为终点 → 自动生成区间
-  const handleDayClick = useCallback(
-    (day) => {
-      if (!selecting) {
-        const key = toKey(day);
-        const existing = prices[key];
-        setRange({ from: day, to: day });
-        setSelecting(true);
-        setTempPriceRaw(displayToNumber(existing).toString() || "");
-      } else {
-        setRange((r) => {
-          if (!r?.from) return { from: day, to: day };
-          const from = r.from;
-          const to = day < from ? from : day;
-          return { from: day < from ? day : from, to };
-        });
-        setSelecting(false);
+  /** ✅ 关键：批量选择区间 */
+  const handleSelect = useCallback(
+    (r) => {
+      if (!r) return;
+      // 单点：from=to
+      if (r.from && !r.to) {
+        setRange({ from: r.from, to: r.from });
+        setTempPriceRaw(displayToNumber(prices[toKey(r.from)]).toString() || "");
+      }
+      // 区间：from~to
+      else if (r.from && r.to) {
+        setRange(r);
       }
     },
-    [selecting, prices]
+    [prices]
   );
 
   const handleSave = useCallback(() => {
@@ -132,7 +122,6 @@ export default function AdvancedAvailabilityCalendar() {
     }
     setPrices(next);
     setRange(null);
-    setSelecting(false);
     setTempPriceRaw("");
     setShowDropdown(false);
   }, [range, tempPriceRaw, prices]);
@@ -155,7 +144,7 @@ export default function AdvancedAvailabilityCalendar() {
         <DayPicker
           mode="range"
           selected={range || undefined}
-          onDayClick={handleDayClick}
+          onSelect={handleSelect}
           components={{ DayContent }}
           className="rdp-custom"
         />
@@ -199,7 +188,7 @@ export default function AdvancedAvailabilityCalendar() {
             </div>
           </div>
 
-          {/* ✅ 新增时间输入框 */}
+          {/* 时间输入框 */}
           <div className="flex items-center justify-between text-sm text-gray-700 gap-4">
             <div>
               <span className="font-medium">Check-in 时间：</span>
@@ -233,7 +222,7 @@ export default function AdvancedAvailabilityCalendar() {
               value={withCommas(digitsOnly(tempPriceRaw))}
               onChange={(e) => {
                 setTempPriceRaw(digitsOnly(e.target.value));
-                setShowDropdown(false); // ✅ 编辑时关闭下拉
+                setShowDropdown(false);
               }}
               onFocus={() => setShowDropdown(true)}
               className="pl-10 border p-2 w-full rounded"
@@ -256,7 +245,7 @@ export default function AdvancedAvailabilityCalendar() {
             )}
           </div>
 
-          {/* 操作按钮 */}
+          {/* 按钮 */}
           <div className="flex gap-2">
             <button
               onClick={handleSave}
