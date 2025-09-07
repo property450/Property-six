@@ -3,17 +3,17 @@ import React, { useState, useCallback } from "react";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 
-// ✅ 单元格组件（优化字体大小）
+// ✅ 单元格组件（修复价格太靠下问题）
 const DayCell = React.memo(function DayCell({ date, prices }) {
   const key = date.toDateString();
   const price = prices[key];
   return (
-    <div className="flex flex-col items-center w-full h-full py-1">
-      {/* 日期（稍大一点） */}
-      <span className="text-base font-medium">{date.getDate()}</span>
-      {/* 价格（比日期小一点） */}
+    <div className="flex flex-col items-center w-full h-full py-0.5 leading-tight">
+      {/* 日期（小一点，避免挤压价格） */}
+      <span className="text-sm">{date.getDate()}</span>
+      {/* 价格（更小，贴近日期，不会掉到底部） */}
       {price && (
-        <span className="text-[11px] text-gray-600 mt-0.5">
+        <span className="text-[10px] text-gray-600 mt-0.5">
           {price}
         </span>
       )}
