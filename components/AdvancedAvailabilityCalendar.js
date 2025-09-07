@@ -84,24 +84,30 @@ export default function AdvancedAvailabilityCalendar() {
   );
 
   /** ✅ 点击日期逻辑：支持单点和范围 */
-  const handleDayClick = useCallback(
-    (day) => {
-      if (!range || (range?.from && range?.to)) {
-        // 第一次点击 或 已经有完整区间 → 新建 { from:day, to:day }
-        setRange({ from: day, to: day });
-        setTempPriceRaw("");
-      } else if (range?.from && !range?.to) {
-        // 第二次点击 → 扩展区间
-        const newRange =
-          day > range.from
-            ? { from: range.from, to: day }
-            : { from: day, to: range.from };
-        setRange(newRange);
-        setTempPriceRaw("");
-      }
-    },
-    [range]
-  );
+  // 点击日期逻辑
+const handleDayClick = (day) => {
+  if (!range.from) {
+    // 第一次点击：设置 from=to=当天，立刻弹出面板
+    setRange({ from: day, to: day });
+    setShowPanel(true);
+    setCheckIn(day);
+    setCheckOut(new Date(day.getTime() + 24 * 60 * 60 * 1000));
+  } else if (range.from && !range.to) {
+    // 第二次点击：扩展区间
+    const from = range.from;
+    const to = day >= from ? day : from; // 允许逆序选择
+    const newRange = { from: from, to: to };
+    setRange(newRange);
+    setCheckIn(newRange.from);
+    setCheckOut(new Date(newRange.to.getTime() + 24 * 60 * 60 * 1000));
+  } else {
+    // 如果已经有完整区间，再点新日期就重新开始
+    setRange({ from: day, to: day });
+    setCheckIn(day);
+    setCheckOut(new Date(day.getTime() + 24 * 60 * 60 * 1000));
+    setShowPanel(true);
+  }
+};
 
   /** ✅ 保存价格 */
   const handleSave = useCallback(() => {
