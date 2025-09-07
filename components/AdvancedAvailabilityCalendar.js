@@ -21,7 +21,7 @@ const digitsOnly = (s) => (s || "").replace(/[^\d]/g, "");
 const withCommas = (s) =>
   s ? String(s).replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "";
 
-/** 显示规则：≥1,000,000 -> RM x.xM；≥100,000 -> RM xxxk；其他 -> 千分位 */
+/** 显示规则 */
 const toDisplayPrice = (num) => {
   if (!num) return undefined;
   if (num >= 1_000_000) return `RM ${(num / 1_000_000).toFixed(1)}M`;
@@ -29,17 +29,7 @@ const toDisplayPrice = (num) => {
   return `RM ${num.toLocaleString()}`;
 };
 
-/** 从显示文本还原数字（支持 k/M）用于回填输入框 */
-const displayToNumber = (text) => {
-  if (!text) return 0;
-  const s = text.toLowerCase().replace(/rm|\s|,/g, "");
-  if (s.endsWith("m")) return Math.round(parseFloat(s) * 1_000_000);
-  if (s.endsWith("k")) return Math.round(parseFloat(s) * 1_000);
-  const n = Number(s);
-  return Number.isFinite(n) ? n : 0;
-};
-
-/** ============ 单元格：日期 + 价格（上下两行） ============ */
+/** 单元格 */
 const DayCell = React.memo(function DayCell({ date, prices }) {
   const price = prices[toKey(date)];
   let currency = "";
@@ -64,26 +54,20 @@ const DayCell = React.memo(function DayCell({ date, prices }) {
   );
 });
 
-/** ============ 主组件 ============ */
+/** 主组件 */
 export default function AdvancedAvailabilityCalendar() {
   const [prices, setPrices] = useState({});
   const [range, setRange] = useState(null);
-  const [selecting, setSelecting] = useState(false);
   const [tempPriceRaw, setTempPriceRaw] = useState("");
-
-  // ✅ 新增：check-in / check-out 时间
   const [checkInTime, setCheckInTime] = useState("15:00");
   const [checkOutTime, setCheckOutTime] = useState("11:00");
-
   const [showDropdown, setShowDropdown] = useState(false);
   const panelRef = useRef(null);
 
-  // ✅ 点击空白处关闭输入面板
   useEffect(() => {
     const onDocClick = (e) => {
       if (panelRef.current && !panelRef.current.contains(e.target)) {
         setRange(null);
-        setSelecting(false);
         setTempPriceRaw("");
         setShowDropdown(false);
       }
@@ -97,40 +81,40 @@ export default function AdvancedAvailabilityCalendar() {
     []
   );
 
-  // ✅ 改为区间选择逻辑
+  /** 点击日期 */
   const handleDayClick = useCallback(
     (day) => {
       if (!range || (range.from && range.to)) {
-        // 第一次点击 → 起点
-        setRange({ from: day, to: undefined });
-        setSelecting(true);
+        // 第一次点击 → 单日
+        setRange({ from: day, to: day });
         setTempPriceRaw("");
       } else if (range.from && !range.to) {
-        // 第二次点击 → 终点，并排序
+        // 第二次点击 → 区间
         let from = range.from;
         let to = day;
         if (to < from) [from, to] = [to, from];
         setRange({ from, to });
-        setSelecting(false);
       }
     },
     [range]
   );
 
+  /** 保存价格 */
   const handleSave = useCallback(() => {
-    if (!range?.from || !range?.to) return;
+    if (!range?.from) return;
     const num = Number(digitsOnly(tempPriceRaw));
     const display = toDisplayPrice(num);
+    if (!display) return;
 
     const next = { ...prices };
     const cursor = new Date(range.from);
-    while (cursor <= range.to) {
+    const end = range.to || range.from; // 单日也支持
+    while (cursor <= end) {
       next[toKey(cursor)] = display;
       cursor.setDate(cursor.getDate() + 1);
     }
     setPrices(next);
     setRange(null);
-    setSelecting(false);
     setTempPriceRaw("");
     setShowDropdown(false);
   }, [range, tempPriceRaw, prices]);
@@ -142,13 +126,18 @@ export default function AdvancedAvailabilityCalendar() {
 
   const checkInText = useMemo(() => (range?.from ? ymd(range.from) : ""), [range]);
   const checkOutText = useMemo(
-    () => (range?.to ? ymd(addDays(range.to, 1)) : ""),
+    () =>
+      range?.to
+        ? ymd(addDays(range.to, 1)) // 自动 +1 天
+        : range?.from
+        ? ymd(addDays(range.from, 1))
+        : "",
     [range]
   );
 
   return (
     <div>
-      {/* ✅ 日历 */}
+      {/* 日历 */}
       <div className="scale-110 origin-top">
         <DayPicker
           mode="range"
@@ -179,8 +168,8 @@ export default function AdvancedAvailabilityCalendar() {
         }
       `}</style>
 
-      {/* ✅ 输入面板 */}
-      {range?.from && range?.to && (
+      {/* 输入面板 */}
+      {range?.from && (
         <div
           className="p-3 border rounded bg-gray-50 space-y-3 mt-3"
           ref={panelRef}
@@ -197,7 +186,7 @@ export default function AdvancedAvailabilityCalendar() {
             </div>
           </div>
 
-          {/* ✅ 新增时间输入框 */}
+          {/* 时间输入框 */}
           <div className="flex items-center justify-between text-sm text-gray-700 gap-4">
             <div>
               <span className="font-medium">Check-in 时间：</span>
@@ -231,7 +220,7 @@ export default function AdvancedAvailabilityCalendar() {
               value={withCommas(digitsOnly(tempPriceRaw))}
               onChange={(e) => {
                 setTempPriceRaw(digitsOnly(e.target.value));
-                setShowDropdown(false); // ✅ 编辑时关闭下拉
+                setShowDropdown(false);
               }}
               onFocus={() => setShowDropdown(true)}
               className="pl-10 border p-2 w-full rounded"
@@ -260,7 +249,7 @@ export default function AdvancedAvailabilityCalendar() {
               onClick={handleSave}
               className="bg-blue-600 text-white px-4 py-2 rounded"
             >
-              保存价格（应用到整个区间）
+              保存价格
             </button>
           </div>
         </div>
