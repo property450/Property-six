@@ -3,7 +3,7 @@ import React, { useState, useCallback, useMemo, useRef, useEffect } from "react"
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 
-/** ============ 小工具 ============ */
+/** 工具函数 */
 const addDays = (date, n) => {
   const d = new Date(date);
   d.setDate(d.getDate() + n);
@@ -83,16 +83,15 @@ export default function AdvancedAvailabilityCalendar() {
     []
   );
 
-  /** ✅ 点击日期逻辑：一次点击=当天，二次点击=区间，三次点击=新起点 */
+  /** ✅ 点击逻辑 */
   const handleDayClick = (day) => {
-    if (!range || !range.from) {
+    if (!range) {
       // 第一次点击 → 单日
-      const newRange = { from: day, to: day };
-      setRange(newRange);
-    } else if (range.from && !range.to) {
-      // 第二次点击 → 选区间
+      setRange({ from: day, to: day });
+    } else if (range && range.from && range.to && range.from.getTime() === range.to.getTime()) {
+      // 第二次点击 → 区间
       const from = range.from;
-      const to = day >= from ? day : from; // 允许逆序
+      const to = day >= from ? day : from;
       setRange({ from, to });
     } else {
       // 第三次点击 → 重置
@@ -101,6 +100,7 @@ export default function AdvancedAvailabilityCalendar() {
     setTempPriceRaw("");
   };
 
+  /** 保存价格 */
   const handleSave = useCallback(() => {
     if (!range?.from || !range?.to) return;
     const num = Number(digitsOnly(tempPriceRaw));
