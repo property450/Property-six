@@ -71,8 +71,8 @@ export default function AdvancedAvailabilityCalendar() {
       {/* ✅ 样式覆盖：格子长方形 */}
       <style jsx global>{`
         .rdp-custom .rdp-day {
-          width: 60px !important;   /* 默认大约40px，可以加宽 */
-          height: 50px !important;  /* 默认大约40px，可以略高 */
+          width: 70px !important;   /* 默认大约40px，可以加宽 */
+          height: 55px !important;  /* 默认大约40px，可以略高 */
           padding: 0 !important;
         }
         .rdp-custom .rdp-head_cell {
