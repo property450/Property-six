@@ -28,14 +28,6 @@ const toDisplayPrice = (num) => {
   if (num >= 100_000) return `RM ${Math.round(num / 1_000)}k`;
   return `RM ${num.toLocaleString()}`;
 };
-const displayToNumber = (text) => {
-  if (!text) return 0;
-  const s = text.toLowerCase().replace(/rm|\s|,/g, "");
-  if (s.endsWith("m")) return Math.round(parseFloat(s) * 1_000_000);
-  if (s.endsWith("k")) return Math.round(parseFloat(s) * 1_000);
-  const n = Number(s);
-  return Number.isFinite(n) ? n : 0;
-};
 
 /** 单元格：日期 + 价格 */
 const DayCell = React.memo(function DayCell({ date, prices }) {
@@ -91,26 +83,27 @@ export default function AdvancedAvailabilityCalendar() {
     []
   );
 
-  // ✅ 改动：完全交给 DayPicker 自己处理 range，不再手动覆盖
-  // ✅ 修改 handleSelect
-const handleSelect = useCallback(
-  (day) => {
-    if (!range || (range?.from && range?.to)) {
-      // 第一次点击 或者已有完整区间 → 新建 { from: day, to: day }
-      const newRange = { from: day, to: day };
-      setRange(newRange);
-      setTempPriceRaw("");
-    } else if (range?.from && !range?.to) {
-      // 第二次点击 → 扩展区间
-      const newRange =
-        day > range.from ? { from: range.from, to: day } : { from: day, to: range.from };
-      setRange(newRange);
-      setTempPriceRaw("");
-    }
-  },
-  [range]
-);
+  /** ✅ 点击日期逻辑：支持单点和范围 */
+  const handleDayClick = useCallback(
+    (day) => {
+      if (!range || (range?.from && range?.to)) {
+        // 第一次点击 或 已经有完整区间 → 新建 { from:day, to:day }
+        setRange({ from: day, to: day });
+        setTempPriceRaw("");
+      } else if (range?.from && !range?.to) {
+        // 第二次点击 → 扩展区间
+        const newRange =
+          day > range.from
+            ? { from: range.from, to: day }
+            : { from: day, to: range.from };
+        setRange(newRange);
+        setTempPriceRaw("");
+      }
+    },
+    [range]
+  );
 
+  /** ✅ 保存价格 */
   const handleSave = useCallback(() => {
     if (!range?.from || !range?.to) return;
     const num = Number(digitsOnly(tempPriceRaw));
@@ -128,6 +121,7 @@ const handleSelect = useCallback(
     setShowDropdown(false);
   }, [range, tempPriceRaw, prices]);
 
+  /** ✅ 渲染单元格 */
   const DayContent = useCallback(
     (props) => <DayCell {...props} prices={prices} />,
     [prices]
@@ -144,13 +138,22 @@ const handleSelect = useCallback(
       {/* 日历 */}
       <div className="scale-110 origin-top">
         <DayPicker
-  mode="single" // ⚠️ 用 single，不要用 range
-  selected={range ? [range.from, range.to] : []}
-  onDayClick={handleSelect}
-  components={{ DayContent }}
-  className="rdp-custom"
-/>
+          mode="single" // ⚠️ 我们自己接管点击逻辑
+          selected={
+            range ? [range.from, ...(range.to ? [range.to] : [])] : undefined
+          }
+          onDayClick={handleDayClick}
+          modifiers={
+            range?.from && range?.to
+              ? { selected: { from: range.from, to: range.to } }
+              : {}
+          }
+          components={{ DayContent }}
+          className="rdp-custom"
+        />
+      </div>
 
+      {/* 样式：格子长方形 */}
       <style jsx global>{`
         .rdp-custom .rdp-day {
           width: 120px !important;
@@ -172,7 +175,7 @@ const handleSelect = useCallback(
       `}</style>
 
       {/* 输入面板 */}
-      {range?.from && range?.to && (
+      {range?.from && (
         <div
           className="p-3 border rounded bg-gray-50 space-y-3 mt-3"
           ref={panelRef}
