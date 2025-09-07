@@ -56,30 +56,31 @@ export default function AdvancedAvailabilityCalendar() {
   );
 
   return (
-    <div className="scale-110 origin-top">
-  <DayPicker
-    mode="single"
-    selected={selectedDay}
-    onDayClick={handleDayClick}
-    components={{ DayContent }}
-    className="rdp-custom"
-  />
-</div>
+    <div>
+      {/* ✅ 日历 */}
+      <div className="scale-110 origin-top">
+        <DayPicker
+          mode="single"
+          selected={selectedDay}
+          onDayClick={handleDayClick}
+          components={{ DayContent }}
+          className="rdp-custom"
+        />
+      </div>
 
-<style jsx global>{`
-  /* ✅ 调整日历格子大小（让格子更长方形） */
-  .rdp-custom .rdp-day {
-    width: 60px !important;   /* 默认大约40px，可以加宽 */
-    height: 50px !important;  /* 默认大约40px，可以略高 */
-    padding: 0 !important;
-  }
+      {/* ✅ 样式覆盖：格子长方形 */}
+      <style jsx global>{`
+        .rdp-custom .rdp-day {
+          width: 60px !important;   /* 默认大约40px，可以加宽 */
+          height: 50px !important;  /* 默认大约40px，可以略高 */
+          padding: 0 !important;
+        }
+        .rdp-custom .rdp-head_cell {
+          width: 60px !important;
+        }
+      `}</style>
 
-  /* ✅ 调整星期栏（周日~周六）宽度一致 */
-  .rdp-custom .rdp-head_cell {
-    width: 60px !important;
-  }
-`}</style>
-
+      {/* ✅ 输入价格框 */}
       {selectedDay && (
         <div className="p-3 border rounded bg-gray-50 space-y-2">
           <p>
