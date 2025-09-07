@@ -3,7 +3,7 @@ import React, { useState, useCallback, useMemo, useRef, useEffect } from "react"
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 
-/** ============ 小工具 ============ */
+/** 工具函数 */
 const addDays = (date, n) => {
   const d = new Date(date);
   d.setDate(d.getDate() + n);
@@ -12,16 +12,13 @@ const addDays = (date, n) => {
 const toKey = (date) => date.toDateString();
 const ymd = (date) => {
   if (!date) return "";
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
+  return date.toISOString().split("T")[0];
 };
 const digitsOnly = (s) => (s || "").replace(/[^\d]/g, "");
 const withCommas = (s) =>
   s ? String(s).replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "";
 
-/** 显示规则：≥1,000,000 -> RM x.xM；≥100,000 -> RM xxxk；其他 -> 千分位 */
+/** 格式化显示价格 */
 const toDisplayPrice = (num) => {
   if (!num) return undefined;
   if (num >= 1_000_000) return `RM ${(num / 1_000_000).toFixed(1)}M`;
@@ -29,7 +26,7 @@ const toDisplayPrice = (num) => {
   return `RM ${num.toLocaleString()}`;
 };
 
-/** 单元格：日期 + 价格（上下两行） */
+/** 单元格 */
 const DayCell = React.memo(function DayCell({ date, prices }) {
   const price = prices[toKey(date)];
   let currency = "";
@@ -54,72 +51,64 @@ const DayCell = React.memo(function DayCell({ date, prices }) {
   );
 });
 
-/** ============ 主组件 ============ */
 export default function AdvancedAvailabilityCalendar() {
   const [prices, setPrices] = useState({});
-  const [range, setRange] = useState(null);
+  const [range, setRange] = useState(null); // {from, to}
   const [tempPriceRaw, setTempPriceRaw] = useState("");
-
-  // ✅ 新增：check-in / check-out 时间
   const [checkInTime, setCheckInTime] = useState("15:00");
   const [checkOutTime, setCheckOutTime] = useState("11:00");
 
-  const [showDropdown, setShowDropdown] = useState(false);
   const panelRef = useRef(null);
 
-  // ✅ 点击空白处关闭输入面板
+  // 点击空白处关闭
   useEffect(() => {
     const onDocClick = (e) => {
       if (panelRef.current && !panelRef.current.contains(e.target)) {
         setRange(null);
         setTempPriceRaw("");
-        setShowDropdown(false);
       }
     };
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
 
-  const predefined = useMemo(
-    () => Array.from({ length: 1000 }, (_, i) => (i + 1) * 50),
-    []
-  );
-
-  // ✅ 改为区间选择逻辑
+  // ✅ 改为：单点 → 起点，第二次点 → 终点（区间），支持单点
   const handleDayClick = useCallback(
     (day) => {
       if (!range || (range.from && range.to)) {
-        // 第一次点击 → 起点
-        setRange({ from: day, to: undefined });
+        // 第一次点击
+        setRange({ from: day, to: day });
         setTempPriceRaw("");
       } else if (range.from && !range.to) {
-        // 第二次点击 → 终点，并排序
+        // 第二次点击 → 设置终点
         let from = range.from;
         let to = day;
         if (to < from) [from, to] = [to, from];
         setRange({ from, to });
+      } else if (range.from && range.to) {
+        // 已经有区间，再点 → 重置为单点
+        setRange({ from: day, to: day });
       }
     },
     [range]
   );
 
+  // 保存价格
   const handleSave = useCallback(() => {
     if (!range?.from) return;
-    const from = range.from;
-    const to = range.to || range.from; // ✅ 如果只有一个日期，就只保存当天
     const num = Number(digitsOnly(tempPriceRaw));
     const display = toDisplayPrice(num);
 
     const next = { ...prices };
-    const cursor = new Date(from);
-    while (cursor <= to) {
+    const cursor = new Date(range.from);
+    const end = range.to || range.from;
+    while (cursor <= end) {
       next[toKey(cursor)] = display;
       cursor.setDate(cursor.getDate() + 1);
     }
     setPrices(next);
     setRange(null);
     setTempPriceRaw("");
-    setShowDropdown(false);
   }, [range, tempPriceRaw, prices]);
 
   const DayContent = useCallback(
@@ -129,17 +118,17 @@ export default function AdvancedAvailabilityCalendar() {
 
   const checkInText = useMemo(() => (range?.from ? ymd(range.from) : ""), [range]);
   const checkOutText = useMemo(
-    () => (range?.to ? ymd(addDays(range.to, 1)) : range?.from ? ymd(addDays(range.from, 1)) : ""),
+    () => (range?.to ? ymd(addDays(range.to, 1)) : ""),
     [range]
   );
 
   return (
     <div>
-      {/* ✅ 日历 */}
+      {/* 日历 */}
       <div className="scale-110 origin-top">
         <DayPicker
-          mode="range"
-          selected={range || undefined}
+          mode="single"
+          selected={range?.from}
           onDayClick={handleDayClick}
           components={{ DayContent }}
           className="rdp-custom"
@@ -166,7 +155,7 @@ export default function AdvancedAvailabilityCalendar() {
         }
       `}</style>
 
-      {/* ✅ 输入面板：单日 或 区间 都能出现 */}
+      {/* 输入面板 */}
       {range?.from && (
         <div
           className="p-3 border rounded bg-gray-50 space-y-3 mt-3"
@@ -184,7 +173,7 @@ export default function AdvancedAvailabilityCalendar() {
             </div>
           </div>
 
-          {/* ✅ 时间输入框 */}
+          {/* 时间输入 */}
           <div className="flex items-center justify-between text-sm text-gray-700 gap-4">
             <div>
               <span className="font-medium">Check-in 时间：</span>
@@ -207,47 +196,25 @@ export default function AdvancedAvailabilityCalendar() {
           </div>
 
           {/* 价格输入 */}
-          <div className="relative">
-            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-600 select-none pointer-events-none">
-              RM
-            </span>
+          <div>
+            <span className="mr-2">RM</span>
             <input
               type="text"
               inputMode="numeric"
               placeholder="输入价格"
               value={withCommas(digitsOnly(tempPriceRaw))}
-              onChange={(e) => {
-                setTempPriceRaw(digitsOnly(e.target.value));
-                setShowDropdown(false);
-              }}
-              onFocus={() => setShowDropdown(true)}
-              className="pl-10 border p-2 w-full rounded"
+              onChange={(e) => setTempPriceRaw(digitsOnly(e.target.value))}
+              className="border p-2 w-full rounded"
             />
-            {showDropdown && (
-              <ul className="absolute z-10 w-full bg-white border mt-1 max-h-60 overflow-y-auto rounded shadow">
-                {predefined.map((p) => (
-                  <li
-                    key={p}
-                    onClick={() => {
-                      setTempPriceRaw(String(p));
-                      setShowDropdown(false);
-                    }}
-                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                  >
-                    RM {p.toLocaleString()}
-                  </li>
-                ))}
-              </ul>
-            )}
           </div>
 
-          {/* 操作按钮 */}
+          {/* 按钮 */}
           <div className="flex gap-2">
             <button
               onClick={handleSave}
               className="bg-blue-600 text-white px-4 py-2 rounded"
             >
-              保存价格（应用到{range.to ? "整个区间" : "当天"}）
+              保存价格（应用到选中日期/区间）
             </button>
           </div>
         </div>
