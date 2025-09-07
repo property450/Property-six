@@ -37,17 +37,34 @@ export default function AdvancedAvailabilityCalendar() {
   );
 
   // ✅ 保存价格
-  const handleSave = useCallback(() => {
-    if (selectedDay) {
-      const key = selectedDay.toDateString();
-      setPrices((prev) => ({
-        ...prev,
-        [key]: tempPrice ? `RM ${Number(tempPrice).toLocaleString()}` : undefined,
-      }));
-      setSelectedDay(null);
-      setTempPrice("");
+const handleSave = useCallback(() => {
+  if (selectedDay) {
+    const key = selectedDay.toDateString();
+    const num = Number(tempPrice);
+
+    let displayPrice = undefined;
+    if (num) {
+      if (num >= 1000000) {
+        // ✅ 超过 1M，显示为 M，保留 1 位小数
+        displayPrice = `RM ${(num / 1000000).toFixed(1)}M`;
+      } else if (num >= 100000) {
+        // ✅ 超过 100k，显示为 k
+        displayPrice = `RM ${Math.round(num / 1000)}k`;
+      } else {
+        // ✅ 正常显示千分位
+        displayPrice = `RM ${num.toLocaleString()}`;
+      }
     }
-  }, [selectedDay, tempPrice]);
+
+    setPrices((prev) => ({
+      ...prev,
+      [key]: displayPrice,
+    }));
+
+    setSelectedDay(null);
+    setTempPrice("");
+  }
+}, [selectedDay, tempPrice]);
 
   // ✅ DayContent 渲染价格
   const DayContent = useCallback(
