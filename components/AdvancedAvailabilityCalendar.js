@@ -1,157 +1,259 @@
-"use client";
-import { useState } from "react";
+// components/AdvancedAvailabilityCalendar.js
+import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 
-// 格式化价格：带千分位，支持 K / M 简写
-function formatPrice(value) {
-  if (value >= 1000000) {
-    return `RM ${(value / 1000000).toFixed(1)}M`;
-  } else if (value >= 1000) {
-    return `RM ${(value / 1000).toFixed(1)}k`;
-  }
-  return `RM ${value.toLocaleString()}`;
-}
+/** ============ 小工具 ============ */
+const addDays = (date, n) => {
+  const d = new Date(date);
+  d.setDate(d.getDate() + n);
+  return d;
+};
+const toKey = (date) => date.toDateString();
+const ymd = (date) => {
+  if (!date) return "";
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
+const digitsOnly = (s) => (s || "").replace(/[^\d]/g, "");
+const withCommas = (s) =>
+  s ? String(s).replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "";
 
+/** 显示规则：≥1,000,000 -> RM x.xM；≥100,000 -> RM xxxk；其他 -> 千分位 */
+const toDisplayPrice = (num) => {
+  if (!num && num !== 0) return undefined;
+  if (num >= 1_000_000) return `RM ${(num / 1_000_000).toFixed(1)}M`;
+  if (num >= 100_000) return `RM ${Math.round(num / 1_000)}k`;
+  return `RM ${num.toLocaleString()}`;
+};
+
+/** 从显示文本还原数字（支持 k/M）用于回填输入框 */
+const displayToNumber = (text) => {
+  if (!text) return 0;
+  const s = text.toLowerCase().replace(/rm|\s|,/g, "");
+  if (s.endsWith("m")) return Math.round(parseFloat(s) * 1_000_000);
+  if (s.endsWith("k")) return Math.round(parseFloat(s) * 1_000);
+  const n = Number(s);
+  return Number.isFinite(n) ? n : 0;
+};
+
+/** ============ 单元格：日期 + 价格（上下两行） ============ */
+const DayCell = React.memo(function DayCell({ date, prices }) {
+  const price = prices[toKey(date)];
+  let currency = "";
+  let amount = "";
+  if (price) {
+    const parts = price.split(" ");
+    currency = parts[0] || "";
+    amount = parts.slice(1).join(" ") || "";
+  }
+  return (
+    <div className="flex flex-col items-center w-full h-full py-0.5 leading-tight">
+      <span className="text-sm">{date.getDate()}</span>
+      {currency && (
+        <span className="text-[8px] text-gray-500 leading-none mt-0.5">{currency}</span>
+      )}
+      {amount && <span className="text-[9px] text-gray-700 leading-none">{amount}</span>}
+    </div>
+  );
+});
+
+/** ============ 主组件 ============ */
 export default function AdvancedAvailabilityCalendar() {
   const [prices, setPrices] = useState({});
-  const [range, setRange] = useState(null); // { from, to }
-  const [step, setStep] = useState(0); // 0=无选择, 1=已点一次, 2=已点两次
-  const [showPanel, setShowPanel] = useState(false);
-  const [inputPrice, setInputPrice] = useState("");
-  const [checkIn, setCheckIn] = useState("14:00");
-  const [checkOut, setCheckOut] = useState("12:00");
+  const [range, setRange] = useState(null); // { from, to } 或 null
+  const [tempPriceRaw, setTempPriceRaw] = useState("");
 
-  // 点击日期逻辑
-  const handleDayClick = useCallback(
-  (day) => {
-    // 如果还没选过，或者之前是完整区间（from≠to），开始新单日
-    if (!range || (range?.from && range?.to && range.from.getTime() !== range.to.getTime() && !selecting)) {
-      const key = toKey(day);
-      const existing = prices[key];
-      setRange({ from: day, to: day });
-      setSelecting(true);
-      setTempPriceRaw(displayToNumber(existing).toString() || "");
-      return;
-    }
+  // ✅ 新增：check-in / check-out 时间
+  const [checkInTime, setCheckInTime] = useState("15:00");
+  const [checkOutTime, setCheckOutTime] = useState("11:00");
 
-    // 如果当前只有单日 → 扩展成区间
-    if (range?.from && range?.to && range.from.getTime() === range.to.getTime() && selecting) {
-      if (day < range.from) {
-        setRange({ from: day, to: range.from });
-      } else {
-        setRange({ from: range.from, to: day });
+  const [showDropdown, setShowDropdown] = useState(false);
+  const panelRef = useRef(null);
+
+  // 点击空白处关闭输入面板（并清理临时输入）
+  useEffect(() => {
+    const onDocClick = (e) => {
+      if (panelRef.current && !panelRef.current.contains(e.target)) {
+        setRange(null);
+        setTempPriceRaw("");
+        setShowDropdown(false);
       }
-      setSelecting(false);
-      return;
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, []);
+
+  const predefined = useMemo(() => Array.from({ length: 1000 }, (_, i) => (i + 1) * 50), []);
+
+  /**
+   * ✅ 点击逻辑（满足你的三步期望）：
+   * - 第一次点击（无 range）：设置 single day {from:day, to:day}，面板立即出现（回填该日价格）
+   * - 第二次点击（当前是 single day）：扩展成区间 {from, to}（自动排序），高亮显示区间，面板保留用于填写批量价格
+   * - 第三次点击（当前是区间）：重置为新的 single day（from=to=clicked），并回填该日价格（面板仍然出现）
+   */
+  const handleDayClick = useCallback(
+    (day) => {
+      // 没有 range -> 第一次点击：单日
+      if (!range) {
+        const key = toKey(day);
+        const existing = prices[key];
+        setRange({ from: day, to: day });
+        setTempPriceRaw(String(displayToNumber(existing) || ""));
+        return;
+      }
+
+      // 如果 current 是 single day (from === to)
+      if (range?.from && range?.to && range.from.getTime() === range.to.getTime()) {
+        const single = range.from;
+        // 如果点击同一天，保持单日并回填（确保面板打开）
+        if (day.getTime() === single.getTime()) {
+          const key = toKey(day);
+          const existing = prices[key];
+          setRange({ from: day, to: day });
+          setTempPriceRaw(String(displayToNumber(existing) || ""));
+          return;
+        }
+        // 否则把单日扩展为区间（排序 from <= to）
+        const from = single < day ? single : day;
+        const to = single < day ? day : single;
+        setRange({ from, to });
+        // 在扩展区间时保留 tempPriceRaw（便于批量输入）
+        return;
+      }
+
+      // 当前是完整区间（from !== to） => 第三次点击：重置为新的单日
+      if (range?.from && range?.to && range.from.getTime() !== range.to.getTime()) {
+        const key = toKey(day);
+        const existing = prices[key];
+        setRange({ from: day, to: day });
+        setTempPriceRaw(String(displayToNumber(existing) || ""));
+        return;
+      }
+    },
+    [range, prices]
+  );
+
+  const handleSave = useCallback(() => {
+    if (!range?.from || !range?.to) return;
+    const num = Number(digitsOnly(tempPriceRaw));
+    const display = toDisplayPrice(num);
+
+    const next = { ...prices };
+    const cursor = new Date(range.from);
+    while (cursor <= range.to) {
+      next[toKey(cursor)] = display;
+      cursor.setDate(cursor.getDate() + 1);
     }
+    setPrices(next);
+    setRange(null);
+    setTempPriceRaw("");
+    setShowDropdown(false);
+  }, [range, tempPriceRaw, prices]);
 
-    // 如果已经是区间 → 第三次点击，重置为新的单日
-    if (range?.from && range?.to && range.from.getTime() !== range.to.getTime()) {
-      const key = toKey(day);
-      const existing = prices[key];
-      setRange({ from: day, to: day });
-      setSelecting(true);
-      setTempPriceRaw(displayToNumber(existing).toString() || "");
-      return;
-    }
-  },
-  [range, selecting, prices]
-);
+  const DayContent = useCallback((props) => <DayCell {...props} prices={prices} />, [prices]);
 
-  // 批量保存价格
-  const handleSave = () => {
-    if (!range || !inputPrice) return;
-
-    const newPrices = { ...prices };
-    let current = new Date(range.from);
-    const end = new Date(range.to);
-
-    while (current <= end) {
-      const key = current.toDateString();
-      newPrices[key] = Number(inputPrice);
-      current.setDate(current.getDate() + 1);
-    }
-
-    setPrices(newPrices);
-    setShowPanel(false);
-    setInputPrice("");
-  };
+  const checkInText = useMemo(() => (range?.from ? ymd(range.from) : ""), [range]);
+  const checkOutText = useMemo(() => (range?.to ? ymd(addDays(range.to, 1)) : ""), [range]);
 
   return (
-    <div className="flex flex-col items-center space-y-4">
+    <div>
       {/* 日历 */}
-      <DayPicker
-        mode="range"
-        selected={range}
-        onDayClick={handleDayClick}
-        modifiersStyles={{
-          selected: { backgroundColor: "#4f46e5", color: "white" },
-        }}
-        renderDay={(day) => {
-          const key = day.toDateString();
-          const price = prices[key];
-          return (
-            <div className="flex flex-col items-center">
-              <span>{day.getDate()}</span>
-              {price && (
-                <span className="text-[10px] text-green-600 leading-none">
-                  {formatPrice(price)}
-                </span>
-              )}
-            </div>
-          );
-        }}
-      />
+      <div className="scale-110 origin-top">
+        <DayPicker mode="range" selected={range || undefined} onDayClick={handleDayClick} components={{ DayContent }} className="rdp-custom" />
+      </div>
 
-      {/* 输入面板 */}
-      {showPanel && range && (
-        <div className="border p-4 rounded-md shadow-md w-72 space-y-3 bg-white">
-          <p className="text-sm font-medium">
-            {range.from.toDateString()}
-            {range.to &&
-              range.to.getTime() !== range.from.getTime() &&
-              ` → ${range.to.toDateString()}`}
-          </p>
+      <style jsx global>{`
+        .rdp-custom .rdp-day {
+          width: 120px !important;
+          height: 55px !important;
+          padding: 0 !important;
+        }
+        .rdp-custom .rdp-head_cell {
+          width: 120px !important;
+        }
+        @media (max-width: 768px) {
+          .rdp-custom .rdp-day {
+            width: calc(100% / 7) !important;
+            height: 50px !important;
+          }
+          .rdp-custom .rdp-head_cell {
+            width: calc(100% / 7) !important;
+          }
+        }
+      `}</style>
 
-          <input
-            type="number"
-            placeholder="输入价格"
-            value={inputPrice}
-            onChange={(e) => setInputPrice(e.target.value)}
-            className="border p-1 rounded w-full text-sm"
-          />
-
-          {/* Check-in / Check-out */}
-          <div className="flex justify-between space-x-2">
+      {/* 输入面板（当 from & to 存在时显示；单日时 from===to） */}
+      {range?.from && range?.to && (
+        <div className="p-3 border rounded bg-gray-50 space-y-3 mt-3" ref={panelRef}>
+          {/* Check-in / Check-out 日期 */}
+          <div className="flex items-center justify-between text-sm text-gray-700">
             <div>
-              <label className="block text-xs">Check-in</label>
-              <input
-                type="time"
-                value={checkIn}
-                onChange={(e) => setCheckIn(e.target.value)}
-                className="border p-1 rounded text-sm"
-              />
+              <span className="font-medium">Check-in 日期：</span>
+              {checkInText}
             </div>
             <div>
-              <label className="block text-xs">Check-out</label>
-              <input
-                type="time"
-                value={checkOut}
-                onChange={(e) => setCheckOut(e.target.value)}
-                className="border p-1 rounded text-sm"
-              />
+              <span className="font-medium">Check-out 日期：</span>
+              {checkOutText}
             </div>
           </div>
 
-          <button
-            onClick={handleSave}
-            className="w-full bg-indigo-600 text-white p-2 rounded text-sm"
-          >
-            保存价格
-          </button>
+          {/* 时间输入 */}
+          <div className="flex items-center justify-between text-sm text-gray-700 gap-4">
+            <div>
+              <span className="font-medium">Check-in 时间：</span>
+              <input type="time" value={checkInTime} onChange={(e) => setCheckInTime(e.target.value)} className="border rounded px-2 py-1" />
+            </div>
+            <div>
+              <span className="font-medium">Check-out 时间：</span>
+              <input type="time" value={checkOutTime} onChange={(e) => setCheckOutTime(e.target.value)} className="border rounded px-2 py-1" />
+            </div>
+          </div>
+
+          {/* 价格输入 */}
+          <div className="relative">
+            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-600 select-none pointer-events-none">RM</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="输入价格"
+              value={withCommas(digitsOnly(tempPriceRaw))}
+              onChange={(e) => {
+                setTempPriceRaw(digitsOnly(e.target.value));
+                setShowDropdown(false);
+              }}
+              onFocus={() => setShowDropdown(true)}
+              className="pl-10 border p-2 w-full rounded"
+            />
+            {showDropdown && (
+              <ul className="absolute z-10 w-full bg-white border mt-1 max-h-60 overflow-y-auto rounded shadow">
+                {predefined.map((p) => (
+                  <li
+                    key={p}
+                    onClick={() => {
+                      setTempPriceRaw(String(p));
+                      setShowDropdown(false);
+                    }}
+                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                  >
+                    RM {p.toLocaleString()}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* 操作按钮 */}
+          <div className="flex gap-2">
+            <button onClick={handleSave} className="bg-blue-600 text-white px-4 py-2 rounded">
+              保存价格（应用到整个区间）
+            </button>
+          </div>
         </div>
       )}
     </div>
   );
-}
+            }
+                                                                                       
