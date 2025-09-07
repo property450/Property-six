@@ -1,22 +1,38 @@
 // components/AdvancedAvailabilityCalendar.js
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
+
+// ✅ 单元格组件（用 memo 缓存，避免卡顿）
+const DayCell = React.memo(function DayCell({ date, prices }) {
+  const key = date.toDateString();
+  const price = prices[key];
+  return (
+    <div className="flex flex-col items-center w-full">
+      <span>{date.getDate()}</span>
+      {price && (
+        <span className="text-[11px] text-green-600 font-medium">
+          {price}
+        </span>
+      )}
+    </div>
+  );
+});
 
 export default function AdvancedAvailabilityCalendar() {
   const [selectedDay, setSelectedDay] = useState(null);
   const [prices, setPrices] = useState({});
   const [tempPrice, setTempPrice] = useState("");
 
-  // 点击日期
-  const handleDayClick = (day) => {
+  // ✅ 点击日期（不卡）
+  const handleDayClick = useCallback((day) => {
     const key = day.toDateString();
     setSelectedDay(day);
     setTempPrice(prices[key]?.replace("MYR ", "") || "");
-  };
+  }, [prices]);
 
-  // 保存价格
-  const handleSave = () => {
+  // ✅ 保存价格
+  const handleSave = useCallback(() => {
     if (selectedDay) {
       const key = selectedDay.toDateString();
       setPrices((prev) => ({
@@ -26,23 +42,13 @@ export default function AdvancedAvailabilityCalendar() {
       setSelectedDay(null);
       setTempPrice("");
     }
-  };
+  }, [selectedDay, tempPrice]);
 
-  // ✅ 自定义单元格内容
-  const DayContent = ({ date }) => {
-    const key = date.toDateString();
-    const price = prices[key];
-    return (
-      <div className="flex flex-col items-center w-full">
-        <span>{date.getDate()}</span>
-        {price && (
-          <span className="text-[11px] text-green-600 font-medium">
-            {price}
-          </span>
-        )}
-      </div>
-    );
-  };
+  // ✅ DayContent 只依赖 prices，不会每次点击都重建
+  const DayContent = useCallback(
+    (props) => <DayCell {...props} prices={prices} />,
+    [prices]
+  );
 
   return (
     <div className="space-y-4">
@@ -50,9 +56,7 @@ export default function AdvancedAvailabilityCalendar() {
         mode="single"
         selected={selectedDay}
         onDayClick={handleDayClick}
-        components={{
-          DayContent, // ✅ 关键：替换掉 renderDay
-        }}
+        components={{ DayContent }}
       />
 
       {selectedDay && (
