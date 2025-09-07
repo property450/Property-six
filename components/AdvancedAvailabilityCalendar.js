@@ -98,24 +98,32 @@ export default function AdvancedAvailabilityCalendar() {
   );
 
   const handleDayClick = useCallback(
-    (day) => {
-      if (!selecting) {
-        const key = toKey(day);
-        const existing = prices[key];
-        setRange({ from: day, to: day });
-        setSelecting(true);
-        setTempPriceRaw(displayToNumber(existing).toString() || "");
-      } else {
-        setRange((r) => {
-          const from = r && r.from ? r.from : day;
-          const to = day < from ? from : day;
-          return { from: day < from ? day : from, to };
-        });
-        setSelecting(false);
+  (day) => {
+    if (!range || (!range.from && !range.to)) {
+      // ✅ 第一次点击：设置起点
+      const key = toKey(day);
+      const existing = prices[key];
+      setRange({ from: day, to: day });
+      setTempPriceRaw(displayToNumber(existing).toString() || "");
+    } else if (range.from && !range.to) {
+      // ✅ 第二次点击：设置终点
+      let from = range.from;
+      let to = day;
+      if (day < from) {
+        from = day;
+        to = range.from;
       }
-    },
-    [selecting, prices]
-  );
+      setRange({ from, to });
+    } else {
+      // ✅ 如果已有完整区间，重新开始选择
+      const key = toKey(day);
+      const existing = prices[key];
+      setRange({ from: day, to: day });
+      setTempPriceRaw(displayToNumber(existing).toString() || "");
+    }
+  },
+  [range, prices]
+);
 
   const handleSave = useCallback(() => {
     if (!range?.from || !range?.to) return;
