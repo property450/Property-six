@@ -12,7 +12,7 @@ export default function AdvancedAvailabilityCalendar() {
   const handleDayClick = (day) => {
     const key = day.toDateString();
     setSelectedDay(day);
-    setTempPrice(prices[key]?.replace("MYR ", "") || ""); // 如果已有价格就带出来
+    setTempPrice(prices[key]?.replace("MYR ", "") || "");
   };
 
   // 保存价格
@@ -23,19 +23,23 @@ export default function AdvancedAvailabilityCalendar() {
         ...prev,
         [key]: tempPrice ? `MYR ${tempPrice}` : undefined,
       }));
-      setSelectedDay(null); // 保存后收起输入框
+      setSelectedDay(null);
       setTempPrice("");
     }
   };
 
-  // 渲染日期格子
-  const renderDay = (day) => {
-    const key = day.toDateString();
+  // ✅ 自定义单元格内容
+  const DayContent = ({ date }) => {
+    const key = date.toDateString();
     const price = prices[key];
     return (
-      <div className="flex flex-col items-center">
-        <span>{day.getDate()}</span>
-        {price && <span className="text-[10px] text-green-600">{price}</span>}
+      <div className="flex flex-col items-center w-full">
+        <span>{date.getDate()}</span>
+        {price && (
+          <span className="text-[11px] text-green-600 font-medium">
+            {price}
+          </span>
+        )}
       </div>
     );
   };
@@ -46,7 +50,9 @@ export default function AdvancedAvailabilityCalendar() {
         mode="single"
         selected={selectedDay}
         onDayClick={handleDayClick}
-        renderDay={renderDay}
+        components={{
+          DayContent, // ✅ 关键：替换掉 renderDay
+        }}
       />
 
       {selectedDay && (
