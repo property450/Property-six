@@ -96,7 +96,7 @@ export default function AdvancedAvailabilityCalendar() {
   );
 
   /** ✅ 点击日期逻辑 */
-    // ✅ 改进后的多段点击逻辑：单日 → 区间 → 重置单日
+      /** ✅ 点击日期逻辑：单日 → 区间 → 重置单日 */
   const handleDayClick = useCallback(
     (day) => {
       setRange((prev) => {
@@ -105,7 +105,6 @@ export default function AdvancedAvailabilityCalendar() {
           const key = toKey(day);
           const existing = prices[key];
           setTempPriceRaw(displayToNumber(existing).toString() || "");
-          setSelecting(true);
           return { from: day, to: day };
         }
 
@@ -113,7 +112,6 @@ export default function AdvancedAvailabilityCalendar() {
         if (prev.from && prev.to && prev.from.getTime() === prev.to.getTime()) {
           const from = prev.from;
           const to = day < from ? from : day;
-          setSelecting(false);
           return { from: day < from ? day : from, to };
         }
 
@@ -121,12 +119,12 @@ export default function AdvancedAvailabilityCalendar() {
         const key = toKey(day);
         const existing = prices[key];
         setTempPriceRaw(displayToNumber(existing).toString() || "");
-        setSelecting(true);
         return { from: day, to: day };
       });
     },
     [prices]
   );
+  
 
   const handleSave = useCallback(() => {
     if (!range?.from || !range?.to) return;
