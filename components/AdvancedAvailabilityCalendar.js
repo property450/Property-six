@@ -72,22 +72,24 @@ export default function AdvancedAvailabilityCalendar() {
   const panelRef = useRef(null);
   const calendarRef = useRef(null);
 
-  /** ✅ 点击空白处关闭面板（点击面板内或日历不会关闭） */
+  /** ✅ 点击空白处关闭面板（pointerdown + 捕获 + 阻止冒泡） */
   useEffect(() => {
-    const onDocClick = (e) => {
+    const handleOutside = (e) => {
       const target = e.target;
       if (
         (panelRef.current && panelRef.current.contains(target)) ||
         (calendarRef.current && calendarRef.current.contains(target))
       ) {
-        return; // 点击在面板或日历内部 → 不关闭
+        return;
       }
       setRange(null);
       setTempPriceRaw("");
       setShowDropdown(false);
     };
-    document.addEventListener("click", onDocClick);
-    return () => document.removeEventListener("click", onDocClick);
+
+    // 用捕获阶段监听，避免输入框冒泡时触发
+    document.addEventListener("pointerdown", handleOutside, true);
+    return () => document.removeEventListener("pointerdown", handleOutside, true);
   }, []);
 
   const predefined = useMemo(
@@ -99,7 +101,7 @@ export default function AdvancedAvailabilityCalendar() {
   const handleDayClick = useCallback(
     (day) => {
       setRange((prev) => {
-        // 1) 没有 range → 单日 + 打开面板
+        // 1) 没有 range → 单日
         if (!prev) {
           const key = toKey(day);
           const existing = prices[key];
@@ -108,7 +110,7 @@ export default function AdvancedAvailabilityCalendar() {
           return { from: day, to: day };
         }
 
-        // 2) 之前是单日 → 第二次点击扩区间
+        // 2) 单日 → 扩展区间
         if (prev.from && prev.to && prev.from.getTime() === prev.to.getTime()) {
           const start = prev.from;
           if (day.getTime() === start.getTime()) return prev;
@@ -117,7 +119,7 @@ export default function AdvancedAvailabilityCalendar() {
           return { from, to };
         }
 
-        // 3) 之前是区间 → 第三次点击 → 新单日
+        // 3) 区间 → 新单日
         const key = toKey(day);
         const existing = prices[key];
         const v = displayToNumber(existing);
@@ -193,6 +195,7 @@ export default function AdvancedAvailabilityCalendar() {
         <div
           className="p-3 border rounded bg-gray-50 space-y-3 mt-3"
           ref={panelRef}
+          onPointerDown={(e) => e.stopPropagation()} // 👈 阻止点击面板内部时关闭
         >
           {/* Check-in/out 日期 */}
           <div className="flex items-center justify-between text-sm text-gray-700">
@@ -242,7 +245,10 @@ export default function AdvancedAvailabilityCalendar() {
                 setTempPriceRaw(digitsOnly(e.target.value));
                 setShowDropdown(false);
               }}
-              onFocus={() => setShowDropdown(true)}
+              onFocus={(e) => {
+                e.stopPropagation(); // 👈 阻止冒泡
+                setShowDropdown(true);
+              }}
               className="pl-10 border p-2 w-full rounded"
             />
             {showDropdown && (
@@ -250,7 +256,8 @@ export default function AdvancedAvailabilityCalendar() {
                 {predefined.map((p) => (
                   <li
                     key={p}
-                    onClick={() => {
+                    onPointerDown={(e) => {
+                      e.stopPropagation();
                       setTempPriceRaw(String(p));
                       setShowDropdown(false);
                     }}
