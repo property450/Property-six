@@ -97,33 +97,33 @@ export default function AdvancedAvailabilityCalendar() {
 
   /** ✅ 点击日期逻辑 */
       /** ✅ 点击日期逻辑：单日 → 区间 → 重置单日 */
-  const handleDayClick = useCallback(
-    (day) => {
-      setRange((prev) => {
-        // 🟡 1. 第一次点击：当前没有 range，选中单日
-        if (!prev) {
-          const key = toKey(day);
-          const existing = prices[key];
-          setTempPriceRaw(displayToNumber(existing).toString() || "");
-          return { from: day, to: day };
-        }
-
-        // 🟡 2. 第二次点击：已有单日，扩展成区间
-        if (prev.from && prev.to && prev.from.getTime() === prev.to.getTime()) {
-          const from = prev.from;
-          const to = day < from ? from : day;
-          return { from: day < from ? day : from, to };
-        }
-
-        // 🟡 3. 第三次点击：已有区间 → 重置成新的单日
+const handleDayClick = useCallback(
+  (day) => {
+    setRange((prev) => {
+      // 🟡 1. 第一次点击：当前没有 range，选中单日 → 面板立即出现
+      if (!prev) {
         const key = toKey(day);
         const existing = prices[key];
         setTempPriceRaw(displayToNumber(existing).toString() || "");
         return { from: day, to: day };
-      });
-    },
-    [prices]
-  );
+      }
+
+      // 🟡 2. 第二次点击：已有单日，扩展成区间
+      if (prev.from && prev.to && prev.from.getTime() === prev.to.getTime()) {
+        const from = prev.from;
+        const to = day < from ? from : day;
+        return { from: day < from ? day : from, to };
+      }
+
+      // 🟡 3. 第三次点击：已有区间 → 重置成新的单日
+      const key = toKey(day);
+      const existing = prices[key];
+      setTempPriceRaw(displayToNumber(existing).toString() || "");
+      return { from: day, to: day };
+    });
+  },
+  [prices]
+);
   
 
   const handleSave = useCallback(() => {
