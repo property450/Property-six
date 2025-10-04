@@ -76,18 +76,26 @@ export default function AdvancedAvailabilityCalendar() {
 
   const [showDropdown, setShowDropdown] = useState(false);
   const panelRef = useRef(null);
+  const calendarRef = useRef(null); // 用于判断点击是否在日历上
 
-  // ✅ 点击空白处关闭输入面板
+  // ✅ 点击空白处关闭输入面板（改为 'click'，并且忽略点击日历 & 面板本身）
   useEffect(() => {
     const onDocClick = (e) => {
-      if (panelRef.current && !panelRef.current.contains(e.target)) {
-        setRange(null);
-        setTempPriceRaw("");
-        setShowDropdown(false);
+      const target = e.target;
+      if (
+        (panelRef.current && panelRef.current.contains(target)) ||
+        (calendarRef.current && calendarRef.current.contains(target))
+      ) {
+        // 点击在面板或日历内部 -> 不关闭
+        return;
       }
+      // 否则关闭面板/重置临时输入
+      setRange(null);
+      setTempPriceRaw("");
+      setShowDropdown(false);
     };
-    document.addEventListener("mousedown", onDocClick);
-    return () => document.removeEventListener("mousedown", onDocClick);
+    document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
   }, []);
 
   const predefined = useMemo(
@@ -95,36 +103,54 @@ export default function AdvancedAvailabilityCalendar() {
     []
   );
 
-  /** ✅ 点击日期逻辑 */
-      /** ✅ 点击日期逻辑：单日 → 区间 → 重置单日 */
-const handleDayClick = useCallback(
-  (day) => {
-    setRange((prev) => {
-      // 🟡 1. 第一次点击：当前没有 range，选中单日 → 面板立即出现
-      if (!prev) {
+  /** ✅ 点击日期逻辑：单日 → 区间 → 重置单日
+   *
+   *  行为：
+   *  1) 当前没有 range（prev === null） -> set {from: day, to: day}（单日），并回填该日价格 -> 面板立即出现
+   *  2) 当前为单日 (from===to) -> 用第二次点击的 day 扩展成区间 {from, to}（会高亮）
+   *     - 如果第二次点击与起点相同，则保持单日（没有强制变区间）
+   *  3) 当前为区间 (from !== to) -> 第三次点击任意日期 -> 重置为新的单日 {from: day, to: day}（并回填该日价格）
+   */
+  const handleDayClick = useCallback(
+    (day) => {
+      setRange((prev) => {
+        // 1) 没有之前的 range -> 选单日
+        if (!prev) {
+          const key = toKey(day);
+          const existing = prices[key];
+          // 回填输入（保留目前的 displayToNumber 行为）
+          const v = displayToNumber(existing);
+          setTempPriceRaw(v ? String(v) : "");
+          return { from: day, to: day };
+        }
+
+        // 2) 之前是单日 (from === to)
+        if (
+          prev.from &&
+          prev.to &&
+          prev.from.getTime() === prev.to.getTime()
+        ) {
+          const start = prev.from;
+          // 如果第二次点击和起点相同 -> 保持单日
+          if (day.getTime() === start.getTime()) {
+            return prev;
+          }
+          // 否则扩成区间（保证 from <= to）
+          const from = start < day ? start : day;
+          const to = start < day ? day : start;
+          return { from, to };
+        }
+
+        // 3) 之前是区间 (from !== to) -> 重置成新的单日（第三次点击）
         const key = toKey(day);
         const existing = prices[key];
-        setTempPriceRaw(displayToNumber(existing).toString() || "");
+        const v = displayToNumber(existing);
+        setTempPriceRaw(v ? String(v) : "");
         return { from: day, to: day };
-      }
-
-      // 🟡 2. 第二次点击：已有单日，扩展成区间
-      if (prev.from && prev.to && prev.from.getTime() === prev.to.getTime()) {
-        const from = prev.from;
-        const to = day < from ? from : day;
-        return { from: day < from ? day : from, to };
-      }
-
-      // 🟡 3. 第三次点击：已有区间 → 重置成新的单日
-      const key = toKey(day);
-      const existing = prices[key];
-      setTempPriceRaw(displayToNumber(existing).toString() || "");
-      return { from: day, to: day };
-    });
-  },
-  [prices]
-);
-  
+      });
+    },
+    [prices]
+  );
 
   const handleSave = useCallback(() => {
     if (!range?.from || !range?.to) return;
@@ -148,7 +174,9 @@ const handleDayClick = useCallback(
     [prices]
   );
 
-  const checkInText = useMemo(() => (range?.from ? ymd(range.from) : ""), [range]);
+  const checkInText = useMemo(() => (range?.from ? ymd(range.from) : ""), [
+    range,
+  ]);
   const checkOutText = useMemo(
     () => (range?.to ? ymd(addDays(range.to, 1)) : ""),
     [range]
@@ -157,7 +185,7 @@ const handleDayClick = useCallback(
   return (
     <div>
       {/* ✅ 日历 */}
-      <div className="scale-110 origin-top">
+      <div className="scale-110 origin-top" ref={calendarRef}>
         <DayPicker
           mode="range"
           selected={range || undefined}
