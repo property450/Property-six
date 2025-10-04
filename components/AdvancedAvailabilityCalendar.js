@@ -89,6 +89,16 @@ export default function AdvancedAvailabilityCalendar() {
         // 点击在面板或日历内部 -> 不关闭
         return;
       }
+
+      const inPanel = panelRef.current?.contains(target);
++   const inCalendar = calendarRef.current?.contains(target);
++   // ✅ 新增：允许点击输入框和下拉列表不关闭
++   const isInputOrDropdown =
++     target.closest("input") ||
++     target.closest("ul"); // 你下拉列表就是 ul
+
++   if (inPanel || inCalendar || isInputOrDropdown) return;
+    
       // 否则关闭面板/重置临时输入
       setRange(null);
       setTempPriceRaw("");
