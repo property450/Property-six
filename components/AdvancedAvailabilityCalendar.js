@@ -3,7 +3,7 @@ import React, { useState, useCallback, useMemo, useRef, useEffect } from "react"
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 
-/** ============ 小工具 ============ */
+/** 工具函数 */
 const addDays = (date, n) => {
   const d = new Date(date);
   d.setDate(d.getDate() + n);
@@ -18,10 +18,8 @@ const ymd = (date) => {
   return `${y}-${m}-${d}`;
 };
 const digitsOnly = (s) => (s || "").replace(/[^\d]/g, "");
-const withCommas = (s) =>
-  s ? String(s).replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "";
+const withCommas = (s) => (s ? String(s).replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "");
 
-/** 显示规则：≥1,000,000 -> RM x.xM；≥100,000 -> RM xxxk；其他 -> 千分位 */
 const toDisplayPrice = (num) => {
   if (!num) return undefined;
   if (num >= 1_000_000) return `RM ${(num / 1_000_000).toFixed(1)}M`;
@@ -29,7 +27,6 @@ const toDisplayPrice = (num) => {
   return `RM ${num.toLocaleString()}`;
 };
 
-/** 从显示文本还原数字（支持 k/M）用于回填输入框 */
 const displayToNumber = (text) => {
   if (!text) return 0;
   const s = text.toLowerCase().replace(/rm|\s|,/g, "");
@@ -39,7 +36,7 @@ const displayToNumber = (text) => {
   return Number.isFinite(n) ? n : 0;
 };
 
-/** ============ 单元格：日期 + 价格（上下两行） ============ */
+/** 日期单元格：显示价格 */
 const DayCell = React.memo(function DayCell({ date, prices }) {
   const price = prices[toKey(date)];
   let currency = "";
@@ -64,21 +61,18 @@ const DayCell = React.memo(function DayCell({ date, prices }) {
   );
 });
 
-/** ============ 主组件 ============ */
 export default function AdvancedAvailabilityCalendar() {
   const [prices, setPrices] = useState({});
   const [range, setRange] = useState(null);
   const [tempPriceRaw, setTempPriceRaw] = useState("");
-
-  // ✅ 新增：check-in / check-out 时间
   const [checkInTime, setCheckInTime] = useState("15:00");
   const [checkOutTime, setCheckOutTime] = useState("11:00");
-
   const [showDropdown, setShowDropdown] = useState(false);
-  const panelRef = useRef(null);
-  const calendarRef = useRef(null); // 用于判断点击是否在日历上
 
-  // ✅ 点击空白处关闭输入面板（改为 'click'，并且忽略点击日历 & 面板本身）
+  const panelRef = useRef(null);
+  const calendarRef = useRef(null);
+
+  /** ✅ 点击空白处关闭面板（点击面板内或日历不会关闭） */
   useEffect(() => {
     const onDocClick = (e) => {
       const target = e.target;
@@ -86,10 +80,8 @@ export default function AdvancedAvailabilityCalendar() {
         (panelRef.current && panelRef.current.contains(target)) ||
         (calendarRef.current && calendarRef.current.contains(target))
       ) {
-        // 点击在面板或日历内部 -> 不关闭
-        return;
+        return; // 点击在面板或日历内部 → 不关闭
       }
-      // 否则关闭面板/重置临时输入
       setRange(null);
       setTempPriceRaw("");
       setShowDropdown(false);
@@ -103,45 +95,29 @@ export default function AdvancedAvailabilityCalendar() {
     []
   );
 
-  /** ✅ 点击日期逻辑：单日 → 区间 → 重置单日
-   *
-   *  行为：
-   *  1) 当前没有 range（prev === null） -> set {from: day, to: day}（单日），并回填该日价格 -> 面板立即出现
-   *  2) 当前为单日 (from===to) -> 用第二次点击的 day 扩展成区间 {from, to}（会高亮）
-   *     - 如果第二次点击与起点相同，则保持单日（没有强制变区间）
-   *  3) 当前为区间 (from !== to) -> 第三次点击任意日期 -> 重置为新的单日 {from: day, to: day}（并回填该日价格）
-   */
+  /** ✅ 点击日期逻辑：单日 → 区间 → 重置 */
   const handleDayClick = useCallback(
     (day) => {
       setRange((prev) => {
-        // 1) 没有之前的 range -> 选单日
+        // 1) 没有 range → 单日 + 打开面板
         if (!prev) {
           const key = toKey(day);
           const existing = prices[key];
-          // 回填输入（保留目前的 displayToNumber 行为）
           const v = displayToNumber(existing);
           setTempPriceRaw(v ? String(v) : "");
           return { from: day, to: day };
         }
 
-        // 2) 之前是单日 (from === to)
-        if (
-          prev.from &&
-          prev.to &&
-          prev.from.getTime() === prev.to.getTime()
-        ) {
+        // 2) 之前是单日 → 第二次点击扩区间
+        if (prev.from && prev.to && prev.from.getTime() === prev.to.getTime()) {
           const start = prev.from;
-          // 如果第二次点击和起点相同 -> 保持单日
-          if (day.getTime() === start.getTime()) {
-            return prev;
-          }
-          // 否则扩成区间（保证 from <= to）
+          if (day.getTime() === start.getTime()) return prev;
           const from = start < day ? start : day;
           const to = start < day ? day : start;
           return { from, to };
         }
 
-        // 3) 之前是区间 (from !== to) -> 重置成新的单日（第三次点击）
+        // 3) 之前是区间 → 第三次点击 → 新单日
         const key = toKey(day);
         const existing = prices[key];
         const v = displayToNumber(existing);
@@ -156,7 +132,6 @@ export default function AdvancedAvailabilityCalendar() {
     if (!range?.from || !range?.to) return;
     const num = Number(digitsOnly(tempPriceRaw));
     const display = toDisplayPrice(num);
-
     const next = { ...prices };
     const cursor = new Date(range.from);
     while (cursor <= range.to) {
@@ -174,9 +149,7 @@ export default function AdvancedAvailabilityCalendar() {
     [prices]
   );
 
-  const checkInText = useMemo(() => (range?.from ? ymd(range.from) : ""), [
-    range,
-  ]);
+  const checkInText = useMemo(() => (range?.from ? ymd(range.from) : ""), [range]);
   const checkOutText = useMemo(
     () => (range?.to ? ymd(addDays(range.to, 1)) : ""),
     [range]
@@ -215,13 +188,13 @@ export default function AdvancedAvailabilityCalendar() {
         }
       `}</style>
 
-      {/* ✅ 输入面板 */}
+      {/* ✅ 面板 */}
       {range?.from && range?.to && (
         <div
           className="p-3 border rounded bg-gray-50 space-y-3 mt-3"
           ref={panelRef}
         >
-          {/* Check-in / Check-out 日期 */}
+          {/* Check-in/out 日期 */}
           <div className="flex items-center justify-between text-sm text-gray-700">
             <div>
               <span className="font-medium">Check-in 日期：</span>
@@ -233,7 +206,7 @@ export default function AdvancedAvailabilityCalendar() {
             </div>
           </div>
 
-          {/* ✅ 时间输入框 */}
+          {/* 时间输入 */}
           <div className="flex items-center justify-between text-sm text-gray-700 gap-4">
             <div>
               <span className="font-medium">Check-in 时间：</span>
@@ -290,7 +263,7 @@ export default function AdvancedAvailabilityCalendar() {
             )}
           </div>
 
-          {/* 操作按钮 */}
+          {/* 保存按钮 */}
           <div className="flex gap-2">
             <button
               onClick={handleSave}
