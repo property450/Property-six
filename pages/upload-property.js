@@ -220,21 +220,6 @@ export default function UploadProperty() {
       ) : (
         <div className="space-y-4 mt-6">
           <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
-          <PriceInput
-            value={singleFormData.price}
-            onChange={(val) =>
-              setSingleFormData({ ...singleFormData, price: val })
-            }
-            area={{
-              buildUp: convertToSqft(
-                areaData.values.buildUp,
-                areaData.units.buildUp
-              ),
-              land: convertToSqft(areaData.values.land, areaData.units.land),
-            }}
-            type={propertyStatus}
-              layouts={unitLayouts}
-          />
         </div>
       )}
 
