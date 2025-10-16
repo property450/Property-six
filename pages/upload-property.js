@@ -38,9 +38,6 @@ export default function UploadProperty() {
   useEffect(() => {
     if (user === null) router.push("/login");
   }, [user, router]);
-
-  console.log("unitLayouts 👉", unitLayouts);
-
   if (!user) return <div>正在检查登录状态...</div>;
 
   const [title, setTitle] = useState("");
@@ -51,6 +48,7 @@ export default function UploadProperty() {
   const [type, setType] = useState("");
   const [propertyStatus, setPropertyStatus] = useState("");
   const [unitLayouts, setUnitLayouts] = useState([]);
+  console.log("unitLayouts 👉", unitLayouts);
   const [singleFormData, setSingleFormData] = useState({
     price: "",
     buildUp: "",
