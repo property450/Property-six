@@ -192,30 +192,30 @@ export default function UploadProperty() {
 
           {/* ✅ ✨ 新增 PriceInput - 用 unitLayouts 面积计算每平方尺价格范围 */}
           <PriceInput
-            value={singleFormData.price}
-            onChange={(val) =>
-              setSingleFormData({ ...singleFormData, price: val })
-            }
-            area={(() => {
-              let totalBuildUp = 0;
-              let totalLand = 0;
-              unitLayouts.forEach((layout) => {
-                const buildUpVal = convertToSqft(
-                  layout.buildUp || 0,
-                  layout.buildUpUnit || "square feet"
-                );
-                const landVal = convertToSqft(
-                  layout.land || 0,
-                  layout.landUnit || "square feet"
-                );
-                totalBuildUp += buildUpVal;
-                totalLand += landVal;
-              });
-              return { buildUp: totalBuildUp, land: totalLand };
-            })()}
-            type={propertyStatus}
-              layouts={unitLayouts}
-          />
+  value={singleFormData.price}
+  onChange={(val) =>
+    setSingleFormData({ ...singleFormData, price: val })
+  }
+  area={(() => {
+    let totalBuildUp = 0;
+    let totalLand = 0;
+    unitLayouts.forEach((layout) => {
+      const buildUpVal = convertToSqft(
+        layout.buildUp || 0,
+        layout.buildUpUnit || "square feet"
+      );
+      const landVal = convertToSqft(
+        layout.land || 0,
+        layout.landUnit || "square feet"
+      );
+      totalBuildUp += buildUpVal;
+      totalLand += landVal;
+    });
+    return { buildUp: totalBuildUp, land: totalLand };
+  })()}
+  type={propertyStatus}
+  layouts={unitLayouts} // ✅ 保证缩进对齐
+/>
         </>
       ) : (
         <div className="space-y-4 mt-6">
