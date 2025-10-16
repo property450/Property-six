@@ -108,6 +108,28 @@ export default function UploadProperty() {
     setSingleFormData({ ...singleFormData, layoutPhotos: newPhotos });
   };
 
+  // 🧠 在 UploadProperty 组件内，靠近 return 之前计算价格范围
+  const calculatedPriceRange = (() => {
+    if (
+      (propertyStatus === "New Project / Under Construction" ||
+        propertyStatus === "Completed Unit / Developer Unit") &&
+      unitLayouts.length > 0
+    ) {
+      let totalMin = 0;
+      let totalMax = 0;
+      unitLayouts.forEach((l) => {
+        const minP = parseFloat(String(l.minPrice || "").replace(/,/g, "")) || 0;
+        const maxP = parseFloat(String(l.maxPrice || "").replace(/,/g, "")) || 0;
+        totalMin += minP;
+        totalMax += maxP;
+      });
+      if (totalMin > 0 || totalMax > 0) {
+        return `${totalMin}-${totalMax}`;
+      }
+    }
+    return singleFormData.price;
+  })();
+
   const handleSubmit = async () => {
     if (!title || !address || !latitude || !longitude) {
       toast.error("请填写完整信息");
@@ -169,55 +191,55 @@ export default function UploadProperty() {
       />
 
       {/* 🏗 New Project / Completed Unit 区块 */}
-{propertyStatus === "New Project / Under Construction" ||
- propertyStatus === "Completed Unit / Developer Unit" ? (
-  <>
-    <UnitTypeSelector
-      propertyStatus={propertyStatus}
-      onChange={(layouts) => setUnitLayouts(layouts)}
-    />
+      {propertyStatus === "New Project / Under Construction" ||
+      propertyStatus === "Completed Unit / Developer Unit" ? (
+        <>
+          <UnitTypeSelector
+            propertyStatus={propertyStatus}
+            onChange={(layouts) => setUnitLayouts(layouts)}
+          />
 
-    {unitLayouts.map((layout, index) => (
-      <UnitLayoutForm
-        key={index}
-        index={index}
-        data={{ ...layout, projectType: propertyStatus }}
-        onChange={(updated) => {
-          const newLayouts = [...unitLayouts];
-          newLayouts[index] = updated;
-          setUnitLayouts(newLayouts);
-        }}
-      />
-    ))}
+          {unitLayouts.map((layout, index) => (
+            <UnitLayoutForm
+              key={index}
+              index={index}
+              data={{ ...layout, projectType: propertyStatus }}
+              onChange={(updated) => {
+                const newLayouts = [...unitLayouts];
+                newLayouts[index] = updated;
+                setUnitLayouts(newLayouts);
+              }}
+            />
+          ))}
 
-    {/* ✅ 在这里清洗 unitLayouts，确保传给 PriceInput 的数据都是数值 */}
-    <PriceInput
-      value={singleFormData.price}
-      onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
-      type={propertyStatus}
-      layouts={unitLayouts.map((l) => ({
-        buildUp: Number(String(l.buildUp || 0).replace(/,/g, "")),
-        buildUpUnit: l.buildUpUnit || "square feet",
-        land: Number(String(l.land || 0).replace(/,/g, "")),
-        landUnit: l.landUnit || "square feet",
-      }))}
-    />
-  </>
-) : (
-  <div className="space-y-4 mt-6">
-    <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
+          {/* ✅ 使用 calculatedPriceRange 传给 PriceInput */}
+          <PriceInput
+            value={calculatedPriceRange}
+            onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
+            type={propertyStatus}
+            layouts={unitLayouts.map((l) => ({
+              buildUp: Number(String(l.buildUp || 0).replace(/,/g, "")),
+              buildUpUnit: l.buildUpUnit || "square feet",
+              land: Number(String(l.land || 0).replace(/,/g, "")),
+              landUnit: l.landUnit || "square feet",
+            }))}
+          />
+        </>
+      ) : (
+        <div className="space-y-4 mt-6">
+          <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
 
-    <PriceInput
-      value={singleFormData.price}
-      onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
-      type={propertyStatus}
-      area={{
-        buildUp: convertToSqft(areaData.values.buildUp, areaData.units.buildUp),
-        land: convertToSqft(areaData.values.land, areaData.units.land),
-      }}
-    />
-  </div>
-)}
+          <PriceInput
+            value={singleFormData.price}
+            onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
+            type={propertyStatus}
+            area={{
+              buildUp: convertToSqft(areaData.values.buildUp, areaData.units.buildUp),
+              land: convertToSqft(areaData.values.land, areaData.units.land),
+            }}
+          />
+        </div>
+      )}
 
       <RoomCountSelector
         value={{
@@ -306,7 +328,11 @@ export default function UploadProperty() {
         setImages={(updated) => setSingleFormData({ ...singleFormData, photos: updated })}
       />
 
-      <Button onClick={handleSubmit} disabled={loading} className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full">
+      <Button
+        onClick={handleSubmit}
+        disabled={loading}
+        className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full"
+      >
         {loading ? "上传中..." : "提交房源"}
       </Button>
     </div>
