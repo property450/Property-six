@@ -118,15 +118,15 @@ export default function PriceInput({ value, onChange, area, type }) {
 
   // 🧮 每平方英尺价格计算逻辑
   const getTotalArea = () => {
-    if (!area) return 0;
-    if (typeof area === "object") {
-      // 例如 { buildUp: 1200, land: 3000 }
-      const buildUp = Number(area.buildUp) || 0;
-      const land = Number(area.land) || 0;
-      return buildUp + land;
-    }
-    return Number(area) || 0;
-  };
+  if (!area) return 0;
+  if (typeof area === "object") {
+    const parse = (v) => Number(String(v).replace(/,/g, "")) || 0;
+    const buildUp = parse(area.buildUp);
+    const land = parse(area.land);
+    return buildUp + land;
+  }
+  return Number(String(area).replace(/,/g, "")) || 0;
+};
 
   const totalArea = getTotalArea();
   let pricePerSqftText = "";
