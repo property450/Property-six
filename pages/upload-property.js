@@ -214,6 +214,7 @@ export default function UploadProperty() {
               return { buildUp: totalBuildUp, land: totalLand };
             })()}
             type={propertyStatus}
+              layouts={unitLayouts}
           />
         </>
       ) : (
