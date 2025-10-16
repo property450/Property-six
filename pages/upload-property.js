@@ -271,9 +271,12 @@ export default function UploadProperty() {
           <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
 
           <PriceInput
-  value={price}
-  onChange={setPrice}
-  area={{ buildUp: buildUpArea, land: landArea }} // ✅ 支持相加
+  value={singleFormData.price}
+  onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
+  area={{
+    buildUp: areaData.values.buildUp || 0,
+    land: areaData.values.land || 0,
+  }}
   type={propertyStatus}
 />
 
