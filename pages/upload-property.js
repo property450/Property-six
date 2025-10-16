@@ -1,4 +1,3 @@
-// pages/upload-property.js
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
@@ -23,6 +22,7 @@ import BuildYearSelector from "@/components/BuildYearSelector";
 import ImageUpload from "@/components/ImageUpload";
 import TransitSelector from "@/components/TransitSelector";
 import AdvancedAvailabilityCalendar from "@/components/AdvancedAvailabilityCalendar";
+
 import { useUser } from "@supabase/auth-helpers-react";
 
 const AddressSearchInput = dynamic(
@@ -143,7 +143,6 @@ export default function UploadProperty() {
         ])
         .select()
         .single();
-
       if (error) throw error;
 
       toast.success("房源上传成功");
@@ -189,7 +188,7 @@ export default function UploadProperty() {
             />
           ))}
 
-          {/* ✅ 使用原始 unitLayouts 传入 PriceInput */}
+          {/* 传入原始 unitLayouts，PriceInput 会从 layouts 读取面积与 min/max 计算每平方尺 */}
           <PriceInput
             value={singleFormData.price}
             onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
@@ -200,6 +199,7 @@ export default function UploadProperty() {
       ) : (
         <div className="space-y-4 mt-6">
           <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
+
           <PriceInput
             value={singleFormData.price}
             onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
@@ -258,10 +258,18 @@ export default function UploadProperty() {
       {(type?.includes("Homestay") || type?.includes("Hotel")) && (
         <>
           <AdvancedAvailabilityCalendar value={availability} onChange={setAvailability} />
+
           <CarparkLevelSelector
             value={singleFormData.carparkPosition}
             onChange={(val) => setSingleFormData({ ...singleFormData, carparkPosition: val })}
+            mode={
+              propertyStatus === "New Project / Under Construction" ||
+              propertyStatus === "Completed Unit / Developer Unit"
+                ? "range"
+                : "single"
+            }
           />
+
           <BuildYearSelector
             value={singleFormData.buildYear}
             onChange={(val) => setSingleFormData({ ...singleFormData, buildYear: val })}
