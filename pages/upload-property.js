@@ -58,7 +58,7 @@ export default function UploadProperty() {
   const [type, setType] = useState("");
   const [propertyStatus, setPropertyStatus] = useState("");
   const [transitInfo, setTransitInfo] = useState(null);
-  const [availability, setAvailability] = useState({}); // ✅ 管理日期
+  const [availability, setAvailability] = useState({});
   const [unitLayouts, setUnitLayouts] = useState([]);
   const [singleFormData, setSingleFormData] = useState({
     buildUp: "",
@@ -68,13 +68,13 @@ export default function UploadProperty() {
     kitchens: "",
     livingRooms: "",
     carparkPosition: "",
-    carpark: "", // ✅ 初始化 carpark，避免 undefined
+    carpark: "",
     store: "",
     facilities: [],
     furniture: [],
     extraSpaces: [],
     facing: "",
-    photos: [], // ✅ 改为数组，避免 ImageUpload 报错
+    photos: [],
     floorPlans: "",
     buildYear: "",
     quarter: "",
@@ -85,9 +85,10 @@ export default function UploadProperty() {
     units: { buildUp: "square feet", land: "square feet" },
     values: { buildUp: "", land: "" },
   });
+
   const [sizeInSqft, setSizeInSqft] = useState("");
   const [pricePerSqFt, setPricePerSqFt] = useState("");
-  const [images, setImages] = useState([]); // （可选）备用 image state
+  const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const handleLocationSelect = ({ lat, lng, address }) => {
@@ -159,11 +160,11 @@ export default function UploadProperty() {
             carpark: singleFormData.carpark,
             store: singleFormData.store,
             area: JSON.stringify(areaData),
-            facilities: JSON.stringify(singleFormData.facilities || []), // ✅ 序列化数组
-            furniture: JSON.stringify(singleFormData.furniture || []), // ✅ 序列化数组
+            facilities: JSON.stringify(singleFormData.facilities || []),
+            furniture: JSON.stringify(singleFormData.furniture || []),
             facing: singleFormData.facing,
             transit: JSON.stringify(transitInfo || {}),
-            availability: JSON.stringify(availability || {}), // ✅ 保存可用日期
+            availability: JSON.stringify(availability || {}),
           },
         ])
         .select()
@@ -172,20 +173,19 @@ export default function UploadProperty() {
 
       const propertyId = propertyData.id;
 
-      // 上传图片：优先使用 unitLayouts 的 photos，否则使用 singleFormData.photos
       const uploadImages =
         unitLayouts.length > 0
           ? unitLayouts.flatMap((u) =>
-              // u.photos 可能是 object 或 array, 保守处理
               Array.isArray(u.photos)
                 ? u.photos
                 : Object.values(u.photos || {}).flat()
             )
-          : (Array.isArray(singleFormData.photos) ? singleFormData.photos : images);
+          : Array.isArray(singleFormData.photos)
+          ? singleFormData.photos
+          : images;
 
       for (let i = 0; i < uploadImages.length; i++) {
         const img = uploadImages[i];
-        // img 可能是 File 或 自定义对象 { file, url }，优先取 img.file
         const fileObj = img.file || img;
         const fileName = `${Date.now()}_${fileObj?.name || i}`;
         const filePath = `${propertyId}/${fileName}`;
@@ -219,7 +219,6 @@ export default function UploadProperty() {
         }
       />
 
-      {/* ✅ 条件渲染 */}
       {propertyStatus === "New Project / Under Construction" ||
       propertyStatus === "Completed Unit / Developer Unit" ? (
         <>
@@ -243,64 +242,40 @@ export default function UploadProperty() {
         </>
       ) : (
         <div className="space-y-4 mt-6">
-          {/* 上传 Layout */}
-          <div className="mb-3">
-            <button
-              type="button"
-              className="mb-3 px-3 py-2 bg-gray-100 border rounded hover:bg-gray-200 w-full"
-              onClick={() => fileInputRef.current.click()}
-            >
-              点击上传 Layout
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={handleLayoutUpload}
-            />
-            <ImageUpload
-              images={singleFormData.layoutPhotos || []}
-              setImages={(updated) =>
-                setSingleFormData({ ...singleFormData, layoutPhotos: updated })
-              }
-            />
-          </div>
-
           <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
 
-          {/* ✅ 动态计算面积，支持 Subsale / New Project / Completed Unit */}
-<PriceInput
-  value={singleFormData.price}
-  onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
-  area={(() => {
-    // 如果是新项目或开发商单位，从 unitLayouts 里计算总面积
-    if (
-      propertyStatus === "New Project / Under Construction" ||
-      propertyStatus === "Completed Unit / Developer Unit"
-    ) {
-      let totalBuildUp = 0;
-      let totalLand = 0;
-
-      unitLayouts.forEach((layout) => {
-        const buildUpVal = convertToSqft(layout.buildUp || 0, layout.buildUpUnit || "square feet");
-        const landVal = convertToSqft(layout.land || 0, layout.landUnit || "square feet");
-        totalBuildUp += buildUpVal;
-        totalLand += landVal;
-      });
-
-      return { buildUp: totalBuildUp, land: totalLand };
-    }
-
-    // 默认 subsale 情况
-    return {
-      buildUp: convertToSqft(areaData.values.buildUp, areaData.units.buildUp),
-      land: convertToSqft(areaData.values.land, areaData.units.land),
-    };
-  })()}
-  type={propertyStatus}
-/>
+          {/* ✅ 改好后的 PriceInput 调用 */}
+          <PriceInput
+            value={singleFormData.price}
+            onChange={(val) =>
+              setSingleFormData({ ...singleFormData, price: val })
+            }
+            area={(() => {
+              if (
+                propertyStatus === "New Project / Under Construction" ||
+                propertyStatus === "Completed Unit / Developer Unit"
+              ) {
+                let totalBuildUp = 0;
+                let totalLand = 0;
+                unitLayouts.forEach((layout) => {
+                  totalBuildUp += convertToSqft(
+                    layout.buildUp || 0,
+                    layout.buildUpUnit || "square feet"
+                  );
+                  totalLand += convertToSqft(
+                    layout.land || 0,
+                    layout.landUnit || "square feet"
+                  );
+                });
+                return { buildUp: totalBuildUp, land: totalLand };
+              }
+              return {
+                buildUp: convertToSqft(areaData.values.buildUp, areaData.units.buildUp),
+                land: convertToSqft(areaData.values.land, areaData.units.land),
+              };
+            })()}
+            type={propertyStatus}
+          />
 
           <RoomCountSelector
             value={{
@@ -356,80 +331,9 @@ export default function UploadProperty() {
           />
 
           <TransitSelector onChange={setTransitInfo} />
-
-          {/* ✅ 如果是 Homestay / Hotel 显示日期选择，否则显示车位位置和建成年份 */}
-          {(type?.includes("Homestay") || type?.includes("Hotel")) ? (
-            <>
-              <AdvancedAvailabilityCalendar
-                value={availability}
-                onChange={setAvailability}
-              />
-
-              <CarparkLevelSelector
-                value={singleFormData.carparkPosition}
-                onChange={(val) =>
-                  setSingleFormData({ ...singleFormData, carparkPosition: val })
-                }
-                mode={
-                  propertyStatus === "New Project / Under Construction" ||
-                  propertyStatus === "Completed Unit / Developer Unit"
-                    ? "range"
-                    : "single"
-                }
-              />
-
-              <BuildYearSelector
-                value={singleFormData.buildYear}
-                onChange={(val) =>
-                  setSingleFormData({ ...singleFormData, buildYear: val })
-                }
-                quarter={singleFormData.quarter}
-                onQuarterChange={(val) =>
-                  setSingleFormData({ ...singleFormData, quarter: val })
-                }
-                showQuarter={propertyStatus === "New Project / Under Construction"}
-              />
-            </>
-          ) : null}
-
-          {/* 描述 */}
-          <div className="space-y-2">
-            <label
-              htmlFor="description"
-              className="block text-sm font-medium text-gray-700"
-            >
-              房源描述
-            </label>
-            <textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="请输入房源详细描述..."
-              rows={4}
-              className="w-full border rounded-lg p-2 resize-y"
-            />
-          </div>
-
-          <ImageUpload
-            config={{
-              bedrooms: singleFormData.bedrooms,
-              bathrooms: singleFormData.bathrooms,
-              kitchens: singleFormData.kitchens,
-              livingRooms: singleFormData.livingRooms,
-              carpark: singleFormData.carpark,
-              extraSpaces: singleFormData.extraSpaces,
-              facilities: singleFormData.facilities,
-              furniture: singleFormData.furniture,
-            }}
-            images={singleFormData.photos}
-            setImages={(updated) =>
-              setSingleFormData({ ...singleFormData, photos: updated })
-            }
-          />
         </div>
       )}
 
-      {/* 提交按钮 */}
       <Button
         onClick={handleSubmit}
         disabled={loading}
