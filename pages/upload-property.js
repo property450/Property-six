@@ -271,13 +271,16 @@ export default function UploadProperty() {
           <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
 
           <PriceInput
-            value={singleFormData.price}
-            onChange={(val) =>
-              setSingleFormData({ ...singleFormData, price: val })
-            }
-            area={sizeInSqft}
-            type={propertyStatus} // ✅ 关键：把 propertyStatus 传给 PriceInput，New Project 情况会切换为 range
-          />
+  type={propertyStatus}
+  value={singleFormData.price}
+  onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
+  minPrice={singleFormData.minPrice}
+  maxPrice={singleFormData.maxPrice}
+  onChangeMinPrice={(val) => setSingleFormData({ ...singleFormData, minPrice: val })}
+  onChangeMaxPrice={(val) => setSingleFormData({ ...singleFormData, maxPrice: val })}
+  area={sizeInSqft}
+/>
+
 
           <RoomCountSelector
             value={{
