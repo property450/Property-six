@@ -274,8 +274,8 @@ export default function UploadProperty() {
   value={singleFormData.price}
   onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
   area={{
-    buildUp: areaData.values.buildUp || 0,
-    land: areaData.values.land || 0,
+    buildUp: convertToSqft(areaData.values.buildUp, areaData.units.buildUp),
+    land: convertToSqft(areaData.values.land, areaData.units.land),
   }}
   type={propertyStatus}
 />
