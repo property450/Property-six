@@ -108,10 +108,6 @@ export default function UploadProperty() {
     setSingleFormData({ ...singleFormData, layoutPhotos: newPhotos });
   };
 
-  useEffect(() => {
-  setSingleFormData({ ...singleFormData, price: newPrice });
-}, [singleFormData.price]);
-
   const handleSubmit = async () => {
     if (!title || !address || !latitude || !longitude) {
       toast.error("请填写完整信息");
