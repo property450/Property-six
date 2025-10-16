@@ -35,6 +35,9 @@ export default function UploadProperty() {
   const user = useUser();
   const fileInputRef = useRef(null);
 
+  console.log("unitLayouts 👉", unitLayouts);
+
+
   useEffect(() => {
     if (user === null) router.push("/login");
   }, [user, router]);
@@ -68,9 +71,6 @@ export default function UploadProperty() {
     quarter: "",
   });
 
-  console.log("unitLayouts 👉", unitLayouts);
-
-  
   const [areaData, setAreaData] = useState({
     types: ["buildUp"],
     units: { buildUp: "square feet", land: "square feet" },
