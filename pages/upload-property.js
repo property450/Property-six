@@ -48,7 +48,7 @@ export default function UploadProperty() {
   const [type, setType] = useState("");
   const [propertyStatus, setPropertyStatus] = useState("");
   const [unitLayouts, setUnitLayouts] = useState([]);
-  console.log("unitLayouts 👉", unitLayouts);
+  console.log("unitLayouts JSON 👉", JSON.stringify(unitLayouts, null, 2));
   const [singleFormData, setSingleFormData] = useState({
     price: "",
     buildUp: "",
