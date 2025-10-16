@@ -87,10 +87,12 @@ export default function UploadProperty() {
     }
     if (u.includes("acre")) return num * 43560;
     if (u.includes("hectare")) return num * 107639;
-    return num;
+    return num; // assume sqft
   };
 
-  const handleAreaChange = (data) => setAreaData(data);
+  const handleAreaChange = (data) => {
+    setAreaData(data);
+  };
 
   const handleLocationSelect = ({ lat, lng, address }) => {
     setLatitude(lat);
