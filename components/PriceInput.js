@@ -1,4 +1,3 @@
-// components/PriceInput.js
 import { useState, useRef, useEffect } from "react";
 
 export default function PriceInput({ value, onChange, area, type }) {
@@ -74,7 +73,7 @@ export default function PriceInput({ value, onChange, area, type }) {
     if (val === "" || val === null || val === undefined) return "";
     const n = Number(String(val).replace(/,/g, ""));
     if (Number.isNaN(n)) return "";
-    return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    return n.toLocaleString();
   };
 
   const handleSingleChange = (e) => {
@@ -121,59 +120,69 @@ export default function PriceInput({ value, onChange, area, type }) {
       </label>
 
       {isRange ? (
-        <div className="grid grid-cols-2 gap-2">
-          {/* Min */}
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">RM</span>
-            <input
-              type="text"
-              value={formatDisplay(min)}
-              onChange={handleMinChange}
-              onFocus={() => setShowDropdownMin(true)}
-              className="pl-12 pr-4 py-2 border rounded w-full"
-              placeholder="Min Price"
-            />
-            {showDropdownMin && (
-              <ul className="absolute z-10 w-full bg-white border mt-1 max-h-60 overflow-y-auto rounded shadow">
-                {predefinedPrices.map((price) => (
-                  <li
-                    key={`min-${price}`}
-                    onClick={() => handleSelectMin(price)}
-                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                  >
-                    RM {price.toLocaleString()}
-                  </li>
-                ))}
-              </ul>
-            )}
+        <>
+          <div className="grid grid-cols-2 gap-2">
+            {/* Min */}
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">RM</span>
+              <input
+                type="text"
+                value={formatDisplay(min)}
+                onChange={handleMinChange}
+                onFocus={() => setShowDropdownMin(true)}
+                className="pl-12 pr-4 py-2 border rounded w-full"
+                placeholder="Min Price"
+              />
+              {showDropdownMin && (
+                <ul className="absolute z-10 w-full bg-white border mt-1 max-h-60 overflow-y-auto rounded shadow">
+                  {predefinedPrices.map((price) => (
+                    <li
+                      key={`min-${price}`}
+                      onClick={() => handleSelectMin(price)}
+                      className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                    >
+                      RM {price.toLocaleString()}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {/* Max */}
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">RM</span>
+              <input
+                type="text"
+                value={formatDisplay(max)}
+                onChange={handleMaxChange}
+                onFocus={() => setShowDropdownMax(true)}
+                className="pl-12 pr-4 py-2 border rounded w-full"
+                placeholder="Max Price"
+              />
+              {showDropdownMax && (
+                <ul className="absolute z-10 w-full bg-white border mt-1 max-h-60 overflow-y-auto rounded shadow">
+                  {predefinedPrices.map((price) => (
+                    <li
+                      key={`max-${price}`}
+                      onClick={() => handleSelectMax(price)}
+                      className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                    >
+                      RM {price.toLocaleString()}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
 
-          {/* Max */}
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">RM</span>
-            <input
-              type="text"
-              value={formatDisplay(max)}
-              onChange={handleMaxChange}
-              onFocus={() => setShowDropdownMax(true)}
-              className="pl-12 pr-4 py-2 border rounded w-full"
-              placeholder="Max Price"
-            />
-            {showDropdownMax && (
-              <ul className="absolute z-10 w-full bg-white border mt-1 max-h-60 overflow-y-auto rounded shadow">
-                {predefinedPrices.map((price) => (
-                  <li
-                    key={`max-${price}`}
-                    onClick={() => handleSelectMax(price)}
-                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                  >
-                    RM {price.toLocaleString()}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
+          {/* ✅ 新增：显示每平方英尺单价（基于 Min） */}
+          {min && area && (
+            <p className="text-sm text-gray-500 mt-2">
+              每平方英尺: RM{" "}
+              {(Number(min.replace(/,/g, "")) / Number(area || 0)).toFixed(2)}
+            </p>
+          )}
+        </>
       ) : (
         <div className="relative">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">RM</span>
