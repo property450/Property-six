@@ -68,6 +68,9 @@ export default function UploadProperty() {
     quarter: "",
   });
 
+  console.log("unitLayouts 👉", unitLayouts);
+
+  
   const [areaData, setAreaData] = useState({
     types: ["buildUp"],
     units: { buildUp: "square feet", land: "square feet" },
