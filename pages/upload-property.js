@@ -270,13 +270,35 @@ export default function UploadProperty() {
 
           <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
 
-          <PriceInput
+          {/* ✅ 动态计算面积，支持 Subsale / New Project / Completed Unit */}
+<PriceInput
   value={singleFormData.price}
   onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
-  area={{
-    buildUp: convertToSqft(areaData.values.buildUp, areaData.units.buildUp),
-    land: convertToSqft(areaData.values.land, areaData.units.land),
-  }}
+  area={(() => {
+    // 如果是新项目或开发商单位，从 unitLayouts 里计算总面积
+    if (
+      propertyStatus === "New Project / Under Construction" ||
+      propertyStatus === "Completed Unit / Developer Unit"
+    ) {
+      let totalBuildUp = 0;
+      let totalLand = 0;
+
+      unitLayouts.forEach((layout) => {
+        const buildUpVal = convertToSqft(layout.buildUp || 0, layout.buildUpUnit || "square feet");
+        const landVal = convertToSqft(layout.land || 0, layout.landUnit || "square feet");
+        totalBuildUp += buildUpVal;
+        totalLand += landVal;
+      });
+
+      return { buildUp: totalBuildUp, land: totalLand };
+    }
+
+    // 默认 subsale 情况
+    return {
+      buildUp: convertToSqft(areaData.values.buildUp, areaData.units.buildUp),
+      land: convertToSqft(areaData.values.land, areaData.units.land),
+    };
+  })()}
   type={propertyStatus}
 />
 
