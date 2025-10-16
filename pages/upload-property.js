@@ -271,16 +271,11 @@ export default function UploadProperty() {
           <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
 
           <PriceInput
+  value={price}
+  onChange={setPrice}
+  area={{ buildUp: buildUpArea, land: landArea }} // ✅ 支持相加
   type={propertyStatus}
-  value={singleFormData.price}
-  onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
-  minPrice={singleFormData.minPrice}
-  maxPrice={singleFormData.maxPrice}
-  onChangeMinPrice={(val) => setSingleFormData({ ...singleFormData, minPrice: val })}
-  onChangeMaxPrice={(val) => setSingleFormData({ ...singleFormData, maxPrice: val })}
-  area={sizeInSqft}
 />
-
 
           <RoomCountSelector
             value={{
