@@ -27,324 +27,289 @@ import AdvancedAvailabilityCalendar from "@/components/AdvancedAvailabilityCalen
 import { useUser } from "@supabase/auth-helpers-react";
 
 const AddressSearchInput = dynamic(
-  () => import("@/components/AddressSearchInput"),
-  { ssr: false }
+  () => import("@/components/AddressSearchInput"),
+  { ssr: false }
 );
 
 export default function UploadProperty() {
-  const router = useRouter();
-  const user = useUser();
-  const fileInputRef = useRef(null);
+  const router = useRouter();
+  const user = useUser();
+  const fileInputRef = useRef(null);
 
-  useEffect(() => {
-    if (user === null) router.push("/login");
-  }, [user, router]);
+  useEffect(() => {
+    if (user === null) router.push("/login");
+  }, [user, router]);
 
-  if (!user) return <div>正在检查登录状态...</div>;
+  if (!user) return <div>正在检查登录状态...</div>;
 
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [address, setAddress] = useState("");
-  const [latitude, setLatitude] = useState(null);
-  const [longitude, setLongitude] = useState(null);
-  const [type, setType] = useState("");
-  const [propertyStatus, setPropertyStatus] = useState("");
-  const [unitLayouts, setUnitLayouts] = useState([]);
-  const [singleFormData, setSingleFormData] = useState({
-    price: "",
-    buildUp: "",
-    bedrooms: "",
-    bathrooms: "",
-    kitchens: "",
-    livingRooms: "",
-    carpark: "",
-    store: "",
-    facilities: [],
-    furniture: [],
-    extraSpaces: [],
-    facing: "",
-    photos: [],
-    layoutPhotos: [],
-    buildYear: "",
-    quarter: "",
-  });
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [address, setAddress] = useState("");
+  const [latitude, setLatitude] = useState(null);
+  const [longitude, setLongitude] = useState(null);
+  const [type, setType] = useState("");
+  const [propertyStatus, setPropertyStatus] = useState("");
+  const [unitLayouts, setUnitLayouts] = useState([]);
+  const [singleFormData, setSingleFormData] = useState({
+    price: "",
+    buildUp: "",
+    bedrooms: "",
+    bathrooms: "",
+    kitchens: "",
+    livingRooms: "",
+    carpark: "",
+    store: "",
+    facilities: [],
+    furniture: [],
+    extraSpaces: [],
+    facing: "",
+    photos: [],
+    layoutPhotos: [],
+    buildYear: "",
+    quarter: "",
+  });
 
-  const [areaData, setAreaData] = useState({
-    types: ["buildUp"],
-    units: { buildUp: "square feet", land: "square feet" },
-    values: { buildUp: "", land: "" },
-  });
+  const [areaData, setAreaData] = useState({
+    types: ["buildUp"],
+    units: { buildUp: "square feet", land: "square feet" },
+    values: { buildUp: "", land: "" },
+  });
 
-  const [availability, setAvailability] = useState({});
-  const [transitInfo, setTransitInfo] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [availability, setAvailability] = useState({});
+  const [transitInfo, setTransitInfo] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  const convertToSqft = (val, unit) => {
-    const num = parseFloat(String(val || "").replace(/,/g, ""));
-    if (isNaN(num) || num <= 0) return 0;
-    switch (unit) {
-      case "square meter":
-      case "square metres":
-      case "sq m":
-        return num * 10.7639;
-      case "acres":
-        return num * 43560;
-      case "hectares":
-        return num * 107639;
-      default:
-        return num;
-    }
-  };
+  const convertToSqft = (val, unit) => {
+    const num = parseFloat(String(val || "").replace(/,/g, ""));
+    if (isNaN(num) || num <= 0) return 0;
+    const u = (unit || "").toString().toLowerCase();
+    if (u.includes("square meter") || u.includes("sq m") || u.includes("square metres")) {
+      return num * 10.7639;
+    }
+    if (u.includes("acre")) return num * 43560;
+    if (u.includes("hectare")) return num * 107639;
+    return num; // assume sqft
+  };
 
-  const handleAreaChange = (data) => {
-    setAreaData(data);
-  };
+  const handleAreaChange = (data) => {
+    setAreaData(data);
+  };
 
-  const handleLocationSelect = ({ lat, lng, address }) => {
-    setLatitude(lat);
-    setLongitude(lng);
-    setAddress(address);
-  };
+  const handleLocationSelect = ({ lat, lng, address }) => {
+    setLatitude(lat);
+    setLongitude(lng);
+    setAddress(address);
+  };
 
-  const handleSubmit = async () => {
-    if (!title || !address || !latitude || !longitude) {
-      toast.error("请填写完整信息");
-      return;
-    }
+  const handleLayoutUpload = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    const newPhotos = [...(singleFormData.layoutPhotos || []), ...files];
+    setSingleFormData({ ...singleFormData, layoutPhotos: newPhotos });
+  };
 
-    setLoading(true);
-    try {
-      const { data: propertyData, error } = await supabase
-        .from("properties")
-        .insert([
-          {
-            title,
-            description,
-            unit_layouts: JSON.stringify(
-              unitLayouts.length > 0 ? unitLayouts : [singleFormData]
-            ),
-            price: singleFormData.price || undefined,
-            address,
-            lat: latitude,
-            lng: longitude,
-            user_id: user.id,
-            type,
-            build_year: singleFormData.buildYear,
-            bedrooms: singleFormData.bedrooms,
-            bathrooms: singleFormData.bathrooms,
-            carpark: singleFormData.carpark,
-            store: singleFormData.store,
-            area: JSON.stringify(areaData),
-            facilities: JSON.stringify(singleFormData.facilities || []),
-            furniture: JSON.stringify(singleFormData.furniture || []),
-            facing: singleFormData.facing,
-            transit: JSON.stringify(transitInfo || {}),
-            availability: JSON.stringify(availability || {}),
-          },
-        ])
-        .select()
-        .single();
-      if (error) throw error;
+  useEffect(() => {
+    // optional: you can compute price_per_sq_ft at parent level if you want to save it
+    // but PriceInput displays per-sqft itself; here we keep submit simple
+  }, [singleFormData.price, unitLayouts, areaData]);
 
-      toast.success("房源上传成功");
-      router.push("/");
-    } catch (err) {
-      console.error(err);
-      toast.error("上传失败，请检查控制台");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const handleSubmit = async () => {
+    if (!title || !address || !latitude || !longitude) {
+      toast.error("请填写完整信息");
+      return;
+    }
 
-  return (
-    <div className="max-w-3xl mx-auto p-4 space-y-4">
-      <h1 className="text-2xl font-bold mb-4">上传房源</h1>
+    setLoading(true);
+    try {
+      const { data: propertyData, error } = await supabase
+        .from("properties")
+        .insert([
+          {
+            title,
+            description,
+            unit_layouts: JSON.stringify(unitLayouts.length > 0 ? unitLayouts : [singleFormData]),
+            price: singleFormData.price || undefined,
+            address,
+            lat: latitude,
+            lng: longitude,
+            user_id: user.id,
+            type,
+            build_year: singleFormData.buildYear,
+            bedrooms: singleFormData.bedrooms,
+            bathrooms: singleFormData.bathrooms,
+            carpark: singleFormData.carpark,
+            store: singleFormData.store,
+            area: JSON.stringify(areaData),
+            facilities: JSON.stringify(singleFormData.facilities || []),
+            furniture: JSON.stringify(singleFormData.furniture || []),
+            facing: singleFormData.facing,
+            transit: JSON.stringify(transitInfo || {}),
+            availability: JSON.stringify(availability || {}),
+          },
+        ])
+        .select()
+        .single();
+      if (error) throw error;
 
-      <AddressSearchInput onLocationSelect={handleLocationSelect} />
+      toast.success("房源上传成功");
+      router.push("/");
+    } catch (err) {
+      console.error(err);
+      toast.error("上传失败，请检查控制台");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      <TypeSelector
-        value={type}
-        onChange={setType}
-        onFormChange={(formData) => setPropertyStatus(formData.propertyStatus)}
-      />
+  return (
+    <div className="max-w-3xl mx-auto p-4 space-y-4">
+      <h1 className="text-2xl font-bold mb-4">上传房源</h1>
 
-      {/* ✅ 条件渲染 */}
-      {propertyStatus === "New Project / Under Construction" ||
-      propertyStatus === "Completed Unit / Developer Unit" ? (
-        <>
-          <UnitTypeSelector
-            propertyStatus={propertyStatus}
-            onChange={(layouts) => setUnitLayouts(layouts)}
-          />
+      <AddressSearchInput onLocationSelect={handleLocationSelect} />
 
-          {unitLayouts.map((layout, index) => (
-            <UnitLayoutForm
-              key={index}
-              index={index}
-              data={{ ...layout, projectType: propertyStatus }}
-              onChange={(updated) => {
-                const newLayouts = [...unitLayouts];
-                newLayouts[index] = updated;
-                setUnitLayouts(newLayouts);
-              }}
-            />
-          ))}
+      <TypeSelector
+        value={type}
+        onChange={setType}
+        onFormChange={(formData) => setPropertyStatus(formData.propertyStatus)}
+      />
 
-          {/* ✅ ✨ 新增 PriceInput - 用 unitLayouts 面积计算每平方尺价格范围 */}
-          <PriceInput
-            value={singleFormData.price}
-            onChange={(val) =>
-              setSingleFormData({ ...singleFormData, price: val })
-            }
-            area={(() => {
-              let totalBuildUp = 0;
-              let totalLand = 0;
-              unitLayouts.forEach((layout) => {
-                const buildUpVal = convertToSqft(
-                  layout.buildUp || 0,
-                  layout.buildUpUnit || "square feet"
-                );
-                const landVal = convertToSqft(
-                  layout.land || 0,
-                  layout.landUnit || "square feet"
-                );
-                totalBuildUp += buildUpVal;
-                totalLand += landVal;
-              });
-              return { buildUp: totalBuildUp, land: totalLand };
-            })()}
-            type={propertyStatus}
-              layouts={unitLayouts}
-          />
-        </>
-      ) : (
-        <div className="space-y-4 mt-6">
-          <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
-          <PriceInput
-            value={singleFormData.price}
-            onChange={(val) =>
-              setSingleFormData({ ...singleFormData, price: val })
-            }
-            area={{
-              buildUp: convertToSqft(
-                areaData.values.buildUp,
-                areaData.units.buildUp
-              ),
-              land: convertToSqft(areaData.values.land, areaData.units.land),
-            }}
-            type={propertyStatus}
-            layouts={unitLayouts}
-          />
-        </div>
-      )}
+      {/* 条件渲染：New Project / Completed Unit show unit layouts */}
+      {propertyStatus === "New Project / Under Construction" ||
+      propertyStatus === "Completed Unit / Developer Unit" ? (
+        <>
+          <UnitTypeSelector
+            propertyStatus={propertyStatus}
+            onChange={(layouts) => setUnitLayouts(layouts)}
+          />
 
-      <RoomCountSelector
-        value={{
-          bedrooms: singleFormData.bedrooms,
-          bathrooms: singleFormData.bathrooms,
-          kitchens: singleFormData.kitchens,
-          livingRooms: singleFormData.livingRooms,
-        }}
-        onChange={(updated) => setSingleFormData({ ...singleFormData, ...updated })}
-      />
+          {unitLayouts.map((layout, index) => (
+            <UnitLayoutForm
+              key={index}
+              index={index}
+              data={{ ...layout, projectType: propertyStatus }}
+              onChange={(updated) => {
+                const newLayouts = [...unitLayouts];
+                newLayouts[index] = updated;
+                setUnitLayouts(newLayouts);
+              }}
+            />
+          ))}
 
-      <CarparkCountSelector
-        value={singleFormData.carpark}
-        onChange={(val) => setSingleFormData({ ...singleFormData, carpark: val })}
-        mode={
-          propertyStatus === "New Project / Under Construction" ||
-          propertyStatus === "Completed Unit / Developer Unit"
-            ? "range"
-            : "single"
-        }
-      />
+          {/* For project/completed-unit: pass layouts (PriceInput will compute area from layouts) */}
+          <PriceInput
+            value={singleFormData.price}
+            onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
+            type={propertyStatus}
+            layouts={unitLayouts}
+          />
+        </>
+      ) : (
+        <div className="space-y-4 mt-6">
+          <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
 
-      <ExtraSpacesSelector
-        value={singleFormData.extraSpaces || []}
-        onChange={(val) => setSingleFormData({ ...singleFormData, extraSpaces: val })}
-      />
+          {/* For normal subsale: pass numeric sqft area (converted) */}
+          <PriceInput
+            value={singleFormData.price}
+            onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
+            type={propertyStatus}
+            area={{
+              buildUp: convertToSqft(areaData.values.buildUp, areaData.units.buildUp),
+              land: convertToSqft(areaData.values.land, areaData.units.land),
+            }}
+          />
+        </div>
+      )}
 
-      <FacingSelector
-        value={singleFormData.facing}
-        onChange={(val) => setSingleFormData({ ...singleFormData, facing: val })}
-      />
+      <RoomCountSelector
+        value={{
+          bedrooms: singleFormData.bedrooms,
+          bathrooms: singleFormData.bathrooms,
+          kitchens: singleFormData.kitchens,
+          livingRooms: singleFormData.livingRooms,
+        }}
+        onChange={(updated) => setSingleFormData({ ...singleFormData, ...updated })}
+      />
 
-      <FurnitureSelector
-        value={singleFormData.furniture}
-        onChange={(val) => setSingleFormData({ ...singleFormData, furniture: val })}
-      />
+      <CarparkCountSelector
+        value={singleFormData.carpark}
+        onChange={(val) => setSingleFormData({ ...singleFormData, carpark: val })}
+        mode={
+          propertyStatus === "New Project / Under Construction" ||
+          propertyStatus === "Completed Unit / Developer Unit"
+            ? "range"
+            : "single"
+        }
+      />
 
-      <FacilitiesSelector
-        value={singleFormData.facilities}
-        onChange={(val) => setSingleFormData({ ...singleFormData, facilities: val })}
-      />
+      <ExtraSpacesSelector
+        value={singleFormData.extraSpaces || []}
+        onChange={(val) => setSingleFormData({ ...singleFormData, extraSpaces: val })}
+      />
 
-      <TransitSelector onChange={setTransitInfo} />
+      <FacingSelector
+        value={singleFormData.facing}
+        onChange={(val) => setSingleFormData({ ...singleFormData, facing: val })}
+      />
 
-      {(type?.includes("Homestay") || type?.includes("Hotel")) && (
-        <>
-          <AdvancedAvailabilityCalendar
-            value={availability}
-            onChange={setAvailability}
-          />
-          <CarparkLevelSelector
-            value={singleFormData.carparkPosition}
-            onChange={(val) =>
-              setSingleFormData({ ...singleFormData, carparkPosition: val })
-            }
-            mode={
-              propertyStatus === "New Project / Under Construction" ||
-              propertyStatus === "Completed Unit / Developer Unit"
-                ? "range"
-                : "single"
-            }
-          />
-          <BuildYearSelector
-            value={singleFormData.buildYear}
-            onChange={(val) =>
-              setSingleFormData({ ...singleFormData, buildYear: val })
-            }
-            quarter={singleFormData.quarter}
-            onQuarterChange={(val) =>
-              setSingleFormData({ ...singleFormData, quarter: val })
-            }
-            showQuarter={propertyStatus === "New Project / Under Construction"}
-          />
-        </>
-      )}
+      <FurnitureSelector
+        value={singleFormData.furniture}
+        onChange={(val) => setSingleFormData({ ...singleFormData, furniture: val })}
+      />
 
-      <div className="space-y-2">
-        <label
-          htmlFor="description"
-          className="block text-sm font-medium text-gray-700"
-        >
-          房源描述
-        </label>
-        <textarea
-          id="description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="请输入房源详细描述..."
-          rows={4}
-          className="w-full border rounded-lg p-2 resize-y"
-        />
-      </div>
+      <FacilitiesSelector
+        value={singleFormData.facilities}
+        onChange={(val) => setSingleFormData({ ...singleFormData, facilities: val })}
+      />
 
-      <ImageUpload
-        images={singleFormData.photos}
-        setImages={(updated) =>
-          setSingleFormData({ ...singleFormData, photos: updated })
-        }
-      />
+      <TransitSelector onChange={setTransitInfo} />
 
-      <Button
-        onClick={handleSubmit}
-        disabled={loading}
-        className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full"
-      >
-        {loading ? "上传中..." : "提交房源"}
-      </Button>
-    </div>
-  );
+      {(type?.includes("Homestay") || type?.includes("Hotel")) && (
+        <>
+          <AdvancedAvailabilityCalendar value={availability} onChange={setAvailability} />
+
+          <CarparkLevelSelector
+            value={singleFormData.carparkPosition}
+            onChange={(val) => setSingleFormData({ ...singleFormData, carparkPosition: val })}
+            mode={
+              propertyStatus === "New Project / Under Construction" ||
+              propertyStatus === "Completed Unit / Developer Unit"
+                ? "range"
+                : "single"
+            }
+          />
+
+          <BuildYearSelector
+            value={singleFormData.buildYear}
+            onChange={(val) => setSingleFormData({ ...singleFormData, buildYear: val })}
+            quarter={singleFormData.quarter}
+            onQuarterChange={(val) => setSingleFormData({ ...singleFormData, quarter: val })}
+            showQuarter={propertyStatus === "New Project / Under Construction"}
+          />
+        </>
+      )}
+
+      <div className="space-y-2">
+        <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+          房源描述
+        </label>
+        <textarea
+          id="description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="请输入房源详细描述..."
+          rows={4}
+          className="w-full border rounded-lg p-2 resize-y"
+        />
+      </div>
+
+      <ImageUpload
+        images={singleFormData.photos}
+        setImages={(updated) => setSingleFormData({ ...singleFormData, photos: updated })}
+      />
+
+      <Button onClick={handleSubmit} disabled={loading} className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full">
+        {loading ? "上传中..." : "提交房源"}
+      </Button>
+    </div>
+  );
 }
-
