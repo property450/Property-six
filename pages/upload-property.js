@@ -35,12 +35,11 @@ export default function UploadProperty() {
   const user = useUser();
   const fileInputRef = useRef(null);
 
-  console.log("unitLayouts 👉", unitLayouts);
-
-
   useEffect(() => {
     if (user === null) router.push("/login");
   }, [user, router]);
+
+  console.log("unitLayouts 👉", unitLayouts);
 
   if (!user) return <div>正在检查登录状态...</div>;
 
