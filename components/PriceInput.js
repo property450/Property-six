@@ -1,3 +1,4 @@
+"use client";
 import { useState, useRef, useEffect } from "react";
 
 export default function PriceInput({ value, onChange, area, type }) {
@@ -10,6 +11,7 @@ export default function PriceInput({ value, onChange, area, type }) {
     50000000, 100000000,
   ];
 
+  // 🟡 判断 propertyStatus
   let propertyStatus = "";
   if (typeof type === "object" && type !== null) {
     propertyStatus = type.propertyStatus || type.finalType || "";
@@ -17,11 +19,13 @@ export default function PriceInput({ value, onChange, area, type }) {
     propertyStatus = type;
   }
 
+  // 🟢 判定是否是价格区间模式
   const isRange = !!(
     propertyStatus &&
     (
       propertyStatus.includes("New Project") ||
-      propertyStatus.includes("Developer Unit")
+      propertyStatus.includes("Developer Unit") ||
+      propertyStatus.includes("Completed Unit")
     )
   );
 
@@ -33,6 +37,7 @@ export default function PriceInput({ value, onChange, area, type }) {
   const [showDropdownMin, setShowDropdownMin] = useState(false);
   const [showDropdownMax, setShowDropdownMax] = useState(false);
 
+  // 🟡 初始化 value
   useEffect(() => {
     if (isRange) {
       if (typeof value === "string" && value.includes("-")) {
@@ -57,6 +62,7 @@ export default function PriceInput({ value, onChange, area, type }) {
     }
   }, [value, isRange]);
 
+  // 🟡 点击外部收起下拉
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
@@ -76,6 +82,7 @@ export default function PriceInput({ value, onChange, area, type }) {
     return n.toLocaleString();
   };
 
+  // 🟡 处理单价
   const handleSingleChange = (e) => {
     const raw = e.target.value.replace(/[^\d]/g, "");
     setSingle(raw);
@@ -87,6 +94,7 @@ export default function PriceInput({ value, onChange, area, type }) {
     setShowDropdownSingle(false);
   };
 
+  // 🟡 处理 min/max
   const handleMinChange = (e) => {
     const raw = e.target.value.replace(/[^\d]/g, "");
     setMin(raw);
@@ -108,10 +116,35 @@ export default function PriceInput({ value, onChange, area, type }) {
     setShowDropdownMax(false);
   };
 
-  const perSqft =
-    !isRange && area && single
-      ? (Number(String(single).replace(/,/g, "")) / Number(area || 0)).toFixed(2)
-      : null;
+  // 🧮 每平方英尺价格计算逻辑
+  const getTotalArea = () => {
+    if (!area) return 0;
+    if (typeof area === "object") {
+      // 例如 { buildUp: 1200, land: 3000 }
+      const buildUp = Number(area.buildUp) || 0;
+      const land = Number(area.land) || 0;
+      return buildUp + land;
+    }
+    return Number(area) || 0;
+  };
+
+  const totalArea = getTotalArea();
+  let pricePerSqftText = "";
+
+  if (!isRange && single && totalArea > 0) {
+    const psf = Number(single.replace(/,/g, "")) / totalArea;
+    pricePerSqftText = `RM ${psf.toFixed(2)} / sqft`;
+  }
+
+  if (isRange && min && max && totalArea > 0) {
+    const minVal = Number(min.replace(/,/g, ""));
+    const maxVal = Number(max.replace(/,/g, ""));
+    if (minVal > 0 && maxVal > 0) {
+      const minPsf = minVal / totalArea;
+      const maxPsf = maxVal / totalArea;
+      pricePerSqftText = `RM ${minPsf.toFixed(2)} ~ RM ${maxPsf.toFixed(2)} / sqft`;
+    }
+  }
 
   return (
     <div className="relative w-full" ref={wrapperRef}>
@@ -175,12 +208,8 @@ export default function PriceInput({ value, onChange, area, type }) {
             </div>
           </div>
 
-          {/* ✅ 新增：显示每平方英尺单价（基于 Min） */}
-          {min && area && (
-            <p className="text-sm text-gray-500 mt-2">
-              每平方英尺: RM{" "}
-              {(Number(min.replace(/,/g, "")) / Number(area || 0)).toFixed(2)}
-            </p>
+          {pricePerSqftText && (
+            <p className="text-sm text-gray-500 mt-2">{pricePerSqftText}</p>
           )}
         </>
       ) : (
@@ -194,10 +223,8 @@ export default function PriceInput({ value, onChange, area, type }) {
             className="pl-12 pr-4 py-2 border rounded w-full"
             placeholder="请输入价格"
           />
-          {perSqft && (
-            <p className="text-sm text-gray-500 mt-1">
-              每平方英尺: RM {Number(perSqft).toLocaleString()}
-            </p>
+          {pricePerSqftText && (
+            <p className="text-sm text-gray-500 mt-1">{pricePerSqftText}</p>
           )}
           {showDropdownSingle && (
             <ul className="absolute z-10 w-full bg-white border mt-1 max-h-60 overflow-y-auto rounded shadow">
