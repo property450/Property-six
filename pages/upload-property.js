@@ -23,7 +23,6 @@ import BuildYearSelector from "@/components/BuildYearSelector";
 import ImageUpload from "@/components/ImageUpload";
 import TransitSelector from "@/components/TransitSelector";
 import AdvancedAvailabilityCalendar from "@/components/AdvancedAvailabilityCalendar";
-
 import { useUser } from "@supabase/auth-helpers-react";
 
 const AddressSearchInput = dynamic(
@@ -88,12 +87,10 @@ export default function UploadProperty() {
     }
     if (u.includes("acre")) return num * 43560;
     if (u.includes("hectare")) return num * 107639;
-    return num; // assume sqft
+    return num;
   };
 
-  const handleAreaChange = (data) => {
-    setAreaData(data);
-  };
+  const handleAreaChange = (data) => setAreaData(data);
 
   const handleLocationSelect = ({ lat, lng, address }) => {
     setLatitude(lat);
@@ -107,28 +104,6 @@ export default function UploadProperty() {
     const newPhotos = [...(singleFormData.layoutPhotos || []), ...files];
     setSingleFormData({ ...singleFormData, layoutPhotos: newPhotos });
   };
-
-  // 🧠 在 UploadProperty 组件内，靠近 return 之前计算价格范围
-  const calculatedPriceRange = (() => {
-    if (
-      (propertyStatus === "New Project / Under Construction" ||
-        propertyStatus === "Completed Unit / Developer Unit") &&
-      unitLayouts.length > 0
-    ) {
-      let totalMin = 0;
-      let totalMax = 0;
-      unitLayouts.forEach((l) => {
-        const minP = parseFloat(String(l.minPrice || "").replace(/,/g, "")) || 0;
-        const maxP = parseFloat(String(l.maxPrice || "").replace(/,/g, "")) || 0;
-        totalMin += minP;
-        totalMax += maxP;
-      });
-      if (totalMin > 0 || totalMax > 0) {
-        return `${totalMin}-${totalMax}`;
-      }
-    }
-    return singleFormData.price;
-  })();
 
   const handleSubmit = async () => {
     if (!title || !address || !latitude || !longitude) {
@@ -166,6 +141,7 @@ export default function UploadProperty() {
         ])
         .select()
         .single();
+
       if (error) throw error;
 
       toast.success("房源上传成功");
@@ -190,7 +166,6 @@ export default function UploadProperty() {
         onFormChange={(formData) => setPropertyStatus(formData.propertyStatus)}
       />
 
-      {/* 🏗 New Project / Completed Unit 区块 */}
       {propertyStatus === "New Project / Under Construction" ||
       propertyStatus === "Completed Unit / Developer Unit" ? (
         <>
@@ -212,23 +187,17 @@ export default function UploadProperty() {
             />
           ))}
 
-          {/* ✅ 使用 calculatedPriceRange 传给 PriceInput */}
+          {/* ✅ 使用原始 unitLayouts 传入 PriceInput */}
           <PriceInput
-            value={calculatedPriceRange}
+            value={singleFormData.price}
             onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
             type={propertyStatus}
-            layouts={unitLayouts.map((l) => ({
-              buildUp: Number(String(l.buildUp || 0).replace(/,/g, "")),
-              buildUpUnit: l.buildUpUnit || "square feet",
-              land: Number(String(l.land || 0).replace(/,/g, "")),
-              landUnit: l.landUnit || "square feet",
-            }))}
+            layouts={unitLayouts}
           />
         </>
       ) : (
         <div className="space-y-4 mt-6">
           <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
-
           <PriceInput
             value={singleFormData.price}
             onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
@@ -287,18 +256,10 @@ export default function UploadProperty() {
       {(type?.includes("Homestay") || type?.includes("Hotel")) && (
         <>
           <AdvancedAvailabilityCalendar value={availability} onChange={setAvailability} />
-
           <CarparkLevelSelector
             value={singleFormData.carparkPosition}
             onChange={(val) => setSingleFormData({ ...singleFormData, carparkPosition: val })}
-            mode={
-              propertyStatus === "New Project / Under Construction" ||
-              propertyStatus === "Completed Unit / Developer Unit"
-                ? "range"
-                : "single"
-            }
           />
-
           <BuildYearSelector
             value={singleFormData.buildYear}
             onChange={(val) => setSingleFormData({ ...singleFormData, buildYear: val })}
@@ -328,11 +289,7 @@ export default function UploadProperty() {
         setImages={(updated) => setSingleFormData({ ...singleFormData, photos: updated })}
       />
 
-      <Button
-        onClick={handleSubmit}
-        disabled={loading}
-        className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full"
-      >
+      <Button onClick={handleSubmit} disabled={loading} className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full">
         {loading ? "上传中..." : "提交房源"}
       </Button>
     </div>
