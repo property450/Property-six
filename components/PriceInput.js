@@ -1,133 +1,266 @@
-"use client";
-import { useState, useEffect, useRef } from "react";
+// components/PriceInput.js
+import { useState, useRef, useEffect } from "react";
 
-export default function PriceInput({ value, onChange, type, layouts = [] }) {
-  const [inputValue, setInputValue] = useState(value || "");
-  const [pricePerSqftText, setPricePerSqftText] = useState("");
+export default function PriceInput({ value, onChange, area, type, layouts }) {
   const wrapperRef = useRef(null);
-  const [showDropdown, setShowDropdown] = useState(false);
 
   const predefinedPrices = [
     50000, 100000, 200000, 300000, 500000,
     800000, 1000000, 1500000, 2000000,
-    3000000, 5000000, 10000000
+    3000000, 5000000, 10000000, 20000000,
+    50000000, 100000000,
   ];
 
-  // ✅ 将各种单位转换为平方英尺
-  const convertToSqftLocal = (val, unit) => {
-    const num = Number(val) || 0;
-    switch (unit) {
-      case "square meter":
-        return num * 10.7639;
-      case "acres":
-        return num * 43560;
-      case "hectares":
-        return num * 107639;
-      default:
-        return num;
-    }
-  };
+  let propertyStatus = "";
+  if (typeof type === "object" && type !== null) {
+    propertyStatus = type.propertyStatus || type.finalType || "";
+  } else if (typeof type === "string") {
+    propertyStatus = type;
+  }
 
-  // ✅ 输入框变化（带千分位格式）
-  const handleChange = (e) => {
-    const raw = e.target.value.replace(/,/g, "");
-    if (!isNaN(raw)) {
-      const formatted = Number(raw).toLocaleString();
-      setInputValue(formatted);
-      onChange(formatted);
-    } else {
-      setInputValue(e.target.value);
-      onChange(e.target.value);
-    }
-  };
+  // ✅ 把 Completed Unit 也算进 range 类型
+  const isRange = !!(
+    propertyStatus &&
+    (
+      propertyStatus.includes("New Project") ||
+      propertyStatus.includes("Developer Unit") ||
+      propertyStatus.includes("Completed Unit")
+    )
+  );
 
-  // ✅ 点击预设价格
-  const handleSelectPrice = (price) => {
-    const formatted = price.toLocaleString();
-    setInputValue(formatted);
-    onChange(formatted);
-    setShowDropdown(false);
-  };
+  const [single, setSingle] = useState("");
+  const [min, setMin] = useState("");
+  const [max, setMax] = useState("");
 
-  // ✅ 处理点击外部关闭预设下拉
+  const [showDropdownSingle, setShowDropdownSingle] = useState(false);
+  const [showDropdownMin, setShowDropdownMin] = useState(false);
+  const [showDropdownMax, setShowDropdownMax] = useState(false);
+
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
-        setShowDropdown(false);
+    if (isRange) {
+      if (typeof value === "string" && value.includes("-")) {
+        const [vmin, vmax] = value.split("-");
+        setMin(vmin ?? "");
+        setMax(vmax ?? "");
+      } else if (value && typeof value === "object") {
+        setMin(value.min ?? "");
+        setMax(value.max ?? "");
+      } else {
+        setMin("");
+        setMax("");
+      }
+    } else {
+      if (typeof value === "string" && !value.includes("-")) {
+        setSingle(String(value).replace(/,/g, ""));
+      } else if (typeof value === "number") {
+        setSingle(String(value));
+      } else {
+        setSingle("");
+      }
+    }
+  }, [value, isRange]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setShowDropdownSingle(false);
+        setShowDropdownMin(false);
+        setShowDropdownMax(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ✅ 当 New Project / Completed Unit 时，计算价格范围 + 面积
-  useEffect(() => {
-    if (
-      (type === "New Project / Under Construction" ||
-        type === "Completed Unit / Developer Unit") &&
-      Array.isArray(layouts) &&
-      layouts.length > 0
-    ) {
-      let totalArea = 0;
-      let totalMin = 0;
-      let totalMax = 0;
+  const formatDisplay = (val) => {
+    if (val === "" || val === null || val === undefined) return "";
+    const n = Number(String(val).replace(/,/g, ""));
+    if (Number.isNaN(n)) return "";
+    return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  };
 
-      layouts.forEach((l) => {
-        const buildUpSqft = convertToSqftLocal(l.buildUp, l.buildUpUnit || "square feet");
-        const landSqft = convertToSqftLocal(l.land, l.landUnit || "square feet");
-        const minP = Number(String(l.minPrice || "").replace(/,/g, "")) || 0;
-        const maxP = Number(String(l.maxPrice || "").replace(/,/g, "")) || 0;
+  const handleSingleChange = (e) => {
+    const raw = e.target.value.replace(/[^\d]/g, "");
+    setSingle(raw);
+    onChange && onChange(raw);
+  };
+  const handleSelectSingle = (p) => {
+    setSingle(String(p));
+    onChange && onChange(String(p));
+    setShowDropdownSingle(false);
+  };
 
-        totalArea += buildUpSqft + landSqft;
-        totalMin += minP;
-        totalMax += maxP;
-      });
+  const handleMinChange = (e) => {
+    const raw = e.target.value.replace(/[^\d]/g, "");
+    setMin(raw);
+    onChange && onChange(`${raw}-${max}`);
+  };
+  const handleMaxChange = (e) => {
+    const raw = e.target.value.replace(/[^\d]/g, "");
+    setMax(raw);
+    onChange && onChange(`${min}-${raw}`);
+  };
+  const handleSelectMin = (p) => {
+    setMin(String(p));
+    onChange && onChange(`${p}-${max}`);
+    setShowDropdownMin(false);
+  };
+  const handleSelectMax = (p) => {
+    setMax(String(p));
+    onChange && onChange(`${min}-${p}`);
+    setShowDropdownMax(false);
+  };
 
-      if (totalArea > 0 && (totalMin > 0 || totalMax > 0)) {
-        const minPsf = totalMin / totalArea;
-        const maxPsf = totalMax / totalArea;
-        setPricePerSqftText(
-          `每平方英尺: RM ${minPsf.toLocaleString(undefined, { maximumFractionDigits: 2 })} ~ RM ${maxPsf.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
-        );
-      } else {
-        setPricePerSqftText("");
-      }
-    } else {
-      // ✅ 普通 Subsale 模式，根据单价和面积显示
-      setPricePerSqftText("");
+  // === 原有单价 / area 每平方英尺计算（保持不变） ===
+  const perSqft =
+    !isRange && area && single
+      ? (Number(String(single).replace(/,/g, "")) / Number(area || 0)).toFixed(2)
+      : null;
+
+  // === 新增：若传入 layouts，则使用 layouts 中的 minPrice/maxPrice 与面积计算每平方尺价格范围 ===
+  const convertToSqftLocal = (val, unit) => {
+    const raw = Number(String(val || "").replace(/,/g, "")) || 0;
+    const u = (unit || "").toString().toLowerCase();
+    if (u.includes("square meter") || u.includes("sq m") || u.includes("square metres") || u.includes("square metre")) {
+      return raw * 10.7639;
     }
-  }, [layouts, type]);
+    if (u.includes("acre")) return raw * 43560;
+    if (u.includes("hectare")) return raw * 107639;
+    return raw; // assume already sqft
+  };
+
+  let layoutsPricePerSqftText = "";
+  if (Array.isArray(layouts) && layouts.length > 0) {
+    let totalArea = 0;
+    let totalMin = 0;
+    let totalMax = 0;
+
+    layouts.forEach((l) => {
+      const buildUp = l.buildUp ?? l.build_up ?? l.size ?? 0;
+      const buildUpUnit = l.buildUpUnit ?? l.build_up_unit ?? l.unit ?? "square feet";
+      const land = l.land ?? l.land_size ?? 0;
+      const landUnit = l.landUnit ?? l.land_unit ?? "square feet";
+
+      const buildUpSqft = convertToSqftLocal(buildUp, buildUpUnit);
+      const landSqft = convertToSqftLocal(land, landUnit);
+
+      const minP = Number(String(l.minPrice ?? l.min ?? "").replace(/,/g, "")) || 0;
+      const maxP = Number(String(l.maxPrice ?? l.max ?? "").replace(/,/g, "")) || 0;
+
+      totalArea += buildUpSqft + landSqft;
+      totalMin += minP;
+      totalMax += maxP;
+    });
+
+    if (totalArea > 0 && (totalMin > 0 || totalMax > 0)) {
+      const minPsf = totalMin / totalArea;
+      const maxPsf = totalMax / totalArea;
+      layoutsPricePerSqftText = `每平方英尺: RM ${minPsf.toLocaleString(undefined, { maximumFractionDigits: 2 })} ~ RM ${maxPsf.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+    }
+  }
 
   return (
-    <div className="space-y-1" ref={wrapperRef}>
-      <label className="block text-sm font-medium text-gray-700">价格</label>
-      <div className="relative">
-        <input
-          type="text"
-          value={inputValue}
-          onChange={handleChange}
-          onFocus={() => setShowDropdown(true)}
-          className="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-          placeholder="请输入价格"
-        />
-        {showDropdown && (
-          <div className="absolute z-10 mt-1 w-full rounded-lg border bg-white shadow-lg max-h-40 overflow-y-auto">
-            {predefinedPrices.map((p) => (
-              <div
-                key={p}
-                onClick={() => handleSelectPrice(p)}
-                className="cursor-pointer px-3 py-2 hover:bg-gray-100"
-              >
-                {p.toLocaleString()}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+    <div className="relative w-full" ref={wrapperRef}>
+      <label className="block text-sm font-medium text-gray-700">
+        {isRange ? "价格范围" : "价格"}
+      </label>
 
-      {/* ✅ 每平方英尺价格显示 */}
-      {pricePerSqftText && (
-        <p className="text-sm text-green-600">{pricePerSqftText}</p>
+      {isRange ? (
+        <div className="grid grid-cols-2 gap-2">
+          {/* Min */}
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">RM</span>
+            <input
+              type="text"
+              value={formatDisplay(min)}
+              onChange={handleMinChange}
+              onFocus={() => setShowDropdownMin(true)}
+              className="pl-12 pr-4 py-2 border rounded w-full"
+              placeholder="Min Price"
+            />
+            {showDropdownMin && (
+              <ul className="absolute z-10 w-full bg-white border mt-1 max-h-60 overflow-y-auto rounded shadow">
+                {predefinedPrices.map((price) => (
+                  <li
+                    key={`min-${price}`}
+                    onClick={() => handleSelectMin(price)}
+                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                  >
+                    RM {price.toLocaleString()}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Max */}
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">RM</span>
+            <input
+              type="text"
+              value={formatDisplay(max)}
+              onChange={handleMaxChange}
+              onFocus={() => setShowDropdownMax(true)}
+              className="pl-12 pr-4 py-2 border rounded w-full"
+              placeholder="Max Price"
+            />
+            {showDropdownMax && (
+              <ul className="absolute z-10 w-full bg-white border mt-1 max-h-60 overflow-y-auto rounded shadow">
+                {predefinedPrices.map((price) => (
+                  <li
+                    key={`max-${price}`}
+                    onClick={() => handleSelectMax(price)}
+                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                  >
+                    RM {price.toLocaleString()}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* 如果有 layouts 计算结果，显示每平方尺价格范围 */}
+          {layoutsPricePerSqftText ? (
+            <div className="col-span-2">
+              <p className="text-sm text-gray-500 mt-2">{layoutsPricePerSqftText}</p>
+            </div>
+          ) : null}
+        </div>
+      ) : (
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">RM</span>
+          <input
+            type="text"
+            value={formatDisplay(single)}
+            onChange={handleSingleChange}
+            onFocus={() => setShowDropdownSingle(true)}
+            className="pl-12 pr-4 py-2 border rounded w-full"
+            placeholder="请输入价格"
+          />
+          {/* 若传入 layouts 并有计算结果，优先显示 layouts 的每平方尺价格（一般不会对 subsale 生效） */}
+          {layoutsPricePerSqftText ? (
+            <p className="text-sm text-gray-500 mt-1">{layoutsPricePerSqftText}</p>
+          ) : (
+            perSqft && (
+              <p className="text-sm text-gray-500 mt-1">
+                每平方英尺: RM {Number(perSqft).toLocaleString()}
+              </p>
+            )
+          )}
+          {showDropdownSingle && (
+            <ul className="absolute z-10 w-full bg-white border mt-1 max-h-60 overflow-y-auto rounded shadow">
+              {predefinedPrices.map((price) => (
+                <li
+                  key={price}
+                  onClick={() => handleSelectSingle(price)}
+                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                >
+                  RM {price.toLocaleString()}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
     </div>
   );
