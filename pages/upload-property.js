@@ -109,9 +109,8 @@ export default function UploadProperty() {
   };
 
   useEffect(() => {
-    // optional: you can compute price_per_sq_ft at parent level if you want to save it
-    // but PriceInput displays per-sqft itself; here we keep submit simple
-  }, [singleFormData.price, unitLayouts, areaData]);
+  setSingleFormData({ ...singleFormData, price: newPrice });
+}, [singleFormData.price]);
 
   const handleSubmit = async () => {
     if (!title || !address || !latitude || !longitude) {
