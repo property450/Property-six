@@ -232,6 +232,7 @@ export default function UploadProperty() {
               land: convertToSqft(areaData.values.land, areaData.units.land),
             }}
             type={propertyStatus}
+              layouts={unitLayouts}
           />
         </div>
       )}
