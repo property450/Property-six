@@ -128,29 +128,36 @@ export default function PriceInput({ value, onChange, area, type, layouts }) {
       : null;
 
   // ✅ New Project / Completed Unit 每平方尺计算
-  let pricePerSqftText = "";
-  if (Array.isArray(layouts) && layouts.length > 0) {
-    let totalArea = 0;
-    let totalMin = 0;
-    let totalMax = 0;
+let pricePerSqftText = "";
+if (Array.isArray(layouts) && layouts.length > 0) {
+  let totalArea = 0;
+  let totalMin = 0;
+  let totalMax = 0;
 
-    layouts.forEach((l) => {
-      const buildUpSqft = convertToSqftLocal(l.buildUp, l.buildUpUnit || "square feet");
-      const landSqft = convertToSqftLocal(l.land, l.landUnit || "square feet");
-      const minP = Number(String(l.minPrice || "").replace(/,/g, "")) || 0;
-      const maxP = Number(String(l.maxPrice || "").replace(/,/g, "")) || 0;
+  layouts.forEach((l) => {
+    const buildUpSqft = convertToSqftLocal(l.buildUp, l.buildUpUnit || "square feet");
+    totalArea += buildUpSqft;
 
-      totalArea += buildUpSqft + landSqft;
-      totalMin += minP;
-      totalMax += maxP;
-    });
+    // 如果是 minPrice / maxPrice 存在就用，否则解析 price 字符串
+    let minP = Number(String(l.minPrice || 0).replace(/,/g, "")) || 0;
+    let maxP = Number(String(l.maxPrice || 0).replace(/,/g, "")) || 0;
 
-    if (totalArea > 0 && (totalMin > 0 || totalMax > 0)) {
-      const minPsf = totalMin / totalArea;
-      const maxPsf = totalMax / totalArea;
-      pricePerSqftText = `每平方英尺: RM ${minPsf.toLocaleString(undefined, { maximumFractionDigits: 2 })} ~ RM ${maxPsf.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+    if ((!minP && !maxP) && l.price && typeof l.price === "string" && l.price.includes("-")) {
+      const [vmin, vmax] = l.price.split("-");
+      minP = Number(vmin) || 0;
+      maxP = Number(vmax) || 0;
     }
+
+    totalMin += minP;
+    totalMax += maxP;
+  });
+
+  if (totalArea > 0 && (totalMin > 0 || totalMax > 0)) {
+    const minPsf = totalMin / totalArea;
+    const maxPsf = totalMax / totalArea;
+    pricePerSqftText = `每平方英尺: RM ${minPsf.toLocaleString(undefined, { maximumFractionDigits: 2 })} ~ RM ${maxPsf.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
   }
+}
 
   return (
     <div className="relative w-full" ref={wrapperRef}>
