@@ -15,7 +15,7 @@ import AreaSelector from "./AreaSelector";
 import ImageUpload from "./ImageUpload";
 import TransitSelector from "./TransitSelector";
 
-/** ✅ 把 AreaSelector 返回的东西统一转换成「总平方英尺」 */
+/** 把 AreaSelector 返回的对象，转换成「总平方英尺」 */
 function getAreaSqftFromAreaSelector(area) {
   if (!area) return 0;
 
@@ -33,18 +33,18 @@ function getAreaSqftFromAreaSelector(area) {
     if (u.includes("hectare")) {
       return num * 107639;
     }
-    // 默认当作 square feet
+    // 默认当 sqft
     return num;
   };
 
-  // AreaSelector 标准结构：{ types, units, values }
+  // 标准结构：{ types, units, values }
   if (area.values && area.units) {
     const buildUpSqft = convertToSqFt(area.values.buildUp, area.units.buildUp);
     const landSqft = convertToSqFt(area.values.land, area.units.land);
     return (buildUpSqft || 0) + (landSqft || 0);
   }
 
-  // 简单对象：{ buildUp, land }，已经是 sqft
+  // 简单结构：{ buildUp, land }，已是 sqft
   if (typeof area === "object") {
     const buildUp = Number(area.buildUp || 0);
     const land = Number(area.land || 0);
@@ -56,7 +56,7 @@ function getAreaSqftFromAreaSelector(area) {
   return isNaN(num) ? 0 : num;
 }
 
-/** ✅ 从 price 字段（可能是 "min-max" 字符串）里解析出 min / max */
+/** 从 price 字段解析出 min / max */
 function getPriceRange(priceValue) {
   let minPrice = 0;
   let maxPrice = 0;
@@ -67,8 +67,8 @@ function getPriceRange(priceValue) {
 
   if (typeof priceValue === "string" && priceValue.includes("-")) {
     const [minStr, maxStr] = priceValue.split("-");
-    minPrice = Number(minStr) || 0;
-    maxPrice = Number(maxStr) || 0;
+    if (minStr) minPrice = Number(minStr) || 0;
+    if (maxStr) maxPrice = Number(maxStr) || 0;
   } else if (typeof priceValue === "object") {
     minPrice = Number(priceValue.min) || 0;
     maxPrice = Number(priceValue.max) || 0;
@@ -81,22 +81,21 @@ function getPriceRange(priceValue) {
   return { minPrice, maxPrice };
 }
 
-/** ✅ 真正负责生成「每平方英尺 RM xxx.xx ~ RM yyy.yy」这一行文本 */
-function getPsfText(layoutIndex, buildUpArea, priceValue) {
+/** 真正生成「每平方英尺 RM xxx.xx ~ RM yyy.yy」+ 调试信息 */
+function calcPsfForLayout(buildUpArea, priceValue) {
   const totalAreaSqft = getAreaSqftFromAreaSelector(buildUpArea);
   const { minPrice, maxPrice } = getPriceRange(priceValue);
 
-  // 给你一点调试信息（在浏览器控制台可以看到）
-  console.log("DEBUG PSF", {
-    layoutIndex,
+  // 调试用：在浏览器控制台可以看到这些
+  console.log("PSF DEBUG", {
     totalAreaSqft,
     priceValue,
     minPrice,
     maxPrice,
   });
 
-  if (!totalAreaSqft || totalAreaSqft <= 0) return "";
-  if (!minPrice && !maxPrice) return "";
+  if (!totalAreaSqft || totalAreaSqft <= 0) return null;
+  if (!minPrice && !maxPrice) return null;
 
   const lowPrice = minPrice > 0 ? minPrice : maxPrice;
   const highPrice = maxPrice > 0 ? maxPrice : minPrice;
@@ -104,20 +103,24 @@ function getPsfText(layoutIndex, buildUpArea, priceValue) {
   const lowPsf = lowPrice / totalAreaSqft;
   const highPsf = highPrice > 0 ? highPrice / totalAreaSqft : lowPsf;
 
-  if (!isFinite(lowPsf)) return "";
+  if (!isFinite(lowPsf)) return null;
 
-  // 如果两个差不多，就显示一个数字
-  if (Math.abs(highPsf - lowPsf) < 0.005) {
-    return `每平方英尺: RM ${lowPsf.toLocaleString(undefined, {
-      maximumFractionDigits: 2,
-    })}`;
-  }
+  const text =
+    Math.abs(highPsf - lowPsf) < 0.005
+      ? `每平方英尺: RM ${lowPsf.toLocaleString(undefined, {
+          maximumFractionDigits: 2,
+        })}`
+      : `每平方英尺: RM ${lowPsf.toLocaleString(undefined, {
+          maximumFractionDigits: 2,
+        })} ~ RM ${highPsf.toLocaleString(undefined, {
+          maximumFractionDigits: 2,
+        })}`;
 
-  return `每平方英尺: RM ${lowPsf.toLocaleString(undefined, {
-    maximumFractionDigits: 2,
-  })} ~ RM ${highPsf.toLocaleString(undefined, {
-    maximumFractionDigits: 2,
-  })}`;
+  return {
+    text,
+    totalAreaSqft,
+    rawPrice: priceValue,
+  };
 }
 
 export default function UnitLayoutForm({ index, data, onChange }) {
@@ -137,7 +140,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     handleChange("layoutPhotos", newPhotos);
   };
 
-  // 图片打标签用的 config
+  // 图片打标签 config
   const [config, setConfig] = useState({});
   useEffect(() => {
     setConfig({
@@ -154,8 +157,8 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     });
   }, [data]);
 
-  // ✅ 这里直接算出要显示的文本
-  const psfText = getPsfText(index, data.buildUp, data.price);
+  // ✅ 这里直接算出 psf 文本和调试值
+  const psfInfo = calcPsfForLayout(data.buildUp, data.price);
 
   return (
     <div className="border rounded-lg p-4 shadow-sm bg-white">
@@ -207,25 +210,30 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         />
       </div>
 
-      {/* 面积：AreaSelector 把 {types, units, values} 放进 data.buildUp */}
+      {/* 面积：AreaSelector 会把 {types, units, values} 回传到 data.buildUp */}
       <AreaSelector
         initialValue={data.buildUp || {}}
         onChange={(val) => handleChange("buildUp", val)}
       />
 
-      {/* 价格输入：PriceInput 只负责 price，本组件自己算每平方尺 */}
+      {/* 价格：PriceInput 只管写入 data.price */}
       <PriceInput
         value={data.price}
         onChange={(val) => handleChange("price", val)}
         type={data.projectType}
-        area={data.buildUp} // 这里传不传都无所谓了，PSF 我们自己算
+        area={data.buildUp} // 这行现在对 PSF 可有可无
       />
 
-      {/* ✅ 在价格输入框下面，显示 每平方英尺 RM xxx.xx ~ RM yyy.yy */}
-      {psfText && (
-        <p className="text-sm text-gray-600 mt-1">
-          {psfText}
-        </p>
+      {/* ✅ 这里显示 每平方英尺 RM xxx.xx ~ RM yyy.yy */}
+      {psfInfo && (
+        <>
+          <p className="text-sm text-gray-600 mt-1">{psfInfo.text}</p>
+          {/* 调试信息，确认数据是不是进来了，看完可以删 */}
+          <p className="text-xs text-gray-400">
+            调试: 面积 {psfInfo.totalAreaSqft.toFixed(2)} sqft，价格原始值{" "}
+            {String(psfInfo.rawPrice || "")}
+          </p>
+        </>
       )}
 
       {/* 房间数量 */}
