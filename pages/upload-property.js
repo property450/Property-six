@@ -49,7 +49,12 @@ export default function UploadProperty() {
   const [longitude, setLongitude] = useState(null);
   const [type, setType] = useState("");
   const [propertyStatus, setPropertyStatus] = useState("");
+
+  // ⭐ 房型 / Layout 列表
   const [unitLayouts, setUnitLayouts] = useState([]);
+  console.log("unitLayouts JSON 👉", JSON.stringify(unitLayouts, null, 2));
+
+  // ⭐ 非项目类房源用的单一表单数据
   const [singleFormData, setSingleFormData] = useState({
     price: "",
     buildUp: "",
@@ -69,6 +74,7 @@ export default function UploadProperty() {
     quarter: "",
   });
 
+  // 面积选择器（普通房源用；New Project 情况下可当总面积用）
   const [areaData, setAreaData] = useState({
     types: ["buildUp"],
     units: { buildUp: "square feet", land: "square feet" },
@@ -79,12 +85,15 @@ export default function UploadProperty() {
   const [transitInfo, setTransitInfo] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // 公用面积换算
   const convertToSqft = (val, unit) => {
     const num = parseFloat(String(val || "").replace(/,/g, ""));
     if (isNaN(num) || num <= 0) return 0;
     const u = (unit || "").toString().toLowerCase();
-    if (u.includes("square meter") || u.includes("sq m") || u.includes("square metres")) {
+    if (
+      u.includes("square meter") ||
+      u.includes("sq m") ||
+      u.includes("square metres")
+    ) {
       return num * 10.7639;
     }
     if (u.includes("acre")) return num * 43560;
@@ -109,63 +118,6 @@ export default function UploadProperty() {
     setSingleFormData({ ...singleFormData, layoutPhotos: newPhotos });
   };
 
-  // ✅ 这里计算：New Project / Completed Unit 总体的「每平方尺 RM x ~ RM y」
-  const projectPricePerSqftText = (() => {
-    if (
-      propertyStatus !== "New Project / Under Construction" &&
-      propertyStatus !== "Completed Unit / Developer Unit"
-    ) {
-      return "";
-    }
-
-    if (!Array.isArray(unitLayouts) || unitLayouts.length === 0) return "";
-
-    // 从 layout.buildUp（AreaSelector 返回的对象）里算出面积 sqft
-    const getAreaSqftFromLayout = (layout) => {
-      const b = layout.buildUp;
-      if (!b || typeof b !== "object") return 0;
-
-      // 兼容 AreaSelector 的结构 { values, units }
-      const values = b.values || {};
-      const units = b.units || {};
-
-      const buildUpVal = values.buildUp ?? 0;
-      const landVal = values.land ?? 0;
-      const buildUpUnit = units.buildUp || "square feet";
-      const landUnit = units.land || "square feet";
-
-      const buildUpSqft = convertToSqft(buildUpVal, buildUpUnit);
-      const landSqft = convertToSqft(landVal, landUnit);
-
-      return buildUpSqft + landSqft;
-    };
-
-    let totalArea = 0;
-    let totalMin = 0;
-    let totalMax = 0;
-
-    unitLayouts.forEach((l) => {
-      const areaSqft = getAreaSqftFromLayout(l);
-      totalArea += areaSqft;
-
-      // 价格字符串例如 "500000-800000"
-      if (typeof l.price === "string" && l.price.includes("-")) {
-        const [minStr, maxStr] = l.price.split("-");
-        const minP = Number(String(minStr).replace(/,/g, "")) || 0;
-        const maxP = Number(String(maxStr).replace(/,/g, "")) || 0;
-        totalMin += minP;
-        totalMax += maxP;
-      }
-    });
-
-    if (totalArea <= 0 || (totalMin <= 0 && totalMax <= 0)) return "";
-
-    const minPsf = totalMin / totalArea;
-    const maxPsf = totalMax / totalArea;
-
-    return `每平方英尺: RM ${minPsf.toFixed(2)} ~ RM ${maxPsf.toFixed(2)}`;
-  })();
-
   const handleSubmit = async () => {
     if (!title || !address || !latitude || !longitude) {
       toast.error("请填写完整信息");
@@ -180,7 +132,11 @@ export default function UploadProperty() {
           {
             title,
             description,
-            unit_layouts: JSON.stringify(unitLayouts.length > 0 ? unitLayouts : [singleFormData]),
+            // 如果是 New Project / Completed Unit，就用 unitLayouts；
+            // 否则用 singleFormData
+            unit_layouts: JSON.stringify(
+              unitLayouts.length > 0 ? unitLayouts : [singleFormData]
+            ),
             price: singleFormData.price || undefined,
             address,
             lat: latitude,
@@ -214,61 +170,69 @@ export default function UploadProperty() {
     }
   };
 
+  const isProject =
+    propertyStatus === "New Project / Under Construction" ||
+    propertyStatus === "Completed Unit / Developer Unit";
+
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-4">
       <h1 className="text-2xl font-bold mb-4">上传房源</h1>
 
       <AddressSearchInput onLocationSelect={handleLocationSelect} />
 
+      {/* 选择类型 + 项目状态 */}
       <TypeSelector
         value={type}
         onChange={setType}
         onFormChange={(formData) => setPropertyStatus(formData.propertyStatus)}
       />
 
-      {propertyStatus === "New Project / Under Construction" ||
-      propertyStatus === "Completed Unit / Developer Unit" ? (
+      {/* ---------- New Project / Completed Unit 的逻辑 ---------- */}
+      {isProject ? (
         <>
-          {/* 1️⃣ 选择房型数量 */}
+          {/* 1️⃣ 先只出现：项目房型数量选择（UnitTypeSelector） */}
           <UnitTypeSelector
             propertyStatus={propertyStatus}
             onChange={(layouts) => setUnitLayouts(layouts)}
           />
 
-          {/* 2️⃣ 每个房型里输入面积 / 价格 */}
-          {unitLayouts.map((layout, index) => (
-            <UnitLayoutForm
-              key={index}
-              index={index}
-              data={{ ...layout, projectType: propertyStatus }}
-              onChange={(updated) => {
-                const newLayouts = [...unitLayouts];
-                newLayouts[index] = updated;
-                setUnitLayouts(newLayouts);
-              }}
-            />
-          ))}
+          {/* 2️⃣ 只有当“房型数量”选完（unitLayouts 有内容）后，才出现每个房型的表单 */}
+          {unitLayouts.length > 0 && (
+            <div className="space-y-4 mt-4">
+              {unitLayouts.map((layout, index) => (
+                <UnitLayoutForm
+                  key={index}
+                  index={index}
+                  data={{ ...layout, projectType: propertyStatus }}
+                  onChange={(updated) => {
+                    const newLayouts = [...unitLayouts];
+                    newLayouts[index] = updated;
+                    setUnitLayouts(newLayouts);
+                  }}
+                />
+              ))}
 
-          {/* 3️⃣ 项目总价（只管价格），不再依赖 area */}
-          <PriceInput
-            value={singleFormData.price}
-            onChange={(val) =>
-              setSingleFormData({ ...singleFormData, price: val })
-            }
-            type={propertyStatus}
-          />
-
-          {/* 4️⃣ 用 unitLayouts 计算出来的总每平方尺 */}
-          {projectPricePerSqftText && (
-            <p className="text-sm text-gray-500 mt-1">
-              {projectPricePerSqftText}
-            </p>
+              {/* 🔸 如果你想要“项目总价 + 每平方尺”可以在这里再加一个总价 PriceInput */}
+              {/* 例如：
+              <PriceInput
+                value={singleFormData.price}
+                onChange={(val) =>
+                  setSingleFormData({ ...singleFormData, price: val })
+                }
+                type={propertyStatus}
+                // 这里 area 你可以传项目总面积（如多个 layout 面积之和）
+              />
+              */}
+            </div>
           )}
         </>
       ) : (
+        /* ---------- 普通二手/单一房源逻辑 ---------- */
         <div className="space-y-4 mt-6">
-          {/* 普通房源：这里还是用 AreaSelector + PriceInput（你原来的逻辑） */}
+          {/* 面积选择器 */}
           <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
+
+          {/* 价格 + 每平方尺 */}
           <PriceInput
             value={singleFormData.price}
             onChange={(val) =>
@@ -280,70 +244,65 @@ export default function UploadProperty() {
                 areaData.values.buildUp,
                 areaData.units.buildUp
               ),
-              land: convertToSqft(
-                areaData.values.land,
-                areaData.units.land
-              ),
+              land: convertToSqft(areaData.values.land, areaData.units.land),
             }}
+          />
+
+          {/* 房间/浴室等（只在非 New Project 下出现） */}
+          <RoomCountSelector
+            value={{
+              bedrooms: singleFormData.bedrooms,
+              bathrooms: singleFormData.bathrooms,
+              kitchens: singleFormData.kitchens,
+              livingRooms: singleFormData.livingRooms,
+            }}
+            onChange={(updated) =>
+              setSingleFormData({ ...singleFormData, ...updated })
+            }
+          />
+
+          <CarparkCountSelector
+            value={singleFormData.carpark}
+            onChange={(val) =>
+              setSingleFormData({ ...singleFormData, carpark: val })
+            }
+            mode="single"
+          />
+
+          <ExtraSpacesSelector
+            value={singleFormData.extraSpaces || []}
+            onChange={(val) =>
+              setSingleFormData({ ...singleFormData, extraSpaces: val })
+            }
+          />
+
+          <FacingSelector
+            value={singleFormData.facing}
+            onChange={(val) =>
+              setSingleFormData({ ...singleFormData, facing: val })
+            }
+          />
+
+          <FurnitureSelector
+            value={singleFormData.furniture}
+            onChange={(val) =>
+              setSingleFormData({ ...singleFormData, furniture: val })
+            }
+          />
+
+          <FacilitiesSelector
+            value={singleFormData.facilities}
+            onChange={(val) =>
+              setSingleFormData({ ...singleFormData, facilities: val })
+            }
           />
         </div>
       )}
 
-      <RoomCountSelector
-        value={{
-          bedrooms: singleFormData.bedrooms,
-          bathrooms: singleFormData.bathrooms,
-          kitchens: singleFormData.kitchens,
-          livingRooms: singleFormData.livingRooms,
-        }}
-        onChange={(updated) =>
-          setSingleFormData({ ...singleFormData, ...updated })
-        }
-      />
-
-      <CarparkCountSelector
-        value={singleFormData.carpark}
-        onChange={(val) =>
-          setSingleFormData({ ...singleFormData, carpark: val })
-        }
-        mode={
-          propertyStatus === "New Project / Under Construction" ||
-          propertyStatus === "Completed Unit / Developer Unit"
-            ? "range"
-            : "single"
-        }
-      />
-
-      <ExtraSpacesSelector
-        value={singleFormData.extraSpaces || []}
-        onChange={(val) =>
-          setSingleFormData({ ...singleFormData, extraSpaces: val })
-        }
-      />
-
-      <FacingSelector
-        value={singleFormData.facing}
-        onChange={(val) =>
-          setSingleFormData({ ...singleFormData, facing: val })
-        }
-      />
-
-      <FurnitureSelector
-        value={singleFormData.furniture}
-        onChange={(val) =>
-          setSingleFormData({ ...singleFormData, furniture: val })
-        }
-      />
-
-      <FacilitiesSelector
-        value={singleFormData.facilities}
-        onChange={(val) =>
-          setSingleFormData({ ...singleFormData, facilities: val })
-        }
-      />
-
+      {/* 🚏 交通信息（两种模式都可以用） */}
       <TransitSelector onChange={setTransitInfo} />
 
+      {/* 🏨 Homestay / Hotel 额外设置 */}
       {(type?.includes("Homestay") || type?.includes("Hotel")) && (
         <>
           <AdvancedAvailabilityCalendar
@@ -357,8 +316,7 @@ export default function UploadProperty() {
               setSingleFormData({ ...singleFormData, carparkPosition: val })
             }
             mode={
-              propertyStatus === "New Project / Under Construction" ||
-              propertyStatus === "Completed Unit / Developer Unit"
+              isProject
                 ? "range"
                 : "single"
             }
@@ -378,6 +336,7 @@ export default function UploadProperty() {
         </>
       )}
 
+      {/* 描述 */}
       <div className="space-y-2">
         <label
           htmlFor="description"
@@ -395,6 +354,7 @@ export default function UploadProperty() {
         />
       </div>
 
+      {/* 封面图片（项目/普通都可以用） */}
       <ImageUpload
         images={singleFormData.photos}
         setImages={(updated) =>
