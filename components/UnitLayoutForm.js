@@ -81,18 +81,10 @@ function getPriceRange(priceValue) {
   return { minPrice, maxPrice };
 }
 
-/** 真正生成「每平方英尺 RM xxx.xx ~ RM yyy.yy」+ 调试信息 */
-function calcPsfForLayout(buildUpArea, priceValue) {
-  const totalAreaSqft = getAreaSqftFromAreaSelector(buildUpArea);
+/** 生成「每平方英尺 RM xxx.xx ~ RM yyy.yy」 */
+function getPsfInfo(areaObj, priceValue) {
+  const totalAreaSqft = getAreaSqftFromAreaSelector(areaObj);
   const { minPrice, maxPrice } = getPriceRange(priceValue);
-
-  // 调试用：在浏览器控制台可以看到这些
-  console.log("PSF DEBUG", {
-    totalAreaSqft,
-    priceValue,
-    minPrice,
-    maxPrice,
-  });
 
   if (!totalAreaSqft || totalAreaSqft <= 0) return null;
   if (!minPrice && !maxPrice) return null;
@@ -128,6 +120,18 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   const fileInputRef = useRef(null);
   const [transitInfo, setTransitInfo] = useState(data.transit || null);
 
+  // ✅ 关键：本地保存面积 & 价格，用来算 psf
+  const [areaForPsf, setAreaForPsf] = useState(data.buildUp || {});
+  const [priceForPsf, setPriceForPsf] = useState(data.price || "");
+
+  // 如果父组件后来把 data 带着默认值更新进来（例如编辑已有房源），同步一次
+  useEffect(() => {
+    if (data.buildUp) setAreaForPsf(data.buildUp);
+  }, [data.buildUp]);
+  useEffect(() => {
+    if (data.price !== undefined) setPriceForPsf(data.price);
+  }, [data.price]);
+
   const handleChange = (field, value) => {
     onChange({ ...data, [field]: value });
   };
@@ -157,8 +161,8 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     });
   }, [data]);
 
-  // ✅ 这里直接算出 psf 文本和调试值
-  const psfInfo = calcPsfForLayout(data.buildUp, data.price);
+  // ✅ 用本地 state 来算 psf
+  const psfInfo = getPsfInfo(areaForPsf, priceForPsf);
 
   return (
     <div className="border rounded-lg p-4 shadow-sm bg-white">
@@ -210,25 +214,31 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         />
       </div>
 
-      {/* 面积：AreaSelector 会把 {types, units, values} 回传到 data.buildUp */}
+      {/* 面积：AreaSelector 把 {types, units, values} 回传到本地 + 父组件 */}
       <AreaSelector
-        initialValue={data.buildUp || {}}
-        onChange={(val) => handleChange("buildUp", val)}
+        initialValue={areaForPsf || {}}
+        onChange={(val) => {
+          setAreaForPsf(val);          // ✅ 本地保存
+          handleChange("buildUp", val); // 同步到 layout data
+        }}
       />
 
-      {/* 价格：PriceInput 只管写入 data.price */}
+      {/* 价格：PriceInput 把字符串回传到本地 + 父组件 */}
       <PriceInput
-        value={data.price}
-        onChange={(val) => handleChange("price", val)}
+        value={priceForPsf}
+        onChange={(val) => {
+          setPriceForPsf(val);         // ✅ 本地保存
+          handleChange("price", val);  // 同步到 layout data
+        }}
         type={data.projectType}
-        area={data.buildUp} // 这行现在对 PSF 可有可无
+        area={areaForPsf}              // 给它也传一份（如果你以后想在 PriceInput 里面也用）
       />
 
       {/* ✅ 这里显示 每平方英尺 RM xxx.xx ~ RM yyy.yy */}
       {psfInfo && (
         <>
           <p className="text-sm text-gray-600 mt-1">{psfInfo.text}</p>
-          {/* 调试信息，确认数据是不是进来了，看完可以删 */}
+          {/* 调试信息，看完可以删掉 */}
           <p className="text-xs text-gray-400">
             调试: 面积 {psfInfo.totalAreaSqft.toFixed(2)} sqft，价格原始值{" "}
             {String(psfInfo.rawPrice || "")}
