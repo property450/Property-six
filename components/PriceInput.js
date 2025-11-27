@@ -85,6 +85,7 @@ export default function PriceInput({ value, onChange, area, type, layouts }) {
     setSingle(raw);
     onChange && onChange(raw);
   };
+
   const handleSelectSingle = (p) => {
     setSingle(String(p));
     onChange && onChange(String(p));
@@ -96,16 +97,19 @@ export default function PriceInput({ value, onChange, area, type, layouts }) {
     setMin(raw);
     onChange && onChange(`${raw}-${max || ""}`);
   };
+
   const handleMaxChange = (e) => {
     const raw = e.target.value.replace(/[^\d]/g, "");
     setMax(raw);
     onChange && onChange(`${min || ""}-${raw}`);
   };
+
   const handleSelectMin = (p) => {
     setMin(String(p));
     onChange && onChange(`${p}-${max || ""}`);
     setShowDropdownMin(false);
   };
+
   const handleSelectMax = (p) => {
     setMax(String(p));
     onChange && onChange(`${min || ""}-${p}`);
@@ -113,7 +117,6 @@ export default function PriceInput({ value, onChange, area, type, layouts }) {
   };
 
   // ---------- 普通单价每平方尺（非 New Project） ----------
-
   const normalPerSqft =
     !isRange && area && single
       ? (
@@ -122,6 +125,78 @@ export default function PriceInput({ value, onChange, area, type, layouts }) {
         ).toFixed(2)
       : null;
 
+  // ---------- New Project / Completed Unit 的每平方尺（范围） ----------
+  // 重点：这里同时兼容两种 area 形状：
+  // 1）{ buildUp: 123, land: 0 }  （upload-property 里传的）
+  // 2）AreaSelector 返回的 { values: {...}, units: {...} }（UnitLayoutForm 里传的）
+  const convertToSqftLocal = (val, unit) => {
+    const num = parseFloat(String(val || "").replace(/,/g, ""));
+    if (isNaN(num) || num <= 0) return 0;
+    const u = (unit || "").toString().toLowerCase();
+    if (
+      u.includes("square meter") ||
+      u.includes("sq m") ||
+      u.includes("square metres") ||
+      u.includes("square metre")
+    ) {
+      return num * 10.7639;
+    }
+    if (u.includes("acre")) return num * 43560;
+    if (u.includes("hectare")) return num * 107639;
+    return num; // 默认当作 sqft
+  };
+
+  let rangePerSqftText = "";
+  if (isRange && area) {
+    let totalArea = 0;
+
+    if (typeof area === "number") {
+      // 直接传了一个总 sqft 数
+      totalArea = area;
+    } else if (typeof area === "object") {
+      if (area.values && area.units) {
+        // AreaSelector 返回的对象：{ values, units }
+        const buildUpVal = area.values.buildUp ?? 0;
+        const landVal = area.values.land ?? 0;
+        const buildUpUnit = area.units.buildUp || "square feet";
+        const landUnit = area.units.land || "square feet";
+
+        const buildUpSqft = convertToSqftLocal(buildUpVal, buildUpUnit);
+        const landSqft = convertToSqftLocal(landVal, landUnit);
+        totalArea = buildUpSqft + landSqft;
+      } else {
+        // 简单对象：{ buildUp, land }，认为已经是 sqft
+        totalArea =
+          Number(area.buildUp || 0) + Number(area.land || 0);
+      }
+    }
+
+    const minNum =
+      Number(String(min || "").replace(/,/g, "")) || 0;
+    const maxNum =
+      Number(String(max || "").replace(/,/g, "")) || 0;
+
+    if (totalArea > 0 && (minNum > 0 || maxNum > 0)) {
+      if (minNum > 0 && maxNum > 0) {
+        const minPsf = minNum / totalArea;
+        const maxPsf = maxNum / totalArea;
+        rangePerSqftText = `每平方英尺: RM ${minPsf.toLocaleString(
+          undefined,
+          { maximumFractionDigits: 2 }
+        )} ~ RM ${maxPsf.toLocaleString(undefined, {
+          maximumFractionDigits: 2,
+        })}`;
+      } else if (maxNum > 0) {
+        const psf = maxNum / totalArea;
+        rangePerSqftText = `每平方英尺: RM ${psf.toLocaleString(
+          undefined,
+          { maximumFractionDigits: 2 }
+        )}`;
+      }
+    }
+  }
+
+  // ---------- UI ----------
   return (
     <div className="relative w-full" ref={wrapperRef}>
       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -187,6 +262,13 @@ export default function PriceInput({ value, onChange, area, type, layouts }) {
               )}
             </div>
           </div>
+
+          {/* ✅ New Project / Completed Unit 的每平方尺显示 */}
+          {rangePerSqftText && (
+            <p className="text-sm text-gray-500 mt-1">
+              {rangePerSqftText}
+            </p>
+          )}
         </>
       ) : (
         <div className="relative">
