@@ -10,84 +10,74 @@ import FacingSelector from "./FacingSelector";
 import FurnitureSelector from "./FurnitureSelector";
 import FacilitiesSelector from "./FacilitiesSelector";
 import CarparkLevelSelector from "./CarparkLevelSelector";
-import RoomCountSelector from "./RoomCountSelector"; // ✅ 使用 RoomCountSelector
+import RoomCountSelector from "./RoomCountSelector";
 import AreaSelector from "./AreaSelector";
 import ImageUpload from "./ImageUpload";
 import TransitSelector from "./TransitSelector";
 
-export default function UnitLayoutForm({ index, data, onChange }) {
-  const [type, setType] = useState(data.type || "");
-  const fileInputRef = useRef(null); // ✅ 这里加上
-  const [transitInfo, setTransitInfo] = useState(data.transit || null);
+// ✅ 工具函数：把 AreaSelector 返回的对象转换成“总平方英尺数字”
+function getAreaSqftFromAreaSelector(area) {
+  if (!area) return 0;
 
-  // ✅ 自动计算每平方尺价格 (min/max，支持 buildUp + landArea)
-function PricePerSqft({ price, area }) {
-  if (!price || !area) return null;
-
-  let minPrice = 0, maxPrice = 0;
-
-  // ✅ 兼容对象格式 {min, max} 和字符串 "500000-800000"
-  if (typeof price === "string" && price.includes("-")) {
-    const [minStr, maxStr] = price.split("-");
-    minPrice = Number(minStr) || 0;
-    maxPrice = Number(maxStr) || 0;
-  } else if (typeof price === "object") {
-    minPrice = Number(price.min) || 0;
-    maxPrice = Number(price.max) || 0;
-  } else if (typeof price === "string" || typeof price === "number") {
-    minPrice = Number(price) || 0;
-    maxPrice = minPrice;
-  }
-
-  // ✅ 单位换算函数（和 AreaSelector 里的逻辑保持一致）
+  // AreaSelector 一般返回：{ values: {buildUp, land}, units: {buildUp, land}, types: [...] }
   const convertToSqFt = (val, unit) => {
-    const num = parseFloat(val);
-    if (isNaN(num)) return 0;
-    switch (unit) {
-      case "acres":
-        return num * 43560;
-      case "hectares":
-        return num * 107639;
-      case "square meter":
-        return num * 10.7639;
-      default: // square feet
-        return num;
+    const num = parseFloat(String(val || "").replace(/,/g, ""));
+    if (isNaN(num) || num <= 0) return 0;
+    const u = String(unit || "").toLowerCase();
+
+    if (u.includes("square meter") || u.includes("sq m") || u.includes("sqm")) {
+      return num * 10.7639;
     }
+    if (u.includes("acre")) {
+      return num * 43560;
+    }
+    if (u.includes("hectare")) {
+      return num * 107639;
+    }
+    // 默认当作 square feet
+    return num;
   };
 
-  // ✅ 从 AreaSelector 获取数值并换算成 sqft
-  const buildUpSqft = convertToSqFt(area?.values?.buildUp, area?.units?.buildUp);
-  const landSqft = convertToSqFt(area?.values?.land, area?.units?.land);
-  const totalArea = (buildUpSqft || 0) + (landSqft || 0);
-
-  if (minPrice > 0 && maxPrice > 0 && totalArea > 0) {
-    const minValue = (minPrice / totalArea).toFixed(2);
-    const maxValue = (maxPrice / totalArea).toFixed(2);
-
-    return (
-      <p className="text-sm text-gray-600">
-        ≈ RM {minValue} – RM {maxValue} / sqft
-      </p>
+  // 如果是 { values, units } 结构
+  if (area.values && area.units) {
+    const buildUpSqft = convertToSqFt(
+      area.values.buildUp,
+      area.units.buildUp
     );
+    const landSqft = convertToSqFt(area.values.land, area.units.land);
+    return (buildUpSqft || 0) + (landSqft || 0);
   }
 
-  return null;
+  // 如果是简单对象 { buildUp, land }（已经是 sqft）
+  if (typeof area === "object") {
+    const buildUp = Number(area.buildUp || 0);
+    const land = Number(area.land || 0);
+    return buildUp + land;
+  }
+
+  // 如果直接是数字 / 字符串
+  const num = parseFloat(String(area).replace(/,/g, ""));
+  return isNaN(num) ? 0 : num;
 }
 
+export default function UnitLayoutForm({ index, data, onChange }) {
+  const [type, setType] = useState(data.type || "");
+  const fileInputRef = useRef(null);
+  const [transitInfo, setTransitInfo] = useState(data.transit || null);
 
   const handleChange = (field, value) => {
     onChange({ ...data, [field]: value });
   };
 
-  // ✅ 上传 layout 图片逻辑
+  // 上传 layout 图片逻辑
   const handleLayoutUpload = (e) => {
-    const files = Array.from(e.target.files);
+    const files = Array.from(e.target.files || []);
     if (!files.length) return;
     const newPhotos = [...(data.layoutPhotos || []), ...files];
     handleChange("layoutPhotos", newPhotos);
   };
 
-  // 每次 data 更新时生成 config
+  // 每次 data 更新时生成 config（图片打标签用）
   const [config, setConfig] = useState({});
   useEffect(() => {
     setConfig({
@@ -100,20 +90,23 @@ function PricePerSqft({ price, area }) {
       facilities: data.facilities || [],
       furniture: data.furniture || [],
       orientation: data.facing || null,
-      transit: null, // ✅ 初始化
+      transit: data.transit || null,
     });
   }, [data]);
+
+  // ✅ 从当前 layout 的 AreaSelector 数据算出“总平方英尺”
+  const layoutAreaSqft = getAreaSqftFromAreaSelector(data.buildUp);
 
   return (
     <div className="border rounded-lg p-4 shadow-sm bg-white">
       <h3 className="font-semibold mb-3">Layout {index + 1}</h3>
 
-  {/* ✅ 上传 Layout 按钮 */}
+      {/* 上传 Layout 按钮 + 预览 */}
       <div className="mb-3">
         <button
           type="button"
           className="mb-3 px-3 py-2 bg-gray-100 border rounded hover:bg-gray-200 w-full"
-          onClick={() => fileInputRef.current.click()}
+          onClick={() => fileInputRef.current && fileInputRef.current.click()}
         >
           点击上传 Layout
         </button>
@@ -126,7 +119,6 @@ function PricePerSqft({ price, area }) {
           onChange={handleLayoutUpload}
         />
 
-            {/* 已上传的 Layout 图片预览 */}
         <ImageUpload
           images={data.layoutPhotos || []}
           setImages={(updated) => handleChange("layoutPhotos", updated)}
@@ -145,7 +137,7 @@ function PricePerSqft({ price, area }) {
         className="border p-2 rounded w-full mb-3"
       />
 
-      {/* 照片上传 */}
+      {/* Layout 照片 */}
       <div className="mb-3">
         <label className="block mb-1 font-medium">上传照片</label>
         <ImageUpload
@@ -155,63 +147,63 @@ function PricePerSqft({ price, area }) {
         />
       </div>
 
-      {/* 面积、价格 */}
+      {/* 面积选择（这个 AreaSelector 返回的对象会存在 data.buildUp 里） */}
       <AreaSelector
         value={data.buildUp}
         onChange={(val) => handleChange("buildUp", val)}
       />
 
+      {/* 价格输入 + ✅ 这里才是计算“每平方英尺 RM xxx.xx ~ RM yyy.yy”的地方 */}
       <PriceInput
-  value={data.price}
-  onChange={(val) => handleChange("price", val)}
-  type={data.projectType}   // 动态传递
-  area={data.buildUp}
-/>
+        value={data.price}
+        onChange={(val) => handleChange("price", val)}
+        type={data.projectType}     // "New Project / Under Construction" or "Completed Unit / Developer Unit"
+        area={layoutAreaSqft}       // ✅ 直接传“总平方英尺数字”
+      />
 
-<PricePerSqft
-  price={data.price}
-  area={data.buildUp}   // ✅ buildUp 实际上是整个 AreaSelector 返回的对象
-/>
-      {/* ✅ 只引入一次 RoomCountSelector，让它自己处理卧室/浴室/厨房/客厅 */}
+      {/* 房间数量（卧室/浴室/厨房/客厅） */}
       <RoomCountSelector
-  value={{
-    bedrooms: data.bedrooms,
-    bathrooms: data.bathrooms,
-    kitchens: data.kitchens,
-    livingRooms: data.livingRooms,
-  }}
-  onChange={(updated) => onChange({ ...data, ...updated })}
-/>
+        value={{
+          bedrooms: data.bedrooms,
+          bathrooms: data.bathrooms,
+          kitchens: data.kitchens,
+          livingRooms: data.livingRooms,
+        }}
+        onChange={(updated) => onChange({ ...data, ...updated })}
+      />
 
-      {/* 🚗 停车位选择 */}
-<CarparkCountSelector
-  value={data.carpark}
-  onChange={(val) => handleChange("carpark", val)}
-  mode={
-    data.projectType === "New Project / Under Construction" ||
-    data.projectType === "Completed Unit / Developer Unit"
-      ? "range"
-      : "single"
-  }
-/>
+      {/* 停车位 */}
+      <CarparkCountSelector
+        value={data.carpark}
+        onChange={(val) => handleChange("carpark", val)}
+        mode={
+          data.projectType === "New Project / Under Construction" ||
+          data.projectType === "Completed Unit / Developer Unit"
+            ? "range"
+            : "single"
+        }
+      />
 
-
+      {/* 额外空间 */}
       <ExtraSpacesSelector
         value={data.extraSpaces || []}
         onChange={(val) => handleChange("extraSpaces", val)}
       />
 
+      {/* 朝向 */}
       <FacingSelector
-  value={data.facing || []}
-  onChange={(val) => handleChange("facing", val)}
-/>
+        value={data.facing || []}
+        onChange={(val) => handleChange("facing", val)}
+      />
 
+      {/* 车位楼层 */}
       <CarparkLevelSelector
         value={data.carparkPosition}
         onChange={(val) => handleChange("carparkPosition", val)}
         mode="range"
       />
 
+      {/* 家具 / 设施 */}
       <FurnitureSelector
         value={data.furniture}
         onChange={(val) => handleChange("furniture", val)}
@@ -222,17 +214,18 @@ function PricePerSqft({ price, area }) {
         onChange={(val) => handleChange("facilities", val)}
       />
 
-          <div className="mb-4">
-  <label className="font-medium">交通信息</label>
-  <TransitSelector
-    onChange={(val) => {
-      setTransitInfo(val);
-      handleChange("transit", val); // 直接更新父组件的 layout 数据
-    }}
-  />
-</div>
+      {/* 交通信息 */}
+      <div className="mb-4">
+        <label className="font-medium">交通信息</label>
+        <TransitSelector
+          onChange={(val) => {
+            setTransitInfo(val);
+            handleChange("transit", val);
+          }}
+        />
+      </div>
 
-
+      {/* 建成年份 + 季度 */}
       <BuildYearSelector
         value={data.buildYear}
         onChange={(val) => handleChange("buildYear", val)}
@@ -243,4 +236,3 @@ function PricePerSqft({ price, area }) {
     </div>
   );
 }
-
