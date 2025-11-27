@@ -1,363 +1,383 @@
-// components/PriceInput.js
-import { useState, useRef, useEffect } from "react";
+// pages/upload-property.js
+"use client";
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/router";
+import dynamic from "next/dynamic";
+import { supabase } from "../supabaseClient";
+import { toast } from "react-hot-toast";
+import { Button } from "@/components/ui/button";
 
-export default function PriceInput({ value, onChange, area, type, layouts }) {
-  const wrapperRef = useRef(null);
+import TypeSelector from "@/components/TypeSelector";
+import UnitTypeSelector from "@/components/UnitTypeSelector";
+import UnitLayoutForm from "@/components/UnitLayoutForm";
+import AreaSelector from "@/components/AreaSelector";
+import PriceInput from "@/components/PriceInput";
+import RoomCountSelector from "@/components/RoomCountSelector";
+import CarparkCountSelector from "@/components/CarparkCountSelector";
+import ExtraSpacesSelector from "@/components/ExtraSpacesSelector";
+import FacingSelector from "@/components/FacingSelector";
+import CarparkLevelSelector from "@/components/CarparkLevelSelector";
+import FacilitiesSelector from "@/components/FacilitiesSelector";
+import FurnitureSelector from "@/components/FurnitureSelector";
+import BuildYearSelector from "@/components/BuildYearSelector";
+import ImageUpload from "@/components/ImageUpload";
+import TransitSelector from "@/components/TransitSelector";
+import AdvancedAvailabilityCalendar from "@/components/AdvancedAvailabilityCalendar";
 
-  const predefinedPrices = [
-    50000, 100000, 200000, 300000, 500000,
-    800000, 1000000, 1500000, 2000000,
-    3000000, 5000000, 10000000, 20000000,
-    50000000, 100000000,
-  ];
+import { useUser } from "@supabase/auth-helpers-react";
 
-  // 当前 propertyStatus
-  let propertyStatus = "";
-  if (typeof type === "object" && type !== null) {
-    propertyStatus = type.propertyStatus || type.finalType || "";
-  } else if (typeof type === "string") {
-    propertyStatus = type;
-  }
+const AddressSearchInput = dynamic(
+  () => import("@/components/AddressSearchInput"),
+  { ssr: false }
+);
 
-  // New Project / Developer Unit 用价格范围
-  const isRange =
-    !!propertyStatus &&
-    (propertyStatus.includes("New Project") ||
-      propertyStatus.includes("Developer Unit"));
+export default function UploadProperty() {
+  const router = useRouter();
+  const user = useUser();
+  const fileInputRef = useRef(null);
 
-  const [single, setSingle] = useState("");
-  const [min, setMin] = useState("");
-  const [max, setMax] = useState("");
-
-  const [showDropdownSingle, setShowDropdownSingle] = useState(false);
-  const [showDropdownMin, setShowDropdownMin] = useState(false);
-  const [showDropdownMax, setShowDropdownMax] = useState(false);
-
-  // 同步外部 value
   useEffect(() => {
-    if (isRange) {
-      if (typeof value === "string" && value.includes("-")) {
-        const [vmin, vmax] = value.split("-");
-        setMin((vmin || "").replace(/,/g, ""));
-        setMax((vmax || "").replace(/,/g, ""));
-      } else if (value && typeof value === "object") {
-        setMin(String(value.min ?? "").replace(/,/g, ""));
-        setMax(String(value.max ?? "").replace(/,/g, ""));
-      } else {
-        setMin("");
-        setMax("");
-      }
-    } else {
-      if (value === null || value === undefined) {
-        setSingle("");
-      } else if (typeof value === "number") {
-        setSingle(String(value));
-      } else if (typeof value === "string") {
-        setSingle(value.replace(/,/g, ""));
-      } else {
-        setSingle("");
-      }
-    }
-  }, [value, isRange]);
+    if (user === null) router.push("/login");
+  }, [user, router]);
+  if (!user) return <div>正在检查登录状态...</div>;
 
-  // 点击外部收起下拉
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
-        setShowDropdownSingle(false);
-        setShowDropdownMin(false);
-        setShowDropdownMax(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [address, setAddress] = useState("");
+  const [latitude, setLatitude] = useState(null);
+  const [longitude, setLongitude] = useState(null);
+  const [type, setType] = useState("");
+  const [propertyStatus, setPropertyStatus] = useState("");
+  const [unitLayouts, setUnitLayouts] = useState([]);
+  console.log("unitLayouts JSON 👉", JSON.stringify(unitLayouts, null, 2));
 
-  const formatDisplay = (val) => {
-    if (val === "" || val === null || val === undefined) return "";
-    const n = Number(String(val).replace(/,/g, ""));
-    if (Number.isNaN(n)) return "";
-    return n.toLocaleString();
-  };
+  const [singleFormData, setSingleFormData] = useState({
+    price: "",
+    buildUp: "",
+    bedrooms: "",
+    bathrooms: "",
+    kitchens: "",
+    livingRooms: "",
+    carpark: "",
+    store: "",
+    facilities: [],
+    furniture: [],
+    extraSpaces: [],
+    facing: "",
+    photos: [],
+    layoutPhotos: [],
+    buildYear: "",
+    quarter: "",
+  });
 
-  const handleSingleChange = (e) => {
-    const raw = e.target.value.replace(/[^\d]/g, "");
-    setSingle(raw);
-    onChange && onChange(raw);
-  };
-  const handleSelectSingle = (p) => {
-    setSingle(String(p));
-    onChange && onChange(String(p));
-    setShowDropdownSingle(false);
-  };
+  const [areaData, setAreaData] = useState({
+    types: ["buildUp"],
+    units: { buildUp: "square feet", land: "square feet" },
+    values: { buildUp: "", land: "" },
+  });
 
-  const handleMinChange = (e) => {
-    const raw = e.target.value.replace(/[^\d]/g, "");
-    setMin(raw);
-    onChange && onChange(`${raw}-${max || ""}`);
-  };
-  const handleMaxChange = (e) => {
-    const raw = e.target.value.replace(/[^\d]/g, "");
-    setMax(raw);
-    onChange && onChange(`${min || ""}-${raw}`);
-  };
-  const handleSelectMin = (p) => {
-    setMin(String(p));
-    onChange && onChange(`${p}-${max || ""}`);
-    setShowDropdownMin(false);
-  };
-  const handleSelectMax = (p) => {
-    setMax(String(p));
-    onChange && onChange(`${min || ""}-${p}`);
-    setShowDropdownMax(false);
-  };
+  const [availability, setAvailability] = useState({});
+  const [transitInfo, setTransitInfo] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  // ---------- 面积换算工具 ----------
-
-  const convertToSqftLocal = (val, unit) => {
-    const num = parseFloat(String(val ?? "").replace(/,/g, ""));
+  // 公用面积换算（和你之前一样）
+  const convertToSqft = (val, unit) => {
+    const num = parseFloat(String(val || "").replace(/,/g, ""));
     if (isNaN(num) || num <= 0) return 0;
-    const u = String(unit || "").toLowerCase();
-    if (
-      u.includes("square meter") ||
-      u.includes("sq m") ||
-      u.includes("square metres")
-    ) {
+    const u = (unit || "").toString().toLowerCase();
+    if (u.includes("square meter") || u.includes("sq m") || u.includes("square metres")) {
       return num * 10.7639;
     }
     if (u.includes("acre")) return num * 43560;
     if (u.includes("hectare")) return num * 107639;
-    return num; // 默认当 sqft
+    return num; // assume sqft
   };
 
-  // 把 area 转成 { buildUpSqft, landSqft }
-  const getAreaSqftFromAreaProp = (areaObj) => {
-    if (!areaObj) return { buildUp: 0, land: 0 };
+  const handleAreaChange = (data) => {
+    setAreaData(data);
+  };
 
-    // 情况 1：AreaSelector 返回的对象 { values, units }
-    if (areaObj.values && areaObj.units) {
-      const v = areaObj.values || {};
-      const u = areaObj.units || {};
-      return {
-        buildUp: convertToSqftLocal(v.buildUp, u.buildUp || "square feet"),
-        land: convertToSqftLocal(v.land, u.land || "square feet"),
-      };
+  const handleLocationSelect = ({ lat, lng, address }) => {
+    setLatitude(lat);
+    setLongitude(lng);
+    setAddress(address);
+  };
+
+  const handleLayoutUpload = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    const newPhotos = [...(singleFormData.layoutPhotos || []), ...files];
+    setSingleFormData({ ...singleFormData, layoutPhotos: newPhotos });
+  };
+
+  // ✅ 这里是「New Project / Completed Unit 每平方尺 RM x ~ RM y」的核心逻辑
+  const projectPricePerSqftText = (() => {
+    // 只在 New Project / Completed Unit 时启动
+    if (
+      propertyStatus !== "New Project / Under Construction" &&
+      propertyStatus !== "Completed Unit / Developer Unit"
+    ) {
+      return "";
     }
 
-    // 情况 2：已经是数字 { buildUp: 1200, land: 3000 }
-    return {
-      buildUp: Number(areaObj.buildUp || 0),
-      land: Number(areaObj.land || 0),
+    if (!Array.isArray(unitLayouts) || unitLayouts.length === 0) return "";
+
+    // 把 AreaSelector 的 buildUp 对象转换成 sqft 总面积
+    const getAreaSqftFromBuildUp = (buildUpObj) => {
+      if (!buildUpObj || typeof buildUpObj !== "object") return 0;
+
+      const values = buildUpObj.values || {};
+      const units = buildUpObj.units || {};
+
+      const buildUpVal = values.buildUp ?? 0;
+      const landVal = values.land ?? 0;
+      const buildUpUnit = units.buildUp || "square feet";
+      const landUnit = units.land || "square feet";
+
+      const b = convertToSqft(buildUpVal, buildUpUnit);
+      const l = convertToSqft(landVal, landUnit);
+      return b + l;
     };
+
+    let totalArea = 0;
+    let totalMin = 0;
+    let totalMax = 0;
+
+    unitLayouts.forEach((l) => {
+      // 面积：来自每个 layout 的 buildUp（AreaSelector 返回的对象）
+      totalArea += getAreaSqftFromBuildUp(l.buildUp);
+
+      // 价格：来自 layout.price，例如 "500000-800000"
+      if (typeof l.price === "string" && l.price.includes("-")) {
+        const [minStr, maxStr] = l.price.split("-");
+        const minP = Number(String(minStr).replace(/,/g, "")) || 0;
+        const maxP = Number(String(maxStr).replace(/,/g, "")) || 0;
+        totalMin += minP;
+        totalMax += maxP;
+      }
+    });
+
+    if (totalArea <= 0 || (totalMin <= 0 && totalMax <= 0)) {
+      return "";
+    }
+
+    const minPsf = totalMin / totalArea;
+    const maxPsf = totalMax / totalArea;
+
+    return `每平方英尺: RM ${minPsf.toLocaleString(undefined, {
+      maximumFractionDigits: 2,
+    })} ~ RM ${maxPsf.toLocaleString(undefined, {
+      maximumFractionDigits: 2,
+    })}`;
+  })();
+
+  const handleSubmit = async () => {
+    if (!title || !address || !latitude || !longitude) {
+      toast.error("请填写完整信息");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data: propertyData, error } = await supabase
+        .from("properties")
+        .insert([
+          {
+            title,
+            description,
+            unit_layouts: JSON.stringify(unitLayouts.length > 0 ? unitLayouts : [singleFormData]),
+            price: singleFormData.price || undefined,
+            address,
+            lat: latitude,
+            lng: longitude,
+            user_id: user.id,
+            type,
+            build_year: singleFormData.buildYear,
+            bedrooms: singleFormData.bedrooms,
+            bathrooms: singleFormData.bathrooms,
+            carpark: singleFormData.carpark,
+            store: singleFormData.store,
+            area: JSON.stringify(areaData),
+            facilities: JSON.stringify(singleFormData.facilities || []),
+            furniture: JSON.stringify(singleFormData.furniture || []),
+            facing: singleFormData.facing,
+            transit: JSON.stringify(transitInfo || {}),
+            availability: JSON.stringify(availability || {}),
+          },
+        ])
+        .select()
+        .single();
+      if (error) throw error;
+
+      toast.success("房源上传成功");
+      router.push("/");
+    } catch (err) {
+      console.error(err);
+      toast.error("上传失败，请检查控制台");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // 从单个 layout 里取总面积
-  const getAreaSqftFromLayout = (layout) => {
-    const a = layout?.buildUp;
-    if (!a) return 0;
+  // ...前面的 import 和 state 不动
 
-    // buildUp 是 AreaSelector 对象
-    if (a.values && a.units) {
-      const v = a.values || {};
-      const u = a.units || {};
-      const b = convertToSqftLocal(v.buildUp, u.buildUp || "square feet");
-      const l = convertToSqftLocal(v.land, u.land || "square feet");
-      return b + l;
-    }
+return (
+  <div className="max-w-3xl mx-auto p-4 space-y-4">
+    <h1 className="text-2xl font-bold mb-4">上传房源</h1>
 
-    // 或者是数字 / 简单对象
-    if (typeof a === "number") return a;
-    if (typeof a === "object") {
-      const b = Number(a.buildUp || 0);
-      const l = Number(a.land || 0);
-      return b + l;
-    }
+    <AddressSearchInput onLocationSelect={handleLocationSelect} />
 
-    return 0;
-  };
+    <TypeSelector
+      value={type}
+      onChange={setType}
+      onFormChange={(formData) => setPropertyStatus(formData.propertyStatus)}
+    />
 
-  const { buildUp: buildUpSqft, land: landSqft } = getAreaSqftFromAreaProp(area);
-  const totalAreaSqftFromAreaProp = buildUpSqft + landSqft;
+    {/* ✅ 无论什么类型，都用一个总面积 AreaSelector，用来算每平方尺 */}
+    <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
 
-  // ---------- 每平方尺计算 ----------
+    {propertyStatus === "New Project / Under Construction" ||
+    propertyStatus === "Completed Unit / Developer Unit" ? (
+      <>
+        <UnitTypeSelector
+          propertyStatus={propertyStatus}
+          onChange={(layouts) => setUnitLayouts(layouts)}
+        />
 
-  // 普通单价（非 New Project）
-  const normalPerSqft =
-    !isRange && totalAreaSqftFromAreaProp > 0 && single
-      ? (
-          Number(String(single).replace(/,/g, "")) /
-          totalAreaSqftFromAreaProp
-        ).toFixed(2)
-      : null;
-
-  // New Project / Completed Unit
-  let rangePerSqftText = "";
-
-  if (isRange) {
-    // 先用「顶层面积 + 顶层 min/max」做一个兜底
-    let totalArea = totalAreaSqftFromAreaProp;
-    let totalMin = Number(String(min || "").replace(/,/g, "")) || 0;
-    let totalMax = Number(String(max || "").replace(/,/g, "")) || 0;
-
-    // 再看 layouts 里有没有真实的数据，如果有，就覆盖上面的数值
-    if (Array.isArray(layouts) && layouts.length > 0) {
-      let layoutsArea = 0;
-      let layoutsMin = 0;
-      let layoutsMax = 0;
-      let hasValidLayout = false;
-
-      layouts.forEach((l) => {
-        const areaVal = getAreaSqftFromLayout(l);
-        let minP = 0;
-        let maxP = 0;
-
-        if (typeof l.price === "string" && l.price.includes("-")) {
-          const [minStr, maxStr] = l.price.split("-");
-          minP = Number(String(minStr).replace(/,/g, "")) || 0;
-          maxP = Number(String(maxStr).replace(/,/g, "")) || 0;
-        }
-
-        if (areaVal > 0 && (minP > 0 || maxP > 0)) {
-          hasValidLayout = true;
-        }
-
-        layoutsArea += areaVal;
-        layoutsMin += minP;
-        layoutsMax += maxP;
-      });
-
-      // 只有当 layouts 里真的有面积+价格时，才覆盖掉顶层的数值
-      if (hasValidLayout && layoutsArea > 0 && (layoutsMin > 0 || layoutsMax > 0)) {
-        totalArea = layoutsArea;
-        totalMin = layoutsMin;
-        totalMax = layoutsMax;
-      }
-    }
-
-    if (totalArea > 0 && (totalMin > 0 || totalMax > 0)) {
-      if (totalMin > 0 && totalMax > 0) {
-        const minPsf = totalMin / totalArea;
-        const maxPsf = totalMax / totalArea;
-        rangePerSqftText = `每平方英尺: RM ${minPsf.toLocaleString(undefined, {
-          maximumFractionDigits: 2,
-        })} ~ RM ${maxPsf.toLocaleString(undefined, {
-          maximumFractionDigits: 2,
-        })}`;
-      } else if (totalMax > 0) {
-        const psf = totalMax / totalArea;
-        rangePerSqftText = `每平方英尺: RM ${psf.toLocaleString(undefined, {
-          maximumFractionDigits: 2,
-        })}`;
-      }
-    }
-  }
-
-  // ---------- UI ----------
-
-  return (
-    <div className="relative w-full" ref={wrapperRef}>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        {isRange ? "价格范围" : "价格"}
-      </label>
-
-      {isRange ? (
-        <>
-          <div className="grid grid-cols-2 gap-2">
-            {/* Min */}
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-                RM
-              </span>
-              <input
-                type="text"
-                value={formatDisplay(min)}
-                onChange={handleMinChange}
-                onFocus={() => setShowDropdownMin(true)}
-                className="pl-12 pr-4 py-2 border rounded w-full"
-                placeholder="Min Price"
-              />
-              {showDropdownMin && (
-                <ul className="absolute z-10 w-full bg-white border mt-1 max-h-60 overflow-y-auto rounded shadow">
-                  {predefinedPrices.map((price) => (
-                    <li
-                      key={`min-${price}`}
-                      onClick={() => handleSelectMin(price)}
-                      className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                    >
-                      RM {price.toLocaleString()}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            {/* Max */}
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-                RM
-              </span>
-              <input
-                type="text"
-                value={formatDisplay(max)}
-                onChange={handleMaxChange}
-                onFocus={() => setShowDropdownMax(true)}
-                className="pl-12 pr-4 py-2 border rounded w-full"
-                placeholder="Max Price"
-              />
-              {showDropdownMax && (
-                <ul className="absolute z-10 w-full bg-white border mt-1 max-h-60 overflow-y-auto rounded shadow">
-                  {predefinedPrices.map((price) => (
-                    <li
-                      key={`max-${price}`}
-                      onClick={() => handleSelectMax(price)}
-                      className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                    >
-                      RM {price.toLocaleString()}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-
-          {/* ✅ New Project / Completed Unit 每平方尺 */}
-          {rangePerSqftText && (
-            <p className="text-sm text-gray-500 mt-1">{rangePerSqftText}</p>
-          )}
-        </>
-      ) : (
-        <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-            RM
-          </span>
-          <input
-            type="text"
-            value={formatDisplay(single)}
-            onChange={handleSingleChange}
-            onFocus={() => setShowDropdownSingle(true)}
-            className="pl-12 pr-4 py-2 border rounded w-full"
-            placeholder="请输入价格"
+        {unitLayouts.map((layout, index) => (
+          <UnitLayoutForm
+            key={index}
+            index={index}
+            data={{ ...layout, projectType: propertyStatus }}
+            onChange={(updated) => {
+              const newLayouts = [...unitLayouts];
+              newLayouts[index] = updated;
+              setUnitLayouts(newLayouts);
+            }}
           />
-          {normalPerSqft && (
-            <p className="text-sm text-gray-500 mt-1">
-              每平方英尺: RM {Number(normalPerSqft).toLocaleString()}
-            </p>
-          )}
-          {showDropdownSingle && (
-            <ul className="absolute z-10 w-full bg-white border mt-1 max-h-60 overflow-y-auto rounded shadow">
-              {predefinedPrices.map((price) => (
-                <li
-                  key={`single-${price}`}
-                  onClick={() => handleSelectSingle(price)}
-                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                >
-                  RM {price.toLocaleString()}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        ))}
+
+        {/* ✅ 项目总价，传入总面积（sqft）用于 New Project / Completed Unit 每平方尺 */}
+        <PriceInput
+  value={singleFormData.price}
+  onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
+  type={propertyStatus}
+  area={{
+    buildUp: convertToSqft(areaData.values.buildUp, areaData.units.buildUp),
+    land: convertToSqft(areaData.values.land, areaData.units.land),
+  }}
+  layouts={unitLayouts}   // ✅ 这一行最重要
+/>
+      </>
+    ) : (
+      <div className="space-y-4 mt-6">
+        {/* 普通房源：同样用上面 AreaSelector 的面积 */}
+        <PriceInput
+          value={singleFormData.price}
+          onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
+          type={propertyStatus}
+          area={{
+            buildUp: convertToSqft(areaData.values.buildUp, areaData.units.buildUp),
+            land: convertToSqft(areaData.values.land, areaData.units.land),
+          }}
+        />
+      </div>
+    )}
+
+      <RoomCountSelector
+        value={{
+          bedrooms: singleFormData.bedrooms,
+          bathrooms: singleFormData.bathrooms,
+          kitchens: singleFormData.kitchens,
+          livingRooms: singleFormData.livingRooms,
+        }}
+        onChange={(updated) => setSingleFormData({ ...singleFormData, ...updated })}
+      />
+
+      <CarparkCountSelector
+        value={singleFormData.carpark}
+        onChange={(val) => setSingleFormData({ ...singleFormData, carpark: val })}
+        mode={
+          propertyStatus === "New Project / Under Construction" ||
+          propertyStatus === "Completed Unit / Developer Unit"
+            ? "range"
+            : "single"
+        }
+      />
+
+      <ExtraSpacesSelector
+        value={singleFormData.extraSpaces || []}
+        onChange={(val) => setSingleFormData({ ...singleFormData, extraSpaces: val })}
+      />
+
+      <FacingSelector
+        value={singleFormData.facing}
+        onChange={(val) => setSingleFormData({ ...singleFormData, facing: val })}
+      />
+
+      <FurnitureSelector
+        value={singleFormData.furniture}
+        onChange={(val) => setSingleFormData({ ...singleFormData, furniture: val })}
+      />
+
+      <FacilitiesSelector
+        value={singleFormData.facilities}
+        onChange={(val) => setSingleFormData({ ...singleFormData, facilities: val })}
+      />
+
+      <TransitSelector onChange={setTransitInfo} />
+
+      {(type?.includes("Homestay") || type?.includes("Hotel")) && (
+        <>
+          <AdvancedAvailabilityCalendar value={availability} onChange={setAvailability} />
+
+          <CarparkLevelSelector
+            value={singleFormData.carparkPosition}
+            onChange={(val) => setSingleFormData({ ...singleFormData, carparkPosition: val })}
+            mode={
+              propertyStatus === "New Project / Under Construction" ||
+              propertyStatus === "Completed Unit / Developer Unit"
+                ? "range"
+                : "single"
+            }
+          />
+
+          <BuildYearSelector
+            value={singleFormData.buildYear}
+            onChange={(val) => setSingleFormData({ ...singleFormData, buildYear: val })}
+            quarter={singleFormData.quarter}
+            onQuarterChange={(val) => setSingleFormData({ ...singleFormData, quarter: val })}
+            showQuarter={propertyStatus === "New Project / Under Construction"}
+          />
+        </>
       )}
+
+      <div className="space-y-2">
+        <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+          房源描述
+        </label>
+        <textarea
+          id="description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="请输入房源详细描述..."
+          rows={4}
+          className="w-full border rounded-lg p-2 resize-y"
+        />
+      </div>
+
+      <ImageUpload
+        images={singleFormData.photos}
+        setImages={(updated) => setSingleFormData({ ...singleFormData, photos: updated })}
+      />
+
+      <Button
+        onClick={handleSubmit}
+        disabled={loading}
+        className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full"
+      >
+        {loading ? "上传中..." : "提交房源"}
+      </Button>
     </div>
   );
 }
