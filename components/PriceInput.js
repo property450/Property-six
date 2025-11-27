@@ -11,7 +11,7 @@ export default function PriceInput({ value, onChange, area, type, layouts }) {
     50000000, 100000000,
   ];
 
-  // ===== 保持你原来的 propertyStatus 逻辑 =====
+  // ===== 保持你原来的 propertyStatus 处理 =====
   let propertyStatus = "";
   if (typeof type === "object" && type !== null) {
     propertyStatus = type.propertyStatus || type.finalType || "";
@@ -144,9 +144,25 @@ export default function PriceInput({ value, onChange, area, type, layouts }) {
     let totalMax = 0;
 
     layouts.forEach((l) => {
-      // 面积：buildUp + land
-      const buildUpSqft = convertToSqftLocal(l.buildUp, l.buildUpUnit || "square feet");
-      const landSqft = convertToSqftLocal(l.land, l.landUnit || "square feet");
+      // ⭐ 这里是关键修正：兼容 AreaSelector 返回的对象结构
+      let buildUpVal, buildUpUnit, landVal, landUnit;
+
+      if (l.buildUp && typeof l.buildUp === "object" && l.buildUp.values && l.buildUp.units) {
+        // 来自 <AreaSelector value={data.buildUp} />
+        buildUpVal = l.buildUp.values.buildUp;
+        buildUpUnit = l.buildUp.units.buildUp || "square feet";
+        landVal = l.buildUp.values.land;
+        landUnit = l.buildUp.units.land || "square feet";
+      } else {
+        // 兼容旧结构：直接就是数值 + 单位
+        buildUpVal = l.buildUp;
+        buildUpUnit = l.buildUpUnit || "square feet";
+        landVal = l.land;
+        landUnit = l.landUnit || "square feet";
+      }
+
+      const buildUpSqft = convertToSqftLocal(buildUpVal, buildUpUnit);
+      const landSqft = convertToSqftLocal(landVal, landUnit);
       totalArea += buildUpSqft + landSqft;
 
       // 价格：优先用 minPrice/maxPrice；没有的话解析 price: "100000-200000"
@@ -276,4 +292,4 @@ export default function PriceInput({ value, onChange, area, type, layouts }) {
       )}
     </div>
   );
-            }
+}
