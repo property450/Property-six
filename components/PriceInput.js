@@ -20,11 +20,10 @@ export default function PriceInput({ value, onChange, area, type, layouts }) {
   }
 
   // New Project / Developer Unit 用价格范围
-  const isRange = !!(
-    propertyStatus &&
+  const isRange =
+    !!propertyStatus &&
     (propertyStatus.includes("New Project") ||
-      propertyStatus.includes("Developer Unit"))
-  );
+      propertyStatus.includes("Developer Unit"));
 
   const [single, setSingle] = useState("");
   const [min, setMin] = useState("");
@@ -119,7 +118,11 @@ export default function PriceInput({ value, onChange, area, type, layouts }) {
     const num = parseFloat(String(val ?? "").replace(/,/g, ""));
     if (isNaN(num) || num <= 0) return 0;
     const u = String(unit || "").toLowerCase();
-    if (u.includes("square meter") || u.includes("sq m") || u.includes("square metres")) {
+    if (
+      u.includes("square meter") ||
+      u.includes("sq m") ||
+      u.includes("square metres")
+    ) {
       return num * 10.7639;
     }
     if (u.includes("acre")) return num * 43560;
@@ -127,7 +130,7 @@ export default function PriceInput({ value, onChange, area, type, layouts }) {
     return num; // 默认当 sqft
   };
 
-  // 统一把 area 转成 { buildUpSqft, landSqft } 两个数字
+  // 把 area 转成 { buildUpSqft, landSqft }
   const getAreaSqftFromAreaProp = (areaObj) => {
     if (!areaObj) return { buildUp: 0, land: 0 };
 
@@ -148,12 +151,12 @@ export default function PriceInput({ value, onChange, area, type, layouts }) {
     };
   };
 
-  // 从单个 layout 里取面积（buildUp 通常就是 AreaSelector 对象）
+  // 从单个 layout 里取总面积
   const getAreaSqftFromLayout = (layout) => {
     const a = layout?.buildUp;
     if (!a) return 0;
 
-    // layout.buildUp 也是 AreaSelector 对象
+    // buildUp 是 AreaSelector 对象
     if (a.values && a.units) {
       const v = a.values || {};
       const u = a.units || {};
@@ -162,7 +165,7 @@ export default function PriceInput({ value, onChange, area, type, layouts }) {
       return b + l;
     }
 
-    // 或者是已经是数字
+    // 或者是数字 / 简单对象
     if (typeof a === "number") return a;
     if (typeof a === "object") {
       const b = Number(a.buildUp || 0);
@@ -178,7 +181,7 @@ export default function PriceInput({ value, onChange, area, type, layouts }) {
 
   // ---------- 每平方尺计算 ----------
 
-  // 普通单价（非 New Project）用单价 + area
+  // 普通单价（非 New Project）
   const normalPerSqft =
     !isRange && totalAreaSqftFromAreaProp > 0 && single
       ? (
@@ -187,34 +190,48 @@ export default function PriceInput({ value, onChange, area, type, layouts }) {
         ).toFixed(2)
       : null;
 
-  // New Project / Completed Unit：优先用 layouts 里的面积 + price，退而求其次用 area
+  // New Project / Completed Unit
   let rangePerSqftText = "";
 
   if (isRange) {
-    let totalArea = 0;
-    let totalMin = 0;
-    let totalMax = 0;
+    // 先用「顶层面积 + 顶层 min/max」做一个兜底
+    let totalArea = totalAreaSqftFromAreaProp;
+    let totalMin = Number(String(min || "").replace(/,/g, "")) || 0;
+    let totalMax = Number(String(max || "").replace(/,/g, "")) || 0;
 
+    // 再看 layouts 里有没有真实的数据，如果有，就覆盖上面的数值
     if (Array.isArray(layouts) && layouts.length > 0) {
-      // ✅ 优先：根据所有 layouts 来算
-      layouts.forEach((l) => {
-        // 面积
-        totalArea += getAreaSqftFromLayout(l);
+      let layoutsArea = 0;
+      let layoutsMin = 0;
+      let layoutsMax = 0;
+      let hasValidLayout = false;
 
-        // 价格：layout.price 形如 "500000-800000"
+      layouts.forEach((l) => {
+        const areaVal = getAreaSqftFromLayout(l);
+        let minP = 0;
+        let maxP = 0;
+
         if (typeof l.price === "string" && l.price.includes("-")) {
           const [minStr, maxStr] = l.price.split("-");
-          const minP = Number(String(minStr).replace(/,/g, "")) || 0;
-          const maxP = Number(String(maxStr).replace(/,/g, "")) || 0;
-          totalMin += minP;
-          totalMax += maxP;
+          minP = Number(String(minStr).replace(/,/g, "")) || 0;
+          maxP = Number(String(maxStr).replace(/,/g, "")) || 0;
         }
+
+        if (areaVal > 0 && (minP > 0 || maxP > 0)) {
+          hasValidLayout = true;
+        }
+
+        layoutsArea += areaVal;
+        layoutsMin += minP;
+        layoutsMax += maxP;
       });
-    } else {
-      // ❗没有 layouts 时，退回用 area + 当前输入的 min/max
-      totalArea = totalAreaSqftFromAreaProp;
-      totalMin = Number(String(min || "").replace(/,/g, "")) || 0;
-      totalMax = Number(String(max || "").replace(/,/g, "")) || 0;
+
+      // 只有当 layouts 里真的有面积+价格时，才覆盖掉顶层的数值
+      if (hasValidLayout && layoutsArea > 0 && (layoutsMin > 0 || layoutsMax > 0)) {
+        totalArea = layoutsArea;
+        totalMin = layoutsMin;
+        totalMax = layoutsMax;
+      }
     }
 
     if (totalArea > 0 && (totalMin > 0 || totalMax > 0)) {
@@ -303,7 +320,7 @@ export default function PriceInput({ value, onChange, area, type, layouts }) {
             </div>
           </div>
 
-          {/* ✅ New Project / Completed Unit 每平方尺（用 layouts 优先） */}
+          {/* ✅ New Project / Completed Unit 每平方尺 */}
           {rangePerSqftText && (
             <p className="text-sm text-gray-500 mt-1">{rangePerSqftText}</p>
           )}
