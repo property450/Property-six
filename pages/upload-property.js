@@ -219,68 +219,71 @@ export default function UploadProperty() {
     }
   };
 
-  return (
-    <div className="max-w-3xl mx-auto p-4 space-y-4">
-      <h1 className="text-2xl font-bold mb-4">上传房源</h1>
+  // ...前面的 import 和 state 不动
 
-      <AddressSearchInput onLocationSelect={handleLocationSelect} />
+return (
+  <div className="max-w-3xl mx-auto p-4 space-y-4">
+    <h1 className="text-2xl font-bold mb-4">上传房源</h1>
 
-      <TypeSelector
-        value={type}
-        onChange={setType}
-        onFormChange={(formData) => setPropertyStatus(formData.propertyStatus)}
-      />
+    <AddressSearchInput onLocationSelect={handleLocationSelect} />
 
-      {propertyStatus === "New Project / Under Construction" ||
-      propertyStatus === "Completed Unit / Developer Unit" ? (
-        <>
-          <UnitTypeSelector
-            propertyStatus={propertyStatus}
-            onChange={(layouts) => setUnitLayouts(layouts)}
-          />
+    <TypeSelector
+      value={type}
+      onChange={setType}
+      onFormChange={(formData) => setPropertyStatus(formData.propertyStatus)}
+    />
 
-          {unitLayouts.map((layout, index) => (
-            <UnitLayoutForm
-              key={index}
-              index={index}
-              data={{ ...layout, projectType: propertyStatus }}
-              onChange={(updated) => {
-                const newLayouts = [...unitLayouts];
-                newLayouts[index] = updated;
-                setUnitLayouts(newLayouts);
-              }}
-            />
-          ))}
+    {/* ✅ 无论什么类型，都用一个总面积 AreaSelector，用来算每平方尺 */}
+    <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
 
-          {/* 项目总价输入（保留你原来的逻辑） */}
-          <PriceInput
-            value={singleFormData.price}
-            onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
-            type={propertyStatus}
-            layouts={unitLayouts}
-          />
+    {propertyStatus === "New Project / Under Construction" ||
+    propertyStatus === "Completed Unit / Developer Unit" ? (
+      <>
+        <UnitTypeSelector
+          propertyStatus={propertyStatus}
+          onChange={(layouts) => setUnitLayouts(layouts)}
+        />
 
-          {/* ✅ 这里显示「每平方英尺: RM x ~ RM y」 */}
-          {projectPricePerSqftText && (
-            <p className="text-sm text-gray-500 mt-1">{projectPricePerSqftText}</p>
-          )}
-        </>
-      ) : (
-        <div className="space-y-4 mt-6">
-          <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
-
-          <PriceInput
-            value={singleFormData.price}
-            onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
-            type={propertyStatus}
-            area={{
-              buildUp: convertToSqft(areaData.values.buildUp, areaData.units.buildUp),
-              land: convertToSqft(areaData.values.land, areaData.units.land),
+        {unitLayouts.map((layout, index) => (
+          <UnitLayoutForm
+            key={index}
+            index={index}
+            data={{ ...layout, projectType: propertyStatus }}
+            onChange={(updated) => {
+              const newLayouts = [...unitLayouts];
+              newLayouts[index] = updated;
+              setUnitLayouts(newLayouts);
             }}
           />
-        </div>
-      )}
+        ))}
 
+        {/* ✅ 项目总价，传入总面积（sqft）用于 New Project / Completed Unit 每平方尺 */}
+        <PriceInput
+          value={singleFormData.price}
+          onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
+          type={propertyStatus}
+          area={{
+            buildUp: convertToSqft(areaData.values.buildUp, areaData.units.buildUp),
+            land: convertToSqft(areaData.values.land, areaData.units.land),
+          }}
+        />
+      </>
+    ) : (
+      <div className="space-y-4 mt-6">
+        {/* 普通房源：同样用上面 AreaSelector 的面积 */}
+        <PriceInput
+          value={singleFormData.price}
+          onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
+          type={propertyStatus}
+          area={{
+            buildUp: convertToSqft(areaData.values.buildUp, areaData.units.buildUp),
+            land: convertToSqft(areaData.values.land, areaData.units.land),
+          }}
+        />
+      </div>
+    )}
+
+    
       <RoomCountSelector
         value={{
           bedrooms: singleFormData.bedrooms,
