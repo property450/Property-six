@@ -112,147 +112,15 @@ export default function PriceInput({ value, onChange, area, type, layouts }) {
     setShowDropdownMax(false);
   };
 
-  // ---------- 面积换算工具 ----------
+  // ---------- 普通单价每平方尺（非 New Project） ----------
 
-  const convertToSqftLocal = (val, unit) => {
-    const num = parseFloat(String(val ?? "").replace(/,/g, ""));
-    if (isNaN(num) || num <= 0) return 0;
-    const u = String(unit || "").toLowerCase();
-    if (
-      u.includes("square meter") ||
-      u.includes("sq m") ||
-      u.includes("square metres")
-    ) {
-      return num * 10.7639;
-    }
-    if (u.includes("acre")) return num * 43560;
-    if (u.includes("hectare")) return num * 107639;
-    return num; // 默认当 sqft
-  };
-
-  // 把 area 转成 { buildUpSqft, landSqft }
-  const getAreaSqftFromAreaProp = (areaObj) => {
-    if (!areaObj) return { buildUp: 0, land: 0 };
-
-    // 情况 1：AreaSelector 返回的对象 { values, units }
-    if (areaObj.values && areaObj.units) {
-      const v = areaObj.values || {};
-      const u = areaObj.units || {};
-      return {
-        buildUp: convertToSqftLocal(v.buildUp, u.buildUp || "square feet"),
-        land: convertToSqftLocal(v.land, u.land || "square feet"),
-      };
-    }
-
-    // 情况 2：已经是数字 { buildUp: 1200, land: 3000 }
-    return {
-      buildUp: Number(areaObj.buildUp || 0),
-      land: Number(areaObj.land || 0),
-    };
-  };
-
-  // 从单个 layout 里取总面积
-  const getAreaSqftFromLayout = (layout) => {
-    const a = layout?.buildUp;
-    if (!a) return 0;
-
-    // buildUp 是 AreaSelector 对象
-    if (a.values && a.units) {
-      const v = a.values || {};
-      const u = a.units || {};
-      const b = convertToSqftLocal(v.buildUp, u.buildUp || "square feet");
-      const l = convertToSqftLocal(v.land, u.land || "square feet");
-      return b + l;
-    }
-
-    // 或者是数字 / 简单对象
-    if (typeof a === "number") return a;
-    if (typeof a === "object") {
-      const b = Number(a.buildUp || 0);
-      const l = Number(a.land || 0);
-      return b + l;
-    }
-
-    return 0;
-  };
-
-  const { buildUp: buildUpSqft, land: landSqft } = getAreaSqftFromAreaProp(area);
-  const totalAreaSqftFromAreaProp = buildUpSqft + landSqft;
-
-  // ---------- 每平方尺计算 ----------
-
-  // 普通单价（非 New Project）
   const normalPerSqft =
-    !isRange && totalAreaSqftFromAreaProp > 0 && single
+    !isRange && area && single
       ? (
           Number(String(single).replace(/,/g, "")) /
-          totalAreaSqftFromAreaProp
+          ((Number(area.buildUp || 0) + Number(area.land || 0)) || 1)
         ).toFixed(2)
       : null;
-
-  // New Project / Completed Unit
-  let rangePerSqftText = "";
-
-  if (isRange) {
-    // 先用「顶层面积 + 顶层 min/max」做一个兜底
-    let totalArea = totalAreaSqftFromAreaProp;
-    let totalMin = Number(String(min || "").replace(/,/g, "")) || 0;
-    let totalMax = Number(String(max || "").replace(/,/g, "")) || 0;
-
-    // 再看 layouts 里有没有真实的数据，如果有，就覆盖上面的数值
-    if (Array.isArray(layouts) && layouts.length > 0) {
-      let layoutsArea = 0;
-      let layoutsMin = 0;
-      let layoutsMax = 0;
-      let hasValidLayout = false;
-
-      layouts.forEach((l) => {
-        const areaVal = getAreaSqftFromLayout(l);
-        let minP = 0;
-        let maxP = 0;
-
-        if (typeof l.price === "string" && l.price.includes("-")) {
-          const [minStr, maxStr] = l.price.split("-");
-          minP = Number(String(minStr).replace(/,/g, "")) || 0;
-          maxP = Number(String(maxStr).replace(/,/g, "")) || 0;
-        }
-
-        if (areaVal > 0 && (minP > 0 || maxP > 0)) {
-          hasValidLayout = true;
-        }
-
-        layoutsArea += areaVal;
-        layoutsMin += minP;
-        layoutsMax += maxP;
-      });
-
-      // 只有当 layouts 里真的有面积+价格时，才覆盖掉顶层的数值
-      if (hasValidLayout && layoutsArea > 0 && (layoutsMin > 0 || layoutsMax > 0)) {
-        totalArea = layoutsArea;
-        totalMin = layoutsMin;
-        totalMax = layoutsMax;
-      }
-    }
-
-    if (totalArea > 0 && (totalMin > 0 || totalMax > 0)) {
-      if (totalMin > 0 && totalMax > 0) {
-        const minPsf = totalMin / totalArea;
-        const maxPsf = totalMax / totalArea;
-        rangePerSqftText = `每平方英尺: RM ${minPsf.toLocaleString(undefined, {
-          maximumFractionDigits: 2,
-        })} ~ RM ${maxPsf.toLocaleString(undefined, {
-          maximumFractionDigits: 2,
-        })}`;
-      } else if (totalMax > 0) {
-        const psf = totalMax / totalArea;
-        rangePerSqftText = `每平方英尺: RM ${psf.toLocaleString(undefined, {
-          maximumFractionDigits: 2,
-        })}`;
-      }
-    }
-  }
-
-  // ---------- UI ----------
 
   return (
     <div className="relative w-full" ref={wrapperRef}>
@@ -319,11 +187,6 @@ export default function PriceInput({ value, onChange, area, type, layouts }) {
               )}
             </div>
           </div>
-
-          {/* ✅ New Project / Completed Unit 每平方尺 */}
-          {rangePerSqftText && (
-            <p className="text-sm text-gray-500 mt-1">{rangePerSqftText}</p>
-          )}
         </>
       ) : (
         <div className="relative">
