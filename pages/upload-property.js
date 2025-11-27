@@ -49,12 +49,8 @@ export default function UploadProperty() {
   const [longitude, setLongitude] = useState(null);
   const [type, setType] = useState("");
   const [propertyStatus, setPropertyStatus] = useState("");
-
-  // ⭐ 房型 / Layout 列表
   const [unitLayouts, setUnitLayouts] = useState([]);
-  console.log("unitLayouts JSON 👉", JSON.stringify(unitLayouts, null, 2));
 
-  // ⭐ 非项目类房源用的单一表单数据
   const [singleFormData, setSingleFormData] = useState({
     price: "",
     buildUp: "",
@@ -74,7 +70,6 @@ export default function UploadProperty() {
     quarter: "",
   });
 
-  // 面积选择器（普通房源用；New Project 情况下可当总面积用）
   const [areaData, setAreaData] = useState({
     types: ["buildUp"],
     units: { buildUp: "square feet", land: "square feet" },
@@ -85,6 +80,12 @@ export default function UploadProperty() {
   const [transitInfo, setTransitInfo] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  // 当前是否是「项目类」房源
+  const isProject =
+    propertyStatus === "New Project / Under Construction" ||
+    propertyStatus === "Completed Unit / Developer Unit";
+
+  // 通用面积换算
   const convertToSqft = (val, unit) => {
     const num = parseFloat(String(val || "").replace(/,/g, ""));
     if (isNaN(num) || num <= 0) return 0;
@@ -132,8 +133,6 @@ export default function UploadProperty() {
           {
             title,
             description,
-            // 如果是 New Project / Completed Unit，就用 unitLayouts；
-            // 否则用 singleFormData
             unit_layouts: JSON.stringify(
               unitLayouts.length > 0 ? unitLayouts : [singleFormData]
             ),
@@ -158,6 +157,7 @@ export default function UploadProperty() {
         ])
         .select()
         .single();
+
       if (error) throw error;
 
       toast.success("房源上传成功");
@@ -170,33 +170,31 @@ export default function UploadProperty() {
     }
   };
 
-  const isProject =
-    propertyStatus === "New Project / Under Construction" ||
-    propertyStatus === "Completed Unit / Developer Unit";
-
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-4">
       <h1 className="text-2xl font-bold mb-4">上传房源</h1>
 
+      {/* 标题（如果你有的话，可以加上） */}
+      {/* <input ... setTitle ... /> */}
+
       <AddressSearchInput onLocationSelect={handleLocationSelect} />
 
-      {/* 选择类型 + 项目状态 */}
       <TypeSelector
         value={type}
         onChange={setType}
         onFormChange={(formData) => setPropertyStatus(formData.propertyStatus)}
       />
 
-      {/* ---------- New Project / Completed Unit 的逻辑 ---------- */}
+      {/* ------------ 项目类房源 (New Project / Completed Unit) ------------ */}
       {isProject ? (
         <>
-          {/* 1️⃣ 先只出现：项目房型数量选择（UnitTypeSelector） */}
+          {/* 这个组件里面有「这个项目有多少个房型？」的下拉 */}
           <UnitTypeSelector
             propertyStatus={propertyStatus}
             onChange={(layouts) => setUnitLayouts(layouts)}
           />
 
-          {/* 2️⃣ 只有当“房型数量”选完（unitLayouts 有内容）后，才出现每个房型的表单 */}
+          {/* ✅ 只有当 unitLayouts.length > 0，也就是你选了房型数量之后，才显示下面所有内容 */}
           {unitLayouts.length > 0 && (
             <div className="space-y-4 mt-4">
               {unitLayouts.map((layout, index) => (
@@ -212,27 +210,30 @@ export default function UploadProperty() {
                 />
               ))}
 
-              {/* 🔸 如果你想要“项目总价 + 每平方尺”可以在这里再加一个总价 PriceInput */}
-              {/* 例如：
-              <PriceInput
-                value={singleFormData.price}
-                onChange={(val) =>
-                  setSingleFormData({ ...singleFormData, price: val })
-                }
-                type={propertyStatus}
-                // 这里 area 你可以传项目总面积（如多个 layout 面积之和）
-              />
-              */}
+              {/* 项目整体的交通信息 */}
+              <TransitSelector onChange={setTransitInfo} />
+
+              {/* 项目整体描述 */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  房源描述
+                </label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="请输入房源详细描述..."
+                  rows={4}
+                  className="w-full border rounded-lg p-2 resize-y"
+                />
+              </div>
             </div>
           )}
         </>
       ) : (
-        /* ---------- 普通二手/单一房源逻辑 ---------- */
+        /* ------------ 普通非项目房源：保持你之前的旧逻辑 ------------ */
         <div className="space-y-4 mt-6">
-          {/* 面积选择器 */}
           <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
 
-          {/* 价格 + 每平方尺 */}
           <PriceInput
             value={singleFormData.price}
             onChange={(val) =>
@@ -244,11 +245,13 @@ export default function UploadProperty() {
                 areaData.values.buildUp,
                 areaData.units.buildUp
               ),
-              land: convertToSqft(areaData.values.land, areaData.units.land),
+              land: convertToSqft(
+                areaData.values.land,
+                areaData.units.land
+              ),
             }}
           />
 
-          {/* 房间/浴室等（只在非 New Project 下出现） */}
           <RoomCountSelector
             value={{
               bedrooms: singleFormData.bedrooms,
@@ -296,13 +299,29 @@ export default function UploadProperty() {
               setSingleFormData({ ...singleFormData, facilities: val })
             }
           />
+
+          <TransitSelector onChange={setTransitInfo} />
+
+          <div className="space-y-2">
+            <label
+              htmlFor="description"
+              className="block text-sm font-medium text-gray-700"
+            >
+              房源描述
+            </label>
+            <textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="请输入房源详细描述..."
+              rows={4}
+              className="w-full border rounded-lg p-2 resize-y"
+            />
+          </div>
         </div>
       )}
 
-      {/* 🚏 交通信息（两种模式都可以用） */}
-      <TransitSelector onChange={setTransitInfo} />
-
-      {/* 🏨 Homestay / Hotel 额外设置 */}
+      {/* Homestay / Hotel 特殊可用性配置（保持不变） */}
       {(type?.includes("Homestay") || type?.includes("Hotel")) && (
         <>
           <AdvancedAvailabilityCalendar
@@ -336,25 +355,7 @@ export default function UploadProperty() {
         </>
       )}
 
-      {/* 描述 */}
-      <div className="space-y-2">
-        <label
-          htmlFor="description"
-          className="block text-sm font-medium text-gray-700"
-        >
-          房源描述
-        </label>
-        <textarea
-          id="description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="请输入房源详细描述..."
-          rows={4}
-          className="w-full border rounded-lg p-2 resize-y"
-        />
-      </div>
-
-      {/* 封面图片（项目/普通都可以用） */}
+      {/* 公共图片上传 & 提交按钮 */}
       <ImageUpload
         images={singleFormData.photos}
         setImages={(updated) =>
