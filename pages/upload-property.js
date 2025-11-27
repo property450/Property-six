@@ -259,14 +259,16 @@ return (
 
         {/* ✅ 项目总价，传入总面积（sqft）用于 New Project / Completed Unit 每平方尺 */}
         <PriceInput
-          value={singleFormData.price}
-          onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
-          type={propertyStatus}
-          area={{
-            buildUp: convertToSqft(areaData.values.buildUp, areaData.units.buildUp),
-            land: convertToSqft(areaData.values.land, areaData.units.land),
-          }}
-        />
+  value={singleFormData.price}
+  onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
+  type={propertyStatus}
+  area={{
+    buildUp: convertToSqft(areaData.values.buildUp, areaData.units.buildUp),
+    land: convertToSqft(areaData.values.land, areaData.units.land),
+  }}
+  layouts={unitLayouts}   // ✅ 这一行最重要
+/>
+
       </>
     ) : (
       <div className="space-y-4 mt-6">
