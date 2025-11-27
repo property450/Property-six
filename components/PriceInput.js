@@ -1,7 +1,7 @@
 // components/PriceInput.js
 import { useState, useRef, useEffect } from "react";
 
-export default function PriceInput({ value, onChange, area, type }) {
+export default function PriceInput({ value, onChange, type }) {
   const wrapperRef = useRef(null);
 
   const predefinedPrices = [
@@ -35,56 +35,7 @@ export default function PriceInput({ value, onChange, area, type }) {
   const [showDropdownMin, setShowDropdownMin] = useState(false);
   const [showDropdownMax, setShowDropdownMax] = useState(false);
 
-  // ---------- 3. 工具函数：把 area 统一变成「总平方英尺」 ----------
-  const convertToSqft = (val, unit) => {
-    const num = parseFloat(String(val || "").replace(/,/g, ""));
-    if (isNaN(num) || num <= 0) return 0;
-    const u = String(unit || "").toLowerCase();
-
-    if (u.includes("square meter") || u.includes("sq m") || u.includes("sqm")) {
-      return num * 10.7639;
-    }
-    if (u.includes("acre")) return num * 43560;
-    if (u.includes("hectare")) return num * 107639;
-    // 默认当作 sqft
-    return num;
-  };
-
-  const getTotalAreaSqft = (areaValue) => {
-    if (areaValue === null || areaValue === undefined) return 0;
-
-    // 直接数字 / 字符串
-    if (typeof areaValue === "number" || typeof areaValue === "string") {
-      const num = parseFloat(String(areaValue).replace(/,/g, ""));
-      return isNaN(num) ? 0 : num;
-    }
-
-    // AreaSelector 风格：{ values, units }
-    if (typeof areaValue === "object") {
-      if (areaValue.values && areaValue.units) {
-        const buildUpSqft = convertToSqft(
-          areaValue.values.buildUp,
-          areaValue.units.buildUp
-        );
-        const landSqft = convertToSqft(
-          areaValue.values.land,
-          areaValue.units.land
-        );
-        return (buildUpSqft || 0) + (landSqft || 0);
-      }
-
-      // 简单对象：{ buildUp, land }，已经是 sqft
-      const buildUp = Number(areaValue.buildUp || 0);
-      const land = Number(areaValue.land || 0);
-      return buildUp + land;
-    }
-
-    return 0;
-  };
-
-  const totalAreaSqft = getTotalAreaSqft(area);
-
-  // ---------- 4. 同步外部 value 到内部 state ----------
+  // ---------- 3. 同步外部 value 到内部 state ----------
   useEffect(() => {
     if (isRange) {
       if (typeof value === "string" && value.includes("-")) {
@@ -111,7 +62,7 @@ export default function PriceInput({ value, onChange, area, type }) {
     }
   }, [value, isRange]);
 
-  // ---------- 5. 点击外面收起下拉 ----------
+  // ---------- 4. 点击外面收起下拉 ----------
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
@@ -124,7 +75,7 @@ export default function PriceInput({ value, onChange, area, type }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ---------- 6. 输入 & 选择 逻辑 ----------
+  // ---------- 5. 输入 & 选择 逻辑 ----------
   const formatDisplay = (val) => {
     if (val === "" || val === null || val === undefined) return "";
     const n = Number(String(val).replace(/,/g, ""));
@@ -168,49 +119,7 @@ export default function PriceInput({ value, onChange, area, type }) {
     setShowDropdownMax(false);
   };
 
-  // ---------- 7. 计算每平方英尺（单价 / 范围） ----------
-  let normalPerSqftText = "";
-  if (!isRange && totalAreaSqft > 0) {
-    const priceNum = Number(String(single || "").replace(/,/g, "")) || 0;
-    if (priceNum > 0) {
-      const psf = priceNum / totalAreaSqft;
-      normalPerSqftText = `每平方英尺: RM ${psf.toLocaleString(undefined, {
-        maximumFractionDigits: 2,
-      })}`;
-    }
-  }
-
-  let rangePerSqftText = "";
-  if (isRange && totalAreaSqft > 0) {
-    const minNum = Number(String(min || "").replace(/,/g, "")) || 0;
-    const maxNum = Number(String(max || "").replace(/,/g, "")) || 0;
-
-    // ✅ 只要两个里面有一个填了，就算
-    const lowPrice = minNum > 0 ? minNum : maxNum;
-    const highPrice = maxNum > 0 ? maxNum : minNum;
-
-    if (lowPrice > 0) {
-      const lowPsf = lowPrice / totalAreaSqft;
-      const highPsf = highPrice > 0 ? highPrice / totalAreaSqft : lowPsf;
-
-      if (Math.abs(highPsf - lowPsf) < 0.005) {
-        // 两个差不多，就当作一个值显示
-        rangePerSqftText = `每平方英尺: RM ${lowPsf.toLocaleString(
-          undefined,
-          { maximumFractionDigits: 2 }
-        )}`;
-      } else {
-        rangePerSqftText = `每平方英尺: RM ${lowPsf.toLocaleString(
-          undefined,
-          { maximumFractionDigits: 2 }
-        )} ~ RM ${highPsf.toLocaleString(undefined, {
-          maximumFractionDigits: 2,
-        })}`;
-      }
-    }
-  }
-
-  // ---------- 8. UI ----------
+  // ---------- 6. UI ----------
   return (
     <div className="relative w-full" ref={wrapperRef}>
       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -276,13 +185,6 @@ export default function PriceInput({ value, onChange, area, type }) {
               )}
             </div>
           </div>
-
-          {/* ✅ New Project / Completed Unit 的每平方尺显示 */}
-          {rangePerSqftText && (
-            <p className="text-sm text-gray-500 mt-1">
-              {rangePerSqftText}
-            </p>
-          )}
         </>
       ) : (
         <div className="relative">
@@ -297,11 +199,6 @@ export default function PriceInput({ value, onChange, area, type }) {
             className="pl-12 pr-4 py-2 border rounded w-full"
             placeholder="请输入价格"
           />
-          {normalPerSqftText && (
-            <p className="text-sm text-gray-500 mt-1">
-              {normalPerSqftText}
-            </p>
-          )}
           {showDropdownSingle && (
             <ul className="absolute z-10 w-full bg-white border mt-1 max-h-60 overflow-y-auto rounded shadow">
               {predefinedPrices.map((price) => (
