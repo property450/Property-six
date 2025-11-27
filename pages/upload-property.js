@@ -188,4 +188,227 @@ export default function UploadProperty() {
             user_id: user.id,
             type,
             build_year: singleFormData.buildYear,
-            bedrooms: single
+            bedrooms: singleFormData.bedrooms,
+            bathrooms: singleFormData.bathrooms,
+            carpark: singleFormData.carpark,
+            store: singleFormData.store,
+            area: JSON.stringify(areaData),
+            facilities: JSON.stringify(singleFormData.facilities || []),
+            furniture: JSON.stringify(singleFormData.furniture || []),
+            facing: singleFormData.facing,
+            transit: JSON.stringify(transitInfo || {}),
+            availability: JSON.stringify(availability || {}),
+          },
+        ])
+        .select()
+        .single();
+      if (error) throw error;
+
+      toast.success("房源上传成功");
+      router.push("/");
+    } catch (err) {
+      console.error(err);
+      toast.error("上传失败，请检查控制台");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-3xl mx-auto p-4 space-y-4">
+      <h1 className="text-2xl font-bold mb-4">上传房源</h1>
+
+      <AddressSearchInput onLocationSelect={handleLocationSelect} />
+
+      <TypeSelector
+        value={type}
+        onChange={setType}
+        onFormChange={(formData) => setPropertyStatus(formData.propertyStatus)}
+      />
+
+      {propertyStatus === "New Project / Under Construction" ||
+      propertyStatus === "Completed Unit / Developer Unit" ? (
+        <>
+          {/* 1️⃣ 选择房型数量 */}
+          <UnitTypeSelector
+            propertyStatus={propertyStatus}
+            onChange={(layouts) => setUnitLayouts(layouts)}
+          />
+
+          {/* 2️⃣ 每个房型里输入面积 / 价格 */}
+          {unitLayouts.map((layout, index) => (
+            <UnitLayoutForm
+              key={index}
+              index={index}
+              data={{ ...layout, projectType: propertyStatus }}
+              onChange={(updated) => {
+                const newLayouts = [...unitLayouts];
+                newLayouts[index] = updated;
+                setUnitLayouts(newLayouts);
+              }}
+            />
+          ))}
+
+          {/* 3️⃣ 项目总价（只管价格），不再依赖 area */}
+          <PriceInput
+            value={singleFormData.price}
+            onChange={(val) =>
+              setSingleFormData({ ...singleFormData, price: val })
+            }
+            type={propertyStatus}
+          />
+
+          {/* 4️⃣ 用 unitLayouts 计算出来的总每平方尺 */}
+          {projectPricePerSqftText && (
+            <p className="text-sm text-gray-500 mt-1">
+              {projectPricePerSqftText}
+            </p>
+          )}
+        </>
+      ) : (
+        <div className="space-y-4 mt-6">
+          {/* 普通房源：这里还是用 AreaSelector + PriceInput（你原来的逻辑） */}
+          <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
+          <PriceInput
+            value={singleFormData.price}
+            onChange={(val) =>
+              setSingleFormData({ ...singleFormData, price: val })
+            }
+            type={propertyStatus}
+            area={{
+              buildUp: convertToSqft(
+                areaData.values.buildUp,
+                areaData.units.buildUp
+              ),
+              land: convertToSqft(
+                areaData.values.land,
+                areaData.units.land
+              ),
+            }}
+          />
+        </div>
+      )}
+
+      <RoomCountSelector
+        value={{
+          bedrooms: singleFormData.bedrooms,
+          bathrooms: singleFormData.bathrooms,
+          kitchens: singleFormData.kitchens,
+          livingRooms: singleFormData.livingRooms,
+        }}
+        onChange={(updated) =>
+          setSingleFormData({ ...singleFormData, ...updated })
+        }
+      />
+
+      <CarparkCountSelector
+        value={singleFormData.carpark}
+        onChange={(val) =>
+          setSingleFormData({ ...singleFormData, carpark: val })
+        }
+        mode={
+          propertyStatus === "New Project / Under Construction" ||
+          propertyStatus === "Completed Unit / Developer Unit"
+            ? "range"
+            : "single"
+        }
+      />
+
+      <ExtraSpacesSelector
+        value={singleFormData.extraSpaces || []}
+        onChange={(val) =>
+          setSingleFormData({ ...singleFormData, extraSpaces: val })
+        }
+      />
+
+      <FacingSelector
+        value={singleFormData.facing}
+        onChange={(val) =>
+          setSingleFormData({ ...singleFormData, facing: val })
+        }
+      />
+
+      <FurnitureSelector
+        value={singleFormData.furniture}
+        onChange={(val) =>
+          setSingleFormData({ ...singleFormData, furniture: val })
+        }
+      />
+
+      <FacilitiesSelector
+        value={singleFormData.facilities}
+        onChange={(val) =>
+          setSingleFormData({ ...singleFormData, facilities: val })
+        }
+      />
+
+      <TransitSelector onChange={setTransitInfo} />
+
+      {(type?.includes("Homestay") || type?.includes("Hotel")) && (
+        <>
+          <AdvancedAvailabilityCalendar
+            value={availability}
+            onChange={setAvailability}
+          />
+
+          <CarparkLevelSelector
+            value={singleFormData.carparkPosition}
+            onChange={(val) =>
+              setSingleFormData({ ...singleFormData, carparkPosition: val })
+            }
+            mode={
+              propertyStatus === "New Project / Under Construction" ||
+              propertyStatus === "Completed Unit / Developer Unit"
+                ? "range"
+                : "single"
+            }
+          />
+
+          <BuildYearSelector
+            value={singleFormData.buildYear}
+            onChange={(val) =>
+              setSingleFormData({ ...singleFormData, buildYear: val })
+            }
+            quarter={singleFormData.quarter}
+            onQuarterChange={(val) =>
+              setSingleFormData({ ...singleFormData, quarter: val })
+            }
+            showQuarter={propertyStatus === "New Project / Under Construction"}
+          />
+        </>
+      )}
+
+      <div className="space-y-2">
+        <label
+          htmlFor="description"
+          className="block text-sm font-medium text-gray-700"
+        >
+          房源描述
+        </label>
+        <textarea
+          id="description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="请输入房源详细描述..."
+          rows={4}
+          className="w-full border rounded-lg p-2 resize-y"
+        />
+      </div>
+
+      <ImageUpload
+        images={singleFormData.photos}
+        setImages={(updated) =>
+          setSingleFormData({ ...singleFormData, photos: updated })
+        }
+      />
+
+      <Button
+        onClick={handleSubmit}
+        disabled={loading}
+        className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full"
+      >
+        {loading ? "上传中..." : "提交房源"}
+      </Button>
+    </div>
+  );
+}
