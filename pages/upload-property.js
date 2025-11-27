@@ -1,3 +1,4 @@
+// pages/upload-property.js
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
@@ -49,6 +50,7 @@ export default function UploadProperty() {
   const [propertyStatus, setPropertyStatus] = useState("");
   const [unitLayouts, setUnitLayouts] = useState([]);
   console.log("unitLayouts JSON 👉", JSON.stringify(unitLayouts, null, 2));
+
   const [singleFormData, setSingleFormData] = useState({
     price: "",
     buildUp: "",
@@ -78,6 +80,7 @@ export default function UploadProperty() {
   const [transitInfo, setTransitInfo] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  // 公用面积换算（和你之前一样）
   const convertToSqft = (val, unit) => {
     const num = parseFloat(String(val || "").replace(/,/g, ""));
     if (isNaN(num) || num <= 0) return 0;
@@ -106,6 +109,67 @@ export default function UploadProperty() {
     const newPhotos = [...(singleFormData.layoutPhotos || []), ...files];
     setSingleFormData({ ...singleFormData, layoutPhotos: newPhotos });
   };
+
+  // ✅ 这里是「New Project / Completed Unit 每平方尺 RM x ~ RM y」的核心逻辑
+  const projectPricePerSqftText = (() => {
+    // 只在 New Project / Completed Unit 时启动
+    if (
+      propertyStatus !== "New Project / Under Construction" &&
+      propertyStatus !== "Completed Unit / Developer Unit"
+    ) {
+      return "";
+    }
+
+    if (!Array.isArray(unitLayouts) || unitLayouts.length === 0) return "";
+
+    // 把 AreaSelector 的 buildUp 对象转换成 sqft 总面积
+    const getAreaSqftFromBuildUp = (buildUpObj) => {
+      if (!buildUpObj || typeof buildUpObj !== "object") return 0;
+
+      const values = buildUpObj.values || {};
+      const units = buildUpObj.units || {};
+
+      const buildUpVal = values.buildUp ?? 0;
+      const landVal = values.land ?? 0;
+      const buildUpUnit = units.buildUp || "square feet";
+      const landUnit = units.land || "square feet";
+
+      const b = convertToSqft(buildUpVal, buildUpUnit);
+      const l = convertToSqft(landVal, landUnit);
+      return b + l;
+    };
+
+    let totalArea = 0;
+    let totalMin = 0;
+    let totalMax = 0;
+
+    unitLayouts.forEach((l) => {
+      // 面积：来自每个 layout 的 buildUp（AreaSelector 返回的对象）
+      totalArea += getAreaSqftFromBuildUp(l.buildUp);
+
+      // 价格：来自 layout.price，例如 "500000-800000"
+      if (typeof l.price === "string" && l.price.includes("-")) {
+        const [minStr, maxStr] = l.price.split("-");
+        const minP = Number(String(minStr).replace(/,/g, "")) || 0;
+        const maxP = Number(String(maxStr).replace(/,/g, "")) || 0;
+        totalMin += minP;
+        totalMax += maxP;
+      }
+    });
+
+    if (totalArea <= 0 || (totalMin <= 0 && totalMax <= 0)) {
+      return "";
+    }
+
+    const minPsf = totalMin / totalArea;
+    const maxPsf = totalMax / totalArea;
+
+    return `每平方英尺: RM ${minPsf.toLocaleString(undefined, {
+      maximumFractionDigits: 2,
+    })} ~ RM ${maxPsf.toLocaleString(undefined, {
+      maximumFractionDigits: 2,
+    })}`;
+  })();
 
   const handleSubmit = async () => {
     if (!title || !address || !latitude || !longitude) {
@@ -188,13 +252,18 @@ export default function UploadProperty() {
             />
           ))}
 
-          {/* 传入原始 unitLayouts，PriceInput 会从 layouts 读取面积与 min/max 计算每平方尺 */}
+          {/* 项目总价输入（保留你原来的逻辑） */}
           <PriceInput
             value={singleFormData.price}
             onChange={(val) => setSingleFormData({ ...singleFormData, price: val })}
             type={propertyStatus}
             layouts={unitLayouts}
           />
+
+          {/* ✅ 这里显示「每平方英尺: RM x ~ RM y」 */}
+          {projectPricePerSqftText && (
+            <p className="text-sm text-gray-500 mt-1">{projectPricePerSqftText}</p>
+          )}
         </>
       ) : (
         <div className="space-y-4 mt-6">
@@ -299,7 +368,11 @@ export default function UploadProperty() {
         setImages={(updated) => setSingleFormData({ ...singleFormData, photos: updated })}
       />
 
-      <Button onClick={handleSubmit} disabled={loading} className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full">
+      <Button
+        onClick={handleSubmit}
+        disabled={loading}
+        className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full"
+      >
         {loading ? "上传中..." : "提交房源"}
       </Button>
     </div>
