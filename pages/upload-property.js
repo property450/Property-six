@@ -183,15 +183,16 @@ export default function UploadProperty() {
   value={type}
   onChange={setType}
   onFormChange={(formData) => {
-    console.log("TypeSelector formData:", formData); // 调试用，看不到也没关系
-
     const status =
       formData?.propertyStatus ||
       formData?.status ||
       formData?.finalType ||
       "";
 
-    setPropertyStatus(status);
+    setPropertyStatus((prev) => {
+      if (prev === status) return prev; // 🔥 防止无限循环
+      return status;
+    });
   }}
 />
 
