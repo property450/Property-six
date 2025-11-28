@@ -4,8 +4,16 @@
 import { useState, useEffect } from "react";
 
 export default function UnitTypeSelector({ propertyStatus, onChange }) {
+  // 显示与否（和你旧版本一样，只在项目类房源时显示）
+  const shouldShow =
+    propertyStatus?.includes("New Project") ||
+    propertyStatus?.includes("Under Construction") ||
+    propertyStatus?.includes("Completed Unit") ||
+    propertyStatus?.includes("Developer Unit");
+
   const [count, setCount] = useState(0);
 
+  // ✅ 正确的 layout 初始结构
   const createEmptyLayout = () => ({
     type: "",
     price: "",
@@ -17,7 +25,6 @@ export default function UnitTypeSelector({ propertyStatus, onChange }) {
     livingRooms: 0,
 
     carpark: 0,
-
     carparkPosition: { min: 0, max: 0 },
 
     extraSpaces: [],
@@ -35,6 +42,7 @@ export default function UnitTypeSelector({ propertyStatus, onChange }) {
     transit: null,
   });
 
+  // ✅ 只依赖 count，不依赖 onChange，避免死循环
   useEffect(() => {
     if (!count || count <= 0) {
       onChange && onChange([]);
@@ -42,23 +50,25 @@ export default function UnitTypeSelector({ propertyStatus, onChange }) {
     }
     const layouts = Array.from({ length: count }, () => createEmptyLayout());
     onChange && onChange(layouts);
-  }, [count, onChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [count]);
+
+  if (!shouldShow) return null;
 
   return (
-    <div className="space-y-2 mt-4">
-      <label className="block text-sm font-medium text-gray-700">
+    <div className="mb-6">
+      <label className="block font-medium mb-2">
         这个项目有多少个房型 / Layout？
       </label>
-
       <select
-        value={count || ""}
+        className="border p-2 rounded w-full"
         onChange={(e) => setCount(Number(e.target.value))}
-        className="border rounded px-3 py-2 w-full"
+        value={count || ""}
       >
         <option value="">请选择房型数量</option>
-        {[...Array(10)].map((_, i) => (
-          <option key={i} value={i + 1}>
-            {i + 1} 个房型
+        {Array.from({ length: 30 }, (_, i) => i + 1).map((n) => (
+          <option key={n} value={n}>
+            {n} 个房型
           </option>
         ))}
       </select>
