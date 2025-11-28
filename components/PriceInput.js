@@ -55,6 +55,10 @@ function getPsfText(area, price) {
   if (typeof price === "object") {
     minPrice = Number(price.min) || 0;
     maxPrice = Number(price.max) || 0;
+  } else if (typeof price === "string" && price.includes("-")) {
+    const [minStr, maxStr] = price.split("-");
+    minPrice = Number(minStr) || 0;
+    maxPrice = Number(maxStr) || 0;
   } else {
     const num = Number(price) || 0;
     minPrice = num;
@@ -88,7 +92,13 @@ function getPsfText(area, price) {
   })}`;
 }
 
-// props 里多接收一个 area
+/**
+ * props:
+ *  - value: 价格（字符串 / number / "min-max" / {min,max} 都可）
+ *  - onChange: (val) => void
+ *  - type: propertyStatus，用来判断是不是 range
+ *  - area: 面积对象（AreaSelector 的结果，或者 {buildUp,land}）
+ */
 export default function PriceInput({ value, onChange, type, area }) {
   const wrapperRef = useRef(null);
 
@@ -316,7 +326,7 @@ export default function PriceInput({ value, onChange, type, area }) {
         </div>
       )}
 
-      {/* ✅ 在同一个组件底部显示 psf */}
+      {/* ✅ psf 显示 */}
       {psfText && (
         <p className="text-sm text-gray-600 mt-1">{psfText}</p>
       )}
