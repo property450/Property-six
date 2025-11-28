@@ -16,102 +16,8 @@ import AreaSelector from "./AreaSelector";
 import ImageUpload from "./ImageUpload";
 import TransitSelector from "./TransitSelector";
 
-/* ---------- 工具：把 AreaSelector 返回的对象，转换成总 sqft ---------- */
-function getAreaSqftFromAreaSelector(area) {
-  if (!area) return 0;
-
-  const convertToSqFt = (val, unit) => {
-    const num = parseFloat(String(val || "").replace(/,/g, ""));
-    if (isNaN(num) || num <= 0) return 0;
-    const u = String(unit || "").toLowerCase();
-
-    if (u.includes("square meter") || u.includes("sq m") || u.includes("sqm")) {
-      return num * 10.7639;
-    }
-    if (u.includes("acre")) return num * 43560;
-    if (u.includes("hectare")) return num * 107639;
-    return num; // 默认当 sqft
-  };
-
-  // 标准结构：{ values, units }
-  if (area.values && area.units) {
-    const buildUpSqft = convertToSqFt(area.values.buildUp, area.units.buildUp);
-    const landSqft = convertToSqFt(area.values.land, area.units.land);
-    return (buildUpSqft || 0) + (landSqft || 0);
-  }
-
-  // 简单结构：{ buildUp, land }，已是 sqft
-  if (typeof area === "object") {
-    const buildUp = Number(area.buildUp || 0);
-    const land = Number(area.land || 0);
-    return buildUp + land;
-  }
-
-  // 数字 / 字符串
-  const num = parseFloat(String(area).replace(/,/g, ""));
-  return isNaN(num) ? 0 : num;
-}
-
-/* ---------- 工具：从 price 字段解析 min / max ---------- */
-function getPriceRange(priceValue) {
-  let minPrice = 0;
-  let maxPrice = 0;
-
-  if (priceValue == null || priceValue === "") {
-    return { minPrice: 0, maxPrice: 0 };
-  }
-
-  if (typeof priceValue === "string" && priceValue.includes("-")) {
-    const [minStr, maxStr] = priceValue.split("-");
-    if (minStr) minPrice = Number(minStr) || 0;
-    if (maxStr) maxPrice = Number(maxStr) || 0;
-  } else if (typeof priceValue === "object") {
-    minPrice = Number(priceValue.min) || 0;
-    maxPrice = Number(priceValue.max) || 0;
-  } else {
-    const num = Number(priceValue) || 0;
-    minPrice = num;
-    maxPrice = num;
-  }
-
-  return { minPrice, maxPrice };
-}
-
-/* ---------- 工具：生成 psf 文本 ---------- */
-function getPsfText(areaObj, priceValue) {
-  const totalAreaSqft = getAreaSqftFromAreaSelector(areaObj);
-  const { minPrice, maxPrice } = getPriceRange(priceValue);
-
-  if (!totalAreaSqft || totalAreaSqft <= 0) return "";
-  if (!minPrice && !maxPrice) return "";
-
-  const lowPrice = minPrice > 0 ? minPrice : maxPrice;
-  const highPrice = maxPrice > 0 ? maxPrice : minPrice;
-
-  if (!lowPrice) return "";
-
-  const lowPsf = lowPrice / totalAreaSqft;
-  const highPsf = highPrice ? highPrice / totalAreaSqft : lowPsf;
-
-  if (!isFinite(lowPsf) || Number.isNaN(lowPsf) || Number.isNaN(highPsf)) {
-    return "";
-  }
-
-  if (!highPrice || Math.abs(highPsf - lowPsf) < 0.005) {
-    return `每平方英尺: RM ${lowPsf.toLocaleString(undefined, {
-      maximumFractionDigits: 2,
-    })}`;
-  }
-
-  return `每平方英尺: RM ${lowPsf.toLocaleString(undefined, {
-    maximumFractionDigits: 2,
-  })} ~ RM ${highPsf.toLocaleString(undefined, {
-    maximumFractionDigits: 2,
-  })}`;
-}
-
 export default function UnitLayoutForm({ index, data, onChange }) {
-  // ❗ 不再在这里存 layout 的 state，直接用父组件传进来的 data
+  // ❗ 完全受控：不在这里存 state，直接用父组件传进来的 data
   const layout = data || {};
   const fileInputRef = useRef(null);
 
@@ -129,7 +35,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     updateLayout({ layoutPhotos: newPhotos });
   };
 
-  // 图片打标签 config（由当前 layout 直接算出来，不用再存 state）
+  // 图片打标签 config（由当前 layout 直接算出来）
   const config = {
     bedrooms: Number(layout.bedrooms) || 0,
     bathrooms: Number(layout.bathrooms) || 0,
@@ -142,9 +48,6 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     orientation: layout.facing || null,
     transit: layout.transit || null,
   };
-
-  // psf 文本用当前 layout 的面积 & 价格
-  const psfText = getPsfText(layout.buildUp, layout.price);
 
   return (
     <div className="border rounded-lg p-4 shadow-sm bg-white">
@@ -184,7 +87,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         className="border p-2 rounded w-full mb-3"
       />
 
-      {/* Layout 照片 */}
+      {/* Layout 照片（带房间标签） */}
       <div className="mb-3">
         <label className="block mb-1 font-medium">上传照片</label>
         <ImageUpload
@@ -194,23 +97,20 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         />
       </div>
 
-      {/* 面积：AreaSelector -> layout.buildUp */}
+      {/* 面积：AreaSelector -> layout.buildUp（对象：{types,units,values}） */}
       <AreaSelector
         initialValue={layout.buildUp || {}}
         onChange={(val) => updateLayout({ buildUp: val })}
       />
 
-      {/* 价格：PriceInput -> layout.price */}
+      {/* 价格：PriceInput -> layout.price
+          ✅ 这里把面积直接传给 PriceInput，让它自己算 psf（单价/范围都支持） */}
       <PriceInput
         value={layout.price}
         onChange={(val) => updateLayout({ price: val })}
         type={layout.projectType}
+        area={layout.buildUp}
       />
-
-      {/* 唯一一条 psf 文本 */}
-      {psfText && (
-        <p className="text-sm text-gray-600 mt-1">{psfText}</p>
-      )}
 
       {/* 房间数量 */}
       <RoomCountSelector
