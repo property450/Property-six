@@ -106,7 +106,6 @@ useEffect(() => {
     finalType,
     subtype,
     auctionDate,
-    //onFormChange,
   ]);
 
   const categoryOptions = {
