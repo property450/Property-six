@@ -71,8 +71,9 @@ export default function UnitLayoutForm({ index, data, onChange }) {
           onChange={handleLayoutUpload}
         />
 
+        {/* 平面图上传（简单模式） */}
         <ImageUpload
-          config={{}} // Layout 简单模式
+          config={{}}
           images={layout.layoutPhotos || []}
           setImages={(updated) => updateLayout({ layoutPhotos: updated })}
         />
@@ -103,14 +104,13 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         onChange={(val) => updateLayout({ buildUp: val })}
       />
 
-      {/* 价格：PriceInput -> layout.price
-    ✅ 把面积对象传进去，让 PriceInput 自己算 psf */}
-<PriceInput
-  value={layout.price}
-  onChange={(val) => updateLayout({ price: val })}
-  type={layout.projectType}
-  area={layout.buildUp}
-/>
+      {/* 价格：PriceInput -> layout.price，psf 在 PriceInput 里显示 */}
+      <PriceInput
+        value={layout.price}
+        onChange={(val) => updateLayout({ price: val })}
+        type={layout.projectType}
+        area={layout.buildUp}
+      />
 
       {/* 房间数量 */}
       <RoomCountSelector
