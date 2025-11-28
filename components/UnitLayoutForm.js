@@ -1,3 +1,4 @@
+// components/UnitLayoutForm.js
 "use client";
 import { useState, useEffect, useRef } from "react";
 
@@ -136,6 +137,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     handleChange("layoutPhotos", newPhotos);
   };
 
+  // 给 ImageUpload 用的 config（不影响 selector 行为）
   const [config, setConfig] = useState({});
   useEffect(() => {
     setConfig({
@@ -208,7 +210,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       <AreaSelector
         initialValue={areaForPsf || {}}
         onChange={(val) => {
-          setAreaForPsf(val);          // 本地用于 psf
+          setAreaForPsf(val);           // 本地用于 psf
           handleChange("buildUp", val); // 同步到 layout 数据
         }}
       />
@@ -217,8 +219,8 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       <PriceInput
         value={priceForPsf}
         onChange={(val) => {
-          setPriceForPsf(val);         // 本地用于 psf
-          handleChange("price", val);  // 同步到 layout 数据
+          setPriceForPsf(val);          // 本地用于 psf
+          handleChange("price", val);   // 同步到 layout 数据
         }}
         type={data.projectType}
       />
@@ -228,13 +230,13 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         <p className="text-sm text-gray-600 mt-1">{psfText}</p>
       )}
 
-      {/* 房间数量 */}
+      {/* 房间数量 —— 跟单一房源写法尽量保持一致 */}
       <RoomCountSelector
         value={{
-          bedrooms: data.bedrooms,
-          bathrooms: data.bathrooms,
-          kitchens: data.kitchens,
-          livingRooms: data.livingRooms,
+          bedrooms: Number(data.bedrooms) || 0,
+          bathrooms: Number(data.bathrooms) || 0,
+          kitchens: Number(data.kitchens) || 0,
+          livingRooms: Number(data.livingRooms) || 0,
         }}
         onChange={(updated) => onChange({ ...data, ...updated })}
       />
@@ -257,9 +259,9 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         onChange={(val) => handleChange("extraSpaces", val)}
       />
 
-      {/* 朝向 */}
+      {/* 朝向 —— 这里改回和单一房源一样，直接给 value 本身 */}
       <FacingSelector
-        value={data.facing || []}
+        value={data.facing}
         onChange={(val) => handleChange("facing", val)}
       />
 
@@ -272,16 +274,16 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 
       {/* 家具 / 设施 */}
       <FurnitureSelector
-        value={data.furniture}
+        value={data.furniture || []}
         onChange={(val) => handleChange("furniture", val)}
       />
 
       <FacilitiesSelector
-        value={data.facilities}
+        value={data.facilities || []}
         onChange={(val) => handleChange("facilities", val)}
       />
 
-      {/* 交通信息 */}
+      {/* 交通信息（针对这个 layout） */}
       <div className="mb-4">
         <label className="font-medium">交通信息</label>
         <TransitSelector
