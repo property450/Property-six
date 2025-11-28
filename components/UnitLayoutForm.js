@@ -104,13 +104,13 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       />
 
       {/* 价格：PriceInput -> layout.price
-          ✅ 这里把面积直接传给 PriceInput，让它自己算 psf（单价/范围都支持） */}
-      <PriceInput
-        value={layout.price}
-        onChange={(val) => updateLayout({ price: val })}
-        type={layout.projectType}
-        area={layout.buildUp}
-      />
+    ✅ 把面积对象传进去，让 PriceInput 自己算 psf */}
+<PriceInput
+  value={layout.price}
+  onChange={(val) => updateLayout({ price: val })}
+  type={layout.projectType}
+  area={layout.buildUp}
+/>
 
       {/* 房间数量 */}
       <RoomCountSelector
