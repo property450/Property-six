@@ -182,21 +182,21 @@ export default function UploadProperty() {
       <TypeSelector
   value={type}
   onChange={(newType) => {
-    // 1. 先把原来的 type 存起来（可能是字符串，也可能是对象）
+    // 1. 先把 Type 存起来（有可能是字符串，也可能是对象）
     setType(newType);
 
-    // 2. 从 newType 里提取出 propertyStatus
+    // 2. 从 newType 推导出 propertyStatus
     let status = "";
 
     if (typeof newType === "object" && newType !== null) {
       // 如果 TypeSelector 返回的是对象，比如 { finalType, propertyStatus, ... }
       status = newType.propertyStatus || newType.finalType || "";
     } else if (typeof newType === "string") {
-      // 如果只是字符串，就直接当作状态用
+      // 如果只是字符串，就直接当成状态用
       status = newType;
     }
 
-    // 3. 更新 propertyStatus，下面 isProject 就会用到
+    // 3. 更新 propertyStatus，给 isProject 和 PriceInput 用
     setPropertyStatus(status);
   }}
 />
