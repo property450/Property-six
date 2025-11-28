@@ -1,9 +1,9 @@
 // components/ImageUpload.js
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ReactSortable } from "react-sortablejs";
 
+// 只接受「对象」作为图片结构，其它一律当成空对象
 function normalizeImages(images) {
-  // 只接受「对象」作为图片结构，其它一律当成空对象
   if (images && typeof images === "object" && !Array.isArray(images)) {
     return images;
   }
@@ -14,14 +14,12 @@ export default function ImageUpload({ config, images, setImages }) {
   // 避免 props 上没传 config 时每次生成新的 {} 导致无限循环
   const safeConfig = config || {};
 
-  const [localImages, setLocalImages] = useState(normalizeImages(images));
+  // 只在初次渲染时，用父组件传进来的 images 初始化一次
+  const [localImages, setLocalImages] = useState(
+    () => normalizeImages(images)
+  );
 
-  // 只在 images 真正变化时，同步到本地 state，避免无限循环
-  useEffect(() => {
-    setLocalImages(normalizeImages(images));
-  }, [images]);
-
-  // 上传
+  // 🔁 上传
   const handleImageChange = (e, label) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
@@ -42,7 +40,7 @@ export default function ImageUpload({ config, images, setImages }) {
     setImages && setImages(updated);
   };
 
-  // 删除
+  // ❌ 删除
   const removeImage = (label, index) => {
     const current = localImages[label] || [];
     const updated = {
@@ -53,7 +51,7 @@ export default function ImageUpload({ config, images, setImages }) {
     setImages && setImages(updated);
   };
 
-  // 设置封面
+  // ⭐ 设置封面
   const setCover = (label, index) => {
     const current = localImages[label] || [];
     const updated = {
