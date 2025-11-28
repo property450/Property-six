@@ -1,7 +1,7 @@
 // components/UnitLayoutForm.js
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useRef } from "react";
 
 import PriceInput from "./PriceInput";
 import CarparkCountSelector from "./CarparkCountSelector";
@@ -111,24 +111,17 @@ function getPsfText(areaObj, priceValue) {
 }
 
 export default function UnitLayoutForm({ index, data, onChange }) {
-  // 🔑 统一本地 state，所有字段都从这里读写
-  const [layout, setLayout] = useState(data || {});
+  // ❗ 不再在这里存 layout 的 state，直接用父组件传进来的 data
+  const layout = data || {};
   const fileInputRef = useRef(null);
 
-  // 当父组件传进来的 data 变化时，同步一次
-  useEffect(() => {
-    setLayout((prev) => ({ ...prev, ...data }));
-  }, [data]);
-
-  // 统一更新函数：本地 + 回传父组件
+  // 统一更新：只负责把修改后的 layout 回传给父组件
   const updateLayout = (patch) => {
-    setLayout((prev) => {
-      const updated = { ...prev, ...patch };
-      onChange && onChange(updated);
-      return updated;
-    });
+    const updated = { ...layout, ...patch };
+    onChange && onChange(updated);
   };
 
+  // 上传 layout 图片
   const handleLayoutUpload = (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
@@ -136,22 +129,19 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     updateLayout({ layoutPhotos: newPhotos });
   };
 
-  // 图片打标签 config
-  const [config, setConfig] = useState({});
-  useEffect(() => {
-    setConfig({
-      bedrooms: Number(layout.bedrooms) || 0,
-      bathrooms: Number(layout.bathrooms) || 0,
-      kitchens: Number(layout.kitchens) || 0,
-      livingRooms: Number(layout.livingRooms) || 0,
-      carpark: Number(layout.carpark) || 0,
-      extraSpaces: layout.extraSpaces || [],
-      facilities: layout.facilities || [],
-      furniture: layout.furniture || [],
-      orientation: layout.facing || null,
-      transit: layout.transit || null,
-    });
-  }, [layout]);
+  // 图片打标签 config（由当前 layout 直接算出来，不用再存 state）
+  const config = {
+    bedrooms: Number(layout.bedrooms) || 0,
+    bathrooms: Number(layout.bathrooms) || 0,
+    kitchens: Number(layout.kitchens) || 0,
+    livingRooms: Number(layout.livingRooms) || 0,
+    carpark: Number(layout.carpark) || 0,
+    extraSpaces: layout.extraSpaces || [],
+    facilities: layout.facilities || [],
+    furniture: layout.furniture || [],
+    orientation: layout.facing || null,
+    transit: layout.transit || null,
+  };
 
   // psf 文本用当前 layout 的面积 & 价格
   const psfText = getPsfText(layout.buildUp, layout.price);
@@ -230,9 +220,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
           kitchens: layout.kitchens,
           livingRooms: layout.livingRooms,
         }}
-        onChange={(updated) => {
-          updateLayout(updated);
-        }}
+        onChange={(updated) => updateLayout(updated)}
       />
 
       {/* 停车位 */}
