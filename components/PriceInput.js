@@ -1,105 +1,7 @@
 // components/PriceInput.js
 import { useState, useRef, useEffect } from "react";
 
-// ---------- 工具：把 AreaSelector 的结果转换成总 sqft ----------
-function getTotalAreaSqft(area) {
-  if (!area) return 0;
-
-  const toNumber = (val) => {
-    if (val == null) return 0;
-    const n = parseFloat(String(val).replace(/,/g, ""));
-    return Number.isNaN(n) ? 0 : n;
-  };
-
-  const convertToSqFt = (val, unit) => {
-    const num = toNumber(val);
-    if (!num) return 0;
-    const u = String(unit || "").toLowerCase();
-
-    if (u.includes("square meter") || u.includes("sq m") || u.includes("sqm")) {
-      return num * 10.7639;
-    }
-    if (u.includes("acre")) return num * 43560;
-    if (u.includes("hectare")) return num * 107639;
-    return num; // 默认当 sqft
-  };
-
-  // 标准结构：{ values, units }
-  if (area.values && area.units) {
-    const buildUpSqft = convertToSqFt(area.values.buildUp, area.units.buildUp);
-    const landSqft = convertToSqFt(area.values.land, area.units.land);
-    return (buildUpSqft || 0) + (landSqft || 0);
-  }
-
-  // 简单结构：{ buildUp, land }，已是 sqft
-  if (typeof area === "object") {
-    const buildUp = toNumber(area.buildUp);
-    const land = toNumber(area.land);
-    return buildUp + land;
-  }
-
-  // 数字 / 字符串
-  return toNumber(area);
-}
-
-// ---------- 工具：生成 psf 文本 ----------
-function getPsfText(area, price) {
-  const totalAreaSqft = getTotalAreaSqft(area);
-  if (!totalAreaSqft || totalAreaSqft <= 0) return "";
-
-  let minPrice = 0;
-  let maxPrice = 0;
-
-  if (price == null || price === "") return "";
-
-  if (typeof price === "object") {
-    minPrice = Number(price.min) || 0;
-    maxPrice = Number(price.max) || 0;
-  } else if (typeof price === "string" && price.includes("-")) {
-    const [minStr, maxStr] = price.split("-");
-    minPrice = Number(minStr) || 0;
-    maxPrice = Number(maxStr) || 0;
-  } else {
-    const num = Number(price) || 0;
-    minPrice = num;
-    maxPrice = num;
-  }
-
-  if (!minPrice && !maxPrice) return "";
-
-  const lowPrice = minPrice > 0 ? minPrice : maxPrice;
-  const highPrice = maxPrice > 0 ? maxPrice : minPrice;
-
-  if (!lowPrice) return "";
-
-  const lowPsf = lowPrice / totalAreaSqft;
-  const highPsf = highPrice ? highPrice / totalAreaSqft : lowPsf;
-
-  if (!isFinite(lowPsf) || Number.isNaN(lowPsf) || Number.isNaN(highPsf)) {
-    return "";
-  }
-
-  if (!highPrice || Math.abs(highPsf - lowPsf) < 0.005) {
-    return `每平方英尺: RM ${lowPsf.toLocaleString(undefined, {
-      maximumFractionDigits: 2,
-    })}`;
-  }
-
-  return `每平方英尺: RM ${lowPsf.toLocaleString(undefined, {
-    maximumFractionDigits: 2,
-  })} ~ RM ${highPsf.toLocaleString(undefined, {
-    maximumFractionDigits: 2,
-  })}`;
-}
-
-/**
- * props:
- *  - value: 价格
- *  - onChange: (val) => void
- *  - type: propertyStatus，用来判断是不是 range
- *  - area: 面积对象（AreaSelector 的结果，或者 {buildUp,land}）
- */
-export default function PriceInput({ value, onChange, type, area }) {
+export default function PriceInput({ value, onChange, type }) {
   const wrapperRef = useRef(null);
 
   const predefinedPrices = [
@@ -217,20 +119,7 @@ export default function PriceInput({ value, onChange, type, area }) {
     setShowDropdownMax(false);
   };
 
-  // ---------- 6. 计算 psf 文本 ----------
-  let priceForPsf;
-  if (isRange) {
-    priceForPsf = {
-      min: Number(min || 0),
-      max: Number(max || 0),
-    };
-  } else {
-    priceForPsf = Number(single || 0);
-  }
-
-  const psfText = getPsfText(area, priceForPsf);
-
-  // ---------- 7. UI ----------
+  // ---------- 6. UI ----------
   return (
     <div className="relative w-full" ref={wrapperRef}>
       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -324,11 +213,6 @@ export default function PriceInput({ value, onChange, type, area }) {
             </ul>
           )}
         </div>
-      )}
-
-      {/* ✅ psf 显示 */}
-      {psfText && (
-        <p className="text-sm text-gray-600 mt-1">{psfText}</p>
       )}
     </div>
   );
