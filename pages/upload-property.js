@@ -209,6 +209,7 @@ export default function UploadProperty() {
                   index={index}
                   data={{ ...layout, projectType: propertyStatus }}
                   onChange={(updated) => {
+                    console.log("UploadProperty 收到 UnitLayoutForm 更新:", index, updated);
                     const newLayouts = [...unitLayouts];
                     newLayouts[index] = updated;
                     setUnitLayouts(newLayouts);
