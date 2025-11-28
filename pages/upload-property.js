@@ -183,14 +183,14 @@ export default function UploadProperty() {
   value={type}
   onChange={setType}
   onFormChange={(formData) => {
-  const newStatus = formData?.propertyStatus || "";
+    const newStatus = formData?.propertyStatus || "";
 
-  setPropertyStatus((prev) => {
-    if (prev === newStatus) return prev; // 不同步则不刷新
-    return newStatus; // 只有真正变更时才更新
-  });
-}}
-
+    setPropertyStatus((prev) => {
+      if (prev === newStatus) return prev; // 不变就不更新，避免多余渲染
+      return newStatus;
+    });
+  }}
+/>
       {/* ------------ 项目类房源 (New Project / Completed Unit) ------------ */}
       {isProject ? (
         <>
