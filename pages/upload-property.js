@@ -204,18 +204,34 @@ export default function UploadProperty() {
           {unitLayouts.length > 0 && (
             <div className="space-y-4 mt-4">
               {unitLayouts.map((layout, index) => (
-                <UnitLayoutForm
-                  key={index}
-                  index={index}
-                  data={{ ...layout, projectType: propertyStatus }}
-                  onChange={(updated) => {
-                    console.log("UploadProperty 收到 UnitLayoutForm 更新:", index, updated);
-                    const newLayouts = [...unitLayouts];
-                    newLayouts[index] = updated;
-                    setUnitLayouts(newLayouts);
-                  }}
-                />
-              ))}
+  <UnitLayoutForm
+    key={index}
+    index={index}
+    data={{ ...layout, projectType: propertyStatus }}
+    onChange={(updated) => {
+      // 可以先看一眼 log，确认只触发一次
+      console.log("UploadProperty 收到 UnitLayoutForm 更新:", index, updated);
+
+      setUnitLayouts((prev) => {
+        const prevLayouts = prev && prev.length ? prev : unitLayouts;
+        const prevLayout = prevLayouts[index] || {};
+
+        // ⚠️ 如果这次更新和上一次一模一样，就不要再 setState 了，防止死循环
+        const isSame =
+          JSON.stringify(prevLayout) === JSON.stringify(updated);
+
+        if (isSame) {
+          return prevLayouts; // 不变就直接返回旧 state，React 不会再重新渲染
+        }
+
+        const next = [...prevLayouts];
+        next[index] = updated;
+        return next;
+      });
+    }}
+  />
+))}
+
 
               {/* 项目整体的交通信息 */}
               <TransitSelector onChange={setTransitInfo} />
