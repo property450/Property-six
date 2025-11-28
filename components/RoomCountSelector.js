@@ -54,6 +54,7 @@ export default function RoomCountSelector({ value = {}, onChange }) {
   }, []);
 
   const setFieldValue = (key, newVal) => {
+    console.log("RoomCountSelector setFieldValue:", key, newVal, "原 value=", value);
     onChange?.({ ...value, [key]: newVal });
   };
 
