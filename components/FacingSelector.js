@@ -1,7 +1,7 @@
 // components/FacingSelector.js
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import CreatableSelect from "react-select/creatable";
 
 // 默认朝向选项
@@ -16,23 +16,23 @@ const facingOptions = [
   "西北",
 ].map((label) => ({ value: label, label }));
 
-export default function FacingSelector({ value = [], onChange }) {
-  // 确保 value 一定是数组
-  const normalizedValue = Array.isArray(value) ? value : [];
+export default function FacingSelector({ value, onChange }) {
+  // 保证是数组
+  const normalized = Array.isArray(value)
+    ? value
+    : value
+    ? [value]
+    : [];
 
-  const [selectedOptions, setSelectedOptions] = useState(
-    normalizedValue.map((v) => ({ value: v, label: v }))
-  );
-
-  useEffect(() => {
-    setSelectedOptions(
-      (Array.isArray(value) ? value : []).map((v) => ({ value: v, label: v }))
-    );
-  }, [value]);
+  // 直接在渲染时把字符串转成 options，**不再用 useState / useEffect**
+  const selectedOptions = normalized.map((v) => ({
+    value: v,
+    label: v,
+  }));
 
   const handleChange = (selected) => {
-    setSelectedOptions(selected || []);
-    onChange?.(selected ? selected.map((opt) => opt.value) : []);
+    const arr = (selected || []).map((opt) => opt.value);
+    onChange?.(arr);
   };
 
   return (
@@ -45,7 +45,7 @@ export default function FacingSelector({ value = [], onChange }) {
         value={selectedOptions}
         onChange={handleChange}
         formatCreateLabel={(inputValue) => `添加自定义: ${inputValue}`}
-        closeMenuOnSelect={false} // ✅ 选中后不关闭菜单
+        closeMenuOnSelect={false}
         styles={{
           menu: (provided) => ({
             ...provided,
