@@ -110,30 +110,78 @@ function getPsfText(areaObj, priceValue) {
 }
 
 export default function UnitLayoutForm({ index, data, onChange }) {
+  // ✅ 统一一个标准的 layout 结构，防止上面传下来是 {} 或缺字段
+  const defaultLayout = {
+    type: "",
+    price: "",
+    buildUp: {},
+
+    bedrooms: 0,
+    bathrooms: 0,
+    kitchens: 0,
+    livingRooms: 0,
+
+    carpark: 0,
+    carparkPosition: { min: 0, max: 0 },
+
+    extraSpaces: [],
+    facilities: [],
+    furniture: [],
+
+    facing: "",
+
+    photos: [],
+    layoutPhotos: [],
+
+    buildYear: "",
+    quarter: "",
+
+    transit: null,
+
+    projectType: data.projectType || "",
+  };
+
+  // ❗真正使用的内部 state
+  const [layout, setLayout] = useState(() => ({
+    ...defaultLayout,
+    ...(data || {}),
+  }));
+
+  // 当父组件传进来的 data 变更时，同步一次（例如切换房型数量）
+  useEffect(() => {
+    setLayout((prev) => ({
+      ...prev,
+      ...(data || {}),
+    }));
+  }, [data]);
+
   const [type, setType] = useState(data.type || "");
   const fileInputRef = useRef(null);
-  const [transitInfo, setTransitInfo] = useState(data.transit || null);
+  const [transitInfo, setTransitInfo] = useState(layout.transit || null);
 
   // 本地保存面积 & 价格，用来算 psf
-  const [areaForPsf, setAreaForPsf] = useState(data.buildUp || {});
-  const [priceForPsf, setPriceForPsf] = useState(data.price || "");
+  const [areaForPsf, setAreaForPsf] = useState(layout.buildUp || {});
+  const [priceForPsf, setPriceForPsf] = useState(layout.price || "");
 
   useEffect(() => {
-    if (data.buildUp) setAreaForPsf(data.buildUp);
-  }, [data.buildUp]);
+    if (layout.buildUp) setAreaForPsf(layout.buildUp);
+  }, [layout.buildUp]);
 
   useEffect(() => {
-    if (data.price !== undefined) setPriceForPsf(data.price);
-  }, [data.price]);
+    if (layout.price !== undefined) setPriceForPsf(layout.price);
+  }, [layout.price]);
 
+  // ✅ 修改统一走这里：更新本地 layout + 通知父组件
   const handleChange = (field, value) => {
-    onChange({ ...data, [field]: value });
+    const updated = { ...layout, [field]: value };
+    setLayout(updated);
+    onChange && onChange(updated);
   };
 
   const handleLayoutUpload = (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
-    const newPhotos = [...(data.layoutPhotos || []), ...files];
+    const newPhotos = [...(layout.layoutPhotos || []), ...files];
     handleChange("layoutPhotos", newPhotos);
   };
 
@@ -141,18 +189,18 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   const [config, setConfig] = useState({});
   useEffect(() => {
     setConfig({
-      bedrooms: Number(data.bedrooms) || 0,
-      bathrooms: Number(data.bathrooms) || 0,
-      kitchens: Number(data.kitchens) || 0,
-      livingRooms: Number(data.livingRooms) || 0,
-      carpark: Number(data.carpark) || 0,
-      extraSpaces: data.extraSpaces || [],
-      facilities: data.facilities || [],
-      furniture: data.furniture || [],
-      orientation: data.facing || null,
-      transit: data.transit || null,
+      bedrooms: Number(layout.bedrooms) || 0,
+      bathrooms: Number(layout.bathrooms) || 0,
+      kitchens: Number(layout.kitchens) || 0,
+      livingRooms: Number(layout.livingRooms) || 0,
+      carpark: Number(layout.carpark) || 0,
+      extraSpaces: layout.extraSpaces || [],
+      facilities: layout.facilities || [],
+      furniture: layout.furniture || [],
+      orientation: layout.facing || null,
+      transit: layout.transit || null,
     });
-  }, [data]);
+  }, [layout]);
 
   const psfText = getPsfText(areaForPsf, priceForPsf);
 
@@ -179,7 +227,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         />
 
         <ImageUpload
-          images={data.layoutPhotos || []}
+          images={layout.layoutPhotos || []}
           setImages={(updated) => handleChange("layoutPhotos", updated)}
         />
       </div>
@@ -201,7 +249,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         <label className="block mb-1 font-medium">上传照片</label>
         <ImageUpload
           config={config}
-          images={data.photos || []}
+          images={layout.photos || []}
           setImages={(updated) => handleChange("photos", updated)}
         />
       </div>
@@ -210,7 +258,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       <AreaSelector
         initialValue={areaForPsf || {}}
         onChange={(val) => {
-          setAreaForPsf(val);           // 本地用于 psf
+          setAreaForPsf(val);          // 本地用于 psf
           handleChange("buildUp", val); // 同步到 layout 数据
         }}
       />
@@ -219,10 +267,10 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       <PriceInput
         value={priceForPsf}
         onChange={(val) => {
-          setPriceForPsf(val);          // 本地用于 psf
-          handleChange("price", val);   // 同步到 layout 数据
+          setPriceForPsf(val);         // 本地用于 psf
+          handleChange("price", val);  // 同步到 layout 数据
         }}
-        type={data.projectType}
+        type={layout.projectType}
       />
 
       {/* ✅ 唯一一条 psf 文本 */}
@@ -230,24 +278,28 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         <p className="text-sm text-gray-600 mt-1">{psfText}</p>
       )}
 
-      {/* 房间数量 —— 跟单一房源写法尽量保持一致 */}
+      {/* 房间数量 */}
       <RoomCountSelector
         value={{
-          bedrooms: Number(data.bedrooms) || 0,
-          bathrooms: Number(data.bathrooms) || 0,
-          kitchens: Number(data.kitchens) || 0,
-          livingRooms: Number(data.livingRooms) || 0,
+          bedrooms: Number(layout.bedrooms) || 0,
+          bathrooms: Number(layout.bathrooms) || 0,
+          kitchens: Number(layout.kitchens) || 0,
+          livingRooms: Number(layout.livingRooms) || 0,
         }}
-        onChange={(updated) => onChange({ ...data, ...updated })}
+        onChange={(updated) => {
+          const merged = { ...layout, ...updated };
+          setLayout(merged);
+          onChange && onChange(merged);
+        }}
       />
 
       {/* 停车位 */}
       <CarparkCountSelector
-        value={data.carpark}
+        value={layout.carpark}
         onChange={(val) => handleChange("carpark", val)}
         mode={
-          data.projectType === "New Project / Under Construction" ||
-          data.projectType === "Completed Unit / Developer Unit"
+          layout.projectType === "New Project / Under Construction" ||
+          layout.projectType === "Completed Unit / Developer Unit"
             ? "range"
             : "single"
         }
@@ -255,31 +307,31 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 
       {/* 额外空间 */}
       <ExtraSpacesSelector
-        value={data.extraSpaces || []}
+        value={layout.extraSpaces || []}
         onChange={(val) => handleChange("extraSpaces", val)}
       />
 
-      {/* 朝向 —— 这里改回和单一房源一样，直接给 value 本身 */}
+      {/* 朝向 */}
       <FacingSelector
-        value={data.facing}
+        value={layout.facing}
         onChange={(val) => handleChange("facing", val)}
       />
 
       {/* 车位楼层 */}
       <CarparkLevelSelector
-        value={data.carparkPosition}
+        value={layout.carparkPosition}
         onChange={(val) => handleChange("carparkPosition", val)}
         mode="range"
       />
 
       {/* 家具 / 设施 */}
       <FurnitureSelector
-        value={data.furniture || []}
+        value={layout.furniture || []}
         onChange={(val) => handleChange("furniture", val)}
       />
 
       <FacilitiesSelector
-        value={data.facilities || []}
+        value={layout.facilities || []}
         onChange={(val) => handleChange("facilities", val)}
       />
 
@@ -296,9 +348,9 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 
       {/* 建成年份 + 季度 */}
       <BuildYearSelector
-        value={data.buildYear}
+        value={layout.buildYear}
         onChange={(val) => handleChange("buildYear", val)}
-        quarter={data.quarter}
+        quarter={layout.quarter}
         onQuarterChange={(val) => handleChange("quarter", val)}
         showQuarter={true}
       />
