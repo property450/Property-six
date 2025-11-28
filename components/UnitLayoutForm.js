@@ -1,6 +1,7 @@
 // components/UnitLayoutForm.js
 "use client";
-import { useState, useEffect, useRef } from "react";
+
+import { useRef } from "react";
 
 import PriceInput from "./PriceInput";
 import CarparkCountSelector from "./CarparkCountSelector";
@@ -66,8 +67,8 @@ function getPriceRange(priceValue) {
 
   if (typeof priceValue === "string" && priceValue.includes("-")) {
     const [minStr, maxStr] = priceValue.split("-");
-    if (minStr) minPrice = Number(minStr) || 0;
-    if (maxStr) maxPrice = Number(maxStr) || 0;
+    if (minStr) minPrice = Number(minStr.replace(/,/g, "")) || 0;
+    if (maxStr) maxPrice = Number(maxStr.replace(/,/g, "")) || 0;
   } else if (typeof priceValue === "object") {
     minPrice = Number(priceValue.min) || 0;
     maxPrice = Number(priceValue.max) || 0;
@@ -109,9 +110,11 @@ function getPsfText(areaObj, priceValue) {
   })}`;
 }
 
-export default function UnitLayoutForm({ index, data, onChange }) {
-  // ✅ 统一一个标准的 layout 结构，防止上面传下来是 {} 或缺字段
-  const defaultLayout = {
+export default function UnitLayoutForm({ index, data = {}, onChange }) {
+  const fileInputRef = useRef(null);
+
+  // ✅ 统一一个标准 layout，不用本地 useState，完全由父组件控制
+  const layout = {
     type: "",
     price: "",
     buildUp: {},
@@ -122,7 +125,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     livingRooms: 0,
 
     carpark: 0,
-    carparkPosition: { min: 0, max: 0 },
+    carparkPosition: { min: "", max: "" },
 
     extraSpaces: [],
     facilities: [],
@@ -139,42 +142,16 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     transit: null,
 
     projectType: data.projectType || "",
+    ...data,
   };
 
-  // ❗真正使用的内部 state
-  const [layout, setLayout] = useState(() => ({
-    ...defaultLayout,
-    ...(data || {}),
-  }));
-
-  // 当父组件传进来的 data 变更时，同步一次（例如切换房型数量）
-  useEffect(() => {
-    setLayout((prev) => ({
-      ...prev,
-      ...(data || {}),
-    }));
-  }, [data]);
-
-  const [type, setType] = useState(data.type || "");
-  const fileInputRef = useRef(null);
-  const [transitInfo, setTransitInfo] = useState(layout.transit || null);
-
-  // 本地保存面积 & 价格，用来算 psf
-  const [areaForPsf, setAreaForPsf] = useState(layout.buildUp || {});
-  const [priceForPsf, setPriceForPsf] = useState(layout.price || "");
-
-  useEffect(() => {
-    if (layout.buildUp) setAreaForPsf(layout.buildUp);
-  }, [layout.buildUp]);
-
-  useEffect(() => {
-    if (layout.price !== undefined) setPriceForPsf(layout.price);
-  }, [layout.price]);
-
-  // ✅ 修改统一走这里：更新本地 layout + 通知父组件
   const handleChange = (field, value) => {
     const updated = { ...layout, [field]: value };
-    setLayout(updated);
+    onChange && onChange(updated);
+  };
+
+  const handleMultiChange = (patch) => {
+    const updated = { ...layout, ...patch };
     onChange && onChange(updated);
   };
 
@@ -185,24 +162,21 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     handleChange("layoutPhotos", newPhotos);
   };
 
-  // 给 ImageUpload 用的 config（不影响 selector 行为）
-  const [config, setConfig] = useState({});
-  useEffect(() => {
-    setConfig({
-      bedrooms: Number(layout.bedrooms) || 0,
-      bathrooms: Number(layout.bathrooms) || 0,
-      kitchens: Number(layout.kitchens) || 0,
-      livingRooms: Number(layout.livingRooms) || 0,
-      carpark: Number(layout.carpark) || 0,
-      extraSpaces: layout.extraSpaces || [],
-      facilities: layout.facilities || [],
-      furniture: layout.furniture || [],
-      orientation: layout.facing || null,
-      transit: layout.transit || null,
-    });
-  }, [layout]);
+  const psfText = getPsfText(layout.buildUp, layout.price);
 
-  const psfText = getPsfText(areaForPsf, priceForPsf);
+  // 给 ImageUpload 用的 config（纯计算，不用 useState）
+  const config = {
+    bedrooms: Number(layout.bedrooms) || 0,
+    bathrooms: Number(layout.bathrooms) || 0,
+    kitchens: Number(layout.kitchens) || 0,
+    livingRooms: Number(layout.livingRooms) || 0,
+    carpark: Number(layout.carpark) || 0,
+    extraSpaces: layout.extraSpaces || [],
+    facilities: layout.facilities || [],
+    furniture: layout.furniture || [],
+    orientation: layout.facing || null,
+    transit: layout.transit || null,
+  };
 
   return (
     <div className="border rounded-lg p-4 shadow-sm bg-white">
@@ -236,11 +210,8 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       <input
         type="text"
         placeholder="输入 Type 名称"
-        value={type}
-        onChange={(e) => {
-          setType(e.target.value);
-          handleChange("type", e.target.value);
-        }}
+        value={layout.type}
+        onChange={(e) => handleChange("type", e.target.value)}
         className="border p-2 rounded w-full mb-3"
       />
 
@@ -256,20 +227,14 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 
       {/* 面积 */}
       <AreaSelector
-        initialValue={areaForPsf || {}}
-        onChange={(val) => {
-          setAreaForPsf(val);          // 本地用于 psf
-          handleChange("buildUp", val); // 同步到 layout 数据
-        }}
+        initialValue={layout.buildUp || {}}
+        onChange={(val) => handleChange("buildUp", val)}
       />
 
       {/* 价格 */}
       <PriceInput
-        value={priceForPsf}
-        onChange={(val) => {
-          setPriceForPsf(val);         // 本地用于 psf
-          handleChange("price", val);  // 同步到 layout 数据
-        }}
+        value={layout.price}
+        onChange={(val) => handleChange("price", val)}
         type={layout.projectType}
       />
 
@@ -281,16 +246,12 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       {/* 房间数量 */}
       <RoomCountSelector
         value={{
-          bedrooms: Number(layout.bedrooms) || 0,
-          bathrooms: Number(layout.bathrooms) || 0,
-          kitchens: Number(layout.kitchens) || 0,
-          livingRooms: Number(layout.livingRooms) || 0,
+          bedrooms: layout.bedrooms,
+          bathrooms: layout.bathrooms,
+          kitchens: layout.kitchens,
+          livingRooms: layout.livingRooms,
         }}
-        onChange={(updated) => {
-          const merged = { ...layout, ...updated };
-          setLayout(merged);
-          onChange && onChange(merged);
-        }}
+        onChange={(updated) => handleMultiChange(updated)}
       />
 
       {/* 停车位 */}
@@ -339,10 +300,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       <div className="mb-4">
         <label className="font-medium">交通信息</label>
         <TransitSelector
-          onChange={(val) => {
-            setTransitInfo(val);
-            handleChange("transit", val);
-          }}
+          onChange={(val) => handleChange("transit", val)}
         />
       </div>
 
