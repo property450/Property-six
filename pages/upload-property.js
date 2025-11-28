@@ -183,16 +183,8 @@ export default function UploadProperty() {
   value={type}
   onChange={setType}
   onFormChange={(formData) => {
-    const status =
-      formData?.propertyStatus ||
-      formData?.status ||
-      formData?.finalType ||
-      "";
-
-    setPropertyStatus((prev) => {
-      if (prev === status) return prev; // 🔥 防止无限循环
-      return status;
-    });
+    const status = formData?.propertyStatus || "";
+    setPropertyStatus(status);
   }}
 />
 
