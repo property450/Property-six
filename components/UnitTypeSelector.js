@@ -13,19 +13,20 @@ export default function UnitTypeSelector({ propertyStatus, onChange }) {
 
   const [count, setCount] = useState(0);
 
-  // ✅ 正确的 layout 初始结构
+  // ✅ 正确的 layout 初始结构（这里改成 ""，不再用 0）
   const createEmptyLayout = () => ({
     type: "",
     price: "",
     buildUp: {},
 
-    bedrooms: 0,
-    bathrooms: 0,
-    kitchens: 0,
-    livingRooms: 0,
+    bedrooms: "",
+    bathrooms: "",
+    kitchens: "",
+    livingRooms: "",
 
-    carpark: 0,
-    carparkPosition: { min: 0, max: 0 },
+    carpark: "",
+
+    carparkPosition: { min: "", max: "" },
 
     extraSpaces: [],
     facilities: [],
@@ -42,7 +43,7 @@ export default function UnitTypeSelector({ propertyStatus, onChange }) {
     transit: null,
   });
 
-  // ✅ 只依赖 count，不依赖 onChange，避免死循环
+  // 只依赖 count，避免死循环
   useEffect(() => {
     if (!count || count <= 0) {
       onChange && onChange([]);
