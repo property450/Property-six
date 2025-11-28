@@ -94,7 +94,7 @@ function getPsfText(area, price) {
 
 /**
  * props:
- *  - value: 价格（字符串 / number / "min-max" / {min,max} 都可）
+ *  - value: 价格
  *  - onChange: (val) => void
  *  - type: propertyStatus，用来判断是不是 range
  *  - area: 面积对象（AreaSelector 的结果，或者 {buildUp,land}）
@@ -217,7 +217,7 @@ export default function PriceInput({ value, onChange, type, area }) {
     setShowDropdownMax(false);
   };
 
-  // ---------- 6. 这里计算 psf 文本 ----------
+  // ---------- 6. 计算 psf 文本 ----------
   let priceForPsf;
   if (isRange) {
     priceForPsf = {
