@@ -1,4 +1,6 @@
+// components/UnitLayoutForm.js
 "use client";
+
 import { useState, useEffect, useRef } from "react";
 
 import PriceInput from "./PriceInput";
@@ -112,7 +114,6 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   // 🔑 统一本地 state，所有字段都从这里读写
   const [layout, setLayout] = useState(data || {});
   const fileInputRef = useRef(null);
-  const [transitInfo, setTransitInfo] = useState(data.transit || null);
 
   // 当父组件传进来的 data 变化时，同步一次
   useEffect(() => {
@@ -128,11 +129,6 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     });
   };
 
-  const handleFieldChange = (field, value) => {
-    updateLayout({ [field]: value });
-  };
-
-  // 上传 layout 图片
   const handleLayoutUpload = (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
@@ -183,6 +179,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         />
 
         <ImageUpload
+          config={{}} // Layout 简单模式
           images={layout.layoutPhotos || []}
           setImages={(updated) => updateLayout({ layoutPhotos: updated })}
         />
@@ -220,12 +217,12 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         type={layout.projectType}
       />
 
-      {/* ✅ 唯一一条 psf 文本 */}
+      {/* 唯一一条 psf 文本 */}
       {psfText && (
         <p className="text-sm text-gray-600 mt-1">{psfText}</p>
       )}
 
-      {/* 房间数量：点击后 layout 会立刻更新，所以你能看到按钮变化 */}
+      {/* 房间数量 */}
       <RoomCountSelector
         value={{
           bedrooms: layout.bedrooms,
@@ -234,7 +231,6 @@ export default function UnitLayoutForm({ index, data, onChange }) {
           livingRooms: layout.livingRooms,
         }}
         onChange={(updated) => {
-          // updated 里会带着 {bedrooms, bathrooms, ...}
           updateLayout(updated);
         }}
       />
@@ -285,10 +281,8 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       <div className="mb-4">
         <label className="font-medium">交通信息</label>
         <TransitSelector
-          onChange={(val) => {
-            setTransitInfo(val);
-            updateLayout({ transit: val });
-          }}
+          value={layout.transit || null}
+          onChange={(val) => updateLayout({ transit: val })}
         />
       </div>
 
