@@ -46,7 +46,9 @@ export default function RoomCountSelector({ value = {}, onChange }) {
   // 点击页面其它地方时关闭下拉
   useEffect(() => {
     const onDocClick = (e) => {
-      const anyHit = Object.values(refs.current).some((el) => el && el.contains(e.target));
+      const anyHit = Object.values(refs.current).some(
+        (el) => el && el.contains(e.target)
+      );
       if (!anyHit) setOpenKey(null);
     };
     document.addEventListener("mousedown", onDocClick);
@@ -54,7 +56,6 @@ export default function RoomCountSelector({ value = {}, onChange }) {
   }, []);
 
   const setFieldValue = (key, newVal) => {
-    console.log("RoomCountSelector setFieldValue:", key, newVal, "原 value=", value);
     onChange?.({ ...value, [key]: newVal });
   };
 
@@ -99,7 +100,6 @@ export default function RoomCountSelector({ value = {}, onChange }) {
       return (
         <li
           key={String(opt)}
-          // 用 onMouseDown 避免因为 input 失焦导致点击丢失
           onMouseDown={(e) => {
             e.preventDefault();
             handlePick(def.key, opt);
@@ -116,16 +116,29 @@ export default function RoomCountSelector({ value = {}, onChange }) {
     <div className="grid grid-cols-1 gap-4">
       {FIELD_DEFS.map((def) => {
         const cur = value[def.key];
-        const isNumberLike = typeof cur === "number" || /^\d+$/.test(String(cur || ""));
+
+        const isNumberLike =
+          typeof cur === "number" ||
+          (typeof cur === "string" && /^\d+$/.test(cur));
+
         const display = isNumberLike ? formatNumber(cur) : cur || "";
         const isCustom = !!customFlags[def.key];
 
-        // 占位符逻辑
-        const placeholder = isCustom
-          ? "请输入你要的数字"
-          : def.key === "bedrooms"
-          ? "输入或选择数量（可选 Studio）"
-          : "输入或选择数量";
+        // 占位符逻辑 —— 改成你想要的文案
+        let placeholder = "输入或选择数量";
+        if (def.key === "bedrooms") {
+          placeholder = "选择卧室数量（可输入或 Studio）";
+        } else if (def.key === "bathrooms") {
+          placeholder = "选择浴室数量";
+        } else if (def.key === "kitchens") {
+          placeholder = "选择厨房数量";
+        } else if (def.key === "livingRooms") {
+          placeholder = "选择客厅数量";
+        }
+
+        if (isCustom) {
+          placeholder = "请输入你要的数字";
+        }
 
         return (
           <div
