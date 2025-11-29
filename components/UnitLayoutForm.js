@@ -250,17 +250,17 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       </div>
 
       {/* Sub Type */}
-      {currentCategory && (
+{localCategory && (
   <div className="mb-3">
     <label className="block font-medium mb-1">Sub Type</label>
     <select
-      key={currentCategory} // 👈 切换 Category 时重建下拉
-      defaultValue={data.subType || ""} // 👈 不用 value，改用 defaultValue
+      key={localCategory}                     // 👈 换 Category 时重建下拉
+      defaultValue={data.subType || ""}       // 👈 不再用 value，避免卡住
       onChange={(e) => handleChange("subType", e.target.value)}
       className="border p-2 rounded w-full"
     >
       <option value="">请选择具体类型</option>
-      {subTypeList.map((st) => (
+      {(subTypeList || []).map((st) => (
         <option key={st} value={st}>
           {st}
         </option>
