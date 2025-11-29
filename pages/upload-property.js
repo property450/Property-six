@@ -227,25 +227,27 @@ useEffect(() => {
 
           {/* ✅ 只有当 unitLayouts.length > 0，也就是你选了房型数量之后，才显示下面所有内容 */}
           {unitLayouts.length > 0 && (
-            <div className="space-y-4 mt-4">
-              {unitLayouts.map((layout, index) => (
-  <UnitLayoutForm
-    key={index}
-    index={index}
-    data={{ ...layout, projectType: propertyStatus }}
-    onChange={(updated) => {
-  console.log("Layout 更新:", index, updated);
+  <div className="space-y-4 mt-4">
+    {unitLayouts.map((layout, index) => (
+      <UnitLayoutForm
+        key={index}
+        index={index}
+        data={{ ...layout, projectType: propertyStatus }}
+        onChange={(updated) => {
+          console.log("Layout 更新:", index, updated);
 
-  setUnitLayouts((prev) => {
-    const next = [...prev];
-    next[index] = { ...prev[index], ...updated }; // 合并更新
-    return next;
-  });
-}}
-  />
-))}
-            </div>
-          )}
+          setUnitLayouts((prev) => {
+            const next = [...prev];
+            const prevItem = next[index] || {};
+            next[index] = { ...prevItem, ...updated }; // 安全合并
+            return next;
+          });
+        }}
+      />
+    ))}
+  </div>
+)}
+
         </>
       ) : (
         /* ------------ 普通非项目房源：保持你之前的旧逻辑 ------------ */
