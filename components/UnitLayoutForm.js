@@ -278,18 +278,18 @@ export default function UnitLayoutForm({
         </div>
       </div>
 
-      {/* 面积 */}
+            {/* 面积 */}
       <AreaSelector
         initialValue={data.buildUp}
         onChange={(v) => handleChange("buildUp", v)}
       />
 
-      {/* 价格 —— 这里把 sqft 面积传给 PriceInput，里面就会计算 psf 范围 */}
+      {/* 价格 —— 直接把 buildUp 对象丢给 PriceInput，让它自己算 psf */}
       <PriceInput
         value={data.price}
         onChange={(v) => handleChange("price", v)}
         type={projectType || data.projectType || "New Project / Under Construction"}
-        area={{ buildUp: buildUpSqft, land: landSqft }}
+        area={data.buildUp}   // ⬅ 关键：改回这一行
       />
 
       {/* 房间数量 */}
