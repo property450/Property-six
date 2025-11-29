@@ -245,24 +245,6 @@ export default function UploadProperty() {
     }}
   />
 ))}
-
-
-              {/* 项目整体的交通信息 */}
-              <TransitSelector onChange={setTransitInfo} />
-
-              {/* 项目整体描述 */}
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  房源描述
-                </label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="请输入房源详细描述..."
-                  rows={4}
-                  className="w-full border rounded-lg p-2 resize-y"
-                />
-              </div>
             </div>
           )}
         </>
