@@ -196,6 +196,53 @@ export default function UnitLayoutForm({ index, data = {}, onChange }) {
         className="border p-2 rounded w-full mb-3"
       />
 
+          {/* Property Category */}
+<div className="mb-3">
+  <label className="block font-medium mb-1">Property Category</label>
+  <select
+    value={data.propertyCategory || ""}
+    onChange={(e) => handleChange("propertyCategory", e.target.value)}
+    className="border p-2 rounded w-full"
+  >
+    <option value="">请选择</option>
+    <option value="Terrace / Link House">Terrace / Link House</option>
+    <option value="Semi-D">Semi-D</option>
+    <option value="Bungalow">Bungalow</option>
+    <option value="Condominium">Condominium</option>
+    <option value="Apartment">Apartment</option>
+    <option value="Townhouse">Townhouse</option>
+  </select>
+</div>
+
+{/* Sub Type */}
+<div className="mb-3">
+  <label className="block font-medium mb-1">Sub Type</label>
+  <select
+    value={data.subType || ""}
+    onChange={(e) => handleChange("subType", e.target.value)}
+    className="border p-2 rounded w-full"
+  >
+    <option value="">请选择</option>
+    <option value="1-storey Terraced House">1-storey Terraced House</option>
+    <option value="2-storey Terraced House">2-storey Terraced House</option>
+    <option value="Cluster House">Cluster House</option>
+    <option value="Condo Unit">Condo Unit</option>
+    <option value="Service Residence">Service Residence</option>
+  </select>
+</div>
+
+{/* Unit Count */}
+<div className="mb-3">
+  <label className="block font-medium mb-1">这个房型有多少个单位？</label>
+  <input
+    type="number"
+    placeholder="例如：120"
+    value={data.unitCount || ""}
+    onChange={(e) => handleChange("unitCount", e.target.value)}
+    className="border p-2 rounded w-full"
+  />
+</div>
+
       {/* 面积 */}
       <AreaSelector
         initialValue={areaForPsf || {}}
