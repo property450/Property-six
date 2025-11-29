@@ -360,10 +360,10 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       {/* 房间数量 */}
       <RoomCountSelector
         value={{
-          bedrooms: Number(data.bedrooms) || 0,
-          bathrooms: Number(data.bathrooms) || 0,
-          kitchens: Number(data.kitchens) || 0,
-          livingRooms: Number(data.livingRooms) || 0,
+          bedrooms: data.bedrooms || "",
+          bathrooms: data.bathrooms || "",
+          kitchens: data.kitchens || "",
+          livingRooms: data.livingRooms || "",
         }}
         onChange={(updated) => onChange({ ...data, ...updated })}
       />
