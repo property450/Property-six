@@ -49,8 +49,7 @@ export default function UploadProperty() {
   const [longitude, setLongitude] = useState(null);
   const [type, setType] = useState("");
   const [propertyStatus, setPropertyStatus] = useState("");
-const [unitLayouts, setUnitLayouts] = useState([]);
-const [unitLayouts, setUnitLayouts] = useState([]);
+  const [unitLayouts, setUnitLayouts] = useState([]);
 
 // 成交状态变化时：如果不是项目类，就清空房型 layouts
 useEffect(() => {
