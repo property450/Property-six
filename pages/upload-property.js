@@ -233,16 +233,20 @@ export default function UploadProperty() {
           {unitLayouts.length > 0 && (
             <div className="space-y-4 mt-4">
               {unitLayouts.map((layout, index) => (
-                <UnitLayoutForm
-                  key={index}
-                  index={index}
-                  data={{ ...layout, projectType: propertyStatus }}
-                  onChange={(updated) => {
-                    console.log(
-                      "UploadProperty 收到 UnitLayoutForm 更新:",
-                      index,
-                      updated
-                    );
+  <UnitLayoutForm
+    key={index}
+    index={index}
+    data={{ ...layout, projectType: propertyStatus }}
+    onChange={(updated) => {
+      setUnitLayouts((prev) => {
+        const prevLayouts = prev && prev.length ? prev : unitLayouts;
+        const next = [...prevLayouts];
+        next[index] = updated;
+        return next;
+      });
+    }}
+  />
+))}
 
                     setUnitLayouts((prev) => {
                       const prevLayouts =
