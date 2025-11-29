@@ -220,26 +220,21 @@ useEffect(() => {
       {isProject ? (
         <>
           {/* 这个组件里面有「这个项目有多少个房型？」的下拉 */}
-          <UnitTypeSelector
-            propertyStatus={propertyStatus}
-            onChange={(layouts) => setUnitLayouts(layouts)}
-          />
-
-          {/* ✅ 只有当 unitLayouts.length > 0，也就是你选了房型数量之后，才显示下面所有内容 */}
           {unitLayouts.length > 0 && (
   <div className="space-y-4 mt-4">
     {unitLayouts.map((layout, index) => (
       <UnitLayoutForm
         key={index}
         index={index}
-        data={{ ...layout, projectType: propertyStatus }}
+        data={layout}
+        projectType={propertyStatus}
         onChange={(updated) => {
           console.log("Layout 更新:", index, updated);
 
           setUnitLayouts((prev) => {
             const next = [...prev];
-            const prevItem = next[index] || {};
-            next[index] = { ...prevItem, ...updated }; // 安全合并
+            // 直接用子组件传上来的完整 updated，别再和 prev[index] 合并了
+            next[index] = updated;
             return next;
           });
         }}
