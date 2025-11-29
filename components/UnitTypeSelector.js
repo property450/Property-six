@@ -13,13 +13,13 @@ export default function UnitTypeSelector({ propertyStatus, onChange }) {
 
   const [count, setCount] = useState(0);
 
-  // ✅ layout 的初始结构（这里加上 description）
+  // layout 的初始结构（和你现在用到的字段统一）
   const createEmptyLayout = () => ({
     type: "",
     propertyCategory: "",
     subType: "",
     unitCount: "",
-    
+
     price: "",
     buildUp: {},
 
@@ -44,19 +44,27 @@ export default function UnitTypeSelector({ propertyStatus, onChange }) {
     quarter: "",
 
     transit: null,
-
-    description: "",   // ⬅ 新增：每个 layout 自己的描述
   });
 
   useEffect(() => {
+    // 不是项目类时：清空
+    if (!shouldShow) {
+      onChange && onChange([]);
+      if (count !== 0) setCount(0);
+      return;
+    }
+
+    // 项目类但还没选数量：清空
     if (!count || count <= 0) {
       onChange && onChange([]);
       return;
     }
+
+    // 根据房型数量生成空 layout
     const layouts = Array.from({ length: count }, () => createEmptyLayout());
     onChange && onChange(layouts);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [count]);
+  }, [count, shouldShow]);
 
   if (!shouldShow) return null;
 
