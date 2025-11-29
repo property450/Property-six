@@ -363,7 +363,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       {/* 每平方英尺 */}
       {psfText && <p className="text-sm text-gray-600 mt-1">{psfText}</p>}
 
-      {/* 房间数量 */}
+      {/* 房间数量：关键 */}
       <RoomCountSelector
         value={{
           bedrooms: layout.bedrooms || "",
@@ -371,9 +371,9 @@ export default function UnitLayoutForm({ index, data, onChange }) {
           kitchens: layout.kitchens || "",
           livingRooms: layout.livingRooms || "",
         }}
-        onChange={(updated) => {
-          // updated 需要是 { bedrooms, bathrooms, kitchens, livingRooms }
-          updateLayout(updated);
+        onChange={(patch) => {
+          // patch 形如 { bedrooms: "2" }
+          updateLayout(patch);
         }}
       />
 
