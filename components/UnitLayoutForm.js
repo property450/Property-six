@@ -38,7 +38,7 @@ function getAreaSqftFromAreaSelector(area) {
   };
 
   // 标准结构：{ types, units, values }
-  if (area.values && area.units) {
+  if (area?.values && area?.units) {
     const buildUpSqft = convertToSqFt(area.values.buildUp, area.units.buildUp);
     const landSqft = convertToSqFt(area.values.land, area.units.land);
     return (buildUpSqft || 0) + (landSqft || 0);
@@ -142,8 +142,8 @@ export default function UnitLayoutForm({ index, data = {}, onChange }) {
 
   const psfText = getPsfText(areaForPsf, priceForPsf);
 
-  // 给 ImageUpload 用的 config
-  const config = {
+  // 给图片上传用的配置（按卧室 / 浴室 / 家私 / 设施等生成格子）
+  const photoConfig = {
     bedrooms: data.bedrooms,
     bathrooms: data.bathrooms,
     kitchens: data.kitchens,
@@ -266,16 +266,6 @@ export default function UnitLayoutForm({ index, data = {}, onChange }) {
         onChange={(val) => handleChange("facilities", val)}
       />
 
-      {/* ✅ 在所有问题之后，按选择生成对应的照片上传框 */}
-      <div className="mb-3">
-        <label className="block mb-1 font-medium">上传照片</label>
-        <ImageUpload
-          config={config}
-          images={data.photos || []}
-          setImages={(updated) => handleChange("photos", updated)}
-        />
-      </div>
-
       {/* 交通信息（针对这个 layout） */}
       <div className="mb-4">
         <label className="font-medium">交通信息</label>
@@ -284,7 +274,7 @@ export default function UnitLayoutForm({ index, data = {}, onChange }) {
         />
       </div>
 
-      {/* 建成年份 + 季度 */}
+      {/* 预计交付时间 + 季度 */}
       <BuildYearSelector
         value={data.buildYear}
         onChange={(val) => handleChange("buildYear", val)}
@@ -292,6 +282,30 @@ export default function UnitLayoutForm({ index, data = {}, onChange }) {
         onQuarterChange={(val) => handleChange("quarter", val)}
         showQuarter={true}
       />
+
+      {/* ⬇⬇ 新增：每个 layout 自己的房源描述（跟 subsale 风格一致） */}
+      <div className="space-y-2 mt-3">
+        <label className="block text-sm font-medium text-gray-700">
+          房源描述（此 Layout）
+        </label>
+        <textarea
+          value={data.description || ""}
+          onChange={(e) => handleChange("description", e.target.value)}
+          placeholder="请输入这个 Layout 的详细描述，例如户型亮点、朝向、装修风格等..."
+          rows={3}
+          className="w-full border rounded-lg p-2 resize-y"
+        />
+      </div>
+
+      {/* ⬇⬇ 照片上传：基于卧室 / 浴室 / 家私 / 设施等生成，对应显示在描述下面 */}
+      <div className="mb-3 mt-3">
+        <label className="block mb-1 font-medium">上传此 Layout 的照片</label>
+        <ImageUpload
+          config={photoConfig}
+          images={data.photos || []}
+          setImages={(updated) => handleChange("photos", updated)}
+        />
+      </div>
     </div>
   );
 }
