@@ -111,7 +111,29 @@ const formatNumber = (num) => {
 // 去掉千分位
 const parseNumber = (str) => String(str || "").replace(/,/g, "");
 
- export default function UnitLayoutForm({ index, data = {}, onChange, projectType }) {
+// 面积统一换算成 sqft（跟 upload-property 里的逻辑一致）
+const convertToSqft = (val, unit) => {
+  const num = parseFloat(String(val || "").replace(/,/g, ""));
+  if (isNaN(num) || num <= 0) return 0;
+  const u = (unit || "").toString().toLowerCase();
+  if (
+    u.includes("square meter") ||
+    u.includes("sq m") ||
+    u.includes("square metres")
+  ) {
+    return num * 10.7639;
+  }
+  if (u.includes("acre")) return num * 43560;
+  if (u.includes("hectare")) return num * 107639;
+  return num; // 默认当成 sqft
+};
+
+export default function UnitLayoutForm({
+  index,
+  data = {},
+  onChange,
+  projectType,
+}) {
   const fileInputRef = useRef(null);
 
   // 「这个房型有多少个单位」下拉框
@@ -129,7 +151,7 @@ const parseNumber = (str) => String(str || "").replace(/,/g, "");
     return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
 
-  // 统一更新 layout（保持你原本 data 结构）
+  // 统一更新 layout
   const handleChange = (field, value) => {
     const updated = { ...data, [field]: value };
     onChange(updated);
@@ -140,11 +162,15 @@ const parseNumber = (str) => String(str || "").replace(/,/g, "");
     handleChange("layoutPhotos", [...(data.layoutPhotos || []), ...files]);
   };
 
+  // 当前 Category 的 SubType 列表
+  const currentCategory = data.propertyCategory || "";
+  const subTypeList = CATEGORY_OPTIONS[currentCategory] || [];
+
   return (
     <div className="border p-4 rounded-lg bg-white mb-4 shadow-sm">
       <h3 className="font-semibold mb-3">Layout {index + 1}</h3>
 
-      {/* 上传 Layout —— 改回全宽长按钮 */}
+      {/* 上传 Layout —— 全宽长按钮 */}
       <button
         type="button"
         className="w-full border px-3 py-2 rounded bg-gray-100 hover:bg-gray-200 mb-2 text-center"
@@ -161,6 +187,11 @@ const parseNumber = (str) => String(str || "").replace(/,/g, "");
         onChange={handleUpload}
       />
 
+      <ImageUpload
+        images={data.layoutPhotos || []}
+        setImages={(updated) => handleChange("layoutPhotos", updated)}
+      />
+
       {/* Type 名称 */}
       <input
         className="border p-2 rounded w-full my-3"
@@ -173,11 +204,10 @@ const parseNumber = (str) => String(str || "").replace(/,/g, "");
       <div className="mb-3">
         <label className="block font-medium mb-1">Property Category</label>
         <select
-          value={data.propertyCategory || ""}
+          value={currentCategory}
           onChange={(e) => {
             const c = e.target.value;
             handleChange("propertyCategory", c);
-            // 换 category 时清空 subType，避免旧值
             handleChange("subType", "");
           }}
           className="border p-2 rounded w-full bg-white"
@@ -191,9 +221,11 @@ const parseNumber = (str) => String(str || "").replace(/,/g, "");
         </select>
       </div>
 
-      {/* 这个房型有多少个单位？ —— 仿造卧室/浴室的下拉样式 */}
+      {/* 这个房型有多少个单位？ */}
       <div className="mb-3" ref={unitRef}>
-        <label className="block font-medium mb-1">这个房型有多少个单位？</label>
+        <label className="block font-medium mb-1">
+          这个房型有多少个单位？
+        </label>
         <div className="relative">
           <input
             type="text"
@@ -202,7 +234,7 @@ const parseNumber = (str) => String(str || "").replace(/,/g, "");
             value={data.unitCount ? formatNumber(data.unitCount) : ""}
             onChange={(e) => {
               const raw = parseNumber(e.target.value);
-              if (!/^\d*$/.test(raw)) return; // 只允许数字
+              if (!/^\d*$/.test(raw)) return;
               handleChange("unitCount", raw ? Number(raw) : "");
             }}
             onFocus={() => setUnitOpen(true)}
@@ -229,7 +261,7 @@ const parseNumber = (str) => String(str || "").replace(/,/g, "");
       </div>
 
       {/* Sub Type */}
-      {data.propertyCategory && (
+      {currentCategory && (
         <div className="mb-3">
           <label className="block font-medium mb-1">Sub Type</label>
           <select
@@ -238,7 +270,7 @@ const parseNumber = (str) => String(str || "").replace(/,/g, "");
             className="border p-2 rounded w-full bg-white"
           >
             <option value="">请选择具体类型</option>
-            {CATEGORY_OPTIONS[data.propertyCategory].map((st) => (
+            {subTypeList.map((st) => (
               <option key={st} value={st}>
                 {st}
               </option>
@@ -254,16 +286,71 @@ const parseNumber = (str) => String(str || "").replace(/,/g, "");
       />
 
       {/* 价格（New Project 用价格范围） */}
-<PriceInput
-  value={data.price}
-  onChange={(v) => handleChange("price", v)}
-  // 这里多做几层兜底，保证 type 一定包含 "Project"
-  type={projectType || data.projectType || "New Project / Under Construction"}
-  // 如果你的 PriceInput 会用面积算 psf，这里顺便把面积也传进去
-  area={data.buildUp}
-/>
+      <PriceInput
+        value={data.price}
+        onChange={(v) => handleChange("price", v)}
+        type={projectType || data.projectType || "New Project / Under Construction"}
+        area={data.buildUp}
+      />
 
-      {/* 房间数量 —— 保持“请选择卧室数量”这种 placeholder 显示 */}
+      {/* 🔢 PSF 显示（New Project / Completed Unit 每平方英尺 RM x ~ RM y） */}
+      {(() => {
+        try {
+          if (!data.buildUp || !data.price) return null;
+
+          const values = data.buildUp.values || {};
+          const units = data.buildUp.units || {};
+
+          const buildUpSqft = convertToSqft(values.buildUp, units.buildUp);
+          const landSqft = convertToSqft(values.land, units.land);
+          const totalSqft = (buildUpSqft || 0) + (landSqft || 0);
+          if (!totalSqft) return null;
+
+          const priceStr = String(data.price);
+          let minPrice;
+          let maxPrice;
+
+          if (priceStr.includes("-")) {
+            const [minStr, maxStr] = priceStr.split("-").map((s) =>
+              s.trim().replace(/,/g, "")
+            );
+            minPrice = Number(minStr);
+            maxPrice = Number(maxStr);
+          } else {
+            const num = Number(priceStr.replace(/,/g, ""));
+            minPrice = num;
+            maxPrice = num;
+          }
+
+          if (!minPrice || !isFinite(minPrice)) return null;
+          if (!maxPrice || !isFinite(maxPrice)) return null;
+
+          const minPsf = minPrice / totalSqft;
+          const maxPsf = maxPrice / totalSqft;
+
+          if (!isFinite(minPsf) || !isFinite(maxPsf)) return null;
+
+          return (
+            <p className="text-sm text-gray-600 mt-1">
+              每平方英尺: RM{" "}
+              {minPsf.toLocaleString(undefined, { maximumFractionDigits: 2 })}{" "}
+              {maxPsf !== minPsf && (
+                <>
+                  {" "}
+                  ~ RM{" "}
+                  {maxPsf.toLocaleString(undefined, {
+                    maximumFractionDigits: 2,
+                  })}
+                </>
+              )}
+            </p>
+          );
+        } catch {
+          return null;
+        }
+      })()}
+
+      {/* 房间数量 */}
       <RoomCountSelector
         value={{
           bedrooms: data.bedrooms || "",
@@ -279,8 +366,8 @@ const parseNumber = (str) => String(str || "").replace(/,/g, "");
         value={data.carpark || ""}
         onChange={(v) => handleChange("carpark", v)}
         mode={
-          data.projectType?.includes("New Project") ||
-          data.projectType?.includes("Completed Unit")
+          (projectType || data.projectType || "").includes("New Project") ||
+          (projectType || data.projectType || "").includes("Completed Unit")
             ? "range"
             : "single"
         }
