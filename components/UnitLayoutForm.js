@@ -293,62 +293,68 @@ export default function UnitLayoutForm({
         area={data.buildUp}
       />
 
-      {/* 🔢 PSF 显示（New Project / Completed Unit 每平方英尺 RM x ~ RM y） */}
-      {(() => {
-        try {
-          if (!data.buildUp || !data.price) return null;
+      {/* 🔢 PSF 显示（New Project / Completed Unit） */}
+{(() => {
+  try {
+    if (!data.buildUp || !data.price) return null;
+    if (!data.buildUp.values) return null;
 
-          const values = data.buildUp.values || {};
-          const units = data.buildUp.units || {};
+    const values = data.buildUp.values;
+    const units = data.buildUp.units;
 
-          const buildUpSqft = convertToSqft(values.buildUp, units.buildUp);
-          const landSqft = convertToSqft(values.land, units.land);
-          const totalSqft = (buildUpSqft || 0) + (landSqft || 0);
-          if (!totalSqft) return null;
+    const convertToSqft = (val, unit) => {
+      const num = parseFloat(String(val || "").replace(/,/g, ""));
+      if (isNaN(num) || num <= 0) return 0;
+      const u = (unit || "").toLowerCase();
 
-          const priceStr = String(data.price);
-          let minPrice;
-          let maxPrice;
+      if (u.includes("square meter") || u.includes("sq m")) return num * 10.7639;
+      if (u.includes("acre")) return num * 43560;
+      if (u.includes("hectare")) return num * 107639;
+      return num; // default sqft
+    };
 
-          if (priceStr.includes("-")) {
-            const [minStr, maxStr] = priceStr.split("-").map((s) =>
-              s.trim().replace(/,/g, "")
-            );
-            minPrice = Number(minStr);
-            maxPrice = Number(maxStr);
-          } else {
-            const num = Number(priceStr.replace(/,/g, ""));
-            minPrice = num;
-            maxPrice = num;
-          }
+    const buildUpSqft = convertToSqft(values.buildUp, units.buildUp);
+    const landSqft = convertToSqft(values.land, units.land);
+    const totalSqft = (buildUpSqft || 0) + (landSqft || 0);
 
-          if (!minPrice || !isFinite(minPrice)) return null;
-          if (!maxPrice || !isFinite(maxPrice)) return null;
+    if (!totalSqft) return null;
 
-          const minPsf = minPrice / totalSqft;
-          const maxPsf = maxPrice / totalSqft;
+    // price 能是单价或范围
+    const priceStr = String(data.price);
+    let minPrice, maxPrice;
 
-          if (!isFinite(minPsf) || !isFinite(maxPsf)) return null;
+    if (priceStr.includes("-")) {
+      const [minStr, maxStr] = priceStr.split("-").map((s) => s.trim().replace(/,/g, ""));
+      minPrice = Number(minStr);
+      maxPrice = Number(maxStr);
+    } else {
+      const num = Number(priceStr.replace(/,/g, ""));
+      minPrice = num;
+      maxPrice = num;
+    }
 
-          return (
-            <p className="text-sm text-gray-600 mt-1">
-              每平方英尺: RM{" "}
-              {minPsf.toLocaleString(undefined, { maximumFractionDigits: 2 })}{" "}
-              {maxPsf !== minPsf && (
-                <>
-                  {" "}
-                  ~ RM{" "}
-                  {maxPsf.toLocaleString(undefined, {
-                    maximumFractionDigits: 2,
-                  })}
-                </>
-              )}
-            </p>
-          );
-        } catch {
-          return null;
-        }
-      })()}
+    if (!minPrice || !isFinite(minPrice)) return null;
+    if (!maxPrice || !isFinite(maxPrice)) return null;
+
+    const minPsf = minPrice / totalSqft;
+    const maxPsf = maxPrice / totalSqft;
+
+    return (
+      <p className="text-sm text-gray-600 mt-1">
+        每平方英尺: RM{" "}
+        {minPsf.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+        {maxPsf !== minPsf && (
+          <>
+            {" "}~ RM{" "}
+            {maxPsf.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+          </>
+        )}
+      </p>
+    );
+  } catch {
+    return null;
+  }
+})()}
 
       {/* 房间数量 */}
       <RoomCountSelector
