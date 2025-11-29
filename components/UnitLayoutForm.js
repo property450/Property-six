@@ -359,14 +359,14 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 
       {/* 房间数量 */}
       <RoomCountSelector
-        value={{
-          bedrooms: data.bedrooms || "",
-          bathrooms: data.bathrooms || "",
-          kitchens: data.kitchens || "",
-          livingRooms: data.livingRooms || "",
-        }}
-        onChange={(updated) => onChange({ ...data, ...updated })}
-      />
+  value={{
+    bedrooms: data.bedrooms || "",
+    bathrooms: data.bathrooms || "",
+    kitchens: data.kitchens || "",
+    livingRooms: data.livingRooms || "",
+  }}
+  onChange={(patch) => onChange({ ...data, ...patch })}
+/>
 
       {/* 停车位 */}
       <CarparkCountSelector
