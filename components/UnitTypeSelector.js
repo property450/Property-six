@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 
-export default function UnitTypeSelector({ propertyStatus, onChange }) {
+export default function UnitTypeSelector({ propertyStatus, layouts = [], onChange }) {
   // 只有项目类房源时显示
   const shouldShow =
     propertyStatus?.includes("New Project") ||
@@ -13,7 +13,7 @@ export default function UnitTypeSelector({ propertyStatus, onChange }) {
 
   const [count, setCount] = useState(0);
 
-  // layout 的初始结构（和你现在用到的字段统一）
+  // layout 的初始结构
   const createEmptyLayout = () => ({
     type: "",
     propertyCategory: "",
@@ -49,22 +49,35 @@ export default function UnitTypeSelector({ propertyStatus, onChange }) {
   useEffect(() => {
     // 不是项目类时：清空
     if (!shouldShow) {
-      onChange && onChange([]);
       if (count !== 0) setCount(0);
+      onChange?.([]);
       return;
     }
 
-    // 项目类但还没选数量：清空
+    // 项目类但没选数量：清空
     if (!count || count <= 0) {
-      onChange && onChange([]);
+      onChange?.([]);
       return;
     }
 
-    // 根据房型数量生成空 layout
-    const layouts = Array.from({ length: count }, () => createEmptyLayout());
-    onChange && onChange(layouts);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [count, shouldShow]);
+    // ⭐ 在原有 layouts 基础上“增减”，不要每次全部重建
+    let next = Array.isArray(layouts) ? [...layouts] : [];
+
+    // 长度不够就补空 layout
+    if (next.length < count) {
+      while (next.length < count) {
+        next.push(createEmptyLayout());
+      }
+    }
+
+    // 太多就裁掉多余的
+    if (next.length > count) {
+      next = next.slice(0, count);
+    }
+
+    onChange?.(next);
+    // 注意：这里不要把 layouts 放进依赖，否则每次父组件更新又重置
+  }, [count, shouldShow]); // ✅ 只依赖 count 和 shouldShow
 
   if (!shouldShow) return null;
 
@@ -75,8 +88,8 @@ export default function UnitTypeSelector({ propertyStatus, onChange }) {
       </label>
       <select
         className="border p-2 rounded w-full"
-        onChange={(e) => setCount(Number(e.target.value))}
         value={count || ""}
+        onChange={(e) => setCount(Number(e.target.value) || 0)}
       >
         <option value="">请选择房型数量</option>
         {Array.from({ length: 30 }, (_, i) => i + 1).map((n) => (
