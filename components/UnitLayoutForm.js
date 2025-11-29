@@ -253,12 +253,15 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         onChange={(v) => handleChange("buildUp", v)}
       />
 
-      {/* 价格 */}
-      <PriceInput
-        value={data.price}
-        onChange={(v) => handleChange("price", v)}
-        type={data.projectType}
-      />
+      {/* 价格（New Project 用价格范围） */}
+<PriceInput
+  value={data.price}
+  onChange={(v) => handleChange("price", v)}
+  // 这里多做几层兜底，保证 type 一定包含 "Project"
+  type={projectType || data.projectType || "New Project / Under Construction"}
+  // 如果你的 PriceInput 会用面积算 psf，这里顺便把面积也传进去
+  area={data.buildUp}
+/>
 
       {/* 房间数量 —— 保持“请选择卧室数量”这种 placeholder 显示 */}
       <RoomCountSelector
