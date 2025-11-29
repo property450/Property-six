@@ -13,10 +13,9 @@ import FacilitiesSelector from "./FacilitiesSelector";
 import CarparkLevelSelector from "./CarparkLevelSelector";
 import RoomCountSelector from "./RoomCountSelector";
 import AreaSelector from "./AreaSelector";
-import ImageUpload from "./ImageUpload";
 import TransitSelector from "./TransitSelector";
 
-// ✅ 和 TypeSelector 同步的 Category / SubType
+// 和 TypeSelector 同步的分类/子类
 const CATEGORY_OPTIONS = {
   "Bungalow / Villa": [
     "Bungalow",
@@ -98,16 +97,10 @@ const CATEGORY_OPTIONS = {
   ],
 };
 
-export default function UnitLayoutForm({ index, data, onChange }) {
+export default function UnitLayoutForm({ index, data = {}, onChange }) {
   const fileInputRef = useRef(null);
 
-  // 当前 layout 的 Property Category / SubType 列表
-  const localCategory = data.propertyCategory || "";
-  const subTypeList = localCategory
-    ? CATEGORY_OPTIONS[localCategory] || []
-    : [];
-
-  // 通用更新
+  // 通用更新（保持你原来的写法，只是封装一下）
   const handleChange = (field, value) => {
     const updated = { ...data, [field]: value };
     onChange?.(updated);
@@ -120,10 +113,9 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 
   return (
     <div className="border p-4 rounded-lg bg-white mb-4 shadow-sm">
+      {/* 标题 + 长形按钮（帮你换回长的） */}
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-semibold">Layout {index + 1}</h3>
-
-        {/* 长形上传按钮 */}
         <button
           type="button"
           className="border px-4 py-2 rounded bg-gray-100 hover:bg-gray-200"
@@ -149,16 +141,16 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         onChange={(e) => handleChange("type", e.target.value)}
       />
 
-      {/* Property Category */}
+      {/* Property Category —— 恢复简单写法，保证肯定有反应 */}
       <div className="mb-3">
         <label className="block font-medium mb-1">Property Category</label>
         <select
-          className="w-full border rounded px-3 py-2"
-          value={localCategory}
+          className="w-full border rounded px-3 py-2 bg-white"
+          value={data.propertyCategory || ""}
           onChange={(e) => {
-            const c = e.target.value;
-            handleChange("propertyCategory", c);
-            // 切换 Category 时，清空 Sub Type
+            const category = e.target.value;
+            handleChange("propertyCategory", category);
+            // 换 Category 时清空 Sub Type，防止残留
             handleChange("subType", "");
           }}
         >
@@ -171,45 +163,44 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         </select>
       </div>
 
-      {/* 这个房型有多少个单位？（1 ~ 500 下拉 + 可手动输入） */}
+      {/* 这个房型有多少个单位？—— 下拉 + 手动输入 + 千分位 */}
       <div className="mb-3">
         <label className="block font-medium mb-1">这个房型有多少个单位？</label>
         <input
           type="text"
-          className="w-full border rounded px-3 py-2"
+          className="w-full border rounded px-3 py-2 bg-white"
           placeholder="选择单位数量（可手动输入）"
           value={
-            data.unitCount !== undefined && data.unitCount !== null
-              ? data.unitCount.toLocaleString()
-              : ""
+            data.unitCount === "" || data.unitCount == null
+              ? ""
+              : Number(data.unitCount).toLocaleString()
           }
           onChange={(e) => {
             const raw = e.target.value.replace(/,/g, "");
+            // 只允许数字
             if (!/^\d*$/.test(raw)) return;
-            const num = raw ? Number(raw) : "";
-            handleChange("unitCount", num);
+            handleChange("unitCount", raw ? Number(raw) : "");
           }}
-          list={`unitCountOptions-${index}`}
+          list={`unit-count-list-${index}`}
         />
-        <datalist id={`unitCountOptions-${index}`}>
+        <datalist id={`unit-count-list-${index}`}>
           {Array.from({ length: 500 }, (_, i) => i + 1).map((n) => (
             <option key={n} value={n.toLocaleString()} />
           ))}
         </datalist>
       </div>
 
-      {/* Sub Type */}
-      {localCategory && (
+      {/* Sub Type —— 只依赖 data.propertyCategory，不用什么 currentCategory / subTypeList 了 */}
+      {data.propertyCategory && (
         <div className="mb-3">
           <label className="block font-medium mb-1">Sub Type</label>
           <select
-            key={localCategory} // 切换 Category 时重建
-            className="w-full border rounded px-3 py-2"
+            className="w-full border rounded px-3 py-2 bg-white"
             value={data.subType || ""}
             onChange={(e) => handleChange("subType", e.target.value)}
           >
             <option value="">请选择具体类型</option>
-            {subTypeList.map((st) => (
+            {(CATEGORY_OPTIONS[data.propertyCategory] || []).map((st) => (
               <option key={st} value={st}>
                 {st}
               </option>
@@ -231,7 +222,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         type={data.projectType}
       />
 
-      {/* 房间数量——保持你原本“请选择数量”的体验 */}
+      {/* 房间数量 —— 保持“请选择卧室数量”等占位文字，你 upload-property 里已经传 ""，这里不改 */}
       <RoomCountSelector
         value={{
           bedrooms: data.bedrooms || "",
