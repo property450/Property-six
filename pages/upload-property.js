@@ -85,6 +85,20 @@ export default function UploadProperty() {
     propertyStatus === "New Project / Under Construction" ||
     propertyStatus === "Completed Unit / Developer Unit";
 
+    // 根据单一房源的配置生成图片上传配置
+  const photoConfig = {
+    bedrooms: singleFormData.bedrooms || "",
+    bathrooms: singleFormData.bathrooms || "",
+    kitchens: singleFormData.kitchens || "",
+    livingRooms: singleFormData.livingRooms || "",
+    carpark: singleFormData.carpark || "",
+    extraSpaces: singleFormData.extraSpaces || [],
+    facilities: singleFormData.facilities || [],
+    furniture: singleFormData.furniture || [],
+    orientation: singleFormData.facing || "",
+    transit: transitInfo || null,
+  };
+
   // 通用面积换算
   const convertToSqft = (val, unit) => {
     const num = parseFloat(String(val || "").replace(/,/g, ""));
@@ -409,8 +423,9 @@ export default function UploadProperty() {
         </>
       )}
 
-      {/* 公共图片上传 & 提交按钮 */}
+            {/* 公共图片上传 & 提交按钮 */}
       <ImageUpload
+        config={photoConfig}   // ✅ 新增：让 ImageUpload 按卧室/浴室/家私等生成对应照片栏位
         images={singleFormData.photos}
         setImages={(updated) =>
           setSingleFormData({ ...singleFormData, photos: updated })
