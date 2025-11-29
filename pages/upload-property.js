@@ -416,14 +416,16 @@ useEffect(() => {
         </>
       )}
 
-            {/* 公共图片上传 & 提交按钮 */}
-      <ImageUpload
-        config={photoConfig}   // ✅ 新增：让 ImageUpload 按卧室/浴室/家私等生成对应照片栏位
-        images={singleFormData.photos}
-        setImages={(updated) =>
-          setSingleFormData({ ...singleFormData, photos: updated })
-        }
-      />
+            {/* 公共图片上传 & 提交按钮（仅 Subsale / 单一房源 显示） */}
+{!isProject && (
+  <ImageUpload
+    config={photoConfig}   // 还是用你原来的配置
+    images={singleFormData.photos}
+    setImages={(updated) =>
+      setSingleFormData({ ...singleFormData, photos: updated })
+    }
+  />
+)}
 
       <Button
         onClick={handleSubmit}
