@@ -1,6 +1,6 @@
 // components/UnitLayoutForm.js
 "use client";
-import { useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 
 import PriceInput from "./PriceInput";
 import CarparkCountSelector from "./CarparkCountSelector";
@@ -15,15 +15,7 @@ import AreaSelector from "./AreaSelector";
 import ImageUpload from "./ImageUpload";
 import TransitSelector from "./TransitSelector";
 
-// 千分位格式化（用于单位数量显示）
-const formatNumber = (val) => {
-  if (val === "" || val === null || val === undefined) return "";
-  const num = Number(val);
-  if (Number.isNaN(num)) return "";
-  return num.toLocaleString();
-};
-
-// 和 TypeSelector 保持同步的分类/子类
+// ---------- 和 TypeSelector 保持同步的 Category / SubType 选项 ----------
 const CATEGORY_OPTIONS = {
   "Bungalow / Villa": [
     "Bungalow",
@@ -105,10 +97,39 @@ const CATEGORY_OPTIONS = {
   ],
 };
 
+// 房型单位数量 1 ~ 500
+const UNIT_COUNT_OPTIONS = Array.from({ length: 500 }, (_, i) => i + 1);
+
+// 千分位格式
+const formatNumber = (num) => {
+  if (num === "" || num === undefined || num === null) return "";
+  const n = Number(String(num).replace(/,/g, ""));
+  if (Number.isNaN(n)) return "";
+  return n.toLocaleString();
+};
+
+// 去掉千分位
+const parseNumber = (str) => String(str || "").replace(/,/g, "");
+
 export default function UnitLayoutForm({ index, data, onChange }) {
   const fileInputRef = useRef(null);
 
-  // 保持你原本的合并逻辑：每次改一个 field，就把这个 layout 整个回传
+  // 「这个房型有多少个单位」下拉框
+  const unitRef = useRef(null);
+  const [unitOpen, setUnitOpen] = useState(false);
+
+  // 监听点击页面其它地方，关闭单位下拉
+  useEffect(() => {
+    const onDocClick = (e) => {
+      if (unitRef.current && !unitRef.current.contains(e.target)) {
+        setUnitOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, []);
+
+  // 统一更新 layout（保持你原本 data 结构）
   const handleChange = (field, value) => {
     const updated = { ...data, [field]: value };
     onChange(updated);
@@ -123,11 +144,11 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     <div className="border p-4 rounded-lg bg-white mb-4 shadow-sm">
       <h3 className="font-semibold mb-3">Layout {index + 1}</h3>
 
-      {/* 上传 Layout */}
+      {/* 上传 Layout —— 改回全宽长按钮 */}
       <button
         type="button"
-        className="border px-3 py-2 rounded bg-gray-100 mb-2"
-        onClick={() => fileInputRef.current?.click()}
+        className="w-full border px-3 py-2 rounded bg-gray-100 hover:bg-gray-200 mb-2 text-center"
+        onClick={() => fileInputRef.current && fileInputRef.current.click()}
       >
         点击上传 Layout
       </button>
@@ -140,13 +161,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         onChange={handleUpload}
       />
 
-      {/* Layout 平面图预览 */}
-      <ImageUpload
-        images={data.layoutPhotos || []}
-        setImages={(imgs) => handleChange("layoutPhotos", imgs)}
-      />
-
-      {/* Type 名 */}
+      {/* Type 名称 */}
       <input
         className="border p-2 rounded w-full my-3"
         placeholder="输入 Type 名称"
@@ -162,9 +177,10 @@ export default function UnitLayoutForm({ index, data, onChange }) {
           onChange={(e) => {
             const c = e.target.value;
             handleChange("propertyCategory", c);
-            handleChange("subType", ""); // 切换类别时清空子类
+            // 换 category 时清空 subType，避免旧值
+            handleChange("subType", "");
           }}
-          className="border p-2 rounded w-full"
+          className="border p-2 rounded w-full bg-white"
         >
           <option value="">请选择类别</option>
           {Object.keys(CATEGORY_OPTIONS).map((cat) => (
@@ -175,6 +191,43 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         </select>
       </div>
 
+      {/* 这个房型有多少个单位？ —— 仿造卧室/浴室的下拉样式 */}
+      <div className="mb-3" ref={unitRef}>
+        <label className="block font-medium mb-1">这个房型有多少个单位？</label>
+        <div className="relative">
+          <input
+            type="text"
+            className="w-full border border-gray-300 rounded px-3 py-2 bg-white focus:outline-none focus:ring focus:border-blue-500"
+            placeholder="选择单位数量（可手动输入）"
+            value={data.unitCount ? formatNumber(data.unitCount) : ""}
+            onChange={(e) => {
+              const raw = parseNumber(e.target.value);
+              if (!/^\d*$/.test(raw)) return; // 只允许数字
+              handleChange("unitCount", raw ? Number(raw) : "");
+            }}
+            onFocus={() => setUnitOpen(true)}
+            onClick={() => setUnitOpen(true)}
+          />
+          {unitOpen && (
+            <ul className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+              {UNIT_COUNT_OPTIONS.map((num) => (
+                <li
+                  key={num}
+                  className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleChange("unitCount", num);
+                    setUnitOpen(false);
+                  }}
+                >
+                  {formatNumber(num)}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
       {/* Sub Type */}
       {data.propertyCategory && (
         <div className="mb-3">
@@ -182,7 +235,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
           <select
             value={data.subType || ""}
             onChange={(e) => handleChange("subType", e.target.value)}
-            className="border p-2 rounded w-full"
+            className="border p-2 rounded w-full bg-white"
           >
             <option value="">请选择具体类型</option>
             {CATEGORY_OPTIONS[data.propertyCategory].map((st) => (
@@ -193,30 +246,6 @@ export default function UnitLayoutForm({ index, data, onChange }) {
           </select>
         </div>
       )}
-
-      {/* 这个房型有多少个单位？（带 datalist + 千分位） */}
-      <div className="mb-3">
-        <label className="block font-medium mb-1">这个房型有多少个单位？</label>
-
-        <input
-          list={`unitCountList-${index}`}
-          type="text"
-          value={formatNumber(data.unitCount)}
-          onChange={(e) => {
-            const raw = e.target.value.replace(/,/g, "");
-            if (!/^\d*$/.test(raw)) return; // 只能数字
-            handleChange("unitCount", raw ? Number(raw) : "");
-          }}
-          className="border p-2 rounded w-full"
-          placeholder="可选择或手动输入，例如 120"
-        />
-
-        <datalist id={`unitCountList-${index}`}>
-          {Array.from({ length: 500 }, (_, i) => i + 1).map((num) => (
-            <option key={num} value={num.toLocaleString()} />
-          ))}
-        </datalist>
-      </div>
 
       {/* 面积 */}
       <AreaSelector
@@ -231,7 +260,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         type={data.projectType}
       />
 
-      {/* 房间数量（保持“请选择数量”的空字符串逻辑） */}
+      {/* 房间数量 —— 保持“请选择卧室数量”这种 placeholder 显示 */}
       <RoomCountSelector
         value={{
           bedrooms: data.bedrooms || "",
@@ -274,9 +303,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         onChange={(v) => handleChange("facilities", v)}
       />
 
-      <TransitSelector
-        onChange={(v) => handleChange("transit", v)}
-      />
+      <TransitSelector onChange={(v) => handleChange("transit", v)} />
 
       <BuildYearSelector
         value={data.buildYear || ""}
