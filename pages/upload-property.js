@@ -273,7 +273,38 @@ export default function UploadProperty() {
                 areaData.units.land
               ),
             }}
-          />
+          /> 
+              {/* 单一 / Subsale 房源的 PSF 显示 */}
+  {(() => {
+    try {
+      const buildUpSqft = convertToSqft(
+        areaData.values.buildUp,
+        areaData.units.buildUp
+      );
+      const landSqft = convertToSqft(
+        areaData.values.land,
+        areaData.units.land
+      );
+      const totalAreaSqft = (buildUpSqft || 0) + (landSqft || 0);
+
+      const priceVal = singleFormData.price;
+      if (!totalAreaSqft || !priceVal) return null;
+
+      const priceNum = Number(String(priceVal).replace(/,/g, ""));
+      if (!priceNum || !isFinite(priceNum)) return null;
+
+      const psf = priceNum / totalAreaSqft;
+
+      return (
+        <p className="text-sm text-gray-600 mt-1">
+          每平方英尺: RM{" "}
+          {psf.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+        </p>
+      );
+    } catch (e) {
+      return null;
+    }
+  })()}
 
           <RoomCountSelector
             value={{
