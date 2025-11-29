@@ -1,7 +1,7 @@
 // components/PriceInput.js
 import { useState, useRef, useEffect } from "react";
 
-export default function PriceInput({ value, onChange, type }) {
+export default function PriceInput({ value, onChange, type, area }) {
   const wrapperRef = useRef(null);
 
   const predefinedPrices = [
@@ -28,8 +28,8 @@ export default function PriceInput({ value, onChange, type }) {
 
   // ---------- 2. 内部 state ----------
   const [single, setSingle] = useState(""); // 单价
-  const [min, setMin] = useState("");       // 范围最低价
-  const [max, setMax] = useState("");       // 范围最高价
+  const [min, setMin] = useState("");       // 范围最低价（纯数字字符串）
+  const [max, setMax] = useState("");       // 范围最高价（纯数字字符串）
 
   const [showDropdownSingle, setShowDropdownSingle] = useState(false);
   const [showDropdownMin, setShowDropdownMin] = useState(false);
@@ -38,19 +38,24 @@ export default function PriceInput({ value, onChange, type }) {
   // ---------- 3. 同步外部 value 到内部 state ----------
   useEffect(() => {
     if (isRange) {
-      if (typeof value === "string" && value.includes("-")) {
+      if (value && typeof value === "object") {
+        // ✅ 我们期望的格式：{ min, max }
+        const vmin = value.min ?? value.minPrice ?? value.from ?? "";
+        const vmax = value.max ?? value.maxPrice ?? value.to ?? "";
+        setMin(String(vmin).replace(/,/g, ""));
+        setMax(String(vmax).replace(/,/g, ""));
+      } else if (typeof value === "string" && value.includes("-")) {
+        // 兼容旧格式："min-max"
         const [vmin, vmax] = value.split("-");
         setMin((vmin || "").replace(/,/g, ""));
         setMax((vmax || "").replace(/,/g, ""));
-      } else if (value && typeof value === "object") {
-        setMin(String(value.min ?? "").replace(/,/g, ""));
-        setMax(String(value.max ?? "").replace(/,/g, ""));
       } else {
         setMin("");
         setMax("");
       }
     } else {
-      if (value === null || value === undefined) {
+      // 非范围价格：单一价格
+      if (value === null || value === undefined || value === "") {
         setSingle("");
       } else if (typeof value === "number") {
         setSingle(String(value));
@@ -83,39 +88,44 @@ export default function PriceInput({ value, onChange, type }) {
     return n.toLocaleString();
   };
 
+  // 单一价格
   const handleSingleChange = (e) => {
     const raw = e.target.value.replace(/[^\d]/g, "");
     setSingle(raw);
-    onChange && onChange(raw);
+    onChange && onChange(raw); // subsale 还是用单一数值字符串
   };
 
   const handleSelectSingle = (p) => {
-    setSingle(String(p));
-    onChange && onChange(String(p));
+    const raw = String(p);
+    setSingle(raw);
+    onChange && onChange(raw);
     setShowDropdownSingle(false);
   };
 
+  // 范围价格：Min / Max 输入时，统一传 {min, max}
   const handleMinChange = (e) => {
     const raw = e.target.value.replace(/[^\d]/g, "");
     setMin(raw);
-    onChange && onChange(`${raw}-${max || ""}`);
+    onChange && onChange({ min: raw, max });   // ✅ 改成对象
   };
 
   const handleMaxChange = (e) => {
     const raw = e.target.value.replace(/[^\d]/g, "");
     setMax(raw);
-    onChange && onChange(`${min || ""}-${raw}`);
+    onChange && onChange({ min, max: raw });   // ✅ 改成对象
   };
 
   const handleSelectMin = (p) => {
-    setMin(String(p));
-    onChange && onChange(`${p}-${max || ""}`);
+    const raw = String(p);
+    setMin(raw);
+    onChange && onChange({ min: raw, max });   // ✅
     setShowDropdownMin(false);
   };
 
   const handleSelectMax = (p) => {
-    setMax(String(p));
-    onChange && onChange(`${min || ""}-${p}`);
+    const raw = String(p);
+    setMax(raw);
+    onChange && onChange({ min, max: raw });   // ✅
     setShowDropdownMax(false);
   };
 
