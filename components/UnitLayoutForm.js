@@ -116,6 +116,14 @@ const convertToSqft = (val, unit) => {
   return num; // 默认 sqft
 };
 
+// 把各种可能的 price 结构，统一转成数字
+const parsePriceNumber = (v) => {
+  if (v === null || v === undefined || v === "") return null;
+  const n = Number(String(v).replace(/,/g, ""));
+  if (!isFinite(n) || n <= 0) return null;
+  return n;
+};
+
 export default function UnitLayoutForm({
   index,
   data = {},
@@ -163,6 +171,41 @@ export default function UnitLayoutForm({
       data.buildUp.values.land,
       data.buildUp.units.land
     );
+  }
+  const totalSqft = (buildUpSqft || 0) + (landSqft || 0);
+
+  // ------- 计算 New Project / Completed Unit 的 psf 区间 -------
+  let psfMin = null;
+  let psfMax = null;
+
+  const isProjectType =
+    (projectType || data.projectType || "").includes("New Project") ||
+    (projectType || data.projectType || "").includes("Completed Unit");
+
+  if (isProjectType && totalSqft > 0 && data.price) {
+    let minPriceNum = null;
+    let maxPriceNum = null;
+
+    if (Array.isArray(data.price)) {
+      // 例如 [min, max]
+      minPriceNum = parsePriceNumber(data.price[0]);
+      maxPriceNum = parsePriceNumber(data.price[1]);
+    } else if (typeof data.price === "object") {
+      // 例如 {min, max} 或 {minPrice, maxPrice}
+      const rawMin =
+        data.price.min ?? data.price.minPrice ?? data.price.from ?? null;
+      const rawMax =
+        data.price.max ?? data.price.maxPrice ?? data.price.to ?? null;
+      minPriceNum = parsePriceNumber(rawMin);
+      maxPriceNum = parsePriceNumber(rawMax);
+    } else {
+      // 单一数值就不算区间 psf 了
+    }
+
+    if (minPriceNum && maxPriceNum) {
+      psfMin = minPriceNum / totalSqft;
+      psfMax = maxPriceNum / totalSqft;
+    }
   }
 
   return (
@@ -278,19 +321,29 @@ export default function UnitLayoutForm({
         </div>
       </div>
 
-            {/* 面积 */}
+      {/* 面积 */}
       <AreaSelector
         initialValue={data.buildUp}
         onChange={(v) => handleChange("buildUp", v)}
       />
 
-      {/* 价格 —— 直接把 buildUp 对象丢给 PriceInput，让它自己算 psf */}
+      {/* 价格（项目：范围输入） */}
       <PriceInput
         value={data.price}
         onChange={(v) => handleChange("price", v)}
         type={projectType || data.projectType || "New Project / Under Construction"}
-        area={data.buildUp}   // ⬅ 关键：改回这一行
+        // 给 PriceInput 的 area 用数字 sqft（和 subsale 一样的结构）
+        area={{ buildUp: buildUpSqft, land: landSqft }}
       />
+
+      {/* 这里我们自己显示 psf 区间 */}
+      {psfMin && psfMax && (
+        <p className="text-sm text-gray-600 mt-1">
+          每平方英尺: RM{" "}
+          {psfMin.toLocaleString(undefined, { maximumFractionDigits: 2 })} ~ RM{" "}
+          {psfMax.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+        </p>
+      )}
 
       {/* 房间数量 */}
       <RoomCountSelector
@@ -335,9 +388,7 @@ export default function UnitLayoutForm({
         onChange={(v) => handleChange("facilities", v)}
       />
 
-      <TransitSelector
-        onChange={(v) => handleChange("transit", v)}
-      />
+      <TransitSelector onChange={(v) => handleChange("transit", v)} />
 
       <BuildYearSelector
         value={data.buildYear || ""}
