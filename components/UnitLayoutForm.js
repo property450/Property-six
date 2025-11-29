@@ -113,12 +113,10 @@ function getPsfText(areaObj, priceValue) {
 export default function UnitLayoutForm({ index, data = {}, onChange }) {
   const fileInputRef = useRef(null);
 
-  // ----------- 保留你原来有的本地 state（保证 psf 行为） -----------
   const [type, setType] = useState(data.type || "");
   const [areaForPsf, setAreaForPsf] = useState(data.buildUp || {});
   const [priceForPsf, setPriceForPsf] = useState(data.price || "");
 
-  // 当父组件的 buildUp / price 变时，同步到本地，用来算 psf
   useEffect(() => {
     if (data.buildUp) setAreaForPsf(data.buildUp);
   }, [data.buildUp]);
@@ -127,7 +125,6 @@ export default function UnitLayoutForm({ index, data = {}, onChange }) {
     if (data.price !== undefined) setPriceForPsf(data.price);
   }, [data.price]);
 
-  // ✅ 不在 useEffect 里 set 父组件，只更新自己的表单
   const handleChange = (field, value) => {
     onChange && onChange({ ...data, [field]: value });
   };
@@ -145,17 +142,17 @@ export default function UnitLayoutForm({ index, data = {}, onChange }) {
 
   const psfText = getPsfText(areaForPsf, priceForPsf);
 
-  // 给 ImageUpload 用的 config（这里直接算，不再用 useState）
+  // 给 ImageUpload 用的 config
   const config = {
-    bedrooms: Number(data.bedrooms) || 0,
-    bathrooms: Number(data.bathrooms) || 0,
-    kitchens: Number(data.kitchens) || 0,
-    livingRooms: Number(data.livingRooms) || 0,
-    carpark: Number(data.carpark) || 0,
+    bedrooms: data.bedrooms,
+    bathrooms: data.bathrooms,
+    kitchens: data.kitchens,
+    livingRooms: data.livingRooms,
+    carpark: data.carpark,
     extraSpaces: data.extraSpaces || [],
     facilities: data.facilities || [],
     furniture: data.furniture || [],
-    orientation: data.facing || null,
+    orientation: data.facing || "",
     transit: data.transit || null,
   };
 
@@ -163,7 +160,7 @@ export default function UnitLayoutForm({ index, data = {}, onChange }) {
     <div className="border rounded-lg p-4 shadow-sm bg-white">
       <h3 className="font-semibold mb-3">Layout {index + 1}</h3>
 
-      {/* 上传 Layout 按钮 + 预览 */}
+      {/* 上传 Layout 按钮 + 预览（平面图） */}
       <div className="mb-3">
         <button
           type="button"
@@ -199,22 +196,12 @@ export default function UnitLayoutForm({ index, data = {}, onChange }) {
         className="border p-2 rounded w-full mb-3"
       />
 
-      {/* Layout 照片 */}
-      <div className="mb-3">
-        <label className="block mb-1 font-medium">上传照片</label>
-        <ImageUpload
-          config={config}
-          images={data.photos || []}
-          setImages={(updated) => handleChange("photos", updated)}
-        />
-      </div>
-
       {/* 面积 */}
       <AreaSelector
         initialValue={areaForPsf || {}}
         onChange={(val) => {
-          setAreaForPsf(val);          // 本地用于 psf
-          handleChange("buildUp", val); // 同步到 layout 数据
+          setAreaForPsf(val);
+          handleChange("buildUp", val);
         }}
       />
 
@@ -222,13 +209,13 @@ export default function UnitLayoutForm({ index, data = {}, onChange }) {
       <PriceInput
         value={priceForPsf}
         onChange={(val) => {
-          setPriceForPsf(val);         // 本地用于 psf
-          handleChange("price", val);  // 同步到 layout 数据
+          setPriceForPsf(val);
+          handleChange("price", val);
         }}
         type={data.projectType}
       />
 
-      {/* ✅ 唯一一条 psf 文本 */}
+      {/* PSF */}
       {psfText && (
         <p className="text-sm text-gray-600 mt-1">{psfText}</p>
       )}
@@ -268,13 +255,6 @@ export default function UnitLayoutForm({ index, data = {}, onChange }) {
         onChange={(val) => handleChange("facing", val)}
       />
 
-      {/* 车位楼层 */}
-      <CarparkLevelSelector
-        value={data.carparkPosition}
-        onChange={(val) => handleChange("carparkPosition", val)}
-        mode="range"
-      />
-
       {/* 家具 / 设施 */}
       <FurnitureSelector
         value={data.furniture || []}
@@ -285,6 +265,16 @@ export default function UnitLayoutForm({ index, data = {}, onChange }) {
         value={data.facilities || []}
         onChange={(val) => handleChange("facilities", val)}
       />
+
+      {/* ✅ 在所有问题之后，按选择生成对应的照片上传框 */}
+      <div className="mb-3">
+        <label className="block mb-1 font-medium">上传照片</label>
+        <ImageUpload
+          config={config}
+          images={data.photos || []}
+          setImages={(updated) => handleChange("photos", updated)}
+        />
+      </div>
 
       {/* 交通信息（针对这个 layout） */}
       <div className="mb-4">
