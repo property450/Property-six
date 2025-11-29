@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 
 export default function UnitTypeSelector({ propertyStatus, onChange }) {
-  // 显示与否（和你旧版本一样，只在项目类房源时显示）
+  // 只有项目类房源时显示
   const shouldShow =
     propertyStatus?.includes("New Project") ||
     propertyStatus?.includes("Under Construction") ||
@@ -13,7 +13,7 @@ export default function UnitTypeSelector({ propertyStatus, onChange }) {
 
   const [count, setCount] = useState(0);
 
-  // ✅ 正确的 layout 初始结构（这里改成 ""，不再用 0）
+  // ✅ layout 的初始结构（这里加上 description）
   const createEmptyLayout = () => ({
     type: "",
     price: "",
@@ -25,7 +25,6 @@ export default function UnitTypeSelector({ propertyStatus, onChange }) {
     livingRooms: "",
 
     carpark: "",
-
     carparkPosition: { min: "", max: "" },
 
     extraSpaces: [],
@@ -41,9 +40,10 @@ export default function UnitTypeSelector({ propertyStatus, onChange }) {
     quarter: "",
 
     transit: null,
+
+    description: "",   // ⬅ 新增：每个 layout 自己的描述
   });
 
-  // 只依赖 count，避免死循环
   useEffect(() => {
     if (!count || count <= 0) {
       onChange && onChange([]);
