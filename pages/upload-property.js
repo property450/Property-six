@@ -50,17 +50,18 @@ export default function UploadProperty() {
   const [type, setType] = useState("");
   const [propertyStatus, setPropertyStatus] = useState("");
 const [unitLayouts, setUnitLayouts] = useState([]);
+const [unitLayouts, setUnitLayouts] = useState([]);
 
-// ✅ 每次切换成交状态时，如果变成 New Project / Completed Unit，先把房型列表清空
+// 成交状态变化时：如果不是项目类，就清空房型 layouts
 useEffect(() => {
-  const isProject =
-  propertyStatus?.includes("New Project") ||
-  propertyStatus?.includes("Under Construction") ||
-  propertyStatus?.includes("Completed Unit") ||
-  propertyStatus?.includes("Developer Unit");
+  const isProjectStatus =
+    propertyStatus?.includes("New Project") ||
+    propertyStatus?.includes("Under Construction") ||
+    propertyStatus?.includes("Completed Unit") ||
+    propertyStatus?.includes("Developer Unit");
 
-  if (isProjectStatus) {
-    setUnitLayouts([]);   // 清空，让它重新从「请选择房型数量」开始
+  if (!isProjectStatus) {
+    setUnitLayouts([]); // 切回 Subsale/Homestay 等非项目类时清空
   }
 }, [propertyStatus]);
 
@@ -94,10 +95,12 @@ useEffect(() => {
   const [transitInfo, setTransitInfo] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // 当前是否是「项目类」房源
-  const isProject =
-    propertyStatus === "New Project / Under Construction" ||
-    propertyStatus === "Completed Unit / Developer Unit";
+  // 当前是否是「项目类」房源（跟 UnitTypeSelector 用同一套判断）
+const isProject =
+  propertyStatus?.includes("New Project") ||
+  propertyStatus?.includes("Under Construction") ||
+  propertyStatus?.includes("Completed Unit") ||
+  propertyStatus?.includes("Developer Unit");
 
     // 根据单一房源的配置生成图片上传配置
   const photoConfig = {
