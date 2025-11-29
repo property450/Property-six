@@ -225,6 +225,7 @@ useEffect(() => {
           {/* 这个组件里面有「这个项目有多少个房型？」的下拉 */}
           <UnitTypeSelector
             propertyStatus={propertyStatus}
+            layouts={unitLayouts}
             onChange={(layouts) => setUnitLayouts(layouts)}
           />
 
