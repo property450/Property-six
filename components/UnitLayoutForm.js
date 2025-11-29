@@ -250,23 +250,24 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       </div>
 
       {/* Sub Type */}
-      {localCategory && (
-        <div className="mb-3">
-          <label className="block font-medium mb-1">Sub Type</label>
-          <select
-            value={data.subType || ""}
-            onChange={(e) => handleChange("subType", e.target.value)}
-            className="border p-2 rounded w-full bg-white"
-          >
-            <option value="">请选择具体类型</option>
-            {CATEGORY_OPTIONS[localCategory].map((st) => (
-              <option key={st} value={st}>
-                {st}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
+      {currentCategory && (
+  <div className="mb-3">
+    <label className="block font-medium mb-1">Sub Type</label>
+    <select
+      key={currentCategory} // 👈 切换 Category 时重建下拉
+      defaultValue={data.subType || ""} // 👈 不用 value，改用 defaultValue
+      onChange={(e) => handleChange("subType", e.target.value)}
+      className="border p-2 rounded w-full"
+    >
+      <option value="">请选择具体类型</option>
+      {subTypeList.map((st) => (
+        <option key={st} value={st}>
+          {st}
+        </option>
+      ))}
+    </select>
+  </div>
+)}
 
       {/* 面积 */}
       <AreaSelector
