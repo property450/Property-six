@@ -105,7 +105,13 @@ const formatInt = (val) => {
   return num.toLocaleString();
 };
 
-export default function UnitLayoutForm({ index, data, onChange }) {
+export default function UnitLayoutForm({
+  index,
+  data = {},
+  onChange,
+  projectType,
+}) {
+
   const fileInputRef = useRef(null);
 
   // 单位数量下拉是否展开
@@ -260,7 +266,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       <PriceInput
         value={data.price}
         onChange={(v) => handleChange("price", v)}
-        type={data.projectType}
+        type={projectType}
       />
 
       {/* 房间数量（保持“请选择数量”逻辑） */}
@@ -279,8 +285,8 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         value={data.carpark || ""}
         onChange={(v) => handleChange("carpark", v)}
         mode={
-          data.projectType?.includes("New Project") ||
-          data.projectType?.includes("Completed Unit")
+          projectType?.includes("New Project") ||
+          projectType?.includes("Completed Unit")
             ? "range"
             : "single"
         }
