@@ -51,17 +51,6 @@ export default function UploadProperty() {
   const [propertyStatus, setPropertyStatus] = useState("");
 const [unitLayouts, setUnitLayouts] = useState([]);
 
-// ✅ 每次切换成交状态时，如果变成 New Project / Completed Unit，先把房型列表清空
-useEffect(() => {
-  const isProjectStatus =
-    propertyStatus === "New Project / Under Construction" ||
-    propertyStatus === "Completed Unit / Developer Unit";
-
-  if (isProjectStatus) {
-    setUnitLayouts([]);   // 清空，让它重新从「请选择房型数量」开始
-  }
-}, [propertyStatus]);
-
   const [singleFormData, setSingleFormData] = useState({
     price: "",
     buildUp: "",
@@ -217,34 +206,38 @@ useEffect(() => {
   }}
 />
       {/* ------------ 项目类房源 (New Project / Completed Unit) ------------ */}
-      {isProject ? (
-        <>
-          {/* 这个组件里面有「这个项目有多少个房型？」的下拉 */}
-          {unitLayouts.length > 0 && (
-  <div className="space-y-4 mt-4">
-    {unitLayouts.map((layout, index) => (
-      <UnitLayoutForm
-        key={index}
-        index={index}
-        data={layout}
-        projectType={propertyStatus}
-        onChange={(updated) => {
-          console.log("Layout 更新:", index, updated);
+{isProject ? (
+  <>
+    {/* 1️⃣ 先问：这个项目有多少个房型 / Layout？ */}
+    <UnitTypeSelector
+      propertyStatus={propertyStatus}
+      onChange={(layouts) => setUnitLayouts(layouts)}
+    />
 
-          setUnitLayouts((prev) => {
-            const next = [...prev];
-            // 直接用子组件传上来的完整 updated，别再和 prev[index] 合并了
-            next[index] = updated;
-            return next;
-          });
-        }}
-      />
-    ))}
-  </div>
-)}
+    {/* 2️⃣ 根据选择的房型数量，渲染每个 Layout 的表单 */}
+    {unitLayouts.length > 0 && (
+      <div className="space-y-4 mt-4">
+        {unitLayouts.map((layout, index) => (
+          <UnitLayoutForm
+            key={index}
+            index={index}
+            data={layout}
+            projectType={propertyStatus}
+            onChange={(updated) => {
+              console.log("Layout 更新:", index, updated);
+              setUnitLayouts((prev) => {
+                const next = [...prev];
+                next[index] = updated; // 用子组件传回来的完整对象
+                return next;
+              });
+            }}
+          />
+        ))}
+      </div>
+    )}
+  </>
+) : (
 
-        </>
-      ) : (
         /* ------------ 普通非项目房源：保持你之前的旧逻辑 ------------ */
         <div className="space-y-4 mt-6">
           <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
