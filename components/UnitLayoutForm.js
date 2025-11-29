@@ -217,11 +217,11 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   const [config, setConfig] = useState({});
   useEffect(() => {
     setConfig({
-      bedrooms: Number(data.bedrooms) || 0,
-      bathrooms: Number(data.bathrooms) || 0,
-      kitchens: Number(data.kitchens) || 0,
-      livingRooms: Number(data.livingRooms) || 0,
-      carpark: Number(data.carpark) || 0,
+      bedrooms: Number(data.bedrooms) || "",
+      bathrooms: Number(data.bathrooms) || "",
+      kitchens: Number(data.kitchens) || "",
+      livingRooms: Number(data.livingRooms) || "",
+      carpark: Number(data.carpark) || "",
       extraSpaces: data.extraSpaces || [],
       facilities: data.facilities || [],
       furniture: data.furniture || [],
