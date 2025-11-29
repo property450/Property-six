@@ -1,7 +1,6 @@
 // components/UnitLayoutForm.js
 "use client";
-
-import { useRef } from "react";
+import { useState, useRef } from "react";
 
 import PriceInput from "./PriceInput";
 import CarparkCountSelector from "./CarparkCountSelector";
@@ -13,9 +12,10 @@ import FacilitiesSelector from "./FacilitiesSelector";
 import CarparkLevelSelector from "./CarparkLevelSelector";
 import RoomCountSelector from "./RoomCountSelector";
 import AreaSelector from "./AreaSelector";
+import ImageUpload from "./ImageUpload";
 import TransitSelector from "./TransitSelector";
 
-// 和 TypeSelector 同步的分类/子类
+// 和 TypeSelector 同步的 Category / Sub Type 配置
 const CATEGORY_OPTIONS = {
   "Bungalow / Villa": [
     "Bungalow",
@@ -97,29 +97,59 @@ const CATEGORY_OPTIONS = {
   ],
 };
 
-export default function UnitLayoutForm({ index, data = {}, onChange }) {
+// 千分位显示
+const formatInt = (val) => {
+  if (val === "" || val == null) return "";
+  const num = Number(val);
+  if (Number.isNaN(num)) return "";
+  return num.toLocaleString();
+};
+
+export default function UnitLayoutForm({ index, data, onChange }) {
   const fileInputRef = useRef(null);
 
-  // 通用更新（保持你原来的写法，只是封装一下）
+  // 单位数量下拉是否展开
+  const [unitOpen, setUnitOpen] = useState(false);
+
   const handleChange = (field, value) => {
     const updated = { ...data, [field]: value };
-    onChange?.(updated);
+    onChange(updated);
   };
 
   const handleUpload = (e) => {
     const files = Array.from(e.target.files || []);
+    if (!files.length) return;
     handleChange("layoutPhotos", [...(data.layoutPhotos || []), ...files]);
   };
 
+  // UnitCount 当前展示值（千分位）
+  const unitDisplay = formatInt(data.unitCount);
+
+  const handleUnitInput = (rawInput) => {
+    const raw = String(rawInput || "").replace(/,/g, "");
+    if (!/^\d*$/.test(raw)) return; // 只允许数字
+    const num = raw ? Number(raw) : "";
+    handleChange("unitCount", num);
+  };
+
+  const handleUnitPick = (num) => {
+    handleChange("unitCount", num);
+    setUnitOpen(false);
+  };
+
+  const currentCategory = data.propertyCategory || "";
+  const subTypeList = CATEGORY_OPTIONS[currentCategory] || [];
+
   return (
     <div className="border p-4 rounded-lg bg-white mb-4 shadow-sm">
-      {/* 标题 + 长形按钮（帮你换回长的） */}
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="font-semibold">Layout {index + 1}</h3>
+      <h3 className="font-semibold mb-3">Layout {index + 1}</h3>
+
+      {/* 上传 Layout 按钮 + 预览（按钮改回长形） */}
+      <div className="mb-3">
         <button
           type="button"
-          className="border px-4 py-2 rounded bg-gray-100 hover:bg-gray-200"
-          onClick={() => fileInputRef.current?.click()}
+          className="mb-3 px-3 py-2 bg-gray-100 border rounded hover:bg-gray-200 w-full"
+          onClick={() => fileInputRef.current && fileInputRef.current.click()}
         >
           点击上传 Layout
         </button>
@@ -127,32 +157,36 @@ export default function UnitLayoutForm({ index, data = {}, onChange }) {
           ref={fileInputRef}
           type="file"
           accept="image/*"
-          className="hidden"
           multiple
+          className="hidden"
           onChange={handleUpload}
+        />
+
+        <ImageUpload
+          images={data.layoutPhotos || []}
+          setImages={(updated) => handleChange("layoutPhotos", updated)}
         />
       </div>
 
       {/* Type 名称 */}
       <input
-        className="border p-2 rounded w-full mb-3"
+        className="border p-2 rounded w-full my-3"
         placeholder="输入 Type 名称"
         value={data.type || ""}
         onChange={(e) => handleChange("type", e.target.value)}
       />
 
-      {/* Property Category —— 恢复简单写法，保证肯定有反应 */}
+      {/* Property Category */}
       <div className="mb-3">
         <label className="block font-medium mb-1">Property Category</label>
         <select
-          className="w-full border rounded px-3 py-2 bg-white"
-          value={data.propertyCategory || ""}
+          value={currentCategory}
           onChange={(e) => {
-            const category = e.target.value;
-            handleChange("propertyCategory", category);
-            // 换 Category 时清空 Sub Type，防止残留
-            handleChange("subType", "");
+            const cat = e.target.value;
+            // 切换类别时顺便清空 Sub Type
+            onChange({ ...data, propertyCategory: cat, subType: "" });
           }}
+          className="border p-2 rounded w-full"
         >
           <option value="">请选择类别</option>
           {Object.keys(CATEGORY_OPTIONS).map((cat) => (
@@ -163,44 +197,17 @@ export default function UnitLayoutForm({ index, data = {}, onChange }) {
         </select>
       </div>
 
-      {/* 这个房型有多少个单位？—— 下拉 + 手动输入 + 千分位 */}
-      <div className="mb-3">
-        <label className="block font-medium mb-1">这个房型有多少个单位？</label>
-        <input
-          type="text"
-          className="w-full border rounded px-3 py-2 bg-white"
-          placeholder="选择单位数量（可手动输入）"
-          value={
-            data.unitCount === "" || data.unitCount == null
-              ? ""
-              : Number(data.unitCount).toLocaleString()
-          }
-          onChange={(e) => {
-            const raw = e.target.value.replace(/,/g, "");
-            // 只允许数字
-            if (!/^\d*$/.test(raw)) return;
-            handleChange("unitCount", raw ? Number(raw) : "");
-          }}
-          list={`unit-count-list-${index}`}
-        />
-        <datalist id={`unit-count-list-${index}`}>
-          {Array.from({ length: 500 }, (_, i) => i + 1).map((n) => (
-            <option key={n} value={n.toLocaleString()} />
-          ))}
-        </datalist>
-      </div>
-
-      {/* Sub Type —— 只依赖 data.propertyCategory，不用什么 currentCategory / subTypeList 了 */}
-      {data.propertyCategory && (
+      {/* Sub Type：任何选中的 Category 都会有对应列表 */}
+      {currentCategory && (
         <div className="mb-3">
           <label className="block font-medium mb-1">Sub Type</label>
           <select
-            className="w-full border rounded px-3 py-2 bg-white"
             value={data.subType || ""}
             onChange={(e) => handleChange("subType", e.target.value)}
+            className="border p-2 rounded w-full"
           >
             <option value="">请选择具体类型</option>
-            {(CATEGORY_OPTIONS[data.propertyCategory] || []).map((st) => (
+            {subTypeList.map((st) => (
               <option key={st} value={st}>
                 {st}
               </option>
@@ -208,6 +215,40 @@ export default function UnitLayoutForm({ index, data = {}, onChange }) {
           </select>
         </div>
       )}
+
+      {/* 这个房型有多少个单位？ */}
+      <div className="mb-3">
+        <label className="block font-medium mb-1">
+          这个房型有多少个单位？
+        </label>
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="选择单位数量（可手动输入）"
+            value={unitDisplay}
+            onChange={(e) => handleUnitInput(e.target.value)}
+            onFocus={() => setUnitOpen(true)}
+            onClick={() => setUnitOpen(true)}
+            className="w-full border border-gray-300 rounded px-3 py-2 bg-white focus:outline-none focus:ring focus:border-blue-500"
+          />
+          {unitOpen && (
+            <ul className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+              {Array.from({ length: 500 }, (_, i) => i + 1).map((num) => (
+                <li
+                  key={num}
+                  className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleUnitPick(num);
+                  }}
+                >
+                  {num.toLocaleString()}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
 
       {/* 面积 */}
       <AreaSelector
@@ -222,7 +263,7 @@ export default function UnitLayoutForm({ index, data = {}, onChange }) {
         type={data.projectType}
       />
 
-      {/* 房间数量 —— 保持“请选择卧室数量”等占位文字，你 upload-property 里已经传 ""，这里不改 */}
+      {/* 房间数量（保持“请选择数量”逻辑） */}
       <RoomCountSelector
         value={{
           bedrooms: data.bedrooms || "",
@@ -233,7 +274,7 @@ export default function UnitLayoutForm({ index, data = {}, onChange }) {
         onChange={(v) => onChange({ ...data, ...v })}
       />
 
-      {/* 车位 */}
+      {/* 停车位 */}
       <CarparkCountSelector
         value={data.carpark || ""}
         onChange={(v) => handleChange("carpark", v)}
@@ -265,7 +306,9 @@ export default function UnitLayoutForm({ index, data = {}, onChange }) {
         onChange={(v) => handleChange("facilities", v)}
       />
 
-      <TransitSelector onChange={(v) => handleChange("transit", v)} />
+      <TransitSelector
+        onChange={(v) => handleChange("transit", v)}
+      />
 
       <BuildYearSelector
         value={data.buildYear || ""}
