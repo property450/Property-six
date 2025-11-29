@@ -15,7 +15,7 @@ import AreaSelector from "./AreaSelector";
 import ImageUpload from "./ImageUpload";
 import TransitSelector from "./TransitSelector";
 
-// ---------- 和 TypeSelector 保持同步的 Category / SubType 选项 ----------
+// ---------- 和 TypeSelector 同步的 Category / SubType 选项 ----------
 const CATEGORY_OPTIONS = {
   "Bungalow / Villa": [
     "Bungalow",
@@ -114,11 +114,27 @@ const parseNumber = (str) => String(str || "").replace(/,/g, "");
 export default function UnitLayoutForm({ index, data, onChange }) {
   const fileInputRef = useRef(null);
 
-  // 「这个房型有多少个单位」下拉框
+  // 👉 这两个字段改用本地 state，先保证自己有反应
+  const [localCategory, setLocalCategory] = useState(
+    data.propertyCategory || ""
+  );
+  const [localUnitCount, setLocalUnitCount] = useState(
+    data.unitCount ?? ""
+  );
+
+  // 父组件 data 变化时，同步到本地（防止编辑后再切换房型时不同步）
+  useEffect(() => {
+    setLocalCategory(data.propertyCategory || "");
+  }, [data.propertyCategory]);
+
+  useEffect(() => {
+    setLocalUnitCount(data.unitCount ?? "");
+  }, [data.unitCount]);
+
+  // 「这个房型有多少个单位？」 下拉开关
   const unitRef = useRef(null);
   const [unitOpen, setUnitOpen] = useState(false);
 
-  // 监听点击页面其它地方，关闭单位下拉
   useEffect(() => {
     const onDocClick = (e) => {
       if (unitRef.current && !unitRef.current.contains(e.target)) {
@@ -129,7 +145,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
 
-  // 统一更新 layout（保持你原本 data 结构）
+  // 统一更新 layout
   const handleChange = (field, value) => {
     const updated = { ...data, [field]: value };
     onChange(updated);
@@ -144,7 +160,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     <div className="border p-4 rounded-lg bg-white mb-4 shadow-sm">
       <h3 className="font-semibold mb-3">Layout {index + 1}</h3>
 
-      {/* 上传 Layout —— 改回全宽长按钮 */}
+      {/* 上传 Layout —— 全宽长按钮 */}
       <button
         type="button"
         className="w-full border px-3 py-2 rounded bg-gray-100 hover:bg-gray-200 mb-2 text-center"
@@ -169,16 +185,16 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         onChange={(e) => handleChange("type", e.target.value)}
       />
 
-      {/* Property Category */}
+      {/* Property Category —— 改用本地 state，点击一定有反应 */}
       <div className="mb-3">
         <label className="block font-medium mb-1">Property Category</label>
         <select
-          value={data.propertyCategory || ""}
+          value={localCategory}
           onChange={(e) => {
             const c = e.target.value;
-            handleChange("propertyCategory", c);
-            // 换 category 时清空 subType，避免旧值
-            handleChange("subType", "");
+            setLocalCategory(c);          // 本地先更新
+            handleChange("propertyCategory", c);  // 再同步给父组件
+            handleChange("subType", "");  // 换 Category 时清空 SubType
           }}
           className="border p-2 rounded w-full bg-white"
         >
@@ -191,7 +207,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         </select>
       </div>
 
-      {/* 这个房型有多少个单位？ —— 仿造卧室/浴室的下拉样式 */}
+      {/* 这个房型有多少个单位？ —— 仿照卧室/浴室的下拉样式 */}
       <div className="mb-3" ref={unitRef}>
         <label className="block font-medium mb-1">这个房型有多少个单位？</label>
         <div className="relative">
@@ -199,11 +215,15 @@ export default function UnitLayoutForm({ index, data, onChange }) {
             type="text"
             className="w-full border border-gray-300 rounded px-3 py-2 bg-white focus:outline-none focus:ring focus:border-blue-500"
             placeholder="选择单位数量（可手动输入）"
-            value={data.unitCount ? formatNumber(data.unitCount) : ""}
+            value={
+              localUnitCount !== "" ? formatNumber(localUnitCount) : ""
+            }
             onChange={(e) => {
               const raw = parseNumber(e.target.value);
               if (!/^\d*$/.test(raw)) return; // 只允许数字
-              handleChange("unitCount", raw ? Number(raw) : "");
+              const num = raw === "" ? "" : Number(raw);
+              setLocalUnitCount(num);
+              handleChange("unitCount", num);
             }}
             onFocus={() => setUnitOpen(true)}
             onClick={() => setUnitOpen(true)}
@@ -216,6 +236,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
                   className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                   onMouseDown={(e) => {
                     e.preventDefault();
+                    setLocalUnitCount(num);
                     handleChange("unitCount", num);
                     setUnitOpen(false);
                   }}
@@ -229,7 +250,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       </div>
 
       {/* Sub Type */}
-      {data.propertyCategory && (
+      {localCategory && (
         <div className="mb-3">
           <label className="block font-medium mb-1">Sub Type</label>
           <select
@@ -238,7 +259,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
             className="border p-2 rounded w-full bg-white"
           >
             <option value="">请选择具体类型</option>
-            {CATEGORY_OPTIONS[data.propertyCategory].map((st) => (
+            {CATEGORY_OPTIONS[localCategory].map((st) => (
               <option key={st} value={st}>
                 {st}
               </option>
@@ -260,7 +281,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         type={data.projectType}
       />
 
-      {/* 房间数量 —— 保持“请选择卧室数量”这种 placeholder 显示 */}
+      {/* 房间数量 —— 保持“请选择卧室数量”这种 placeholder */}
       <RoomCountSelector
         value={{
           bedrooms: data.bedrooms || "",
