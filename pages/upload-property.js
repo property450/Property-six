@@ -338,24 +338,26 @@ const isProject =
   })()}
 
           <RoomCountSelector
-            value={{
-              bedrooms: singleFormData.bedrooms,
-              bathrooms: singleFormData.bathrooms,
-              kitchens: singleFormData.kitchens,
-              livingRooms: singleFormData.livingRooms,
-            }}
-            onChange={(updated) =>
-              setSingleFormData({ ...singleFormData, ...updated })
-            }
-          />
+  value={{
+    bedrooms: layout.bedrooms || "",
+    bathrooms: layout.bathrooms || "",
+    kitchens: layout.kitchens || "",
+    livingRooms: layout.livingRooms || "",
+  }}
+  onChange={(patch) => {
+    // patch 比如 { bedrooms: "2" }
+    updateLayout(patch); // updateLayout 会和原来的 layout 合并
+  }}
+/>
 
-          <CarparkCountSelector
-            value={singleFormData.carpark}
-            onChange={(val) =>
-              setSingleFormData({ ...singleFormData, carpark: val })
-            }
-            mode="single"
-          />
+          // 非项目：
+<CarparkCountSelector
+  value={singleFormData.carpark}
+  onChange={(val) =>
+    setSingleFormData((prev) => ({ ...prev, carpark: val }))
+  }
+  mode="single"
+/>
 
           <ExtraSpacesSelector
             value={singleFormData.extraSpaces || []}
