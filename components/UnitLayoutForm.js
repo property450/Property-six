@@ -16,7 +16,8 @@ import AreaSelector from "./AreaSelector";
 import ImageUpload from "./ImageUpload";
 import TransitSelector from "./TransitSelector";
 
-/** 把 AreaSelector 返回的对象，转换成「总平方英尺」 */
+// =========== 工具函数：面积 + 价格 => PSF ==================
+
 function getAreaSqftFromAreaSelector(area) {
   if (!area) return 0;
 
@@ -34,7 +35,7 @@ function getAreaSqftFromAreaSelector(area) {
     if (u.includes("hectare")) {
       return num * 107639;
     }
-    return num; // 默认当 sqft
+    return num; // 默认 sqft
   };
 
   // 标准结构：{ types, units, values }
@@ -44,19 +45,17 @@ function getAreaSqftFromAreaSelector(area) {
     return (buildUpSqft || 0) + (landSqft || 0);
   }
 
-  // 简单结构：{ buildUp, land }，已是 sqft
+  // 简单结构：{ buildUp, land }
   if (typeof area === "object") {
     const buildUp = Number(area.buildUp || 0);
     const land = Number(area.land || 0);
     return buildUp + land;
   }
 
-  // 数字 / 字符串
   const num = parseFloat(String(area).replace(/,/g, ""));
   return isNaN(num) ? 0 : num;
 }
 
-/** 从 price 字段解析出 min / max */
 function getPriceRange(priceValue) {
   let minPrice = 0;
   let maxPrice = 0;
@@ -81,7 +80,6 @@ function getPriceRange(priceValue) {
   return { minPrice, maxPrice };
 }
 
-/** 生成「每平方英尺 RM xxx.xx ~ RM yyy.yy」 */
 function getPsfText(areaObj, priceValue) {
   const totalAreaSqft = getAreaSqftFromAreaSelector(areaObj);
   const { minPrice, maxPrice } = getPriceRange(priceValue);
@@ -110,7 +108,8 @@ function getPsfText(areaObj, priceValue) {
   })}`;
 }
 
-// 💡 直接复用你在 TypeSelector 里的 categoryOptions
+// =========== Category 选项（和 TypeSelector 保持一致） ===================
+
 const CATEGORY_OPTIONS = {
   "Bungalow / Villa": [
     "Bungalow",
@@ -186,54 +185,91 @@ const CATEGORY_OPTIONS = {
   ],
 };
 
-export default function UnitLayoutForm({ index, data, onChange }) {
+// 默认 layout 结构，避免某些字段是 undefined
+const DEFAULT_LAYOUT = {
+  type: "",
+  propertyCategory: "",
+  subType: "",
+  unitCount: "",
+
+  price: "",
+  buildUp: {},
+
+  bedrooms: "",
+  bathrooms: "",
+  kitchens: "",
+  livingRooms: "",
+
+  carpark: "",
+  carparkPosition: { min: "", max: "" },
+
+  extraSpaces: [],
+  facilities: [],
+  furniture: [],
+
+  facing: "",
+
+  photos: [],
+  layoutPhotos: [],
+
+  buildYear: "",
+  quarter: "",
+
+  transit: null,
+  projectType: "",
+};
+
+export default function UnitLayoutForm({ index, data = {}, onChange }) {
   const fileInputRef = useRef(null);
-  const [typeName, setTypeName] = useState(data.type || "");
-  const [transitInfo, setTransitInfo] = useState(data.transit || null);
 
-  // 本地保存面积 & 价格，用来算 psf
-  const [areaForPsf, setAreaForPsf] = useState(data.buildUp || {});
-  const [priceForPsf, setPriceForPsf] = useState(data.price || "");
+  // ⭐ 关键：本地 layout 状态，所有输入都改这里
+  const [layout, setLayout] = useState(() => ({
+    ...DEFAULT_LAYOUT,
+    ...data,
+  }));
 
-  // 统一更新：把 patch 合并进 layout，然后传回父组件
+  // 父组件 data 变了时，同步到本地（例如切换项目类型时）
+  useEffect(() => {
+    setLayout((prev) => ({
+      ...prev,
+      ...data,
+    }));
+  }, [JSON.stringify(data)]);
+
+  // 通用更新：本地更新 + 通知父组件
   const updateLayout = (patch) => {
-    const updated = { ...data, ...patch };
-    onChange && onChange(updated);
+    setLayout((prev) => {
+      const updated = { ...prev, ...patch };
+      onChange?.(updated); // 把完整 layout 回传给 UploadProperty
+      return updated;
+    });
   };
-
-  useEffect(() => {
-    if (data.buildUp) setAreaForPsf(data.buildUp);
-  }, [data.buildUp]);
-
-  useEffect(() => {
-    if (data.price !== undefined) setPriceForPsf(data.price);
-  }, [data.price]);
 
   const handleLayoutUpload = (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
-    const newPhotos = [...(data.layoutPhotos || []), ...files];
+    const newPhotos = [...(layout.layoutPhotos || []), ...files];
     updateLayout({ layoutPhotos: newPhotos });
   };
 
-  // 给 ImageUpload 用的 config（不影响 selector 行为）
+  // 给 ImageUpload 的 config
   const [config, setConfig] = useState({});
   useEffect(() => {
     setConfig({
-      bedrooms: Number(data.bedrooms) || 0,
-      bathrooms: Number(data.bathrooms) || 0,
-      kitchens: Number(data.kitchens) || 0,
-      livingRooms: Number(data.livingRooms) || 0,
-      carpark: Number(data.carpark) || 0,
-      extraSpaces: data.extraSpaces || [],
-      facilities: data.facilities || [],
-      furniture: data.furniture || [],
-      orientation: data.facing || null,
-      transit: data.transit || null,
+      bedrooms: Number(layout.bedrooms) || 0,
+      bathrooms: Number(layout.bathrooms) || 0,
+      kitchens: Number(layout.kitchens) || 0,
+      livingRooms: Number(layout.livingRooms) || 0,
+      carpark: Number(layout.carpark) || 0,
+      extraSpaces: layout.extraSpaces || [],
+      facilities: layout.facilities || [],
+      furniture: layout.furniture || [],
+      orientation: layout.facing || null,
+      transit: layout.transit || null,
     });
-  }, [data]);
+  }, [layout]);
 
-  const psfText = getPsfText(areaForPsf, priceForPsf);
+  const psfText = getPsfText(layout.buildUp, layout.price);
 
   return (
     <div className="border rounded-lg p-4 shadow-sm bg-white">
@@ -258,7 +294,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         />
 
         <ImageUpload
-          images={data.layoutPhotos || []}
+          images={layout.layoutPhotos || []}
           setImages={(updated) => updateLayout({ layoutPhotos: updated })}
         />
       </div>
@@ -267,11 +303,8 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       <input
         type="text"
         placeholder="输入 Type 名称"
-        value={typeName}
-        onChange={(e) => {
-          setTypeName(e.target.value);
-          updateLayout({ type: e.target.value });
-        }}
+        value={layout.type}
+        onChange={(e) => updateLayout({ type: e.target.value })}
         className="border p-2 rounded w-full mb-3"
       />
 
@@ -279,14 +312,10 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       <div className="mb-3">
         <label className="block font-medium mb-1">Property Category</label>
         <select
-          value={data.propertyCategory || ""}
-          onChange={(e) => {
-            const cat = e.target.value;
-            updateLayout({
-              propertyCategory: cat,
-              subType: "", // 切换时清空 subtype
-            });
-          }}
+          value={layout.propertyCategory || ""}
+          onChange={(e) =>
+            updateLayout({ propertyCategory: e.target.value, subType: "" })
+          }
           className="border p-2 rounded w-full"
         >
           <option value="">请选择类别</option>
@@ -299,23 +328,24 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       </div>
 
       {/* Sub Type */}
-      {data.propertyCategory && CATEGORY_OPTIONS[data.propertyCategory] && (
-        <div className="mb-3">
-          <label className="block font-medium mb-1">Sub Type</label>
-          <select
-            value={data.subType || ""}
-            onChange={(e) => updateLayout({ subType: e.target.value })}
-            className="border p-2 rounded w-full"
-          >
-            <option value="">请选择具体类型</option>
-            {CATEGORY_OPTIONS[data.propertyCategory].map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
+      {layout.propertyCategory &&
+        CATEGORY_OPTIONS[layout.propertyCategory] && (
+          <div className="mb-3">
+            <label className="block font-medium mb-1">Sub Type</label>
+            <select
+              value={layout.subType || ""}
+              onChange={(e) => updateLayout({ subType: e.target.value })}
+              className="border p-2 rounded w-full"
+            >
+              <option value="">请选择具体类型</option>
+              {CATEGORY_OPTIONS[layout.propertyCategory].map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
       {/* 这个房型有多少个单位？ */}
       <div className="mb-3">
@@ -323,7 +353,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         <input
           type="number"
           placeholder="例如：120"
-          value={data.unitCount || ""}
+          value={layout.unitCount || ""}
           onChange={(e) => updateLayout({ unitCount: e.target.value })}
           className="border p-2 rounded w-full"
         />
@@ -334,54 +364,45 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         <label className="block mb-1 font-medium">上传此 Layout 的照片</label>
         <ImageUpload
           config={config}
-          images={data.photos || []}
+          images={layout.photos || []}
           setImages={(updated) => updateLayout({ photos: updated })}
         />
       </div>
 
       {/* 面积 */}
       <AreaSelector
-        initialValue={areaForPsf || {}}
-        onChange={(val) => {
-          setAreaForPsf(val); // 本地用于 psf
-          updateLayout({ buildUp: val }); // 同步到 layout 数据
-        }}
+        initialValue={layout.buildUp || {}}
+        onChange={(val) => updateLayout({ buildUp: val })}
       />
 
       {/* 价格 */}
       <PriceInput
-        value={priceForPsf}
-        onChange={(val) => {
-          setPriceForPsf(val);
-          updateLayout({ price: val });
-        }}
-        type={data.projectType}
+        value={layout.price}
+        onChange={(val) => updateLayout({ price: val })}
+        type={layout.projectType}
       />
 
       {/* psf 文本 */}
       {psfText && <p className="text-sm text-gray-600 mt-1">{psfText}</p>}
 
-      {/* 房间数量（重点：用 patch） */}
+      {/* ⭐ 房间数量：用本地 layout 的值 */}
       <RoomCountSelector
         value={{
-          bedrooms: data.bedrooms || "",
-          bathrooms: data.bathrooms || "",
-          kitchens: data.kitchens || "",
-          livingRooms: data.livingRooms || "",
+          bedrooms: layout.bedrooms,
+          bathrooms: layout.bathrooms,
+          kitchens: layout.kitchens,
+          livingRooms: layout.livingRooms,
         }}
-        onChange={(patch) => {
-          // patch 比如 { bedrooms: "2" }
-          updateLayout(patch);
-        }}
+        onChange={(patch) => updateLayout(patch)} // patch 例如 { bedrooms: "2" }
       />
 
       {/* 停车位 */}
       <CarparkCountSelector
-        value={data.carpark}
+        value={layout.carpark}
         onChange={(val) => updateLayout({ carpark: val })}
         mode={
-          data.projectType === "New Project / Under Construction" ||
-          data.projectType === "Completed Unit / Developer Unit"
+          layout.projectType === "New Project / Under Construction" ||
+          layout.projectType === "Completed Unit / Developer Unit"
             ? "range"
             : "single"
         }
@@ -389,31 +410,31 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 
       {/* 额外空间 */}
       <ExtraSpacesSelector
-        value={data.extraSpaces || []}
+        value={layout.extraSpaces || []}
         onChange={(val) => updateLayout({ extraSpaces: val })}
       />
 
       {/* 朝向 */}
       <FacingSelector
-        value={data.facing}
+        value={layout.facing}
         onChange={(val) => updateLayout({ facing: val })}
       />
 
       {/* 车位楼层 */}
       <CarparkLevelSelector
-        value={data.carparkPosition}
+        value={layout.carparkPosition}
         onChange={(val) => updateLayout({ carparkPosition: val })}
         mode="range"
       />
 
       {/* 家具 / 设施 */}
       <FurnitureSelector
-        value={data.furniture || []}
+        value={layout.furniture || []}
         onChange={(val) => updateLayout({ furniture: val })}
       />
 
       <FacilitiesSelector
-        value={data.facilities || []}
+        value={layout.facilities || []}
         onChange={(val) => updateLayout({ facilities: val })}
       />
 
@@ -421,18 +442,15 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       <div className="mb-4">
         <label className="font-medium">交通信息</label>
         <TransitSelector
-          onChange={(val) => {
-            setTransitInfo(val);
-            updateLayout({ transit: val });
-          }}
+          onChange={(val) => updateLayout({ transit: val })}
         />
       </div>
 
       {/* 建成年份 + 季度 */}
       <BuildYearSelector
-        value={data.buildYear}
+        value={layout.buildYear}
         onChange={(val) => updateLayout({ buildYear: val })}
-        quarter={data.quarter}
+        quarter={layout.quarter}
         onQuarterChange={(val) => updateLayout({ quarter: val })}
         showQuarter={true}
       />
