@@ -16,6 +16,10 @@ export default function UnitTypeSelector({ propertyStatus, onChange }) {
   // ✅ layout 的初始结构（这里加上 description）
   const createEmptyLayout = () => ({
     type: "",
+    propertyCategory: "",
+    subType: "",
+    unitCount: "",
+    
     price: "",
     buildUp: {},
 
