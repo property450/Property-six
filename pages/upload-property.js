@@ -53,9 +53,11 @@ const [unitLayouts, setUnitLayouts] = useState([]);
 
 // ✅ 每次切换成交状态时，如果变成 New Project / Completed Unit，先把房型列表清空
 useEffect(() => {
-  const isProjectStatus =
-    propertyStatus === "New Project / Under Construction" ||
-    propertyStatus === "Completed Unit / Developer Unit";
+  const isProject =
+  propertyStatus?.includes("New Project") ||
+  propertyStatus?.includes("Under Construction") ||
+  propertyStatus?.includes("Completed Unit") ||
+  propertyStatus?.includes("Developer Unit");
 
   if (isProjectStatus) {
     setUnitLayouts([]);   // 清空，让它重新从「请选择房型数量」开始
