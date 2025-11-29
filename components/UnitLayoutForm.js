@@ -111,7 +111,7 @@ const formatNumber = (num) => {
 // 去掉千分位
 const parseNumber = (str) => String(str || "").replace(/,/g, "");
 
-export default function UnitLayoutForm({ index, data, onChange }) {
+ export default function UnitLayoutForm({ index, data = {}, onChange, projectType }) {
   const fileInputRef = useRef(null);
 
   // 「这个房型有多少个单位」下拉框
