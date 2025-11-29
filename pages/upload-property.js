@@ -50,7 +50,8 @@ export default function UploadProperty() {
   const [type, setType] = useState("");
   const [propertyStatus, setPropertyStatus] = useState("");
 
-  // 项目类房源的 layout 列表
+  // 项目类：房型数量 + layout 列表
+  const [layoutCount, setLayoutCount] = useState(0);
   const [unitLayouts, setUnitLayouts] = useState([]);
 
   // 成交状态变化时：如果不是项目类，就清空房型 layouts
@@ -62,9 +63,62 @@ export default function UploadProperty() {
       propertyStatus?.includes("Developer Unit");
 
     if (!isProjectStatus) {
-      setUnitLayouts([]); // 切回 Subsale/Homestay 等非项目类时清空
+      setLayoutCount(0);
+      setUnitLayouts([]);
     }
   }, [propertyStatus]);
+
+  // 当 layoutCount 变化时，根据数量增减 unitLayouts（保留原有数据）
+  useEffect(() => {
+    const isProjectStatus =
+      propertyStatus?.includes("New Project") ||
+      propertyStatus?.includes("Under Construction") ||
+      propertyStatus?.includes("Completed Unit") ||
+      propertyStatus?.includes("Developer Unit");
+
+    if (!isProjectStatus || !layoutCount || layoutCount <= 0) {
+      setUnitLayouts([]);
+      return;
+    }
+
+    setUnitLayouts((prev) => {
+      const createEmptyLayout = () => ({
+        type: "",
+        propertyCategory: "",
+        subType: "",
+        unitCount: "",
+        price: "",
+        buildUp: {},
+        bedrooms: "",
+        bathrooms: "",
+        kitchens: "",
+        livingRooms: "",
+        carpark: "",
+        carparkPosition: { min: "", max: "" },
+        extraSpaces: [],
+        facilities: [],
+        furniture: [],
+        facing: "",
+        photos: [],
+        layoutPhotos: [],
+        buildYear: "",
+        quarter: "",
+        transit: null,
+      });
+
+      let next = Array.isArray(prev) ? [...prev] : [];
+
+      if (next.length < layoutCount) {
+        while (next.length < layoutCount) {
+          next.push(createEmptyLayout());
+        }
+      } else if (next.length > layoutCount) {
+        next = next.slice(0, layoutCount);
+      }
+
+      return next;
+    });
+  }, [layoutCount, propertyStatus]);
 
   // 普通单一房源的数据
   const [singleFormData, setSingleFormData] = useState({
@@ -96,14 +150,14 @@ export default function UploadProperty() {
   const [transitInfo, setTransitInfo] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // 当前是否是「项目类」房源（和 UnitTypeSelector 判定保持一致）
+  // 当前是否是「项目类」房源
   const isProject =
     propertyStatus?.includes("New Project") ||
     propertyStatus?.includes("Under Construction") ||
     propertyStatus?.includes("Completed Unit") ||
     propertyStatus?.includes("Developer Unit");
 
-  // 根据单一房源的配置生成图片上传配置
+  // 图片上传配置（Subsale）
   const photoConfig = {
     bedrooms: singleFormData.bedrooms || "",
     bathrooms: singleFormData.bathrooms || "",
@@ -142,13 +196,6 @@ export default function UploadProperty() {
     setLatitude(lat);
     setLongitude(lng);
     setAddress(address);
-  };
-
-  const handleLayoutUpload = (e) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
-    const newPhotos = [...(singleFormData.layoutPhotos || []), ...files];
-    setSingleFormData({ ...singleFormData, layoutPhotos: newPhotos });
   };
 
   const handleSubmit = async () => {
@@ -228,8 +275,8 @@ export default function UploadProperty() {
           {/* 这个组件里面有「这个项目有多少个房型？」的下拉 */}
           <UnitTypeSelector
             propertyStatus={propertyStatus}
-            layouts={unitLayouts}
-            onChange={(layouts) => setUnitLayouts(layouts)}
+            value={layoutCount}
+            onChange={setLayoutCount}
           />
 
           {/* 只有当 unitLayouts.length > 0，也就是你选了房型数量之后，才显示下面所有内容 */}
@@ -241,11 +288,8 @@ export default function UploadProperty() {
                   index={index}
                   data={{ ...layout, projectType: propertyStatus }}
                   onChange={(updated) => {
-                    // updated 是单个 layout 完整对象
                     setUnitLayouts((prev) => {
-                      const prevLayouts =
-                        prev && prev.length ? prev : unitLayouts;
-                      const next = [...prevLayouts];
+                      const next = [...prev];
                       next[index] = updated;
                       return next;
                     });
@@ -311,9 +355,7 @@ export default function UploadProperty() {
               const priceVal = singleFormData.price;
               if (!totalAreaSqft || !priceVal) return null;
 
-              const priceNum = Number(
-                String(priceVal).replace(/,/g, "")
-              );
+              const priceNum = Number(String(priceVal).replace(/,/g, ""));
               if (!priceNum || !isFinite(priceNum)) return null;
 
               const psf = priceNum / totalAreaSqft;
@@ -321,9 +363,7 @@ export default function UploadProperty() {
               return (
                 <p className="text-sm text-gray-600 mt-1">
                   每平方英尺: RM{" "}
-                  {psf.toLocaleString(undefined, {
-                    maximumFractionDigits: 2,
-                  })}
+                  {psf.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                 </p>
               );
             } catch (e) {
