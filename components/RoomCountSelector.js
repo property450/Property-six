@@ -3,7 +3,6 @@
 
 import { useEffect, useRef, useState } from "react";
 
-// 千分位格式化
 const formatNumber = (num) => {
   if (num === "" || num === undefined || num === null) return "";
   const str = String(num).replace(/,/g, "");
@@ -11,10 +10,8 @@ const formatNumber = (num) => {
   return Number(str).toLocaleString();
 };
 
-// 去除千分位
 const parseNumber = (str) => String(str || "").replace(/,/g, "");
 
-// 每个字段的选项
 const FIELD_DEFS = [
   {
     key: "bedrooms",
@@ -39,11 +36,10 @@ const FIELD_DEFS = [
 ];
 
 export default function RoomCountSelector({ value = {}, onChange }) {
-  const [openKey, setOpenKey] = useState(null);      // 当前展开的下拉 key
-  const [customFlags, setCustomFlags] = useState({}); // 是否处于“自定义”模式
-  const refs = useRef({});                            // 每个字段的容器 ref
+  const [openKey, setOpenKey] = useState(null);
+  const [customFlags, setCustomFlags] = useState({});
+  const refs = useRef({});
 
-  // 点击页面其它地方时关闭下拉
   useEffect(() => {
     const onDocClick = (e) => {
       const anyHit = Object.values(refs.current).some(
@@ -55,11 +51,11 @@ export default function RoomCountSelector({ value = {}, onChange }) {
     return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
 
+  // ✅ 这里改：只发 patch，父组件来合并
   const setFieldValue = (key, newVal) => {
-    onChange?.({ ...value, [key]: newVal });
+    onChange?.({ [key]: newVal });
   };
 
-  // 处理从下拉选择
   const handlePick = (key, opt) => {
     if (opt === "custom") {
       setCustomFlags((p) => ({ ...p, [key]: true }));
@@ -67,7 +63,7 @@ export default function RoomCountSelector({ value = {}, onChange }) {
       setOpenKey(null);
       return;
     }
-    // 选择了具体值
+
     setCustomFlags((p) => ({ ...p, [key]: false }));
     if (key === "bedrooms" && opt === "Studio") {
       setFieldValue(key, "Studio");
@@ -77,19 +73,16 @@ export default function RoomCountSelector({ value = {}, onChange }) {
     setOpenKey(null);
   };
 
-  // 处理手动输入
   const handleInput = (key, rawInput) => {
-    // 卧室允许 "Studio"
     if (key === "bedrooms" && /^studio$/i.test(rawInput.trim())) {
       setCustomFlags((p) => ({ ...p, [key]: false }));
       setFieldValue(key, "Studio");
       return;
     }
 
-    // 只允许数字
     const raw = parseNumber(rawInput);
     if (!/^\d*$/.test(raw)) return;
-    if (raw.length > 7) return; // 最多 7 位
+    if (raw.length > 7) return;
     setFieldValue(key, raw);
   };
 
@@ -124,7 +117,6 @@ export default function RoomCountSelector({ value = {}, onChange }) {
         const display = isNumberLike ? formatNumber(cur) : cur || "";
         const isCustom = !!customFlags[def.key];
 
-        // 占位符逻辑 —— 改成你想要的文案
         let placeholder = "输入或选择数量";
         if (def.key === "bedrooms") {
           placeholder = "选择卧室数量（可输入或 Studio）";
@@ -149,18 +141,16 @@ export default function RoomCountSelector({ value = {}, onChange }) {
             <label className="text-sm font-medium mb-1">{def.label}</label>
 
             <div className="relative">
-              {/* 单一输入框：既能输入也能点击展开下拉 */}
               <input
                 type="text"
                 className="w-full border border-gray-300 rounded px-3 py-2 bg-white focus:outline-none focus:ring focus:border-blue-500"
                 placeholder={placeholder}
                 value={display}
                 onChange={(e) => handleInput(def.key, e.target.value)}
-                onFocus={() => setOpenKey(def.key)}   // 聚焦就展开
-                onClick={() => setOpenKey(def.key)}   // 已有值时点击也展开
+                onFocus={() => setOpenKey(def.key)}
+                onClick={() => setOpenKey(def.key)}
               />
 
-              {/* 白底下拉 */}
               {openKey === def.key && (
                 <ul className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
                   {renderOptions(def)}
