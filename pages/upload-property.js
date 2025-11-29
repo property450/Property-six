@@ -49,6 +49,8 @@ export default function UploadProperty() {
   const [longitude, setLongitude] = useState(null);
   const [type, setType] = useState("");
   const [propertyStatus, setPropertyStatus] = useState("");
+
+  // 项目类房源的 layout 列表
   const [unitLayouts, setUnitLayouts] = useState([]);
 
   // 成交状态变化时：如果不是项目类，就清空房型 layouts
@@ -64,6 +66,7 @@ export default function UploadProperty() {
     }
   }, [propertyStatus]);
 
+  // 普通单一房源的数据
   const [singleFormData, setSingleFormData] = useState({
     price: "",
     buildUp: "",
@@ -93,7 +96,7 @@ export default function UploadProperty() {
   const [transitInfo, setTransitInfo] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // 当前是否是「项目类」房源（跟 UnitTypeSelector 用同一套判断）
+  // 当前是否是「项目类」房源（和 UnitTypeSelector 判定保持一致）
   const isProject =
     propertyStatus?.includes("New Project") ||
     propertyStatus?.includes("Under Construction") ||
@@ -233,32 +236,15 @@ export default function UploadProperty() {
           {unitLayouts.length > 0 && (
             <div className="space-y-4 mt-4">
               {unitLayouts.map((layout, index) => (
-  <UnitLayoutForm
-    key={index}
-    index={index}
-    data={{ ...layout, projectType: propertyStatus }}
-    onChange={(updated) => {
-      setUnitLayouts((prev) => {
-        const prevLayouts = prev && prev.length ? prev : unitLayouts;
-        const next = [...prevLayouts];
-        next[index] = updated;
-        return next;
-      });
-    }}
-  />
-))}
-
+                <UnitLayoutForm
+                  key={index}
+                  index={index}
+                  data={{ ...layout, projectType: propertyStatus }}
+                  onChange={(updated) => {
+                    // updated 是单个 layout 完整对象
                     setUnitLayouts((prev) => {
                       const prevLayouts =
                         prev && prev.length ? prev : unitLayouts;
-                      const prevLayout = prevLayouts[index] || {};
-
-                      const isSame =
-                        JSON.stringify(prevLayout) ===
-                        JSON.stringify(updated);
-
-                      if (isSame) return prevLayouts;
-
                       const next = [...prevLayouts];
                       next[index] = updated;
                       return next;
@@ -345,7 +331,7 @@ export default function UploadProperty() {
             }
           })()}
 
-          {/* ✅ 非项目房源的卧室/浴室/厨房/客厅 */}
+          {/* 非项目房源的卧室/浴室/厨房/客厅 */}
           <RoomCountSelector
             value={{
               bedrooms: singleFormData.bedrooms,
@@ -358,7 +344,7 @@ export default function UploadProperty() {
             }
           />
 
-          {/* ✅ 非项目房源的车位 */}
+          {/* 非项目房源的车位 */}
           <CarparkCountSelector
             value={singleFormData.carpark}
             onChange={(val) =>
