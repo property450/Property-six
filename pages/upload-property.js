@@ -49,7 +49,7 @@ export default function UploadProperty() {
   const [longitude, setLongitude] = useState(null);
   const [type, setType] = useState("");
   const [propertyStatus, setPropertyStatus] = useState("");
-const [unitLayouts, setUnitLayouts] = useState([]);
+  const [unitLayouts, setUnitLayouts] = useState([]);
 
   const [singleFormData, setSingleFormData] = useState({
     price: "",
@@ -85,7 +85,7 @@ const [unitLayouts, setUnitLayouts] = useState([]);
     propertyStatus === "New Project / Under Construction" ||
     propertyStatus === "Completed Unit / Developer Unit";
 
-    // 根据单一房源的配置生成图片上传配置
+  // 根据单一房源的配置生成图片上传配置（Subsale 用）
   const photoConfig = {
     bedrooms: singleFormData.bedrooms || "",
     bathrooms: singleFormData.bathrooms || "",
@@ -188,56 +188,53 @@ const [unitLayouts, setUnitLayouts] = useState([]);
     <div className="max-w-3xl mx-auto p-4 space-y-4">
       <h1 className="text-2xl font-bold mb-4">上传房源</h1>
 
-      {/* 标题（如果你有的话，可以加上） */}
-      {/* <input ... setTitle ... /> */}
-
       <AddressSearchInput onLocationSelect={handleLocationSelect} />
 
       <TypeSelector
-  value={type}
-  onChange={setType}
-  onFormChange={(formData) => {
-    const newStatus = formData?.propertyStatus || "";
+        value={type}
+        onChange={setType}
+        onFormChange={(formData) => {
+          const newStatus = formData?.propertyStatus || "";
+          setPropertyStatus((prev) => {
+            if (prev === newStatus) return prev;
+            return newStatus;
+          });
+        }}
+      />
 
-    setPropertyStatus((prev) => {
-      if (prev === newStatus) return prev; // 不变就不更新，避免多余渲染
-      return newStatus;
-    });
-  }}
-/>
       {/* ------------ 项目类房源 (New Project / Completed Unit) ------------ */}
-{isProject ? (
-  <>
-    {/* 1️⃣ 先问：这个项目有多少个房型 / Layout？ */}
-    <UnitTypeSelector
-      propertyStatus={propertyStatus}
-      onChange={(layouts) => setUnitLayouts(layouts)}
-    />
-
-    {/* 2️⃣ 根据选择的房型数量，渲染每个 Layout 的表单 */}
-    {unitLayouts.length > 0 && (
-      <div className="space-y-4 mt-4">
-        {unitLayouts.map((layout, index) => (
-          <UnitLayoutForm
-            key={index}
-            index={index}
-            data={layout}
-            projectType={propertyStatus}
-            onChange={(updated) => {
-              console.log("Layout 更新:", index, updated);
-              setUnitLayouts((prev) => {
-                const next = [...prev];
-                next[index] = updated; // 用子组件传回来的完整对象
-                return next;
-              });
-            }}
+      {isProject ? (
+        <>
+          {/* 1️⃣ 这个项目有多少个房型 */}
+          <UnitTypeSelector
+            propertyStatus={propertyStatus}
+            onChange={(layouts) => setUnitLayouts(layouts)}
           />
-        ))}
-      </div>
-    )}
-  </>
-) : (
 
+          {/* 2️⃣ 按数量生成 Layout 表单 */}
+          {unitLayouts.length > 0 && (
+            <div className="space-y-4 mt-4">
+              {unitLayouts.map((layout, index) => (
+                <UnitLayoutForm
+                  key={index}
+                  index={index}
+                  data={layout}
+                  projectType={propertyStatus}
+                  onChange={(updated) => {
+                    setUnitLayouts((prev) => {
+                      const next = [...prev];
+                      next[index] = updated; // 用子组件传回来的完整对象
+                      return next;
+                    });
+                  }}
+                />
+              ))}
+
+              {/* 项目整体的交通信息 & 描述（如果你之后要加，可以在这里加） */}
+            </div>
+          )}
+        </>
+      ) : (
         /* ------------ 普通非项目房源：保持你之前的旧逻辑 ------------ */
         <div className="space-y-4 mt-6">
           <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
@@ -258,38 +255,43 @@ const [unitLayouts, setUnitLayouts] = useState([]);
                 areaData.units.land
               ),
             }}
-          /> 
-              {/* 单一 / Subsale 房源的 PSF 显示 */}
-  {(() => {
-    try {
-      const buildUpSqft = convertToSqft(
-        areaData.values.buildUp,
-        areaData.units.buildUp
-      );
-      const landSqft = convertToSqft(
-        areaData.values.land,
-        areaData.units.land
-      );
-      const totalAreaSqft = (buildUpSqft || 0) + (landSqft || 0);
+          />
 
-      const priceVal = singleFormData.price;
-      if (!totalAreaSqft || !priceVal) return null;
+          {/* 单一 / Subsale 房源的 PSF 显示 */}
+          {(() => {
+            try {
+              const buildUpSqft = convertToSqft(
+                areaData.values.buildUp,
+                areaData.units.buildUp
+              );
+              const landSqft = convertToSqft(
+                areaData.values.land,
+                areaData.units.land
+              );
+              const totalAreaSqft = (buildUpSqft || 0) + (landSqft || 0);
 
-      const priceNum = Number(String(priceVal).replace(/,/g, ""));
-      if (!priceNum || !isFinite(priceNum)) return null;
+              const priceVal = singleFormData.price;
+              if (!totalAreaSqft || !priceVal) return null;
 
-      const psf = priceNum / totalAreaSqft;
+              const priceNum = Number(
+                String(priceVal).replace(/,/g, "")
+              );
+              if (!priceNum || !isFinite(priceNum)) return null;
 
-      return (
-        <p className="text-sm text-gray-600 mt-1">
-          每平方英尺: RM{" "}
-          {psf.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-        </p>
-      );
-    } catch (e) {
-      return null;
-    }
-  })()}
+              const psf = priceNum / totalAreaSqft;
+
+              return (
+                <p className="text-sm text-gray-600 mt-1">
+                  每平方英尺: RM{" "}
+                  {psf.toLocaleString(undefined, {
+                    maximumFractionDigits: 2,
+                  })}
+                </p>
+              );
+            } catch (e) {
+              return null;
+            }
+          })()}
 
           <RoomCountSelector
             value={{
@@ -373,11 +375,7 @@ const [unitLayouts, setUnitLayouts] = useState([]);
             onChange={(val) =>
               setSingleFormData({ ...singleFormData, carparkPosition: val })
             }
-            mode={
-              isProject
-                ? "range"
-                : "single"
-            }
+            mode={isProject ? "range" : "single"}
           />
 
           <BuildYearSelector
@@ -394,16 +392,16 @@ const [unitLayouts, setUnitLayouts] = useState([]);
         </>
       )}
 
-            {/* 公共图片上传 & 提交按钮（仅 Subsale / 单一房源 显示） */}
-{!isProject && (
-  <ImageUpload
-    config={photoConfig}   // 还是用你原来的配置
-    images={singleFormData.photos}
-    setImages={(updated) =>
-      setSingleFormData({ ...singleFormData, photos: updated })
-    }
-  />
-)}
+      {/* 公共图片上传 & 提交按钮（仅 Subsale / 单一房源 显示） */}
+      {!isProject && (
+        <ImageUpload
+          config={photoConfig}
+          images={singleFormData.photos}
+          setImages={(updated) =>
+            setSingleFormData({ ...singleFormData, photos: updated })
+          }
+        />
+      )}
 
       <Button
         onClick={handleSubmit}
