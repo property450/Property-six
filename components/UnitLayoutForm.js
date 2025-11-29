@@ -163,6 +163,32 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         </select>
       </div>
 
+{/* Unit Count */}
+<div className="mb-3">
+  <label className="block font-medium mb-1">这个房型有多少个单位？</label>
+
+  <input
+    list={`unitCountList-${index}`}
+    type="text"
+    value={data.unitCount || ""}
+    onChange={(e) => {
+      const v = e.target.value.replace(/,/g, "");
+      if (!/^\d*$/.test(v)) return; // 限制只能数字
+      handleChange("unitCount", v ? Number(v) : "");
+    }}
+    className="border p-2 rounded w-full"
+    placeholder="可选择或手动输入，例如 120"
+  />
+
+  {/* 下拉列表 1 ~ 500 */}
+  <datalist id={`unitCountList-${index}`}>
+    {Array.from({ length: 500 }, (_, i) => i + 1).map((num) => (
+      <option key={num} value={num.toLocaleString()} />
+    ))}
+  </datalist>
+</div>
+
+
       {/* Sub Type */}
       {data.propertyCategory && (
         <div className="mb-3">
