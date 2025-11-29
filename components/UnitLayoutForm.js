@@ -1,6 +1,6 @@
 // components/UnitLayoutForm.js
 "use client";
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 
 import PriceInput from "./PriceInput";
 import CarparkCountSelector from "./CarparkCountSelector";
@@ -36,14 +36,12 @@ function getAreaSqftFromAreaSelector(area) {
     return num; // 默认当 sqft
   };
 
-  // 标准结构：{ types, units, values }
   if (area.values && area.units) {
     const buildUpSqft = convertToSqFt(area.values.buildUp, area.units.buildUp);
     const landSqft = convertToSqFt(area.values.land, area.units.land);
     return (buildUpSqft || 0) + (landSqft || 0);
   }
 
-  // 简单结构：{ buildUp, land }
   if (typeof area === "object") {
     const buildUp = Number(area.buildUp || 0);
     const land = Number(area.land || 0);
@@ -191,9 +189,16 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   const fileInputRef = useRef(null);
   const [transitInfo, setTransitInfo] = useState(layout.transit || null);
 
-  // ❌ 不再用 useEffect 同步 state，直接从 props 读取
-  const areaForPsf = layout.buildUp || {};
-  const priceForPsf = layout.price ?? "";
+  const [areaForPsf, setAreaForPsf] = useState(layout.buildUp || {});
+  const [priceForPsf, setPriceForPsf] = useState(layout.price || "");
+
+  useEffect(() => {
+    if (layout.buildUp) setAreaForPsf(layout.buildUp);
+  }, [layout.buildUp]);
+
+  useEffect(() => {
+    if (layout.price !== undefined) setPriceForPsf(layout.price);
+  }, [layout.price]);
 
   // 统一更新：只往外抛「完整的 layout 对象」
   const updateLayout = (patch) => {
@@ -212,7 +217,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     handleFieldChange("layoutPhotos", newPhotos);
   };
 
-  // 直接计算给 ImageUpload 的配置
+  // ✅ 这里不再用 useState，而是每次 render 直接算一个 config
   const config = {
     bedrooms: Number(layout.bedrooms) || 0,
     bathrooms: Number(layout.bathrooms) || 0,
@@ -337,6 +342,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       <AreaSelector
         initialValue={areaForPsf || {}}
         onChange={(val) => {
+          setAreaForPsf(val);
           handleFieldChange("buildUp", val);
         }}
       />
@@ -345,6 +351,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       <PriceInput
         value={priceForPsf}
         onChange={(val) => {
+          setPriceForPsf(val);
           handleFieldChange("price", val);
         }}
         type={layout.projectType}
