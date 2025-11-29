@@ -97,12 +97,103 @@ const CATEGORY_OPTIONS = {
   ],
 };
 
-// 千分位显示
+// 千分位显示（单位数量用）
 const formatInt = (val) => {
   if (val === "" || val == null) return "";
   const num = Number(val);
   if (Number.isNaN(num)) return "";
   return num.toLocaleString();
+};
+
+/** 把 AreaSelector 返回的对象转换成总 sqft */
+const getAreaSqftFromAreaSelector = (area) => {
+  if (!area) return 0;
+
+  const convertToSqFt = (val, unit) => {
+    const num = parseFloat(String(val || "").replace(/,/g, ""));
+    if (isNaN(num) || num <= 0) return 0;
+    const u = String(unit || "").toLowerCase();
+
+    if (u.includes("square meter") || u.includes("sq m") || u.includes("sqm")) {
+      return num * 10.7639;
+    }
+    if (u.includes("acre")) {
+      return num * 43560;
+    }
+    if (u.includes("hectare")) {
+      return num * 107639;
+    }
+    return num; // 默认 sqft
+  };
+
+  if (area.values && area.units) {
+    const buildUpSqft = convertToSqFt(area.values.buildUp, area.units.buildUp);
+    const landSqft = convertToSqFt(area.values.land, area.units.land);
+    return (buildUpSqft || 0) + (landSqft || 0);
+  }
+
+  if (typeof area === "object") {
+    const buildUp = Number(area.buildUp || 0);
+    const land = Number(area.land || 0);
+    return buildUp + land;
+  }
+
+  const num = parseFloat(String(area).replace(/,/g, ""));
+  return isNaN(num) ? 0 : num;
+};
+
+/** 从 price 字段解析 min / max */
+const getPriceRange = (priceValue) => {
+  let minPrice = 0;
+  let maxPrice = 0;
+
+  if (priceValue == null || priceValue === "") {
+    return { minPrice: 0, maxPrice: 0 };
+  }
+
+  if (typeof priceValue === "string" && priceValue.includes("-")) {
+    const [minStr, maxStr] = priceValue.split("-");
+    if (minStr) minPrice = Number(minStr) || 0;
+    if (maxStr) maxPrice = Number(maxStr) || 0;
+  } else if (typeof priceValue === "object") {
+    minPrice = Number(priceValue.min) || 0;
+    maxPrice = Number(priceValue.max) || 0;
+  } else {
+    const num = Number(priceValue) || 0;
+    minPrice = num;
+    maxPrice = num;
+  }
+
+  return { minPrice, maxPrice };
+};
+
+/** 生成「每平方英尺: RM xxx.xx ~ RM yyy.yy」 */
+const getPsfText = (areaObj, priceValue) => {
+  const totalAreaSqft = getAreaSqftFromAreaSelector(areaObj);
+  const { minPrice, maxPrice } = getPriceRange(priceValue);
+
+  if (!totalAreaSqft || totalAreaSqft <= 0) return "";
+  if (!minPrice && !maxPrice) return "";
+
+  const lowPrice = minPrice > 0 ? minPrice : maxPrice;
+  const highPrice = maxPrice > 0 ? maxPrice : minPrice;
+
+  const lowPsf = lowPrice / totalAreaSqft;
+  const highPsf = highPrice > 0 ? highPrice / totalAreaSqft : lowPsf;
+
+  if (!isFinite(lowPsf)) return "";
+
+  if (Math.abs(highPsf - lowPsf) < 0.005) {
+    return `每平方英尺: RM ${lowPsf.toLocaleString(undefined, {
+      maximumFractionDigits: 2,
+    })}`;
+  }
+
+  return `每平方英尺: RM ${lowPsf.toLocaleString(undefined, {
+    maximumFractionDigits: 2,
+  })} ~ RM ${highPsf.toLocaleString(undefined, {
+    maximumFractionDigits: 2,
+  })}`;
 };
 
 export default function UnitLayoutForm({
@@ -111,10 +202,7 @@ export default function UnitLayoutForm({
   onChange,
   projectType,
 }) {
-
   const fileInputRef = useRef(null);
-
-  // 单位数量下拉是否展开
   const [unitOpen, setUnitOpen] = useState(false);
 
   const handleChange = (field, value) => {
@@ -128,12 +216,12 @@ export default function UnitLayoutForm({
     handleChange("layoutPhotos", [...(data.layoutPhotos || []), ...files]);
   };
 
-  // UnitCount 当前展示值（千分位）
+  // 单位数量显示
   const unitDisplay = formatInt(data.unitCount);
 
   const handleUnitInput = (rawInput) => {
     const raw = String(rawInput || "").replace(/,/g, "");
-    if (!/^\d*$/.test(raw)) return; // 只允许数字
+    if (!/^\d*$/.test(raw)) return;
     const num = raw ? Number(raw) : "";
     handleChange("unitCount", num);
   };
@@ -146,11 +234,13 @@ export default function UnitLayoutForm({
   const currentCategory = data.propertyCategory || "";
   const subTypeList = CATEGORY_OPTIONS[currentCategory] || [];
 
+  const psfText = getPsfText(data.buildUp, data.price);
+
   return (
     <div className="border p-4 rounded-lg bg-white mb-4 shadow-sm">
       <h3 className="font-semibold mb-3">Layout {index + 1}</h3>
 
-      {/* 上传 Layout 按钮 + 预览（按钮改回长形） */}
+      {/* 上传 Layout 按钮 + 预览（长形按钮） */}
       <div className="mb-3">
         <button
           type="button"
@@ -189,8 +279,8 @@ export default function UnitLayoutForm({
           value={currentCategory}
           onChange={(e) => {
             const cat = e.target.value;
-            // 切换类别时顺便清空 Sub Type
-            onChange({ ...data, propertyCategory: cat, subType: "" });
+            handleChange("propertyCategory", cat);
+            handleChange("subType", "");
           }}
           className="border p-2 rounded w-full"
         >
@@ -203,7 +293,7 @@ export default function UnitLayoutForm({
         </select>
       </div>
 
-      {/* Sub Type：任何选中的 Category 都会有对应列表 */}
+      {/* Sub Type */}
       {currentCategory && (
         <div className="mb-3">
           <label className="block font-medium mb-1">Sub Type</label>
@@ -268,6 +358,11 @@ export default function UnitLayoutForm({
         onChange={(v) => handleChange("price", v)}
         type={projectType}
       />
+
+      {/* PSF 显示 */}
+      {psfText && (
+        <p className="text-sm text-gray-600 mt-1">{psfText}</p>
+      )}
 
       {/* 房间数量（保持“请选择数量”逻辑） */}
       <RoomCountSelector
