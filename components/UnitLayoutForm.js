@@ -222,19 +222,29 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 
   // ⬇️ 供 ImageUpload 生成分组用的 config
   const config = {
-    bedrooms: roomCounts.bedrooms || "",
-    bathrooms: roomCounts.bathrooms || "",
-    kitchens: roomCounts.kitchens || "",
-    livingRooms: roomCounts.livingRooms || "",
-    carpark: layout.carpark,
-    store: layout.store || "",
-    extraSpaces: layout.extraSpaces || [],
-    facilities: layout.facilities || [],
-    furniture: layout.furniture || [],
-    // ❗ new project 不需要朝向照片上传框，这里传空字符串
-    orientation: "",
-    transit: layout.transit || null,
-  };
+  bedrooms: roomCounts.bedrooms || 0,
+  bathrooms: roomCounts.bathrooms || 0,
+  kitchens: roomCounts.kitchens || 0,
+  livingRooms: roomCounts.livingRooms || 0,
+
+  // 车位：只要有数量，就生成一个车位照片上传区
+  carpark: Number(layout.carpark) || 0,
+
+  // 额外空间：只要数组中有选项，就生成上传区
+  extraSpaces: Array.isArray(layout.extraSpaces) ? layout.extraSpaces : [],
+
+  // 家私
+  furniture: Array.isArray(layout.furniture) ? layout.furniture : [],
+
+  // 设施
+  facilities: Array.isArray(layout.facilities) ? layout.facilities : [],
+
+  // 朝向：你要求 new project 不需要 => 保持空字符串
+  orientation: "",
+
+  // 交通信息
+  transit: layout.transit || null
+};
 
   const psfText = getPsfText(areaForPsf, priceForPsf);
 
