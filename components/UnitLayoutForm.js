@@ -415,10 +415,10 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       <div className="mb-4">
         <label className="font-medium">交通信息</label>
         <TransitSelector
-          onChange={(val) => {
-            setTransitInfo(val);
-            handleFieldChange("transit", val);
-          }}
+  value={layout.transit || null}
+  onChange={(val) => {
+    handleFieldChange("transit", val);
+  }}
         />
       </div>
 
