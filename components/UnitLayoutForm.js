@@ -184,33 +184,16 @@ const CATEGORY_OPTIONS = {
 };
 
 export default function UnitLayoutForm({ index, data, onChange }) {
-  // 父组件传进来的原始 layout
+  // 直接用父组件传进来的 data 当作当前 layout
   const layout = data || {};
 
-  // 👉 本地缓存：房间数量（给 RoomCountSelector + ImageUpload 用）
-  const [roomCounts, setRoomCounts] = useState({
-    bedrooms: layout.bedrooms || "",
-    bathrooms: layout.bathrooms || "",
-    kitchens: layout.kitchens || "",
-    livingRooms: layout.livingRooms || "",
-  });
-
-  // 👉 本地缓存：停车位 / 额外空间 / 设施 / 家私 / 朝向
-  const [carparkLocal, setCarparkLocal] = useState(
-    layout.carpark !== undefined ? layout.carpark : null
-  );
-  const [extraSpacesLocal, setExtraSpacesLocal] = useState(
-    layout.extraSpaces || []
-  );
-  const [facilitiesLocal, setFacilitiesLocal] = useState(
-    layout.facilities || []
-  );
-  const [furnitureLocal, setFurnitureLocal] = useState(
-    layout.furniture || []
-  );
-  const [facingLocal, setFacingLocal] = useState(
-    Array.isArray(layout.facing) ? layout.facing : layout.facing ? [layout.facing] : []
-  );
+  // 房间数量在本地保存一份，给 RoomCountSelector + 图片分组用
+  const [roomCounts, setRoomCounts] = useState(() => ({
+    bedrooms: data?.bedrooms || "",
+    bathrooms: data?.bathrooms || "",
+    kitchens: data?.kitchens || "",
+    livingRooms: data?.livingRooms || "",
+  }));
 
   const fileInputRef = useRef(null);
 
@@ -243,25 +226,23 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     bathrooms: roomCounts.bathrooms || "",
     kitchens: roomCounts.kitchens || "",
     livingRooms: roomCounts.livingRooms || "",
-    carpark: carparkLocal,            // ✅ 本地车位
+    carpark: layout.carpark,
     store: layout.store || "",
-    extraSpaces: extraSpacesLocal,    // ✅ 本地额外空间
-    facilities: facilitiesLocal,      // ✅ 本地设施
-    furniture: furnitureLocal,        // ✅ 本地家私
-    orientation: facingLocal,         // ✅ 本地朝向（数组）
+    extraSpaces: layout.extraSpaces || [],
+    facilities: layout.facilities || [],
+    furniture: layout.furniture || [],
+    // ❗ new project 不需要朝向照片上传框，这里传空字符串
+    orientation: "",
     transit: layout.transit || null,
   };
 
   const psfText = getPsfText(areaForPsf, priceForPsf);
 
-  // 调试时可以打开看看
-  console.log("🧩 Layout config for images:", index, config);
-
   return (
     <div className="border rounded-lg p-4 shadow-sm bg-white">
       <h3 className="font-semibold mb-3">Layout {index + 1}</h3>
 
-      {/* 上传 Layout 图纸 */}
+      {/* 上传 Layout 图纸 —— 只保留 input，不再用 ImageUpload，避免多一个房源照片框 */}
       <div className="mb-3">
         <button
           type="button"
@@ -277,11 +258,6 @@ export default function UnitLayoutForm({ index, data, onChange }) {
           multiple
           className="hidden"
           onChange={handleLayoutUpload}
-        />
-
-        <ImageUpload
-          images={layout.layoutPhotos || []}
-          setImages={(updated) => handleFieldChange("layoutPhotos", updated)}
         />
       </div>
 
@@ -382,11 +358,8 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 
       {/* 停车位数量 */}
       <CarparkCountSelector
-        value={carparkLocal}
-        onChange={(val) => {
-          setCarparkLocal(val);
-          handleFieldChange("carpark", val);
-        }}
+        value={layout.carpark}
+        onChange={(val) => handleFieldChange("carpark", val)}
         mode={
           layout.projectType === "New Project / Under Construction" ||
           layout.projectType === "Completed Unit / Developer Unit"
@@ -397,20 +370,14 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 
       {/* 额外空间 */}
       <ExtraSpacesSelector
-        value={extraSpacesLocal}
-        onChange={(val) => {
-          setExtraSpacesLocal(val);
-          handleFieldChange("extraSpaces", val);
-        }}
+        value={layout.extraSpaces || []}
+        onChange={(val) => handleFieldChange("extraSpaces", val)}
       />
 
-      {/* 朝向 */}
+      {/* 朝向（只控制方向，不再生成专门的朝向图片框，因为 config.orientation 现在是 ""） */}
       <FacingSelector
-        value={facingLocal}
-        onChange={(val) => {
-          setFacingLocal(val);
-          handleFieldChange("facing", val);
-        }}
+        value={layout.facing}
+        onChange={(val) => handleFieldChange("facing", val)}
       />
 
       {/* 车位楼层 */}
@@ -422,22 +389,16 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 
       {/* 家具 / 设施 */}
       <FurnitureSelector
-        value={furnitureLocal}
-        onChange={(val) => {
-          setFurnitureLocal(val);
-          handleFieldChange("furniture", val);
-        }}
+        value={layout.furniture || []}
+        onChange={(val) => handleFieldChange("furniture", val)}
       />
 
       <FacilitiesSelector
-        value={facilitiesLocal}
-        onChange={(val) => {
-          setFacilitiesLocal(val);
-          handleFieldChange("facilities", val);
-        }}
+        value={layout.facilities || []}
+        onChange={(val) => handleFieldChange("facilities", val)}
       />
 
-      {/* 交通信息 */}
+      {/* 交通信息（每个 layout 自己的） */}
       <div className="mb-4">
         <label className="font-medium">交通信息</label>
         <TransitSelector
@@ -468,7 +429,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         />
       </div>
 
-      {/* 根据 config 生成所有对应的照片上传框 */}
+      {/* 根据 config 生成卧室/浴室/厨房/客厅/车位/家私/设施/额外空间等照片上传框 */}
       <div className="mb-3">
         <label className="block mb-1 font-medium">上传此 Layout 的照片</label>
         <ImageUpload
