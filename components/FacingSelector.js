@@ -1,7 +1,7 @@
 // components/FacingSelector.js
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import CreatableSelect from "react-select/creatable";
 
 // 默认朝向选项
@@ -17,22 +17,26 @@ const facingOptions = [
 ].map((label) => ({ value: label, label }));
 
 export default function FacingSelector({ value, onChange }) {
-  // 保证是数组
-  const normalized = Array.isArray(value)
-    ? value
-    : value
-    ? [value]
-    : [];
+  const normalize = (v) =>
+    Array.isArray(v) ? v : v ? [v] : [];
 
-  // 直接在渲染时把字符串转成 options，**不再用 useState / useEffect**
-  const selectedOptions = normalized.map((v) => ({
+  // ⭐ 内部 state 来记住选择
+  const [selectedValues, setSelectedValues] = useState(normalize(value));
+
+  // 父组件 value 变化时同步
+  useEffect(() => {
+    setSelectedValues(normalize(value));
+  }, [value]);
+
+  const selectedOptions = selectedValues.map((v) => ({
     value: v,
     label: v,
   }));
 
   const handleChange = (selected) => {
     const arr = (selected || []).map((opt) => opt.value);
-    onChange?.(arr);
+    setSelectedValues(arr);
+    onChange?.(arr); // 对外还是保持数组，不动你的其它逻辑
   };
 
   return (
