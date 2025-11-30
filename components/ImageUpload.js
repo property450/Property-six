@@ -125,10 +125,25 @@ export default function ImageUpload({ config, images, setImages }) {
       } else {
         num = toCount(v);
       }
-      for (let i = 1; i <= num; i++) {
-        labels.push(`停车位${i}`);
-      }
+      // 停车位（New Project 的范围模式只生成一个上传框）
+if (safeConfig.carpark) {
+  // single: "2" / 2
+  if (typeof safeConfig.carpark === "number" || typeof safeConfig.carpark === "string") {
+    const num = Number(safeConfig.carpark);
+    if (!isNaN(num) && num > 0) {
+      labels.push("停车位"); // 只生成一个
     }
+  }
+
+  // range: { min, max }
+  if (typeof safeConfig.carpark === "object") {
+    const min = Number(safeConfig.carpark.min) || 0;
+    const max = Number(safeConfig.carpark.max) || 0;
+    if (min > 0 || max > 0) {
+      labels.push("停车位"); // 范围模式也只生成一个
+    }
+  }
+}
 
     // 储藏室
     {
