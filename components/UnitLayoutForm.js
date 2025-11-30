@@ -229,13 +229,14 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     handleFieldChange("layoutPhotos", newPhotos);
   };
 
-  // ✅ 和 subsale 一样的 config 结构，用来生成对应的照片上传框
+    // ✅ 和 subsale 一样的 config 结构，用来生成对应的照片上传框
+  // 🚫 注意：按照你的需求，这里故意不把 carpark 传进去（不生成车位照片分类）
   const config = {
     bedrooms: layout.bedrooms || "",
     bathrooms: layout.bathrooms || "",
     kitchens: layout.kitchens || "",
     livingRooms: layout.livingRooms || "",
-    carpark: getCarparkCountForConfig(layout.carpark),
+    // carpark: 不传，让 ImageUpload 不生成车位相关分组
     extraSpaces: layout.extraSpaces || [],
     facilities: layout.facilities || [],
     furniture: layout.furniture || [],
