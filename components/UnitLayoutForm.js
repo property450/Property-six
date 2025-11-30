@@ -184,8 +184,10 @@ const CATEGORY_OPTIONS = {
 };
 
 export default function UnitLayoutForm({ index, data, onChange }) {
-  // ⭐ 这里用本地 state 作为“唯一真相”，只在初始化时读一次 props
-  const [layout, setLayout] = useState(() => data || {});
+  // 直接用父组件传进来的 data 当作当前 layout
+  const layout = data || {};
+  ...
+}
 
   const fileInputRef = useRef(null);
 
@@ -195,14 +197,11 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     layout.price !== undefined ? layout.price : ""
   );
 
-  // 统一更新：更新本地 layout，同时把完整 layout 回传给父组件
-  const updateLayout = (patch) => {
-    setLayout((prev) => {
-      const updated = { ...prev, ...patch };
-      onChange && onChange(updated);
-      return updated;
-    });
-  };
+  // 统一更新：基于当前 layout 生成一个新对象，回传给父组件
+const updateLayout = (patch) => {
+  const updated = { ...layout, ...patch };
+  onChange && onChange(updated);
+};
 
   const handleFieldChange = (field, value) => {
     updateLayout({ [field]: value });
