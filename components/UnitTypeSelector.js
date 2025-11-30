@@ -23,13 +23,17 @@ export default function UnitTypeSelector({ propertyStatus, layouts = [], onChang
     price: "",
     buildUp: {},
 
-    bedrooms: "",
-    bathrooms: "",
-    kitchens: "",
-    livingRooms: "",
+    // 房间数量（全部用 number）
+  bedrooms: 0,
+  bathrooms: 0,
+  kitchens: 0,
+  livingRooms: 0,
 
-    carpark: "",
-    carparkPosition: { min: "", max: "" },
+  // 停车位数字
+  carpark: 0,
+
+  // 车位位置（range）
+  carparkPosition: { min: 0, max: 0 },
 
     extraSpaces: [],
     facilities: [],
