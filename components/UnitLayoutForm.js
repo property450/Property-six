@@ -217,7 +217,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     handleFieldChange("layoutPhotos", newPhotos);
   };
 
-  // ✅ 这里不再用 useState，而是每次 render 直接算一个 config
+  // ✅ 每次 render 直接算一个 config，用来生成照片上传的卡片
   const config = {
     bedrooms: Number(layout.bedrooms) || 0,
     bathrooms: Number(layout.bathrooms) || 0,
@@ -237,14 +237,14 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     <div className="border rounded-lg p-4 shadow-sm bg-white">
       <h3 className="font-semibold mb-3">Layout {index + 1}</h3>
 
-      {/* 上传 Layout 按钮 + 预览 */}
+      {/* 上传 Layout 按钮 + 预览（户型图/平面图） */}
       <div className="mb-3">
         <button
           type="button"
           className="mb-3 px-3 py-2 bg-gray-100 border rounded hover:bg-gray-200 w-full"
           onClick={() => fileInputRef.current && fileInputRef.current.click()}
         >
-          点击上传 Layout
+          点击上传 Layout 图纸
         </button>
         <input
           ref={fileInputRef}
@@ -328,16 +328,6 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         />
       </div>
 
-      {/* Layout 照片 */}
-      <div className="mb-3">
-        <label className="block mb-1 font-medium">上传此 Layout 的照片</label>
-        <ImageUpload
-          config={config}
-          images={layout.photos || []}
-          setImages={(updated) => handleFieldChange("photos", updated)}
-        />
-      </div>
-
       {/* 面积 */}
       <AreaSelector
         initialValue={areaForPsf || {}}
@@ -374,7 +364,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         }}
       />
 
-      {/* 停车位 */}
+      {/* 停车位数量 */}
       <CarparkCountSelector
         value={layout.carpark}
         onChange={(val) => handleFieldChange("carpark", val)}
@@ -416,7 +406,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         onChange={(val) => handleFieldChange("facilities", val)}
       />
 
-      {/* 交通信息 */}
+      {/* 交通信息（这个 layout 对应的） */}
       <div className="mb-4">
         <label className="font-medium">交通信息</label>
         <TransitSelector
@@ -427,7 +417,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         />
       </div>
 
-      {/* 建成年份 + 季度 */}
+      {/* 建成年份 + 季度（预计交付时间） */}
       <BuildYearSelector
         value={layout.buildYear}
         onChange={(val) => handleFieldChange("buildYear", val)}
@@ -435,6 +425,28 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         onQuarterChange={(val) => handleFieldChange("quarter", val)}
         showQuarter={true}
       />
+
+      {/* ⭐ 每个 Layout 自己的房源描述（放在倒数第二） */}
+      <div className="mt-3 mb-3">
+        <label className="block font-medium mb-1">房源描述</label>
+        <textarea
+          value={layout.description || ""}
+          onChange={(e) => handleFieldChange("description", e.target.value)}
+          placeholder="请输入这个房型的详细描述..."
+          rows={3}
+          className="w-full border rounded-lg p-2 resize-y"
+        />
+      </div>
+
+      {/* ⭐ 每个 Layout 自己的照片上传（放在最后，和 subsale 体验一致） */}
+      <div className="mb-3">
+        <label className="block mb-1 font-medium">上传此 Layout 的照片</label>
+        <ImageUpload
+          config={config}
+          images={layout.photos || []}
+          setImages={(updated) => handleFieldChange("photos", updated)}
+        />
+      </div>
     </div>
   );
 }
