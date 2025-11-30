@@ -182,22 +182,15 @@ const CATEGORY_OPTIONS = {
   ],
 };
 
-// ⭐ 把 range carpark 转成一个数字（和 subsale 一样，是单值）
-function getCarparkCountForConfig(carpark) {
-  if (carpark == null || carpark === "") return "";
-  if (typeof carpark === "object") {
-    const min = Number(carpark.min || 0);
-    const max = Number(carpark.max || 0);
-    const v = max || min;
-    return v ? String(v) : "";
-  }
-  return String(carpark);
-}
-
 export default function UnitLayoutForm({ index, data, onChange }) {
-  const layout = data || {};
+  // ⭐ 用自己的 localLayout，保证所有控件和照片上传用的是同一份 state
+  const [layout, setLayout] = useState(data || {});
 
-  const [type, setType] = useState(layout.type || "");
+  // 父组件 unitLayouts 变了时，同步进来（例如调整房型数量）
+  useEffect(() => {
+    setLayout(data || {});
+  }, [data]);
+
   const fileInputRef = useRef(null);
   const [transitInfo, setTransitInfo] = useState(layout.transit || null);
 
@@ -212,10 +205,13 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     if (layout.price !== undefined) setPriceForPsf(layout.price);
   }, [layout.price]);
 
-  // 统一更新：只往外抛「完整的 layout 对象」
+  // 统一更新：更新 localLayout，同时把完整 layout 回传给父组件
   const updateLayout = (patch) => {
-    const updated = { ...layout, ...patch };
-    onChange && onChange(updated);
+    setLayout((prev) => {
+      const updated = { ...prev, ...patch };
+      onChange && onChange(updated);
+      return updated;
+    });
   };
 
   const handleFieldChange = (field, value) => {
@@ -229,14 +225,14 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     handleFieldChange("layoutPhotos", newPhotos);
   };
 
-    // ✅ 和 subsale 一样的 config 结构，用来生成对应的照片上传框
-  // 🚫 注意：按照你的需求，这里故意不把 carpark 传进去（不生成车位照片分类）
+  // ✅ 和 subsale 一致的 config，用来生成照片分组
   const config = {
     bedrooms: layout.bedrooms || "",
     bathrooms: layout.bathrooms || "",
     kitchens: layout.kitchens || "",
     livingRooms: layout.livingRooms || "",
-    // carpark: 不传，让 ImageUpload 不生成车位相关分组
+    carpark: layout.carpark, // 支持 single 或 {min,max}，ImageUpload 已经处理
+    store: layout.store || "",
     extraSpaces: layout.extraSpaces || [],
     facilities: layout.facilities || [],
     furniture: layout.furniture || [],
@@ -250,7 +246,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     <div className="border rounded-lg p-4 shadow-sm bg-white">
       <h3 className="font-semibold mb-3">Layout {index + 1}</h3>
 
-      {/* 上传 Layout 按钮 + 预览（户型图/平面图） */}
+      {/* 上传 Layout 图纸 */}
       <div className="mb-3">
         <button
           type="button"
@@ -278,11 +274,8 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       <input
         type="text"
         placeholder="输入 Type 名称"
-        value={type}
-        onChange={(e) => {
-          setType(e.target.value);
-          handleFieldChange("type", e.target.value);
-        }}
+        value={layout.type || ""}
+        onChange={(e) => handleFieldChange("type", e.target.value)}
         className="border p-2 rounded w-full mb-3"
       />
 
@@ -450,7 +443,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         />
       </div>
 
-      {/* ⭐ 最后：根据 config 生成对应卧室/浴室/车位等的照片上传框 */}
+      {/* ⭐ 最后：根据 config 生成对应卧室/浴室/厨房/客厅/车位/家私/设施的照片上传框 */}
       <div className="mb-3">
         <label className="block mb-1 font-medium">上传此 Layout 的照片</label>
         <ImageUpload
