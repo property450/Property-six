@@ -114,10 +114,17 @@ export default function ImageUpload({ config, images, setImages }) {
       }
     }
 
-    // 停车位 —— 你说 new project 不要，所以我们只靠 config.carpark 来决定
-    // subsale 那边如果你还传 carpark，这里仍然会正常生成
+    // 停车位（支持 single 数字，也支持 {min,max} 范围）
     {
-      const num = toCount(safeConfig.carpark);
+      let num = 0;
+      const v = safeConfig.carpark;
+      if (v && typeof v === "object") {
+        const min = toCount(v.min);
+        const max = toCount(v.max);
+        num = max || min;
+      } else {
+        num = toCount(v);
+      }
       for (let i = 1; i <= num; i++) {
         labels.push(`停车位${i}`);
       }
