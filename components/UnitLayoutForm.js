@@ -1,7 +1,7 @@
 // components/UnitLayoutForm.js
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 
 import PriceInput from "./PriceInput";
 import CarparkCountSelector from "./CarparkCountSelector";
@@ -184,30 +184,24 @@ const CATEGORY_OPTIONS = {
 };
 
 export default function UnitLayoutForm({ index, data, onChange }) {
-  // ❗完全受控：不在这里存 layout，只用父组件传进来的 data
-  const layout = data || {};
+  // ⭐ 这里用本地 state 作为“唯一真相”，只在初始化时读一次 props
+  const [layout, setLayout] = useState(() => data || {});
+
   const fileInputRef = useRef(null);
 
-  // 只为 PSF 显示维护局部 state，不会回传给父组件
+  // 只为了 PSF 文本单独存（不影响父组件）
   const [areaForPsf, setAreaForPsf] = useState(layout.buildUp || {});
   const [priceForPsf, setPriceForPsf] = useState(
     layout.price !== undefined ? layout.price : ""
   );
 
-  useEffect(() => {
-    setAreaForPsf(layout.buildUp || {});
-  }, [layout.buildUp]);
-
-  useEffect(() => {
-    setPriceForPsf(
-      layout.price !== undefined && layout.price !== null ? layout.price : ""
-    );
-  }, [layout.price]);
-
-  // 统一更新：只往外抛「完整的 layout 对象」
+  // 统一更新：更新本地 layout，同时把完整 layout 回传给父组件
   const updateLayout = (patch) => {
-    const updated = { ...layout, ...patch };
-    onChange && onChange(updated);
+    setLayout((prev) => {
+      const updated = { ...prev, ...patch };
+      onChange && onChange(updated);
+      return updated;
+    });
   };
 
   const handleFieldChange = (field, value) => {
@@ -222,13 +216,12 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   };
 
   // ⬇️ 供 ImageUpload 生成分组用的 config（和 subsale 一样）
-    // 临时测试：强行给一个固定的 config
-    const config = {
+  const config = {
     bedrooms: layout.bedrooms || "",
     bathrooms: layout.bathrooms || "",
     kitchens: layout.kitchens || "",
     livingRooms: layout.livingRooms || "",
-    carpark: layout.carpark,
+    carpark: layout.carpark, // 支持 single 或 {min,max}，ImageUpload 已处理
     store: layout.store || "",
     extraSpaces: layout.extraSpaces || [],
     facilities: layout.facilities || [],
@@ -236,9 +229,6 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     orientation: layout.facing || "",
     transit: layout.transit || null,
   };
-
-  console.log("Layout", index, layout);
-  console.log("Image config", index, config);
 
   const psfText = getPsfText(areaForPsf, priceForPsf);
 
