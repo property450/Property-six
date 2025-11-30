@@ -184,8 +184,8 @@ const CATEGORY_OPTIONS = {
 };
 
 export default function UnitLayoutForm({ index, data, onChange }) {
-  // 直接用父组件传进来的 data 当作当前 layout
-  const layout = data || {};
+  // ⭐ 用本地 state 作为唯一数据源，只在第一次用 data 初始化
+  const [layout, setLayout] = useState(() => data || {});
 
   // 房间数量在本地保存一份，给 RoomCountSelector + 图片分组用
   const [roomCounts, setRoomCounts] = useState(() => ({
@@ -203,10 +203,13 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     layout.price !== undefined ? layout.price : ""
   );
 
-  // 统一更新：基于当前 layout 生成一个新对象，回传给父组件
+  // ✅ 统一更新：先更新本地 layout，再把完整 layout 回传给父组件
   const updateLayout = (patch) => {
-    const updated = { ...layout, ...patch };
-    onChange && onChange(updated);
+    setLayout((prev) => {
+      const updated = { ...prev, ...patch };
+      onChange && onChange(updated);
+      return updated;
+    });
   };
 
   const handleFieldChange = (field, value) => {
@@ -220,7 +223,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     handleFieldChange("layoutPhotos", newPhotos);
   };
 
-  // ⬇️ 供 ImageUpload 生成分组用的 config
+  // 供 ImageUpload 生成分组用的 config
   const config = {
     bedrooms: roomCounts.bedrooms || "",
     bathrooms: roomCounts.bathrooms || "",
@@ -231,7 +234,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     extraSpaces: layout.extraSpaces || [],
     facilities: layout.facilities || [],
     furniture: layout.furniture || [],
-    // ❗ new project 不需要朝向照片上传框，这里传空字符串
+    // 你现在不想要朝向的图片上传框，所以这里保持空字符串
     orientation: "",
     transit: layout.transit || null,
   };
@@ -239,10 +242,10 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   const psfText = getPsfText(areaForPsf, priceForPsf);
 
   return (
-    <div className="border rounded-lg p-4 shadow-sm bg-white">
+    <div className="border rounded-lg p4 shadow-sm bg-white">
       <h3 className="font-semibold mb-3">Layout {index + 1}</h3>
 
-      {/* 上传 Layout 图纸 —— 只保留 input，不再用 ImageUpload，避免多一个房源照片框 */}
+      {/* 上传 Layout 图纸 */}
       <div className="mb-3">
         <button
           type="button"
