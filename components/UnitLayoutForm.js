@@ -182,6 +182,18 @@ const CATEGORY_OPTIONS = {
   ],
 };
 
+// ⭐ 把 range carpark 转成一个数字（和 subsale 一样，是单值）
+function getCarparkCountForConfig(carpark) {
+  if (carpark == null || carpark === "") return "";
+  if (typeof carpark === "object") {
+    const min = Number(carpark.min || 0);
+    const max = Number(carpark.max || 0);
+    const v = max || min;
+    return v ? String(v) : "";
+  }
+  return String(carpark);
+}
+
 export default function UnitLayoutForm({ index, data, onChange }) {
   const layout = data || {};
 
@@ -217,17 +229,17 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     handleFieldChange("layoutPhotos", newPhotos);
   };
 
-  // ✅ 每次 render 直接算一个 config，用来生成照片上传的卡片
+  // ✅ 和 subsale 一样的 config 结构，用来生成对应的照片上传框
   const config = {
-    bedrooms: Number(layout.bedrooms) || 0,
-    bathrooms: Number(layout.bathrooms) || 0,
-    kitchens: Number(layout.kitchens) || 0,
-    livingRooms: Number(layout.livingRooms) || 0,
-    carpark: Number(layout.carpark) || 0,
+    bedrooms: layout.bedrooms || "",
+    bathrooms: layout.bathrooms || "",
+    kitchens: layout.kitchens || "",
+    livingRooms: layout.livingRooms || "",
+    carpark: getCarparkCountForConfig(layout.carpark),
     extraSpaces: layout.extraSpaces || [],
     facilities: layout.facilities || [],
     furniture: layout.furniture || [],
-    orientation: layout.facing || null,
+    orientation: layout.facing || "",
     transit: layout.transit || null,
   };
 
@@ -359,7 +371,6 @@ export default function UnitLayoutForm({ index, data, onChange }) {
           livingRooms: layout.livingRooms || "",
         }}
         onChange={(patch) => {
-          // patch 形如 { bedrooms: "2" }
           updateLayout(patch);
         }}
       />
@@ -406,7 +417,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         onChange={(val) => handleFieldChange("facilities", val)}
       />
 
-      {/* 交通信息（这个 layout 对应的） */}
+      {/* 交通信息 */}
       <div className="mb-4">
         <label className="font-medium">交通信息</label>
         <TransitSelector
@@ -417,7 +428,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         />
       </div>
 
-      {/* 建成年份 + 季度（预计交付时间） */}
+      {/* 建成年份 + 季度 */}
       <BuildYearSelector
         value={layout.buildYear}
         onChange={(val) => handleFieldChange("buildYear", val)}
@@ -426,7 +437,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         showQuarter={true}
       />
 
-      {/* ⭐ 每个 Layout 自己的房源描述（放在倒数第二） */}
+      {/* 每个 Layout 自己的房源描述 */}
       <div className="mt-3 mb-3">
         <label className="block font-medium mb-1">房源描述</label>
         <textarea
@@ -438,7 +449,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         />
       </div>
 
-      {/* ⭐ 每个 Layout 自己的照片上传（放在最后，和 subsale 体验一致） */}
+      {/* ⭐ 最后：根据 config 生成对应卧室/浴室/车位等的照片上传框 */}
       <div className="mb-3">
         <label className="block mb-1 font-medium">上传此 Layout 的照片</label>
         <ImageUpload
