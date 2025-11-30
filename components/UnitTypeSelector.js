@@ -24,16 +24,16 @@ export default function UnitTypeSelector({ propertyStatus, layouts = [], onChang
     buildUp: {},
 
     // 房间数量（全部用 number）
-  bedrooms: 0,
-  bathrooms: 0,
-  kitchens: 0,
-  livingRooms: 0,
+    bedrooms: 0,
+    bathrooms: 0,
+    kitchens: 0,
+    livingRooms: 0,
 
-  // 停车位数字
-  carpark: 0,
+    // 停车位数字
+    carpark: 0,
 
-  // 车位位置（range）
-  carparkPosition: { min: 0, max: 0 },
+    // 车位位置（range）
+    carparkPosition: { min: 0, max: 0 },
 
     extraSpaces: [],
     facilities: [],
@@ -48,6 +48,9 @@ export default function UnitTypeSelector({ propertyStatus, layouts = [], onChang
     quarter: "",
 
     transit: null,
+
+    // ⭐ 每个 layout 自己的房源描述
+    description: "",
   });
 
   useEffect(() => {
