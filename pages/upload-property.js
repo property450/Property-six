@@ -249,9 +249,6 @@ export default function UploadProperty() {
       />
     ))}
 
-
-              {/* 项目整体的交通信息（如果你要每个 layout 自己的，在 UnitLayoutForm 里已经有） */}
-              <TransitSelector onChange={setTransitInfo} />
             </div>
           )}
         </>
