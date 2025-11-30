@@ -402,7 +402,6 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 <div className="mb-4">
   <label className="font-medium">交通信息</label>
   <TransitSelector
-    // 不再传 value，避免受控 + useEffect 死循环
     onChange={(val) => {
       handleFieldChange("transit", val); // 只在用户操作时写进 layout
     }}
