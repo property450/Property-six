@@ -10,6 +10,14 @@ function normalizeImages(images) {
   return {};
 }
 
+// 把各种类型（字符串 / 数字）统一转成正整数
+function toCount(value) {
+  if (value === undefined || value === null || value === "") return 0;
+  const num = Number(String(value).replace(/,/g, "").trim());
+  if (!Number.isFinite(num) || num <= 0) return 0;
+  return Math.floor(num);
+}
+
 export default function ImageUpload({ config, images, setImages }) {
   // 避免 props 上没传 config 时每次生成新的 {} 导致无限循环
   const safeConfig = config || {};
@@ -71,42 +79,56 @@ export default function ImageUpload({ config, images, setImages }) {
 
     // 卧室
     if (safeConfig.bedrooms) {
-      const val = String(safeConfig.bedrooms).toLowerCase();
-      if (val === "studio") {
+      const raw = String(safeConfig.bedrooms).trim().toLowerCase();
+      if (raw === "studio") {
         labels.push("Studio");
       } else {
-        const num = Number(safeConfig.bedrooms);
-        if (!isNaN(num) && num > 0) {
-          for (let i = 1; i <= num; i++) {
-            labels.push(`卧室${i}`);
-          }
+        const num = toCount(safeConfig.bedrooms);
+        for (let i = 1; i <= num; i++) {
+          labels.push(`卧室${i}`);
         }
       }
     }
 
     // 浴室
-    for (let i = 1; i <= (safeConfig.bathrooms || 0); i++) {
-      labels.push(`浴室${i}`);
+    {
+      const num = toCount(safeConfig.bathrooms);
+      for (let i = 1; i <= num; i++) {
+        labels.push(`浴室${i}`);
+      }
     }
 
     // 厨房
-    for (let i = 1; i <= (safeConfig.kitchens || 0); i++) {
-      labels.push(`厨房${i}`);
+    {
+      const num = toCount(safeConfig.kitchens);
+      for (let i = 1; i <= num; i++) {
+        labels.push(`厨房${i}`);
+      }
     }
 
     // 客厅
-    for (let i = 1; i <= (safeConfig.livingRooms || 0); i++) {
-      labels.push(`客厅${i}`);
+    {
+      const num = toCount(safeConfig.livingRooms);
+      for (let i = 1; i <= num; i++) {
+        labels.push(`客厅${i}`);
+      }
     }
 
-    // 停车位
-    for (let i = 1; i <= (safeConfig.carpark || 0); i++) {
-      labels.push(`停车位${i}`);
+    // 停车位 —— 你说 new project 不要，所以我们只靠 config.carpark 来决定
+    // subsale 那边如果你还传 carpark，这里仍然会正常生成
+    {
+      const num = toCount(safeConfig.carpark);
+      for (let i = 1; i <= num; i++) {
+        labels.push(`停车位${i}`);
+      }
     }
 
     // 储藏室
-    for (let i = 1; i <= (safeConfig.store || 0); i++) {
-      labels.push(`储藏室${i}`);
+    {
+      const num = toCount(safeConfig.store);
+      for (let i = 1; i <= num; i++) {
+        labels.push(`储藏室${i}`);
+      }
     }
 
     // 朝向/风景
@@ -131,7 +153,7 @@ export default function ImageUpload({ config, images, setImages }) {
         if (typeof extra === "string") {
           labels.push(extra);
         } else if (extra?.label) {
-          const count = extra.count || 1;
+          const count = toCount(extra.count || 1) || 1;
           for (let i = 1; i <= count; i++) {
             labels.push(`${extra.label}${i}`);
           }
@@ -145,7 +167,7 @@ export default function ImageUpload({ config, images, setImages }) {
         if (typeof extra === "string") {
           labels.push(extra);
         } else if (extra?.label) {
-          const count = extra.count || 1;
+          const count = toCount(extra.count || 1) || 1;
           for (let i = 1; i <= count; i++) {
             labels.push(`${extra.label}${i}`);
           }
@@ -154,12 +176,22 @@ export default function ImageUpload({ config, images, setImages }) {
     }
 
     // 平面图
-    for (let i = 1; i <= (safeConfig.floorPlans || 0); i++) {
-      labels.push(`平面图${i}`);
+    {
+      const num = toCount(safeConfig.floorPlans);
+      for (let i = 1; i <= num; i++) {
+        labels.push(`平面图${i}`);
+      }
     }
 
     // 去重
-    return [...new Set(labels)];
+    labels = [...new Set(labels)];
+
+    // ⭐ 兜底：如果一个 label 都没有，至少给一个“房源照片”
+    if (!labels.length) {
+      labels.push("房源照片");
+    }
+
+    return labels;
   };
 
   const labels = generateLabels();
