@@ -222,11 +222,11 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 
   // ⬇️ 供 ImageUpload 生成分组用的 config（和 subsale 一样）
   const config = {
-    bedrooms: layout.bedrooms || "",
-    bathrooms: layout.bathrooms || "",
-    kitchens: layout.kitchens || "",
-    livingRooms: layout.livingRooms || "",
-    carpark: layout.carpark, // 支持 single 或 {min,max}，ImageUpload 已处理
+    bedrooms: roomCounts.bedrooms || "",
+    bathrooms: roomCounts.bathrooms || "",
+    kitchens: roomCounts.kitchens || "",
+    livingRooms: roomCounts.livingRooms || "",
+    carpark: layout.carpark,          // 车位数量还是用 layout 里的
     store: layout.store || "",
     extraSpaces: layout.extraSpaces || [],
     facilities: layout.facilities || [],
@@ -351,15 +351,13 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       {/* 每平方英尺 */}
       {psfText && <p className="text-sm text-gray-600 mt-1">{psfText}</p>}
 
-      {/* 房间数量 */}
+            {/* 房间数量 */}
       <RoomCountSelector
-        value={{
-          bedrooms: layout.bedrooms || "",
-          bathrooms: layout.bathrooms || "",
-          kitchens: layout.kitchens || "",
-          livingRooms: layout.livingRooms || "",
-        }}
+        value={roomCounts}
         onChange={(patch) => {
+          // 先更新本地缓存（给 UI & 图片分组用）
+          setRoomCounts((prev) => ({ ...prev, ...patch }));
+          // 再把修改回传给父组件（存进 unitLayouts）
           updateLayout(patch);
         }}
       />
