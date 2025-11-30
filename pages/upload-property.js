@@ -231,32 +231,24 @@ export default function UploadProperty() {
             onChange={(layouts) => setUnitLayouts(layouts)}
           />
 
-          {unitLayouts.length > 0 && (
-            <div className="space-y-4 mt-4">
-              {unitLayouts.map((layout, index) => (
-                <UnitLayoutForm
-                  key={index}
-                  index={index}
-                  data={{ ...layout, projectType: propertyStatus }}
-                  onChange={(updated) => {
-                    console.log(
-                      "UploadProperty 收到 UnitLayoutForm 更新:",
-                      index,
-                      updated
-                    );
-                    setUnitLayouts((prev) => {
-                      const prevLayouts = prev && prev.length ? prev : unitLayouts;
-                      const prevLayout = prevLayouts[index] || {};
-                      const isSame =
-                        JSON.stringify(prevLayout) === JSON.stringify(updated);
-                      if (isSame) return prevLayouts;
-                      const next = [...prevLayouts];
-                      next[index] = updated;
-                      return next;
-                    });
-                  }}
-                />
-              ))}
+              {unitLayouts.length > 0 && (
+  <div className="space-y-4 mt-4">
+    {unitLayouts.map((layout, index) => (
+      <UnitLayoutForm
+        key={index}
+        index={index}
+        data={{ ...layout, projectType: propertyStatus }}
+        onChange={(updated) => {
+          // 这里不要再 JSON.stringify，比对，非常费 CPU
+          setUnitLayouts((prev) => {
+            const base = Array.isArray(prev) ? prev : [];
+            const next = [...base];
+            next[index] = updated;
+            return next;
+          });
+        }}
+      />
+    ))}
 
               {/* 项目整体的交通信息（如果你要每个 layout 自己的，在 UnitLayoutForm 里已经有） */}
               <TransitSelector onChange={setTransitInfo} />
