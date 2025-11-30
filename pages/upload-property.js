@@ -53,9 +53,6 @@ export default function UploadProperty() {
   // 项目类房源的 layout 列表
   const [unitLayouts, setUnitLayouts] = useState([]);
 
-  // ⭐ 新增：项目整体照片（和 Subsale 的 ImageUpload 对应）
-  const [projectPhotos, setProjectPhotos] = useState([]);
-
   // 成交状态变化时：如果不是项目类，就清空房型 layouts
   useEffect(() => {
     const isProjectStatus =
@@ -66,7 +63,6 @@ export default function UploadProperty() {
 
     if (!isProjectStatus) {
       setUnitLayouts([]); // 切回 Subsale/Homestay 等非项目类时清空
-      setProjectPhotos([]); // 同时清空项目照片
     }
   }, [propertyStatus]);
 
@@ -189,7 +185,6 @@ export default function UploadProperty() {
             facing: singleFormData.facing,
             transit: JSON.stringify(transitInfo || {}),
             availability: JSON.stringify(availability || {}),
-            // ❗这里暂时不写 projectPhotos，避免破坏现有表结构
           },
         ])
         .select()
@@ -230,14 +225,12 @@ export default function UploadProperty() {
       {/* ------------ 项目类房源 (New Project / Completed Unit) ------------ */}
       {isProject ? (
         <>
-          {/* 这里有「这个项目有多少个房型？」的下拉 */}
           <UnitTypeSelector
             propertyStatus={propertyStatus}
             layouts={unitLayouts}
             onChange={(layouts) => setUnitLayouts(layouts)}
           />
 
-          {/* 只有当选了房型数量之后，才显示下面所有内容 */}
           {unitLayouts.length > 0 && (
             <div className="space-y-4 mt-4">
               {unitLayouts.map((layout, index) => (
@@ -265,33 +258,13 @@ export default function UploadProperty() {
                 />
               ))}
 
-              {/* 项目整体的交通信息 */}
+              {/* 项目整体的交通信息（如果你要每个 layout 自己的，在 UnitLayoutForm 里已经有） */}
               <TransitSelector onChange={setTransitInfo} />
-
-              {/* ⭐ 项目整体房源描述（和 Subsale 一样） */}
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  房源描述
-                </label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="请输入房源详细描述..."
-                  rows={4}
-                  className="w-full border rounded-lg p-2 resize-y"
-                />
-              </div>
-
-              {/* ⭐ 项目整体照片上传框（在描述下面） */}
-              <ImageUpload
-                images={projectPhotos}
-                setImages={setProjectPhotos}
-              />
             </div>
           )}
         </>
       ) : (
-        /* ------------ 普通非项目房源：保持旧逻辑 ------------ */
+        /* ------------ 普通非项目房源：保持原逻辑 ------------ */
         <div className="space-y-4 mt-6">
           <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
 
@@ -313,7 +286,6 @@ export default function UploadProperty() {
             }}
           />
 
-          {/* 单一 / Subsale 房源的 PSF 显示 */}
           {(() => {
             try {
               const buildUpSqft = convertToSqft(
@@ -349,7 +321,6 @@ export default function UploadProperty() {
             }
           })()}
 
-          {/* 非项目房源的卧室/浴室/厨房/客厅 */}
           <RoomCountSelector
             value={{
               bedrooms: singleFormData.bedrooms,
@@ -362,7 +333,6 @@ export default function UploadProperty() {
             }
           />
 
-          {/* 非项目房源的车位 */}
           <CarparkCountSelector
             value={singleFormData.carpark}
             onChange={(val) =>
@@ -420,7 +390,6 @@ export default function UploadProperty() {
         </div>
       )}
 
-      {/* Homestay / Hotel 特殊可用性配置（保持不变） */}
       {(type?.includes("Homestay") || type?.includes("Hotel")) && (
         <>
           <AdvancedAvailabilityCalendar
@@ -453,7 +422,6 @@ export default function UploadProperty() {
         </>
       )}
 
-      {/* 公共图片上传 & 提交按钮（仅 Subsale / 单一房源 显示） */}
       {!isProject && (
         <ImageUpload
           config={photoConfig}
