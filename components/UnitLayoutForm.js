@@ -186,8 +186,6 @@ const CATEGORY_OPTIONS = {
 export default function UnitLayoutForm({ index, data, onChange }) {
   // 直接用父组件传进来的 data 当作当前 layout
   const layout = data || {};
-  ...
-}
 
   const fileInputRef = useRef(null);
 
@@ -198,10 +196,10 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   );
 
   // 统一更新：基于当前 layout 生成一个新对象，回传给父组件
-const updateLayout = (patch) => {
-  const updated = { ...layout, ...patch };
-  onChange && onChange(updated);
-};
+  const updateLayout = (patch) => {
+    const updated = { ...layout, ...patch };
+    onChange && onChange(updated);
+  };
 
   const handleFieldChange = (field, value) => {
     updateLayout({ [field]: value });
