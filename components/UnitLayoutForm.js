@@ -221,19 +221,44 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   };
 
   // ⬇️ 供 ImageUpload 生成分组用的 config（和 subsale 一样）
+    // 小工具：把值统一成数组
+  const normalizeArray = (v) => {
+    if (Array.isArray(v)) return v;
+    if (v === undefined || v === null || v === "") return [];
+    return [v];
+  };
+
   const config = {
+    // ✅ 房间数量：用本地 roomCounts，已经验证没问题
     bedrooms: roomCounts.bedrooms || "",
     bathrooms: roomCounts.bathrooms || "",
     kitchens: roomCounts.kitchens || "",
     livingRooms: roomCounts.livingRooms || "",
-    carpark: layout.carpark,          // 车位数量还是用 layout 里的
+
+    // ✅ 车位：可以是 "2" / 2 / {min,max}
+    carpark: layout.carpark || null,
+
+    // ✅ 储藏室（如果你有单独的字段，可以换成对应名字）
     store: layout.store || "",
-    extraSpaces: layout.extraSpaces || [],
-    facilities: layout.facilities || [],
-    furniture: layout.furniture || [],
-    orientation: layout.facing || "",
+
+    // ✅ 额外空间：ExtraSpacesSelector 返回的是 [{label,count}]
+    extraSpaces: normalizeArray(layout.extraSpaces),
+
+    // ✅ 设施：FacilitiesSelector 返回的是 string[]
+    facilities: normalizeArray(layout.facilities),
+
+    // ✅ 家私：FurnitureSelector 返回的是 [{label,count}]
+    furniture: normalizeArray(layout.furniture),
+
+    // ✅ 朝向：FacingSelector 返回的是 string[]
+    // ImageUpload 只关心“有值就生成一个 朝向/风景”
+    orientation: normalizeArray(layout.facing),
+
+    // 其它字段你现在用不到，保留也没问题
     transit: layout.transit || null,
   };
+  console.log("🧩 Layout config for images:", index, config);
+
 
   const psfText = getPsfText(areaForPsf, priceForPsf);
 
