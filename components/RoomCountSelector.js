@@ -38,7 +38,21 @@ const FIELD_DEFS = [
 export default function RoomCountSelector({ value = {}, onChange }) {
   const [openKey, setOpenKey] = useState(null);
   const [customFlags, setCustomFlags] = useState({});
+
+  // ⭐ 新增：本组件自己的内部 state，用来“记住”选过的数字
+  const [internalValue, setInternalValue] = useState(value || {});
+
   const refs = useRef({});
+
+  // 当父组件的 value 变化时，同步一遍到内部 state（防止编辑时外面加载数据）
+  useEffect(() => {
+    setInternalValue(value || {});
+  }, [
+    value.bedrooms,
+    value.bathrooms,
+    value.kitchens,
+    value.livingRooms,
+  ]);
 
   useEffect(() => {
     const onDocClick = (e) => {
@@ -51,8 +65,12 @@ export default function RoomCountSelector({ value = {}, onChange }) {
     return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
 
-  // ✅ 这里改：只发 patch，父组件来合并
+  // ✅ 这里改：先更新内部 state，再把 patch 交给父组件
   const setFieldValue = (key, newVal) => {
+    setInternalValue((prev) => ({
+      ...prev,
+      [key]: newVal,
+    }));
     onChange?.({ [key]: newVal });
   };
 
@@ -108,7 +126,8 @@ export default function RoomCountSelector({ value = {}, onChange }) {
   return (
     <div className="grid grid-cols-1 gap-4">
       {FIELD_DEFS.map((def) => {
-        const cur = value[def.key];
+        // ⭐ 这里改成用 internalValue，而不是直接用 props.value
+        const cur = internalValue[def.key];
 
         const isNumberLike =
           typeof cur === "number" ||
