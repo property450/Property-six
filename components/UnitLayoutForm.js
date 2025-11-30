@@ -184,30 +184,30 @@ const CATEGORY_OPTIONS = {
 };
 
 export default function UnitLayoutForm({ index, data, onChange }) {
-  // 直接用父组件传进来的 data 当作当前 layout
-  const layout = data || {};
+  // 直接用父组件传进来的 data 当作当前 layout
+  const layout = data || {};
 
-  // 房间数量在本地保存一份，给 RoomCountSelector + 图片分组用
-  const [roomCounts, setRoomCounts] = useState(() => ({
-    bedrooms: data?.bedrooms || "",
-    bathrooms: data?.bathrooms || "",
-    kitchens: data?.kitchens || "",
-    livingRooms: data?.livingRooms || "",
-  }));
+  // 房间数量在本地保存一份，给 RoomCountSelector + 图片分组用
+  const [roomCounts, setRoomCounts] = useState(() => ({
+    bedrooms: data?.bedrooms || "",
+    bathrooms: data?.bathrooms || "",
+    kitchens: data?.kitchens || "",
+    livingRooms: data?.livingRooms || "",
+  }));
 
-  const fileInputRef = useRef(null);
+  const fileInputRef = useRef(null);
 
-  // 只为了 PSF 文本单独存（不影响父组件）
-  const [areaForPsf, setAreaForPsf] = useState(layout.buildUp || {});
-  const [priceForPsf, setPriceForPsf] = useState(
-    layout.price !== undefined ? layout.price : ""
-  );
+  // 只为了 PSF 文本单独存（不影响父组件）
+  const [areaForPsf, setAreaForPsf] = useState(layout.buildUp || {});
+  const [priceForPsf, setPriceForPsf] = useState(
+    layout.price !== undefined ? layout.price : ""
+  );
 
-  // 统一更新：基于当前 layout 生成一个新对象，回传给父组件
-  const updateLayout = (patch) => {
-    const updated = { ...layout, ...patch };
-    onChange && onChange(updated);
-  };
+  // 统一更新：基于当前 layout 生成一个新对象，回传给父组件
+  const updateLayout = (patch) => {
+    const updated = { ...layout, ...patch };
+    onChange && onChange(updated);
+  };
 
   const handleFieldChange = (field, value) => {
     updateLayout({ [field]: value });
