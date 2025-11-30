@@ -1,5 +1,6 @@
 // components/UnitLayoutForm.js
 "use client";
+
 import { useState, useEffect, useRef } from "react";
 
 import PriceInput from "./PriceInput";
@@ -183,35 +184,30 @@ const CATEGORY_OPTIONS = {
 };
 
 export default function UnitLayoutForm({ index, data, onChange }) {
-  // ⭐ 用自己的 localLayout，保证所有控件和照片上传用的是同一份 state
-  const [layout, setLayout] = useState(data || {});
-
-  // 父组件 unitLayouts 变了时，同步进来（例如调整房型数量）
-  useEffect(() => {
-    setLayout(data || {});
-  }, [data]);
-
+  // ❗完全受控：不在这里存 layout，只用父组件传进来的 data
+  const layout = data || {};
   const fileInputRef = useRef(null);
-  const [transitInfo, setTransitInfo] = useState(layout.transit || null);
 
+  // 只为 PSF 显示维护局部 state，不会回传给父组件
   const [areaForPsf, setAreaForPsf] = useState(layout.buildUp || {});
-  const [priceForPsf, setPriceForPsf] = useState(layout.price || "");
+  const [priceForPsf, setPriceForPsf] = useState(
+    layout.price !== undefined ? layout.price : ""
+  );
 
   useEffect(() => {
-    if (layout.buildUp) setAreaForPsf(layout.buildUp);
+    setAreaForPsf(layout.buildUp || {});
   }, [layout.buildUp]);
 
   useEffect(() => {
-    if (layout.price !== undefined) setPriceForPsf(layout.price);
+    setPriceForPsf(
+      layout.price !== undefined && layout.price !== null ? layout.price : ""
+    );
   }, [layout.price]);
 
-  // 统一更新：更新 localLayout，同时把完整 layout 回传给父组件
+  // 统一更新：只往外抛「完整的 layout 对象」
   const updateLayout = (patch) => {
-    setLayout((prev) => {
-      const updated = { ...prev, ...patch };
-      onChange && onChange(updated);
-      return updated;
-    });
+    const updated = { ...layout, ...patch };
+    onChange && onChange(updated);
   };
 
   const handleFieldChange = (field, value) => {
@@ -225,13 +221,13 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     handleFieldChange("layoutPhotos", newPhotos);
   };
 
-  // ✅ 和 subsale 一致的 config，用来生成照片分组
+  // ⬇️ 供 ImageUpload 生成分组用的 config（和 subsale 一样）
   const config = {
     bedrooms: layout.bedrooms || "",
     bathrooms: layout.bathrooms || "",
     kitchens: layout.kitchens || "",
     livingRooms: layout.livingRooms || "",
-    carpark: layout.carpark, // 支持 single 或 {min,max}，ImageUpload 已经处理
+    carpark: layout.carpark, // 支持 single 或 {min,max}，ImageUpload 已处理
     store: layout.store || "",
     extraSpaces: layout.extraSpaces || [],
     facilities: layout.facilities || [],
@@ -338,7 +334,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       <AreaSelector
         initialValue={areaForPsf || {}}
         onChange={(val) => {
-          setAreaForPsf(val);
+          setAreaForPsf(val); // 本地用于 PSF 显示
           handleFieldChange("buildUp", val);
         }}
       />
@@ -347,7 +343,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       <PriceInput
         value={priceForPsf}
         onChange={(val) => {
-          setPriceForPsf(val);
+          setPriceForPsf(val); // 本地用于 PSF 显示
           handleFieldChange("price", val);
         }}
         type={layout.projectType}
@@ -415,10 +411,8 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       <div className="mb-4">
         <label className="font-medium">交通信息</label>
         <TransitSelector
-  value={layout.transit || null}
-  onChange={(val) => {
-    handleFieldChange("transit", val);
-  }}
+          value={layout.transit || null}
+          onChange={(val) => handleFieldChange("transit", val)}
         />
       </div>
 
@@ -443,7 +437,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         />
       </div>
 
-      {/* ⭐ 最后：根据 config 生成对应卧室/浴室/厨房/客厅/车位/家私/设施的照片上传框 */}
+      {/* 根据 config 生成卧室/浴室/厨房/客厅/车位/家私/设施等照片上传框 */}
       <div className="mb-3">
         <label className="block mb-1 font-medium">上传此 Layout 的照片</label>
         <ImageUpload
