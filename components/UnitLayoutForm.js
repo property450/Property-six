@@ -222,27 +222,48 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 
   // ⬇️ 供 ImageUpload 生成分组用的 config
   const config = {
-  bedrooms: roomCounts.bedrooms || 0,
-  bathrooms: roomCounts.bathrooms || 0,
-  kitchens: roomCounts.kitchens || 0,
-  livingRooms: roomCounts.livingRooms || 0,
+  bedrooms: toCount(roomCounts.bedrooms),
+  bathrooms: toCount(roomCounts.bathrooms),
+  kitchens: toCount(roomCounts.kitchens),
+  livingRooms: toCount(roomCounts.livingRooms),
 
-  // 车位：只要有数量，就生成一个车位照片上传区
-  carpark: Number(layout.carpark) || 0,
+  // 车位：数字或对象都行
+  carpark: layout.carpark || 0,
 
-  // 额外空间：只要数组中有选项，就生成上传区
-  extraSpaces: Array.isArray(layout.extraSpaces) ? layout.extraSpaces : [],
+  // 额外空间：确保转成 ImageUpload 需要的格式
+  extraSpaces: Array.isArray(layout.extraSpaces)
+    ? layout.extraSpaces.map((item) => {
+        if (typeof item === "string") return item;
+        if (item?.label) return item;   // 保留 {label,count}
+        if (item?.value) return item.value;
+        return null;
+      }).filter(Boolean)
+    : [],
 
   // 家私
-  furniture: Array.isArray(layout.furniture) ? layout.furniture : [],
+  furniture: Array.isArray(layout.furniture)
+    ? layout.furniture.map((item) => {
+        if (typeof item === "string") return item;
+        if (item?.label) return item;
+        if (item?.name) return item.name;
+        if (item?.value) return item.value;
+        return null;
+      }).filter(Boolean)
+    : [],
 
   // 设施
-  facilities: Array.isArray(layout.facilities) ? layout.facilities : [],
+  facilities: Array.isArray(layout.facilities)
+    ? layout.facilities.map((item) => {
+        if (typeof item === "string") return item;
+        if (item?.name) return item.name;
+        if (item?.label) return item;
+        if (item?.value) return item.value;
+        return null;
+      }).filter(Boolean)
+    : [],
 
-  // 朝向：你要求 new project 不需要 => 保持空字符串
   orientation: "",
 
-  // 交通信息
   transit: layout.transit || null
 };
 
