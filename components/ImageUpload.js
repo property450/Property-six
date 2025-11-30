@@ -22,7 +22,7 @@ export default function ImageUpload({ config, images, setImages }) {
   // 避免 props 上没传 config 时每次生成新的 {} 导致无限循环
   const safeConfig = config || {};
 
-  // 只在初次渲染时，用父组件传进来的 images 初始化一次
+  // 只在初始化时同步一次
   const [localImages, setLocalImages] = useState(
     () => normalizeImages(images)
   );
@@ -69,15 +69,18 @@ export default function ImageUpload({ config, images, setImages }) {
         isCover: i === index,
       })),
     };
+
     setLocalImages(updated);
     setImages && setImages(updated);
   };
 
-  // 动态生成标签
+  // ⭐ 根据房型数据动态生成标签（和 subsale 一样）
   const generateLabels = () => {
     let labels = [];
 
-    // 卧室
+    // -------------------------
+    //  卧室
+    // -------------------------
     if (safeConfig.bedrooms) {
       const raw = String(safeConfig.bedrooms).trim().toLowerCase();
       if (raw === "studio") {
@@ -90,7 +93,9 @@ export default function ImageUpload({ config, images, setImages }) {
       }
     }
 
-    // 浴室
+    // -------------------------
+    //  浴室
+    // -------------------------
     {
       const num = toCount(safeConfig.bathrooms);
       for (let i = 1; i <= num; i++) {
@@ -98,78 +103,72 @@ export default function ImageUpload({ config, images, setImages }) {
       }
     }
 
-    // 厨房
+    // -------------------------
+    //  厨房
+    // -------------------------
     {
       const num = toCount(safeConfig.kitchens);
-      for (let i = 1; i <= num; i++) {
-        labels.push(`厨房${i}`);
-      }
+      for (let i = 1; i <= num; i++) labels.push(`厨房${i}`);
     }
 
-    // 客厅
+    // -------------------------
+    //  客厅
+    // -------------------------
     {
       const num = toCount(safeConfig.livingRooms);
-      for (let i = 1; i <= num; i++) {
-        labels.push(`客厅${i}`);
-      }
+      for (let i = 1; i <= num; i++) labels.push(`客厅${i}`);
     }
 
-    // 停车位（支持 single 数字，也支持 {min,max} 范围）
+    // -------------------------
+    //  停车位（New project：只生成 1 个）
+    // -------------------------
     {
-      let num = 0;
       const v = safeConfig.carpark;
-      if (v && typeof v === "object") {
-        const min = toCount(v.min);
-        const max = toCount(v.max);
-        num = max || min;
-      } else {
-        num = toCount(v);
+
+      if (v) {
+        // single: "2" / 2
+        if (typeof v === "number" || typeof v === "string") {
+          const num = toCount(v);
+          if (num > 0) labels.push("停车位");
+        }
+
+        // range: { min, max }
+        if (typeof v === "object") {
+          const min = toCount(v.min);
+          const max = toCount(v.max);
+          if (min > 0 || max > 0) labels.push("停车位");
+        }
       }
-      // 停车位（New Project 的范围模式只生成一个上传框）
-if (safeConfig.carpark) {
-  // single: "2" / 2
-  if (typeof safeConfig.carpark === "number" || typeof safeConfig.carpark === "string") {
-    const num = Number(safeConfig.carpark);
-    if (!isNaN(num) && num > 0) {
-      labels.push("停车位"); // 只生成一个
     }
-  }
 
-  // range: { min, max }
-  if (typeof safeConfig.carpark === "object") {
-    const min = Number(safeConfig.carpark.min) || 0;
-    const max = Number(safeConfig.carpark.max) || 0;
-    if (min > 0 || max > 0) {
-      labels.push("停车位"); // 范围模式也只生成一个
-    }
-  }
-}
-
-    // 储藏室
+    // -------------------------
+    //  储藏室
+    // -------------------------
     {
       const num = toCount(safeConfig.store);
-      for (let i = 1; i <= num; i++) {
-        labels.push(`储藏室${i}`);
-      }
+      for (let i = 1; i <= num; i++) labels.push(`储藏室${i}`);
     }
 
-    // 朝向/风景
+    // -------------------------
+    //  朝向 / 风景
+    // -------------------------
     if (safeConfig.orientation) {
       labels.push("朝向/风景");
     }
 
-    // 设施
+    // -------------------------
+    //  设施
+    // -------------------------
     if (safeConfig.facilities?.length) {
       safeConfig.facilities.forEach((facility) => {
-        if (typeof facility === "string") {
-          labels.push(facility);
-        } else if (facility?.name) {
-          labels.push(facility.name);
-        }
+        if (typeof facility === "string") labels.push(facility);
+        else if (facility?.name) labels.push(facility.name);
       });
     }
 
-    // 额外空间（名字 + 数量）
+    // -------------------------
+    //  额外空间
+    // -------------------------
     if (safeConfig.extraSpaces?.length) {
       safeConfig.extraSpaces.forEach((extra) => {
         if (typeof extra === "string") {
@@ -183,35 +182,34 @@ if (safeConfig.carpark) {
       });
     }
 
-    // 家私（名字 + 数量）
+    // -------------------------
+    //  家私
+    // -------------------------
     if (safeConfig.furniture?.length) {
-      safeConfig.furniture.forEach((extra) => {
-        if (typeof extra === "string") {
-          labels.push(extra);
-        } else if (extra?.label) {
-          const count = toCount(extra.count || 1) || 1;
+      safeConfig.furniture.forEach((item) => {
+        if (typeof item === "string") labels.push(item);
+        else if (item?.label) {
+          const count = toCount(item.count || 1) || 1;
           for (let i = 1; i <= count; i++) {
-            labels.push(`${extra.label}${i}`);
+            labels.push(`${item.label}${i}`);
           }
         }
       });
     }
 
-    // 平面图
+    // -------------------------
+    //  平面图
+    // -------------------------
     {
       const num = toCount(safeConfig.floorPlans);
-      for (let i = 1; i <= num; i++) {
-        labels.push(`平面图${i}`);
-      }
+      for (let i = 1; i <= num; i++) labels.push(`平面图${i}`);
     }
 
     // 去重
     labels = [...new Set(labels)];
 
-    // ⭐ 兜底：如果一个 label 都没有，至少给一个“房源照片”
-    if (!labels.length) {
-      labels.push("房源照片");
-    }
+    // ⭐兜底：如果一个都没有，放一个「房源照片」
+    if (!labels.length) labels.push("房源照片");
 
     return labels;
   };
@@ -223,6 +221,7 @@ if (safeConfig.carpark) {
       {labels.map((label) => (
         <div key={label} className="space-y-2 border rounded p-2">
           <p className="font-semibold">{label}</p>
+
           <input
             type="file"
             multiple
