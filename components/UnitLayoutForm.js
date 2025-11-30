@@ -187,6 +187,14 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   // 直接用父组件传进来的 data 当作当前 layout
   const layout = data || {};
 
+    // 单独本地保存房间数量，给 RoomCountSelector 和 ImageUpload 用
+  const [roomCounts, setRoomCounts] = useState(() => ({
+    bedrooms: data?.bedrooms || "",
+    bathrooms: data?.bathrooms || "",
+    kitchens: data?.kitchens || "",
+    livingRooms: data?.livingRooms || "",
+  }));
+
   const fileInputRef = useRef(null);
 
   // 只为了 PSF 文本单独存（不影响父组件）
