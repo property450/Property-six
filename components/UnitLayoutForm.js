@@ -222,18 +222,19 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   };
 
   // ⬇️ 供 ImageUpload 生成分组用的 config（和 subsale 一样）
+    // 临时测试：强行给一个固定的 config
   const config = {
-    bedrooms: layout.bedrooms || "",
-    bathrooms: layout.bathrooms || "",
-    kitchens: layout.kitchens || "",
-    livingRooms: layout.livingRooms || "",
-    carpark: layout.carpark, // 支持 single 或 {min,max}，ImageUpload 已处理
-    store: layout.store || "",
-    extraSpaces: layout.extraSpaces || [],
-    facilities: layout.facilities || [],
-    furniture: layout.furniture || [],
-    orientation: layout.facing || "",
-    transit: layout.transit || null,
+    bedrooms: 3,
+    bathrooms: 2,
+    kitchens: 1,
+    livingRooms: 1,
+    carpark: { min: 1, max: 2 },
+    store: 1,
+    extraSpaces: [],
+    facilities: [],
+    furniture: [],
+    orientation: "东南",
+    transit: null,
   };
 
   const psfText = getPsfText(areaForPsf, priceForPsf);
