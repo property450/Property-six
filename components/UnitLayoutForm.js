@@ -207,7 +207,28 @@ function getPhotoLabelsFromConfig(config) {
   const safe = config || {};
   let labels = [];
 
+  const toCount = (value) => {
+    if (value === undefined || value === null || value === "") return 0;
+    const num = Number(String(value).replace(/,/g, "").trim());
+    if (!Number.isFinite(num) || num <= 0) return 0;
+    return Math.floor(num);
+  };
+
+  const toArray = (val) => {
+    if (!val) return [];
+    if (Array.isArray(val)) return val;
+    return [val];
+  };
+
+  const getName = (item) => {
+    if (!item) return "";
+    if (typeof item === "string") return item;
+    return item.label || item.value || item.name || "";
+  };
+
+  // -------------------------
   // 卧室
+  // -------------------------
   if (safe.bedrooms) {
     const raw = String(safe.bedrooms).trim().toLowerCase();
     if (raw === "studio") {
@@ -218,123 +239,117 @@ function getPhotoLabelsFromConfig(config) {
     }
   }
 
+  // -------------------------
   // 浴室
+  // -------------------------
   {
     const num = toCount(safe.bathrooms);
     for (let i = 1; i <= num; i++) labels.push(`浴室${i}`);
   }
 
+  // -------------------------
   // 厨房
+  // -------------------------
   {
     const num = toCount(safe.kitchens);
     for (let i = 1; i <= num; i++) labels.push(`厨房${i}`);
   }
 
+  // -------------------------
   // 客厅
+  // -------------------------
   {
     const num = toCount(safe.livingRooms);
     for (let i = 1; i <= num; i++) labels.push(`客厅${i}`);
   }
 
+  // -------------------------
   // 停车位
+  // -------------------------
   {
     const v = safe.carpark;
-    let added = false;
 
     if (v) {
       if (typeof v === "number" || typeof v === "string") {
         const num = toCount(v);
-        if (num > 0) {
-          labels.push("停车位");
-          added = true;
-        }
+        if (num > 0) labels.push("停车位");
       }
 
-      if (!added && typeof v === "object" && !Array.isArray(v)) {
+      if (typeof v === "object" && !Array.isArray(v)) {
         const min = toCount(v.min);
         const max = toCount(v.max);
-        if (min > 0 || max > 0) {
-          labels.push("停车位");
-          added = true;
-        }
+        if (min > 0 || max > 0) labels.push("停车位");
       }
-    }
-
-    if (!added && v !== undefined && v !== null && v !== "") {
-      labels.push("停车位");
     }
   }
 
+  // -------------------------
   // 储藏室
+  // -------------------------
   {
     const num = toCount(safe.store);
     for (let i = 1; i <= num; i++) labels.push(`储藏室${i}`);
   }
 
-  // 朝向
+  // -------------------------
+  // 朝向：不加前缀，直接显示“南”“东南”等
+  // -------------------------
   {
     const arr = toArray(safe.orientation);
     arr.forEach((item) => {
-      const name = getName(item);
-      if (name) labels.push(`朝向：${name}`);
+      const n = getName(item);
+      if (n) labels.push(n);
     });
   }
 
-  // 设施
+  // -------------------------
+  // 设施：不加“设施：”，直接显示“游泳池 / Gym”
+  // -------------------------
   {
     const arr = toArray(safe.facilities);
     arr.forEach((item) => {
-      const name = getName(item);
-      if (name) labels.push(`设施：${name}`);
+      const n = getName(item);
+      if (n) labels.push(n);
     });
   }
 
-  // 额外空间
+  // -------------------------
+  // 额外空间：不加“额外空间：”
+  // -------------------------
   {
     const arr = toArray(safe.extraSpaces);
     arr.forEach((extra) => {
       if (!extra) return;
 
-      if (typeof extra === "string") {
-        labels.push(`额外空间：${extra}`);
-        return;
-      }
-
       const name = getName(extra);
       if (!name) return;
 
-      const c = toCount(extra.count || 1) || 1;
-      if (c <= 1) {
-        labels.push(`额外空间：${name}`);
+      const count = toCount(extra.count || 1) || 1;
+
+      if (count <= 1) {
+        labels.push(name);
       } else {
-        for (let i = 1; i <= c; i++) {
-          labels.push(`额外空间：${name}${i}`);
-        }
+        for (let i = 1; i <= count; i++) labels.push(`${name}${i}`);
       }
     });
   }
 
-  // 家私
+  // 家私：不加“家私：”
+  // -------------------------
   {
     const arr = toArray(safe.furniture);
     arr.forEach((item) => {
       if (!item) return;
 
-      if (typeof item === "string") {
-        labels.push(`家私：${item}`);
-        return;
-      }
-
       const name = getName(item);
       if (!name) return;
 
-      const c = toCount(item.count || 1) || 1;
-      if (c <= 1) {
-        labels.push(`家私：${name}`);
+      const count = toCount(item.count || 1) || 1;
+
+      if (count <= 1) {
+        labels.push(name);
       } else {
-        for (let i = 1; i <= c; i++) {
-          labels.push(`家私：${name}${i}`);
-        }
+        for (let i = 1; i <= count; i++) labels.push(`${name}${i}`);
       }
     });
   }
