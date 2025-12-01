@@ -74,7 +74,7 @@ export default function ImageUpload({ config, images, setImages }) {
     setImages && setImages(updated);
   };
 
-  // ⭐ 根据房型数据动态生成标签（和 subsale 一样）
+  // ⭐ 根据房型数据动态生成标签
   const generateLabels = () => {
     let labels = [];
 
@@ -120,24 +120,36 @@ export default function ImageUpload({ config, images, setImages }) {
     }
 
     // -------------------------
-    //  停车位（New project：只生成 1 个）
+    //  停车位（只要有值，就至少 1 个「停车位」）
     // -------------------------
     {
       const v = safeConfig.carpark;
+      let added = false;
 
       if (v) {
         // single: "2" / 2
         if (typeof v === "number" || typeof v === "string") {
           const num = toCount(v);
-          if (num > 0) labels.push("停车位");
+          if (num > 0) {
+            labels.push("停车位");
+            added = true;
+          }
         }
 
         // range: { min, max }
-        if (typeof v === "object") {
+        if (!added && typeof v === "object") {
           const min = toCount(v.min);
           const max = toCount(v.max);
-          if (min > 0 || max > 0) labels.push("停车位");
+          if (min > 0 || max > 0) {
+            labels.push("停车位");
+            added = true;
+          }
         }
+      }
+
+      // 如果有 carpark 值，但上面没识别出来，也补一个
+      if (!added && v !== undefined && v !== null && v !== "") {
+        labels.push("停车位");
       }
     }
 
@@ -159,42 +171,62 @@ export default function ImageUpload({ config, images, setImages }) {
     // -------------------------
     //  设施
     // -------------------------
-    if (safeConfig.facilities?.length) {
-      safeConfig.facilities.forEach((facility) => {
-        if (typeof facility === "string") labels.push(facility);
-        else if (facility?.name) labels.push(facility.name);
-      });
+    {
+      const before = labels.length;
+      if (safeConfig.facilities?.length) {
+        safeConfig.facilities.forEach((facility) => {
+          if (typeof facility === "string") labels.push(facility);
+          else if (facility?.name) labels.push(facility.name);
+          else if (facility?.label) labels.push(facility.label);
+        });
+        // 如果一个名字都没推成功，给一个通用的
+        if (labels.length === before) {
+          labels.push("设施照片");
+        }
+      }
     }
 
     // -------------------------
     //  额外空间
     // -------------------------
-    if (safeConfig.extraSpaces?.length) {
-      safeConfig.extraSpaces.forEach((extra) => {
-        if (typeof extra === "string") {
-          labels.push(extra);
-        } else if (extra?.label) {
-          const count = toCount(extra.count || 1) || 1;
-          for (let i = 1; i <= count; i++) {
-            labels.push(`${extra.label}${i}`);
+    {
+      const before = labels.length;
+      if (safeConfig.extraSpaces?.length) {
+        safeConfig.extraSpaces.forEach((extra) => {
+          if (typeof extra === "string") {
+            labels.push(extra);
+          } else if (extra?.label) {
+            const count = toCount(extra.count || 1) || 1;
+            for (let i = 1; i <= count; i++) {
+              labels.push(`${extra.label}${i}`);
+            }
           }
+        });
+        if (labels.length === before) {
+          labels.push("额外空间照片");
         }
-      });
+      }
     }
 
     // -------------------------
     //  家私
     // -------------------------
-    if (safeConfig.furniture?.length) {
-      safeConfig.furniture.forEach((item) => {
-        if (typeof item === "string") labels.push(item);
-        else if (item?.label) {
-          const count = toCount(item.count || 1) || 1;
-          for (let i = 1; i <= count; i++) {
-            labels.push(`${item.label}${i}`);
+    {
+      const before = labels.length;
+      if (safeConfig.furniture?.length) {
+        safeConfig.furniture.forEach((item) => {
+          if (typeof item === "string") labels.push(item);
+          else if (item?.label) {
+            const count = toCount(item.count || 1) || 1;
+            for (let i = 1; i <= count; i++) {
+              labels.push(`${item.label}${i}`);
+            }
           }
+        });
+        if (labels.length === before) {
+          labels.push("家私照片");
         }
-      });
+      }
     }
 
     // -------------------------
