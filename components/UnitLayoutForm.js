@@ -221,8 +221,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     handleFieldChange("layoutPhotos", newPhotos);
   };
 
-    // ⭐ 供 ImageUpload 生成分组用的 config
-  //   完全对齐 subsale 的 photoConfig 结构
+      // ⭐ 供 ImageUpload 生成分组用的 config
   const config = {
     bedrooms: roomCounts.bedrooms || "",
     bathrooms: roomCounts.bathrooms || "",
@@ -232,12 +231,15 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     carpark: layout.carpark,
     store: layout.store,
 
-    // ⭐ 保证一定是数组（和 subsale 一样）
+    // 一定是数组，和 subsale 保持一致
     extraSpaces: layout.extraSpaces || [],
     furniture: layout.furniture || [],
     facilities: layout.facilities || [],
 
-    orientation: layout.facing,
+    // FacingSelector 返回的是数组，例如 ["东","南"]
+    orientation: layout.facing || "",
+
+    // 你说不需要公共交通上传框，这个字段等会在 ImageUpload 里忽略
     transit: layout.transit || null,
   };
 
