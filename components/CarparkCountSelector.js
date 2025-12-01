@@ -61,7 +61,7 @@ export default function CarparkCountSelector({ value, onChange, mode = "single" 
       } else {
         const next = { min: String(opt), max: String(opt) };
         setInternalRange(next);
-        onChange?.next;
+        onChange?.(next);
       }
       setOpen(false);
       return;
