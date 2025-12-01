@@ -106,7 +106,7 @@ function getPsfText(areaObj, priceValue) {
   })}`;
 }
 
-// Category / SubType 选项（和之前一样）
+// Category / SubType 选项
 const CATEGORY_OPTIONS = {
   "Bungalow / Villa": [
     "Bungalow",
@@ -182,7 +182,18 @@ const CATEGORY_OPTIONS = {
   ],
 };
 
-// 一些辅助函数
+// 千分位格式化
+const formatNumber = (num) => {
+  if (num === "" || num === undefined || num === null) return "";
+  const str = String(num).replace(/,/g, "");
+  if (str === "") return "";
+  return Number(str).toLocaleString();
+};
+
+// 去掉千分位
+const parseNumber = (str) => String(str || "").replace(/,/g, "");
+
+// 通用小工具
 const toCount = (value) => {
   if (value === undefined || value === null || value === "") return 0;
   const num = Number(String(value).replace(/,/g, "").trim());
@@ -207,28 +218,7 @@ function getPhotoLabelsFromConfig(config) {
   const safe = config || {};
   let labels = [];
 
-  const toCount = (value) => {
-    if (value === undefined || value === null || value === "") return 0;
-    const num = Number(String(value).replace(/,/g, "").trim());
-    if (!Number.isFinite(num) || num <= 0) return 0;
-    return Math.floor(num);
-  };
-
-  const toArray = (val) => {
-    if (!val) return [];
-    if (Array.isArray(val)) return val;
-    return [val];
-  };
-
-  const getName = (item) => {
-    if (!item) return "";
-    if (typeof item === "string") return item;
-    return item.label || item.value || item.name || "";
-  };
-
-  // -------------------------
   // 卧室
-  // -------------------------
   if (safe.bedrooms) {
     const raw = String(safe.bedrooms).trim().toLowerCase();
     if (raw === "studio") {
@@ -239,42 +229,32 @@ function getPhotoLabelsFromConfig(config) {
     }
   }
 
-  // -------------------------
   // 浴室
-  // -------------------------
   {
     const num = toCount(safe.bathrooms);
     for (let i = 1; i <= num; i++) labels.push(`浴室${i}`);
   }
 
-  // -------------------------
   // 厨房
-  // -------------------------
   {
     const num = toCount(safe.kitchens);
     for (let i = 1; i <= num; i++) labels.push(`厨房${i}`);
   }
 
-  // -------------------------
   // 客厅
-  // -------------------------
   {
     const num = toCount(safe.livingRooms);
     for (let i = 1; i <= num; i++) labels.push(`客厅${i}`);
   }
 
-  // -------------------------
-  // 停车位
-  // -------------------------
+  // 停车位（只 1 个）
   {
     const v = safe.carpark;
-
     if (v) {
       if (typeof v === "number" || typeof v === "string") {
         const num = toCount(v);
         if (num > 0) labels.push("停车位");
       }
-
       if (typeof v === "object" && !Array.isArray(v)) {
         const min = toCount(v.min);
         const max = toCount(v.max);
@@ -283,17 +263,13 @@ function getPhotoLabelsFromConfig(config) {
     }
   }
 
-  // -------------------------
   // 储藏室
-  // -------------------------
   {
     const num = toCount(safe.store);
     for (let i = 1; i <= num; i++) labels.push(`储藏室${i}`);
   }
 
-  // -------------------------
-  // 朝向：不加前缀，直接显示“南”“东南”等
-  // -------------------------
+  // 朝向：直接显示“南 / 东南”等
   {
     const arr = toArray(safe.orientation);
     arr.forEach((item) => {
@@ -302,9 +278,7 @@ function getPhotoLabelsFromConfig(config) {
     });
   }
 
-  // -------------------------
-  // 设施：不加“设施：”，直接显示“游泳池 / Gym”
-  // -------------------------
+  // 设施：直接“游泳池 / Gym”
   {
     const arr = toArray(safe.facilities);
     arr.forEach((item) => {
@@ -313,14 +287,11 @@ function getPhotoLabelsFromConfig(config) {
     });
   }
 
-  // -------------------------
-  // 额外空间：不加“额外空间：”
-  // -------------------------
+  // 额外空间
   {
     const arr = toArray(safe.extraSpaces);
     arr.forEach((extra) => {
       if (!extra) return;
-
       const name = getName(extra);
       if (!name) return;
 
@@ -334,13 +305,11 @@ function getPhotoLabelsFromConfig(config) {
     });
   }
 
-  // 家私：不加“家私：”
-  // -------------------------
+  // 家私
   {
     const arr = toArray(safe.furniture);
     arr.forEach((item) => {
       if (!item) return;
-
       const name = getName(item);
       if (!name) return;
 
@@ -364,32 +333,26 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   const layout = data || {};
   const fileInputRef = useRef(null);
 
-    // ⭐ 房型单位数量：一个框，既能输入又能下拉选
-  const [unitCountLocal, setUnitCountLocal] = useState(layout.unitCount || "");
-  const [unitDropdownOpen, setUnitDropdownOpen] = useState(false);
-  const unitCountRef = useRef(null);
-
-  // 千分位格式化
-const formatNumber = (num) => {
-  if (num === "" || num === undefined || num === null) return "";
-  const str = String(num).replace(/,/g, "");
-  if (str === "") return "";
-  return Number(str).toLocaleString();
-};
-
-// 去掉千分位
-const parseNumber = (str) => String(str || "").replace(/,/g, "");
-  
-  // ⭐ 记住当前选中的 Property Category / Sub Type
+  // ⭐ Property Category / Sub Type（本地记住）
   const [category, setCategory] = useState(layout.propertyCategory || "");
   const [subType, setSubType] = useState(layout.subType || "");
 
-  // ⭐ 房型单位数量（本地 state，用来显示千分位 + 受控输入）
+  // ⭐ 房型单位数量：一个框，既能输入又能下拉选
   const [unitCountLocal, setUnitCountLocal] = useState(
-    layout.unitCount || ""
+    layout.unitCount ? String(layout.unitCount) : ""
   );
+  const [unitDropdownOpen, setUnitDropdownOpen] = useState(false);
+  const unitCountRef = useRef(null);
 
-    useEffect(() => {
+  // 数据变化时同步一次（防止父组件重置）
+  useEffect(() => {
+    setCategory(layout.propertyCategory || "");
+    setSubType(layout.subType || "");
+    setUnitCountLocal(layout.unitCount ? String(layout.unitCount) : "");
+  }, [layout.propertyCategory, layout.subType, layout.unitCount]);
+
+  // 点击外面关闭下拉
+  useEffect(() => {
     const handleClickOutside = (e) => {
       if (unitCountRef.current && !unitCountRef.current.contains(e.target)) {
         setUnitDropdownOpen(false);
@@ -399,14 +362,13 @@ const parseNumber = (str) => String(str || "").replace(/,/g, "");
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  
   // PSF 相关
   const [areaForPsf, setAreaForPsf] = useState(layout.buildUp || {});
   const [priceForPsf, setPriceForPsf] = useState(
     layout.price !== undefined ? layout.price : ""
   );
 
-  // ⭐ 专门给「照片上传框」用的配置，完全本地记
+  // ⭐ 专门给「照片上传框」用的配置
   const [photoConfig, setPhotoConfig] = useState({
     bedrooms: layout.bedrooms || "",
     bathrooms: layout.bathrooms || "",
@@ -516,18 +478,16 @@ const parseNumber = (str) => String(str || "").replace(/,/g, "");
         className="border p-2 rounded w-full mb-3"
       />
 
-                  {/* Property Category */}
+      {/* Property Category */}
       <div className="mb-3">
         <label className="block font-medium mb-1">Property Category</label>
         <select
           value={category}
           onChange={(e) => {
             const cat = e.target.value;
-            // ⭐ 本地记住
             setCategory(cat);
-            setSubType(""); // 换大类时清空 Sub Type
+            setSubType("");
 
-            // ⭐ 同步给父组件
             updateLayout({
               propertyCategory: cat,
               subType: "",
@@ -552,8 +512,8 @@ const parseNumber = (str) => String(str || "").replace(/,/g, "");
             value={subType}
             onChange={(e) => {
               const val = e.target.value;
-              setSubType(val);                 // 本地记住
-              handleFieldChange("subType", val); // 同步给父组件
+              setSubType(val);
+              handleFieldChange("subType", val);
             }}
             className="border p-2 rounded w-full"
           >
@@ -567,7 +527,7 @@ const parseNumber = (str) => String(str || "").replace(/,/g, "");
         </div>
       )}
 
-                  {/* 这个房型有多少个单位？：一个框 + 下拉选择 */}
+      {/* 这个房型有多少个单位？：一个框 + 下拉选择 */}
       <div className="mb-3" ref={unitCountRef}>
         <label className="block font-medium mb-1">这个房型有多少个单位？</label>
 
@@ -579,23 +539,20 @@ const parseNumber = (str) => String(str || "").replace(/,/g, "");
             value={formatNumber(unitCountLocal)}
             onChange={(e) => {
               const raw = parseNumber(e.target.value);
-              // 只接受数字，长度不限制
-              if (!/^\d*$/.test(raw)) return;
+              if (!/^\d*$/.test(raw)) return; // 只接受数字
 
               setUnitCountLocal(raw);
-              handleFieldChange("unitCount", raw); // 写回到 layout
+              handleFieldChange("unitCount", raw);
             }}
             onFocus={() => setUnitDropdownOpen(true)}
             onClick={() => setUnitDropdownOpen(true)}
             className="border p-2 rounded w-full"
           />
 
-          {/* 下拉：1 ~ 1,000，点一下就填到同一个框里 */}
+          {/* 下拉：1 ~ 1,000 */}
           {unitDropdownOpen && (
             <ul className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
-              <li
-                className="px-3 py-2 text-gray-500 cursor-default select-none border-b"
-              >
+              <li className="px-3 py-2 text-gray-500 cursor-default select-none border-b">
                 从 1 ~ 1,000 中选择，或直接输入
               </li>
               {Array.from({ length: 1000 }, (_, i) => i + 1).map((num) => (
@@ -603,7 +560,7 @@ const parseNumber = (str) => String(str || "").replace(/,/g, "");
                   key={num}
                   className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                   onMouseDown={(e) => {
-                    e.preventDefault(); // 避免 blur
+                    e.preventDefault();
                     const val = String(num);
                     setUnitCountLocal(val);
                     handleFieldChange("unitCount", val);
@@ -758,7 +715,7 @@ const parseNumber = (str) => String(str || "").replace(/,/g, "");
                 onChange={(e) => handlePhotoChange(e, label)}
               />
 
-              <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                 {(photosByLabel[label] || []).map((img, index) => (
                   <div key={img.url || index} className="relative">
                     <img
@@ -773,6 +730,7 @@ const parseNumber = (str) => String(str || "").replace(/,/g, "");
                       className="absolute top-1 right-1 bg-red-500 text-white text-xs px-1 rounded"
                       onClick={() => removePhoto(label, index)}
                     >
+
                       X
                     </button>
                     <button
@@ -792,3 +750,5 @@ const parseNumber = (str) => String(str || "").replace(/,/g, "");
     </div>
   );
 }
+
+              
