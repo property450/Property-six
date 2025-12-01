@@ -34,7 +34,7 @@ function getAreaSqftFromAreaSelector(area) {
     if (u.includes("hectare")) {
       return num * 107639;
     }
-    return num; // 默认当 sqft
+    return num; // 默认 sqft
   };
 
   if (area.values && area.units) {
@@ -184,7 +184,7 @@ const CATEGORY_OPTIONS = {
 };
 
 export default function UnitLayoutForm({ index, data, onChange }) {
-  // 直接用父组件传进来的 data 当作当前 layout
+  // 当前 layout 数据
   const layout = data || {};
 
   // 房间数量在本地保存一份，给 RoomCountSelector + 图片分组用
@@ -213,6 +213,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     updateLayout({ [field]: value });
   };
 
+  // 上传 Layout 图纸
   const handleLayoutUpload = (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
@@ -222,17 +223,31 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 
   // ⬇️ 供 ImageUpload 生成分组用的 config
   const config = {
+    // 房间数量
     bedrooms: roomCounts.bedrooms || "",
     bathrooms: roomCounts.bathrooms || "",
     kitchens: roomCounts.kitchens || "",
     livingRooms: roomCounts.livingRooms || "",
+
+    // 车位：可能是数字 / 字符串 / {min,max}
     carpark: layout.carpark,
+
+    // 储藏室数量（数字）
     store: layout.store || "",
-    extraSpaces: layout.extraSpaces || [],
-    facilities: layout.facilities || [],
-    furniture: layout.furniture || [],
-    // ❗ new project 不需要朝向照片上传框，这里传空字符串
-    orientation: "",
+
+    // 额外空间：数组 [{label,count}, ...]
+    extraSpaces: Array.isArray(layout.extraSpaces) ? layout.extraSpaces : [],
+
+    // 家私：数组 [{label,count}, ...]
+    furniture: Array.isArray(layout.furniture) ? layout.furniture : [],
+
+    // 设施：数组 ['游泳池','健身房',...]
+    facilities: Array.isArray(layout.facilities) ? layout.facilities : [],
+
+    // 朝向：有值就会生成「朝向/风景」上传框
+    orientation: layout.facing || "",
+
+    // 交通信息（目前不用于生成标签，只是保持结构一致）
     transit: layout.transit || null,
   };
 
@@ -242,7 +257,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     <div className="border rounded-lg p-4 shadow-sm bg-white">
       <h3 className="font-semibold mb-3">Layout {index + 1}</h3>
 
-      {/* 上传 Layout 图纸 —— 只保留 input，不再用 ImageUpload，避免多一个房源照片框 */}
+      {/* 上传 Layout 图纸 */}
       <div className="mb-3">
         <button
           type="button"
@@ -374,7 +389,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         onChange={(val) => handleFieldChange("extraSpaces", val)}
       />
 
-      {/* 朝向（只控制方向，不再生成专门的朝向图片框，因为 config.orientation 现在是 ""） */}
+      {/* 朝向 */}
       <FacingSelector
         value={layout.facing}
         onChange={(val) => handleFieldChange("facing", val)}
