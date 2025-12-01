@@ -225,11 +225,29 @@ export default function UploadProperty() {
       {/* ------------ 项目类房源 (New Project / Completed Unit) ------------ */}
       {isProject ? (
         <>
-          <UnitTypeSelector
-            propertyStatus={propertyStatus}
-            layouts={unitLayouts}
-            onChange={(layouts) => setUnitLayouts(layouts)}
-          />
+              <UnitTypeSelector
+      propertyStatus={propertyStatus}
+      layouts={unitLayouts}
+      onChange={(newLayouts) => {
+        setUnitLayouts((prev) => {
+          const oldList = Array.isArray(prev) ? prev : [];
+          const nextList = Array.isArray(newLayouts) ? newLayouts : [];
+
+          const maxLen = Math.max(oldList.length, nextList.length);
+          const merged = [];
+
+          for (let i = 0; i < maxLen; i++) {
+            const oldItem = oldList[i] || {};
+            const newItem = nextList[i] || {};
+            // ⭐ 用旧数据铺在前面，新数据覆盖它负责的字段
+            merged[i] = { ...oldItem, ...newItem };
+          }
+
+          return merged;
+        });
+      }}
+    />
+
 
             {unitLayouts.length > 0 && (
   <div className="space-y-4 mt-4">
