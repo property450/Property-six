@@ -18,6 +18,14 @@ function toCount(value) {
   return Math.floor(num);
 }
 
+// 把传进来的值，统一变成「数组」方便处理
+function toArray(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  // 单个字符串 / 单个对象，包一层
+  return [value];
+}
+
 export default function ImageUpload({ config, images, setImages }) {
   // 避免 props 上没传 config 时每次生成新的 {} 导致无限循环
   const safeConfig = config || {};
@@ -137,7 +145,7 @@ export default function ImageUpload({ config, images, setImages }) {
         }
 
         // range: { min, max }
-        if (!added && typeof v === "object") {
+        if (!added && typeof v === "object" && !Array.isArray(v)) {
           const min = toCount(v.min);
           const max = toCount(v.max);
           if (min > 0 || max > 0) {
@@ -162,10 +170,13 @@ export default function ImageUpload({ config, images, setImages }) {
     }
 
     // -------------------------
-    //  朝向 / 风景
+    //  朝向 / 风景（可以是字符串，也可以是数组）
     // -------------------------
-    if (safeConfig.orientation) {
-      labels.push("朝向/风景");
+    {
+      const oriArr = toArray(safeConfig.orientation);
+      if (oriArr.length > 0) {
+        labels.push("朝向/风景");
+      }
     }
 
     // -------------------------
@@ -173,16 +184,24 @@ export default function ImageUpload({ config, images, setImages }) {
     // -------------------------
     {
       const before = labels.length;
-      if (safeConfig.facilities?.length) {
-        safeConfig.facilities.forEach((facility) => {
-          if (typeof facility === "string") labels.push(facility);
-          else if (facility?.name) labels.push(facility.name);
-          else if (facility?.label) labels.push(facility.label);
-        });
-        // 如果一个名字都没推成功，给一个通用的
-        if (labels.length === before) {
-          labels.push("设施照片");
+      const facilitiesArr = toArray(safeConfig.facilities);
+
+      facilitiesArr.forEach((facility) => {
+        if (!facility) return;
+        if (typeof facility === "string") {
+          labels.push(facility);
+        } else if (facility?.name) {
+          labels.push(facility.name);
+        } else if (facility?.label) {
+          labels.push(facility.label);
         }
+      });
+
+      // 如果传进来有东西，但一个名字都没推成功，给一个通用的
+      if (!facilitiesArr.length && safeConfig.facilities) {
+        labels.push("设施照片");
+      } else if (facilitiesArr.length && labels.length === before) {
+        labels.push("设施照片");
       }
     }
 
@@ -191,20 +210,24 @@ export default function ImageUpload({ config, images, setImages }) {
     // -------------------------
     {
       const before = labels.length;
-      if (safeConfig.extraSpaces?.length) {
-        safeConfig.extraSpaces.forEach((extra) => {
-          if (typeof extra === "string") {
-            labels.push(extra);
-          } else if (extra?.label) {
-            const count = toCount(extra.count || 1) || 1;
-            for (let i = 1; i <= count; i++) {
-              labels.push(`${extra.label}${i}`);
-            }
+      const extraArr = toArray(safeConfig.extraSpaces);
+
+      extraArr.forEach((extra) => {
+        if (!extra) return;
+        if (typeof extra === "string") {
+          labels.push(extra);
+        } else if (extra?.label) {
+          const count = toCount(extra.count || 1) || 1;
+          for (let i = 1; i <= count; i++) {
+            labels.push(`${extra.label}${i}`);
           }
-        });
-        if (labels.length === before) {
-          labels.push("额外空间照片");
         }
+      });
+
+      if (!extraArr.length && safeConfig.extraSpaces) {
+        labels.push("额外空间照片");
+      } else if (extraArr.length && labels.length === before) {
+        labels.push("额外空间照片");
       }
     }
 
@@ -213,19 +236,24 @@ export default function ImageUpload({ config, images, setImages }) {
     // -------------------------
     {
       const before = labels.length;
-      if (safeConfig.furniture?.length) {
-        safeConfig.furniture.forEach((item) => {
-          if (typeof item === "string") labels.push(item);
-          else if (item?.label) {
-            const count = toCount(item.count || 1) || 1;
-            for (let i = 1; i <= count; i++) {
-              labels.push(`${item.label}${i}`);
-            }
+      const furnArr = toArray(safeConfig.furniture);
+
+      furnArr.forEach((item) => {
+        if (!item) return;
+        if (typeof item === "string") {
+          labels.push(item);
+        } else if (item?.label) {
+          const count = toCount(item.count || 1) || 1;
+          for (let i = 1; i <= count; i++) {
+            labels.push(`${item.label}${i}`);
           }
-        });
-        if (labels.length === before) {
-          labels.push("家私照片");
         }
+      });
+
+      if (!furnArr.length && safeConfig.furniture) {
+        labels.push("家私照片");
+      } else if (furnArr.length && labels.length === before) {
+        labels.push("家私照片");
       }
     }
 
@@ -235,6 +263,13 @@ export default function ImageUpload({ config, images, setImages }) {
     {
       const num = toCount(safeConfig.floorPlans);
       for (let i = 1; i <= num; i++) labels.push(`平面图${i}`);
+    }
+
+    // -------------------------
+    //  公共交通（如果有传 transit，可以加一个）
+    // -------------------------
+    if (safeConfig.transit) {
+      labels.push("公共交通 / 周边配套");
     }
 
     // 去重
