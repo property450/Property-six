@@ -1,7 +1,7 @@
 // components/UnitLayoutForm.js
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 import PriceInput from "./PriceInput";
 import CarparkCountSelector from "./CarparkCountSelector";
@@ -364,6 +364,11 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   const layout = data || {};
   const fileInputRef = useRef(null);
 
+    // ⭐ 房型单位数量：一个框，既能输入又能下拉选
+  const [unitCountLocal, setUnitCountLocal] = useState(layout.unitCount || "");
+  const [unitDropdownOpen, setUnitDropdownOpen] = useState(false);
+  const unitCountRef = useRef(null);
+
   // 千分位格式化
 const formatNumber = (num) => {
   if (num === "" || num === undefined || num === null) return "";
@@ -374,7 +379,6 @@ const formatNumber = (num) => {
 
 // 去掉千分位
 const parseNumber = (str) => String(str || "").replace(/,/g, "");
-
   
   // ⭐ 记住当前选中的 Property Category / Sub Type
   const [category, setCategory] = useState(layout.propertyCategory || "");
@@ -384,6 +388,17 @@ const parseNumber = (str) => String(str || "").replace(/,/g, "");
   const [unitCountLocal, setUnitCountLocal] = useState(
     layout.unitCount || ""
   );
+
+    useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (unitCountRef.current && !unitCountRef.current.contains(e.target)) {
+        setUnitDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   
   // PSF 相关
   const [areaForPsf, setAreaForPsf] = useState(layout.buildUp || {});
@@ -552,46 +567,55 @@ const parseNumber = (str) => String(str || "").replace(/,/g, "");
         </div>
       )}
 
-            {/* 这个房型有多少个单位？ */}
-      <div className="mb-3">
+                  {/* 这个房型有多少个单位？：一个框 + 下拉选择 */}
+      <div className="mb-3" ref={unitCountRef}>
         <label className="block font-medium mb-1">这个房型有多少个单位？</label>
 
-        {/* 输入框：可以手动输入，自动加千分位 */}
-        <input
-          type="text"
-          placeholder="例如：120"
-          value={formatNumber(unitCountLocal)}
-          onChange={(e) => {
-            const raw = parseNumber(e.target.value);
-            // 只接受纯数字
-            if (!/^\d*$/.test(raw)) return;
-            // 最多 6 位（最多 999999，够用了）
-            if (raw.length > 6) return;
+        <div className="relative">
+          {/* 输入框：可手动输入，自动千分位 */}
+          <input
+            type="text"
+            placeholder="例如：120"
+            value={formatNumber(unitCountLocal)}
+            onChange={(e) => {
+              const raw = parseNumber(e.target.value);
+              // 只接受数字，长度不限制
+              if (!/^\d*$/.test(raw)) return;
 
-            setUnitCountLocal(raw);
-            handleFieldChange("unitCount", raw); // 写回到 layout 里
-          }}
-          className="border p-2 rounded w-full mb-2"
-        />
+              setUnitCountLocal(raw);
+              handleFieldChange("unitCount", raw); // 写回到 layout
+            }}
+            onFocus={() => setUnitDropdownOpen(true)}
+            onClick={() => setUnitDropdownOpen(true)}
+            className="border p-2 rounded w-full"
+          />
 
-        {/* 下拉选择 1 ~ 1000，选了会自动填到上面的输入框 */}
-        <select
-          className="border p-2 rounded w-full"
-          value=""
-          onChange={(e) => {
-            const val = e.target.value;
-            if (!val) return;
-            setUnitCountLocal(val);
-            handleFieldChange("unitCount", val);
-          }}
-        >
-          <option value="">从 1 ~ 1,000 中选择</option>
-          {Array.from({ length: 1000 }, (_, i) => i + 1).map((num) => (
-            <option key={num} value={num}>
-              {num.toLocaleString()}
-            </option>
-          ))}
-        </select>
+          {/* 下拉：1 ~ 1,000，点一下就填到同一个框里 */}
+          {unitDropdownOpen && (
+            <ul className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+              <li
+                className="px-3 py-2 text-gray-500 cursor-default select-none border-b"
+              >
+                从 1 ~ 1,000 中选择，或直接输入
+              </li>
+              {Array.from({ length: 1000 }, (_, i) => i + 1).map((num) => (
+                <li
+                  key={num}
+                  className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                  onMouseDown={(e) => {
+                    e.preventDefault(); // 避免 blur
+                    const val = String(num);
+                    setUnitCountLocal(val);
+                    handleFieldChange("unitCount", val);
+                    setUnitDropdownOpen(false);
+                  }}
+                >
+                  {num.toLocaleString()}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
 
       {/* 面积 */}
