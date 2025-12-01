@@ -18,7 +18,7 @@ function toCount(value) {
   return Math.floor(num);
 }
 
-// 把任何值转成数组（字符串 / 对象 都包一层）
+// 把任意值转成数组，方便统一处理
 function toArray(val) {
   if (!val) return [];
   if (Array.isArray(val)) return val;
@@ -28,6 +28,7 @@ function toArray(val) {
 export default function ImageUpload({ config, images, setImages }) {
   const safeConfig = config || {};
 
+  // 只在初始化时同步一次
   const [localImages, setLocalImages] = useState(
     () => normalizeImages(images)
   );
@@ -79,7 +80,7 @@ export default function ImageUpload({ config, images, setImages }) {
     setImages && setImages(updated);
   };
 
-  // ⭐ 根据房型数据动态生成标签
+  // ⭐ 核心：根据房型数据动态生成上传分组 label
   const generateLabels = () => {
     let labels = [];
 
@@ -112,7 +113,7 @@ export default function ImageUpload({ config, images, setImages }) {
       for (let i = 1; i <= num; i++) labels.push(`客厅${i}`);
     }
 
-    // ========= 停车位 =========
+    // ========= 停车位（有就给一个） =========
     {
       const v = safeConfig.carpark;
       let has = false;
@@ -134,68 +135,85 @@ export default function ImageUpload({ config, images, setImages }) {
       for (let i = 1; i <= num; i++) labels.push(`储藏室${i}`);
     }
 
-    // ========= 朝向 =========
-    // 你选了东/西/南/北… 就会生成「朝向：东」这样的上传框
+    // ========= 朝向：按选项一个一个来 =========
+    // FacingSelector 返回的是数组，例如 ["东","南"]
     {
       const arr = toArray(safeConfig.orientation);
-      arr.forEach((dir) => {
-        if (!dir) return;
-        const name = typeof dir === "string"
-          ? dir
-          : dir?.label || dir?.value || "";
-        if (name) {
-          labels.push(`朝向：${name}`);
-        }
-      });
-    }
-
-    // ========= 设施 =========
-    // 设施选游泳池 / 健身房 ⇒ 出现「游泳池」「健身房」上传框
-    {
-      const facilitiesArr = toArray(safeConfig.facilities);
-      facilitiesArr.forEach((item) => {
+      arr.forEach((item) => {
         if (!item) return;
-        if (typeof item === "string") {
-          labels.push(item);
-        } else if (item.label) {
-          labels.push(item.label);
-        } else if (item.value) {
-          labels.push(item.value);
-        } else if (item.name) {
-          labels.push(item.name);
+        const text =
+          typeof item === "string"
+            ? item
+            : item.label || item.value || item.name || "";
+        if (text) {
+          labels.push(`朝向：${text}`);
         }
       });
     }
 
-    // ========= 额外空间 =========
-    // 额外空间选「阳台 ×2」⇒「阳台1」「阳台2」
+    // ========= 设施：每个设施一个上传框 =========
+    // FacilitiesSelector 返回的是 string[]，例如 ["游泳池","健身房"]
     {
-      const extraArr = toArray(safeConfig.extraSpaces);
-      extraArr.forEach((extra) => {
+      const list = toArray(safeConfig.facilities);
+      list.forEach((item) => {
+        if (!item) return;
+        const text =
+          typeof item === "string"
+            ? item
+            : item.label || item.value || item.name || "";
+        if (text) {
+          labels.push(`设施：${text}`);
+        }
+      });
+    }
+
+    // ========= 额外空间：带数量的，拆成多个上传框 =========
+    // ExtraSpacesSelector 返回 [{label:"阳台",count:"2"}, ...]
+    {
+      const list = toArray(safeConfig.extraSpaces);
+      list.forEach((extra) => {
         if (!extra) return;
+
         if (typeof extra === "string") {
-          labels.push(extra);
-        } else if (extra.label) {
-          const c = toCount(extra.count || 1) || 1;
+          labels.push(`额外空间：${extra}`);
+          return;
+        }
+
+        const name = extra.label || extra.value || "";
+        if (!name) return;
+
+        const c = toCount(extra.count || 1) || 1;
+        if (c <= 1) {
+          labels.push(`额外空间：${name}`);
+        } else {
           for (let i = 1; i <= c; i++) {
-            labels.push(`${extra.label}${c > 1 ? i : ""}`);
+            labels.push(`额外空间：${name}${i}`);
           }
         }
       });
     }
 
-    // ========= 家私 =========
-    // 家私选「椅子 ×4」⇒「椅子1～椅子4」
+    // ========= 家私：带数量的，拆成多个上传框 =========
+    // FurnitureSelector 返回 [{label:"椅子",count:"4"}, ...]
     {
-      const furnArr = toArray(safeConfig.furniture);
-      furnArr.forEach((item) => {
+      const list = toArray(safeConfig.furniture);
+      list.forEach((item) => {
         if (!item) return;
+
         if (typeof item === "string") {
-          labels.push(item);
-        } else if (item.label) {
-          const c = toCount(item.count || 1) || 1;
+          labels.push(`家私：${item}`);
+          return;
+        }
+
+        const name = item.label || item.value || "";
+        if (!name) return;
+
+        const c = toCount(item.count || 1) || 1;
+        if (c <= 1) {
+          labels.push(`家私：${name}`);
+        } else {
           for (let i = 1; i <= c; i++) {
-            labels.push(`${item.label}${c > 1 ? i : ""}`);
+            labels.push(`家私：${name}${i}`);
           }
         }
       });
@@ -207,7 +225,7 @@ export default function ImageUpload({ config, images, setImages }) {
       for (let i = 1; i <= num; i++) labels.push(`平面图${i}`);
     }
 
-    // ========= 公共交通 / 周边配套 =========
+    // ========= 公共交通 =========
     if (safeConfig.transit) {
       labels.push("公共交通 / 周边配套");
     }
