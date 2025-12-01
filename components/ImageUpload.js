@@ -25,6 +25,13 @@ function toArray(val) {
   return [val];
 }
 
+// 从 string / {label,value,name} 中取一个文本名
+function getName(item) {
+  if (!item) return "";
+  if (typeof item === "string") return item;
+  return item.label || item.value || item.name || "";
+}
+
 export default function ImageUpload({ config, images, setImages }) {
   const safeConfig = config || {};
 
@@ -143,7 +150,7 @@ export default function ImageUpload({ config, images, setImages }) {
         }
 
         // range: { min, max }
-        if (!added && typeof v === "object") {
+        if (!added && typeof v === "object" && !Array.isArray(v)) {
           const min = toCount(v.min);
           const max = toCount(v.max);
           if (min > 0 || max > 0) {
@@ -168,45 +175,35 @@ export default function ImageUpload({ config, images, setImages }) {
     }
 
     // -------------------------
-    //  朝向（重点）
+    //  朝向（多选/单选都支持）
     // -------------------------
     {
-      const oriArr = toArray(safeConfig.orientation);
-      oriArr.forEach((item) => {
-        if (!item) return;
-        const name =
-          typeof item === "string"
-            ? item
-            : item.label || item.value || item.name || "";
-        if (name) {
-          labels.push(`朝向：${name}`);
-        }
+      const arr = toArray(safeConfig.orientation);
+      arr.forEach((item) => {
+        const name = getName(item);
+        if (name) labels.push(`朝向：${name}`);
       });
     }
 
     // -------------------------
-    //  设施（重点）
+    //  设施：每个设施一个上传框
+    //  subsale 那边 FacilitiesSelector 传的是 string[]
     // -------------------------
     {
-      const facArr = toArray(safeConfig.facilities);
-      facArr.forEach((facility) => {
-        if (!facility) return;
-        const name =
-          typeof facility === "string"
-            ? facility
-            : facility.label || facility.value || facility.name || "";
-        if (name) {
-          labels.push(`设施：${name}`);
-        }
+      const arr = toArray(safeConfig.facilities);
+      arr.forEach((item) => {
+        const name = getName(item);
+        if (name) labels.push(`设施：${name}`);
       });
     }
 
     // -------------------------
-    //  额外空间（重点）
+    //  额外空间：带数量的，拆成多个上传框
+    //  ExtraSpacesSelector 传的是 [{label:"阳台", count:"2"}, ...]
     // -------------------------
     {
-      const extraArr = toArray(safeConfig.extraSpaces);
-      extraArr.forEach((extra) => {
+      const arr = toArray(safeConfig.extraSpaces);
+      arr.forEach((extra) => {
         if (!extra) return;
 
         if (typeof extra === "string") {
@@ -214,14 +211,14 @@ export default function ImageUpload({ config, images, setImages }) {
           return;
         }
 
-        const name = extra.label || extra.value || "";
+        const name = getName(extra);
         if (!name) return;
 
-        const count = toCount(extra.count || 1) || 1;
-        if (count <= 1) {
+        const c = toCount(extra.count || 1) || 1;
+        if (c <= 1) {
           labels.push(`额外空间：${name}`);
         } else {
-          for (let i = 1; i <= count; i++) {
+          for (let i = 1; i <= c; i++) {
             labels.push(`额外空间：${name}${i}`);
           }
         }
@@ -229,11 +226,12 @@ export default function ImageUpload({ config, images, setImages }) {
     }
 
     // -------------------------
-    //  家私（重点）
+    //  家私：带数量的，拆成多个上传框
+    //  FurnitureSelector 传的是 [{label:"椅子", count:"3"}, ...]
     // -------------------------
     {
-      const furnArr = toArray(safeConfig.furniture);
-      furnArr.forEach((item) => {
+      const arr = toArray(safeConfig.furniture);
+      arr.forEach((item) => {
         if (!item) return;
 
         if (typeof item === "string") {
@@ -241,22 +239,21 @@ export default function ImageUpload({ config, images, setImages }) {
           return;
         }
 
-        const name = item.label || item.value || "";
+        const name = getName(item);
         if (!name) return;
 
-        const count = toCount(item.count || 1) || 1;
-        if (count <= 1) {
+        const c = toCount(item.count || 1) || 1;
+        if (c <= 1) {
           labels.push(`家私：${name}`);
         } else {
-          for (let i = 1; i <= count; i++) {
+          for (let i = 1; i <= c; i++) {
             labels.push(`家私：${name}${i}`);
           }
         }
       });
     }
 
-    // ❌ 按你的要求，不再生成「公共交通 / 周边配套」的上传框
-    // if (safeConfig.transit) { ... } 这块直接删掉
+    // ❌ 按你的要求，不生成「公共交通 / 周边配套」上传框
 
     // 去重
     labels = [...new Set(labels)];
