@@ -13,6 +13,7 @@ import FacilitiesSelector from "./FacilitiesSelector";
 import CarparkLevelSelector from "./CarparkLevelSelector";
 import RoomCountSelector from "./RoomCountSelector";
 import AreaSelector from "./AreaSelector";
+import ImageUpload from "./ImageUpload";
 import TransitSelector from "./TransitSelector";
 
 /** 把 AreaSelector 返回的对象，转换成「总平方英尺」 */
@@ -182,191 +183,19 @@ const CATEGORY_OPTIONS = {
   ],
 };
 
-// 工具函数：数字、数组、名字
-const toCount = (value) => {
-  if (value === undefined || value === null || value === "") return 0;
-  const num = Number(String(value).replace(/,/g, "").trim());
-  if (!Number.isFinite(num) || num <= 0) return 0;
-  return Math.floor(num);
-};
-
-const toArray = (val) => {
-  if (!val) return [];
-  if (Array.isArray(val)) return val;
-  return [val];
-};
-
-const getName = (item) => {
-  if (!item) return "";
-  if (typeof item === "string") return item;
-  return item.label || item.value || item.name || "";
-};
-
-// 从 layout 生成「要显示哪些上传框」
-function getPhotoLabelsFromLayout(layout, roomCounts) {
-  const safe = {
-    bedrooms: layout.bedrooms ?? roomCounts.bedrooms ?? "",
-    bathrooms: layout.bathrooms ?? roomCounts.bathrooms ?? "",
-    kitchens: layout.kitchens ?? roomCounts.kitchens ?? "",
-    livingRooms: layout.livingRooms ?? roomCounts.livingRooms ?? "",
-    carpark: layout.carpark,
-    store: layout.store,
-    extraSpaces: layout.extraSpaces || [],
-    furniture: layout.furniture || [],
-    facilities: layout.facilities || [],
-    orientation: layout.facing || [],
-  };
-
-  let labels = [];
-
-  // 卧室
-  if (safe.bedrooms) {
-    const raw = String(safe.bedrooms).trim().toLowerCase();
-    if (raw === "studio") {
-      labels.push("Studio");
-    } else {
-      const num = toCount(safe.bedrooms);
-      for (let i = 1; i <= num; i++) labels.push(`卧室${i}`);
-    }
-  }
-
-  // 浴室
-  {
-    const num = toCount(safe.bathrooms);
-    for (let i = 1; i <= num; i++) labels.push(`浴室${i}`);
-  }
-
-  // 厨房
-  {
-    const num = toCount(safe.kitchens);
-    for (let i = 1; i <= num; i++) labels.push(`厨房${i}`);
-  }
-
-  // 客厅
-  {
-    const num = toCount(safe.livingRooms);
-    for (let i = 1; i <= num; i++) labels.push(`客厅${i}`);
-  }
-
-  // 停车位
-  {
-    const v = safe.carpark;
-    let added = false;
-    if (v) {
-      if (typeof v === "number" || typeof v === "string") {
-        const num = toCount(v);
-        if (num > 0) {
-          labels.push("停车位");
-          added = true;
-        }
-      }
-      if (!added && typeof v === "object" && !Array.isArray(v)) {
-        const min = toCount(v.min);
-        const max = toCount(v.max);
-        if (min > 0 || max > 0) {
-          labels.push("停车位");
-          added = true;
-        }
-      }
-    }
-    if (!added && v !== undefined && v !== null && v !== "") {
-      labels.push("停车位");
-    }
-  }
-
-  // 储藏室
-  {
-    const num = toCount(safe.store);
-    for (let i = 1; i <= num; i++) labels.push(`储藏室${i}`);
-  }
-
-  // 朝向
-  {
-    const arr = toArray(safe.orientation);
-    arr.forEach((item) => {
-      const name = getName(item);
-      if (name) labels.push(`朝向：${name}`);
-    });
-  }
-
-  // 设施
-  {
-    const arr = toArray(safe.facilities);
-    arr.forEach((item) => {
-      const name = getName(item);
-      if (name) labels.push(`设施：${name}`);
-    });
-  }
-
-  // 额外空间
-  {
-    const arr = toArray(safe.extraSpaces);
-    arr.forEach((extra) => {
-      if (!extra) return;
-      if (typeof extra === "string") {
-        labels.push(`额外空间：${extra}`);
-        return;
-      }
-      const name = getName(extra);
-      if (!name) return;
-      const c = toCount(extra.count || 1) || 1;
-      if (c <= 1) {
-        labels.push(`额外空间：${name}`);
-      } else {
-        for (let i = 1; i <= c; i++) {
-          labels.push(`额外空间：${name}${i}`);
-        }
-      }
-    });
-  }
-
-  // 家私
-  {
-    const arr = toArray(safe.furniture);
-    arr.forEach((item) => {
-      if (!item) return;
-      if (typeof item === "string") {
-        labels.push(`家私：${item}`);
-        return;
-      }
-      const name = getName(item);
-      if (!name) return;
-      const c = toCount(item.count || 1) || 1;
-      if (c <= 1) {
-        labels.push(`家私：${name}`);
-      } else {
-        for (let i = 1; i <= c; i++) {
-          labels.push(`家私：${name}${i}`);
-        }
-      }
-    });
-  }
-
-  // 去重
-  labels = [...new Set(labels)];
-  if (!labels.length) labels.push("房源照片");
-
-  return labels;
-}
-
 export default function UnitLayoutForm({ index, data, onChange }) {
+  // 当前 layout 数据（完全受控）
   const layout = data || {};
-
-  // 房间数量本地 state
-  const [roomCounts, setRoomCounts] = useState(() => ({
-    bedrooms: data?.bedrooms || "",
-    bathrooms: data?.bathrooms || "",
-    kitchens: data?.kitchens || "",
-    livingRooms: data?.livingRooms || "",
-  }));
 
   const fileInputRef = useRef(null);
 
+  // 只为了 PSF 文本单独存（不影响父组件）
   const [areaForPsf, setAreaForPsf] = useState(layout.buildUp || {});
   const [priceForPsf, setPriceForPsf] = useState(
     layout.price !== undefined ? layout.price : ""
   );
 
+  // 统一更新：基于当前 layout 生成一个新对象，回传给父组件
   const updateLayout = (patch) => {
     const updated = { ...layout, ...patch };
     onChange && onChange(updated);
@@ -376,6 +205,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     updateLayout({ [field]: value });
   };
 
+  // 上传 Layout 图纸
   const handleLayoutUpload = (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
@@ -383,53 +213,21 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     handleFieldChange("layoutPhotos", newPhotos);
   };
 
-  // ------- 照片上传逻辑：把图片存在 layout.photos 里 ----------
-  const photosByLabel = layout.photos || {};
-
-  const handlePhotoChange = (e, label) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
-
-    const newImages = files.map((file) => ({
-      file,
-      url: URL.createObjectURL(file),
-      isCover: false,
-    }));
-
-    const current = photosByLabel[label] || [];
-    const updatedPhotos = {
-      ...photosByLabel,
-      [label]: [...current, ...newImages],
-    };
-
-    updateLayout({ photos: updatedPhotos });
-  };
-
-  const removePhoto = (label, index) => {
-    const current = photosByLabel[label] || [];
-    const updatedPhotos = {
-      ...photosByLabel,
-      [label]: current.filter((_, i) => i !== index),
-    };
-    updateLayout({ photos: updatedPhotos });
-  };
-
-  const setCover = (label, index) => {
-    const current = photosByLabel[label] || [];
-    const updatedPhotos = {
-      ...photosByLabel,
-      [label]: current.map((img, i) => ({
-        ...img,
-        isCover: i === index,
-      })),
-    };
-    updateLayout({ photos: updatedPhotos });
+  // ⭐ 关键：这里的 config 要和 subsale 用的一模一样的结构
+  const config = {
+    bedrooms: layout.bedrooms || "",
+    bathrooms: layout.bathrooms || "",
+    kitchens: layout.kitchens || "",
+    livingRooms: layout.livingRooms || "",
+    carpark: layout.carpark || "",
+    extraSpaces: layout.extraSpaces || [],
+    facilities: layout.facilities || [],
+    furniture: layout.furniture || [],
+    orientation: layout.facing || "", // 朝向（和 subsale 一样，用 facing）
+    transit: layout.transit || null,  // 虽然不会生成上传框，但保留字段没问题
   };
 
   const psfText = getPsfText(areaForPsf, priceForPsf);
-
-  // 根据 layout + roomCounts 生成所有要显示的上传框标签
-  const uploadLabels = getPhotoLabelsFromLayout(layout, roomCounts);
 
   return (
     <div className="border rounded-lg p-4 shadow-sm bg-white">
@@ -522,7 +320,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       <AreaSelector
         initialValue={areaForPsf || {}}
         onChange={(val) => {
-          setAreaForPsf(val);
+          setAreaForPsf(val); // 本地用于 PSF 显示
           handleFieldChange("buildUp", val);
         }}
       />
@@ -531,7 +329,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       <PriceInput
         value={priceForPsf}
         onChange={(val) => {
-          setPriceForPsf(val);
+          setPriceForPsf(val); // 本地用于 PSF 显示
           handleFieldChange("price", val);
         }}
         type={layout.projectType}
@@ -540,11 +338,16 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       {/* 每平方英尺 */}
       {psfText && <p className="text-sm text-gray-600 mt-1">{psfText}</p>}
 
-      {/* 房间数量 */}
+      {/* 房间数量 —— 用法完全照抄 subsale 那边 */}
       <RoomCountSelector
-        value={roomCounts}
+        value={{
+          bedrooms: layout.bedrooms,
+          bathrooms: layout.bathrooms,
+          kitchens: layout.kitchens,
+          livingRooms: layout.livingRooms,
+        }}
         onChange={(patch) => {
-          setRoomCounts((prev) => ({ ...prev, ...patch }));
+          // patch 里一般是 { bedrooms, bathrooms, ... }，和 subsale 一样直接 merge
           updateLayout(patch);
         }}
       />
@@ -622,52 +425,14 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         />
       </div>
 
-      {/* ⭐ 这里直接生成所有「对应的上传框」 */}
+      {/* ⭐ 根据 config 生成卧室/浴室/厨房/客厅/车位/家私/设施/额外空间/朝向 的照片上传框 */}
       <div className="mb-3">
         <label className="block mb-1 font-medium">上传此 Layout 的照片</label>
-
-        <div className="space-y-4">
-          {uploadLabels.map((label) => (
-            <div key={label} className="space-y-2 border rounded p-2">
-              <p className="font-semibold">{label}</p>
-
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={(e) => handlePhotoChange(e, label)}
-              />
-
-              <div className="grid grid-cols-3 gap-2">
-                {(photosByLabel[label] || []).map((img, index) => (
-                  <div key={img.url || index} className="relative">
-                    <img
-                      src={img.url}
-                      alt={`preview-${index}`}
-                      className={`w-full h-32 object-cover rounded ${
-                        img.isCover ? "border-4 border-green-500" : ""
-                      }`}
-                    />
-                    <button
-                      type="button"
-                      className="absolute top-1 right-1 bg-red-500 text-white text-xs px-1 rounded"
-                      onClick={() => removePhoto(label, index)}
-                    >
-                      X
-                    </button>
-                    <button
-                      type="button"
-                      className="absolute bottom-1 left-1 bg-black text-white text-xs px-1 rounded"
-                      onClick={() => setCover(label, index)}
-                    >
-                      {img.isCover ? "封面" : "设为封面"}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+        <ImageUpload
+          config={config}
+          images={layout.photos || {}} // 和 subsale 一样用「对象」结构
+          setImages={(updated) => handleFieldChange("photos", updated)}
+        />
       </div>
     </div>
   );
