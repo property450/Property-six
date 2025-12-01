@@ -221,19 +221,27 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     handleFieldChange("layoutPhotos", newPhotos);
   };
 
-  // ⬇️ 供 ImageUpload 生成分组用的 config（⚠️ 这里不要再乱改类型，直接把原始数据塞给 ImageUpload）
+    // ⭐ 供 ImageUpload 生成分组用的 config
+  //   完全对齐 subsale 的 photoConfig 结构
   const config = {
-    bedrooms: roomCounts.bedrooms || "",
-    bathrooms: roomCounts.bathrooms || "",
-    kitchens: roomCounts.kitchens || "",
-    livingRooms: roomCounts.livingRooms || "",
+    // 房间数量：优先 layout 里的值，退回到 roomCounts
+    bedrooms: layout.bedrooms ?? roomCounts.bedrooms ?? "",
+    bathrooms: layout.bathrooms ?? roomCounts.bathrooms ?? "",
+    kitchens: layout.kitchens ?? roomCounts.kitchens ?? "",
+    livingRooms: layout.livingRooms ?? roomCounts.livingRooms ?? "",
 
-    carpark: layout.carpark,           // 原样传递（可能是数字 / 字符串 / 对象）
-    store: layout.store,               // 储藏室原值
-    extraSpaces: layout.extraSpaces,   // 不再强制 Array.isArray
-    furniture: layout.furniture,
-    facilities: layout.facilities,
-    orientation: layout.facing,        // 不再加 || ""
+    // 车位：subsalae 那边传的是可能是 "" / 数字 / {min,max}
+    carpark: layout.carpark ?? "",
+
+    // 额外空间 / 家私 / 设施：和 subsale 一样，全部用数组
+    extraSpaces: layout.extraSpaces || [],
+    facilities: layout.facilities || [],
+    furniture: layout.furniture || [],
+
+    // 朝向：FacingSelector 返回的是数组（例如 ["东","南"]）
+    orientation: layout.facing || "",
+
+    // 公共交通：有就传，没有就 null
     transit: layout.transit || null,
   };
 
