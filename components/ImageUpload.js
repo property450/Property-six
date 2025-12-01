@@ -28,6 +28,9 @@ function toArray(val) {
 export default function ImageUpload({ config, images, setImages }) {
   const safeConfig = config || {};
 
+  // 🔍 调试用：你可以在浏览器 console 里看下 config 的内容
+  // console.log("ImageUpload config =", safeConfig);
+
   // 只在初始化时同步一次
   const [localImages, setLocalImages] = useState(
     () => normalizeImages(images)
@@ -129,14 +132,7 @@ export default function ImageUpload({ config, images, setImages }) {
       if (has) labels.push("停车位");
     }
 
-    // ========= 储藏室 =========
-    {
-      const num = toCount(safeConfig.store);
-      for (let i = 1; i <= num; i++) labels.push(`储藏室${i}`);
-    }
-
     // ========= 朝向：按选项一个一个来 =========
-    // FacingSelector 返回的是数组，例如 ["东","南"]
     {
       const arr = toArray(safeConfig.orientation);
       arr.forEach((item) => {
@@ -152,7 +148,7 @@ export default function ImageUpload({ config, images, setImages }) {
     }
 
     // ========= 设施：每个设施一个上传框 =========
-    // FacilitiesSelector 返回的是 string[]，例如 ["游泳池","健身房"]
+    // FacilitiesSelector 返回 string[]
     {
       const list = toArray(safeConfig.facilities);
       list.forEach((item) => {
@@ -217,12 +213,6 @@ export default function ImageUpload({ config, images, setImages }) {
           }
         }
       });
-    }
-
-    // ========= 平面图（如果以后要用） =========
-    {
-      const num = toCount(safeConfig.floorPlans);
-      for (let i = 1; i <= num; i++) labels.push(`平面图${i}`);
     }
 
     // ========= 公共交通 =========
