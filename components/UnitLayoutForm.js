@@ -364,10 +364,27 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   const layout = data || {};
   const fileInputRef = useRef(null);
 
+  // 千分位格式化
+const formatNumber = (num) => {
+  if (num === "" || num === undefined || num === null) return "";
+  const str = String(num).replace(/,/g, "");
+  if (str === "") return "";
+  return Number(str).toLocaleString();
+};
+
+// 去掉千分位
+const parseNumber = (str) => String(str || "").replace(/,/g, "");
+
+  
   // ⭐ 记住当前选中的 Property Category / Sub Type
   const [category, setCategory] = useState(layout.propertyCategory || "");
   const [subType, setSubType] = useState(layout.subType || "");
 
+  // ⭐ 房型单位数量（本地 state，用来显示千分位 + 受控输入）
+  const [unitCountLocal, setUnitCountLocal] = useState(
+    layout.unitCount || ""
+  );
+  
   // PSF 相关
   const [areaForPsf, setAreaForPsf] = useState(layout.buildUp || {});
   const [priceForPsf, setPriceForPsf] = useState(
@@ -535,16 +552,46 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         </div>
       )}
 
-      {/* 这个房型有多少个单位？ */}
+            {/* 这个房型有多少个单位？ */}
       <div className="mb-3">
         <label className="block font-medium mb-1">这个房型有多少个单位？</label>
+
+        {/* 输入框：可以手动输入，自动加千分位 */}
         <input
-          type="number"
+          type="text"
           placeholder="例如：120"
-          value={layout.unitCount || ""}
-          onChange={(e) => handleFieldChange("unitCount", e.target.value)}
-          className="border p-2 rounded w-full"
+          value={formatNumber(unitCountLocal)}
+          onChange={(e) => {
+            const raw = parseNumber(e.target.value);
+            // 只接受纯数字
+            if (!/^\d*$/.test(raw)) return;
+            // 最多 6 位（最多 999999，够用了）
+            if (raw.length > 6) return;
+
+            setUnitCountLocal(raw);
+            handleFieldChange("unitCount", raw); // 写回到 layout 里
+          }}
+          className="border p-2 rounded w-full mb-2"
         />
+
+        {/* 下拉选择 1 ~ 1000，选了会自动填到上面的输入框 */}
+        <select
+          className="border p-2 rounded w-full"
+          value=""
+          onChange={(e) => {
+            const val = e.target.value;
+            if (!val) return;
+            setUnitCountLocal(val);
+            handleFieldChange("unitCount", val);
+          }}
+        >
+          <option value="">从 1 ~ 1,000 中选择</option>
+          {Array.from({ length: 1000 }, (_, i) => i + 1).map((num) => (
+            <option key={num} value={num}>
+              {num.toLocaleString()}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* 面积 */}
