@@ -364,8 +364,9 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   const layout = data || {};
   const fileInputRef = useRef(null);
 
-  // ⭐ 本地记住当前选中的 Property Category
+  // ⭐ 记住当前选中的 Property Category / Sub Type
   const [category, setCategory] = useState(layout.propertyCategory || "");
+  const [subType, setSubType] = useState(layout.subType || "");
 
   // PSF 相关
   const [areaForPsf, setAreaForPsf] = useState(layout.buildUp || {});
@@ -483,17 +484,21 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         className="border p-2 rounded w-full mb-3"
       />
 
-            {/* Property Category */}
+                  {/* Property Category */}
       <div className="mb-3">
         <label className="block font-medium mb-1">Property Category</label>
         <select
           value={category}
           onChange={(e) => {
             const cat = e.target.value;
-            setCategory(cat); // ✅ 先更新本地 state，让下拉框马上记住
+            // ⭐ 本地记住
+            setCategory(cat);
+            setSubType(""); // 换大类时清空 Sub Type
+
+            // ⭐ 同步给父组件
             updateLayout({
               propertyCategory: cat,
-              subType: "",  // 换了大类，清空 Sub Type
+              subType: "",
             });
           }}
           className="border p-2 rounded w-full"
@@ -508,24 +513,27 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       </div>
 
       {/* Sub Type */}
-      {layout.propertyCategory &&
-        CATEGORY_OPTIONS[layout.propertyCategory] && (
-          <div className="mb-3">
-            <label className="block font-medium mb-1">Sub Type</label>
-            <select
-              value={layout.subType || ""}
-              onChange={(e) => handleFieldChange("subType", e.target.value)}
-              className="border p-2 rounded w-full"
-            >
-              <option value="">请选择具体类型</option>
-              {CATEGORY_OPTIONS[layout.propertyCategory].map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+      {category && CATEGORY_OPTIONS[category] && (
+        <div className="mb-3">
+          <label className="block font-medium mb-1">Sub Type</label>
+          <select
+            value={subType}
+            onChange={(e) => {
+              const val = e.target.value;
+              setSubType(val);                 // 本地记住
+              handleFieldChange("subType", val); // 同步给父组件
+            }}
+            className="border p-2 rounded w-full"
+          >
+            <option value="">请选择具体类型</option>
+            {CATEGORY_OPTIONS[category].map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* 这个房型有多少个单位？ */}
       <div className="mb-3">
