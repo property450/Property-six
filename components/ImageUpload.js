@@ -4,318 +4,268 @@ import { ReactSortable } from "react-sortablejs";
 
 // 只接受「对象」作为图片结构，其它一律当成空对象
 function normalizeImages(images) {
-  if (images && typeof images === "object" && !Array.isArray(images)) {
-    return images;
-  }
-  return {};
+  if (images && typeof images === "object" && !Array.isArray(images)) {
+    return images;
+  }
+  return {};
 }
 
 // 把各种类型（字符串 / 数字）统一转成正整数
 function toCount(value) {
-  if (value === undefined || value === null || value === "") return 0;
-  const num = Number(String(value).replace(/,/g, "").trim());
-  if (!Number.isFinite(num) || num <= 0) return 0;
-  return Math.floor(num);
-}
-
-// 把任意值转成数组，方便统一处理
-function toArray(val) {
-  if (!val) return [];
-  if (Array.isArray(val)) return val;
-  return [val];
-}
-
-// 从 string / {label,value,name} 中取一个文本名
-function getName(item) {
-  if (!item) return "";
-  if (typeof item === "string") return item;
-  return item.label || item.value || item.name || "";
+  if (value === undefined || value === null || value === "") return 0;
+  const num = Number(String(value).replace(/,/g, "").trim());
+  if (!Number.isFinite(num) || num <= 0) return 0;
+  return Math.floor(num);
 }
 
 export default function ImageUpload({ config, images, setImages }) {
-  const safeConfig = config || {};
+  // 避免 props 上没传 config 时每次生成新的 {} 导致无限循环
+  const safeConfig = config || {};
 
-  // 只在初始化时同步一次
-  const [localImages, setLocalImages] = useState(
-    () => normalizeImages(images)
-  );
+  // 只在初始化时同步一次
+  const [localImages, setLocalImages] = useState(
+    () => normalizeImages(images)
+  );
 
-  // 🔁 上传
-  const handleImageChange = (e, label) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
+  // 🔁 上传
+  const handleImageChange = (e, label) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
 
-    const newImages = files.map((file) => ({
-      file,
-      url: URL.createObjectURL(file),
-      isCover: false,
-    }));
+    const newImages = files.map((file) => ({
+      file,
+      url: URL.createObjectURL(file),
+      isCover: false,
+    }));
 
-    const current = localImages[label] || [];
-    const updated = {
-      ...localImages,
-      [label]: [...current, ...newImages],
-    };
+    const current = localImages[label] || [];
+    const updated = {
+      ...localImages,
+      [label]: [...current, ...newImages],
+    };
 
-    setLocalImages(updated);
-    setImages && setImages(updated);
-  };
+    setLocalImages(updated);
+    setImages && setImages(updated);
+  };
 
-  // ❌ 删除
-  const removeImage = (label, index) => {
-    const current = localImages[label] || [];
-    const updated = {
-      ...localImages,
-      [label]: current.filter((_, i) => i !== index),
-    };
-    setLocalImages(updated);
-    setImages && setImages(updated);
-  };
+  // ❌ 删除
+  const removeImage = (label, index) => {
+    const current = localImages[label] || [];
+    const updated = {
+      ...localImages,
+      [label]: current.filter((_, i) => i !== index),
+    };
+    setLocalImages(updated);
+    setImages && setImages(updated);
+  };
 
-  // ⭐ 设置封面
-  const setCover = (label, index) => {
-    const current = localImages[label] || [];
-    const updated = {
-      ...localImages,
-      [label]: current.map((img, i) => ({
-        ...img,
-        isCover: i === index,
-      })),
-    };
+  // ⭐ 设置封面
+  const setCover = (label, index) => {
+    const current = localImages[label] || [];
+    const updated = {
+      ...localImages,
+      [label]: current.map((img, i) => ({
+        ...img,
+        isCover: i === index,
+      })),
+    };
 
-    setLocalImages(updated);
-    setImages && setImages(updated);
-  };
+    setLocalImages(updated);
+    setImages && setImages(updated);
+  };
 
-  // ⭐ 根据房型数据动态生成标签
-  const generateLabels = () => {
-    let labels = [];
+  // ⭐ 根据房型数据动态生成标签（和 subsale 一样）
+  const generateLabels = () => {
+    let labels = [];
 
-    // -------------------------
-    //  卧室
-    // -------------------------
-    if (safeConfig.bedrooms) {
-      const raw = String(safeConfig.bedrooms).trim().toLowerCase();
-      if (raw === "studio") {
-        labels.push("Studio");
-      } else {
-        const num = toCount(safeConfig.bedrooms);
-        for (let i = 1; i <= num; i++) {
-          labels.push(`卧室${i}`);
-        }
-      }
-    }
+    // -------------------------
+    //  卧室
+    // -------------------------
+    if (safeConfig.bedrooms) {
+      const raw = String(safeConfig.bedrooms).trim().toLowerCase();
+      if (raw === "studio") {
+        labels.push("Studio");
+      } else {
+        const num = toCount(safeConfig.bedrooms);
+        for (let i = 1; i <= num; i++) {
+          labels.push(`卧室${i}`);
+        }
+      }
+    }
 
-    // -------------------------
-    //  浴室
-    // -------------------------
-    {
-      const num = toCount(safeConfig.bathrooms);
-      for (let i = 1; i <= num; i++) {
-        labels.push(`浴室${i}`);
-      }
-    }
+    // -------------------------
+    //  浴室
+    // -------------------------
+    {
+      const num = toCount(safeConfig.bathrooms);
+      for (let i = 1; i <= num; i++) {
+        labels.push(`浴室${i}`);
+      }
+    }
 
-    // -------------------------
-    //  厨房
-    // -------------------------
-    {
-      const num = toCount(safeConfig.kitchens);
-      for (let i = 1; i <= num; i++) labels.push(`厨房${i}`);
-    }
+    // -------------------------
+    //  厨房
+    // -------------------------
+    {
+      const num = toCount(safeConfig.kitchens);
+      for (let i = 1; i <= num; i++) labels.push(`厨房${i}`);
+    }
 
-    // -------------------------
-    //  客厅
-    // -------------------------
-    {
-      const num = toCount(safeConfig.livingRooms);
-      for (let i = 1; i <= num; i++) labels.push(`客厅${i}`);
-    }
+    // -------------------------
+    //  客厅
+    // -------------------------
+    {
+      const num = toCount(safeConfig.livingRooms);
+      for (let i = 1; i <= num; i++) labels.push(`客厅${i}`);
+    }
 
-    // -------------------------
-    //  停车位（只要有值，就至少 1 个「停车位」）
-    // -------------------------
-    {
-      const v = safeConfig.carpark;
-      let added = false;
+    // -------------------------
+    //  停车位（New project：只生成 1 个）
+    // -------------------------
+    {
+      const v = safeConfig.carpark;
 
-      if (v) {
-        // single: "2" / 2
-        if (typeof v === "number" || typeof v === "string") {
-          const num = toCount(v);
-          if (num > 0) {
-            labels.push("停车位");
-            added = true;
-          }
-        }
+      if (v) {
+        // single: "2" / 2
+        if (typeof v === "number" || typeof v === "string") {
+          const num = toCount(v);
+          if (num > 0) labels.push("停车位");
+        }
 
-        // range: { min, max }
-        if (!added && typeof v === "object" && !Array.isArray(v)) {
-          const min = toCount(v.min);
-          const max = toCount(v.max);
-          if (min > 0 || max > 0) {
-            labels.push("停车位");
-            added = true;
-          }
-        }
-      }
+        // range: { min, max }
+        if (typeof v === "object") {
+          const min = toCount(v.min);
+          const max = toCount(v.max);
+          if (min > 0 || max > 0) labels.push("停车位");
+        }
+      }
+    }
 
-      // 如果有 carpark 值，但上面没识别出来，也补一个
-      if (!added && v !== undefined && v !== null && v !== "") {
-        labels.push("停车位");
-      }
-    }
+    // -------------------------
+    //  储藏室
+    // -------------------------
+    {
+      const num = toCount(safeConfig.store);
+      for (let i = 1; i <= num; i++) labels.push(`储藏室${i}`);
+    }
 
-    // -------------------------
-    //  储藏室
-    // -------------------------
-    {
-      const num = toCount(safeConfig.store);
-      for (let i = 1; i <= num; i++) labels.push(`储藏室${i}`);
-    }
+    // -------------------------
+    //  朝向 / 风景
+    // -------------------------
+    if (safeConfig.orientation) {
+      labels.push("朝向/风景");
+    }
 
-    // -------------------------
-    //  朝向（多选/单选都支持）
-    // -------------------------
-    {
-      const arr = toArray(safeConfig.orientation);
-      arr.forEach((item) => {
-        const name = getName(item);
-        if (name) labels.push(`朝向：${name}`);
-      });
-    }
+    // -------------------------
+    //  设施
+    // -------------------------
+    if (safeConfig.facilities?.length) {
+      safeConfig.facilities.forEach((facility) => {
+        if (typeof facility === "string") labels.push(facility);
+        else if (facility?.name) labels.push(facility.name);
+      });
+    }
 
-    // -------------------------
-    //  设施：每个设施一个上传框
-    //  subsale 那边 FacilitiesSelector 传的是 string[]
-    // -------------------------
-    {
-      const arr = toArray(safeConfig.facilities);
-      arr.forEach((item) => {
-        const name = getName(item);
-        if (name) labels.push(`设施：${name}`);
-      });
-    }
+    // -------------------------
+    //  额外空间
+    // -------------------------
+    if (safeConfig.extraSpaces?.length) {
+      safeConfig.extraSpaces.forEach((extra) => {
+        if (typeof extra === "string") {
+          labels.push(extra);
+        } else if (extra?.label) {
+          const count = toCount(extra.count || 1) || 1;
+          for (let i = 1; i <= count; i++) {
+            labels.push(`${extra.label}${i}`);
+          }
+        }
+      });
+    }
 
-    // -------------------------
-    //  额外空间：带数量的，拆成多个上传框
-    //  ExtraSpacesSelector 传的是 [{label:"阳台", count:"2"}, ...]
-    // -------------------------
-    {
-      const arr = toArray(safeConfig.extraSpaces);
-      arr.forEach((extra) => {
-        if (!extra) return;
+    // -------------------------
+    //  家私
+    // -------------------------
+    if (safeConfig.furniture?.length) {
+      safeConfig.furniture.forEach((item) => {
+        if (typeof item === "string") labels.push(item);
+        else if (item?.label) {
+          const count = toCount(item.count || 1) || 1;
+          for (let i = 1; i <= count; i++) {
+            labels.push(`${item.label}${i}`);
+          }
+        }
+      });
+    }
 
-        if (typeof extra === "string") {
-          labels.push(`额外空间：${extra}`);
-          return;
-        }
+    // -------------------------
+    //  平面图
+    // -------------------------
+    {
+      const num = toCount(safeConfig.floorPlans);
+      for (let i = 1; i <= num; i++) labels.push(`平面图${i}`);
+    }
 
-        const name = getName(extra);
-        if (!name) return;
+    // 去重
+    labels = [...new Set(labels)];
 
-        const c = toCount(extra.count || 1) || 1;
-        if (c <= 1) {
-          labels.push(`额外空间：${name}`);
-        } else {
-          for (let i = 1; i <= c; i++) {
-            labels.push(`额外空间：${name}${i}`);
-          }
-        }
-      });
-    }
+    // ⭐兜底：如果一个都没有，放一个「房源照片」
+    if (!labels.length) labels.push("房源照片");
 
-    // -------------------------
-    //  家私：带数量的，拆成多个上传框
-    //  FurnitureSelector 传的是 [{label:"椅子", count:"3"}, ...]
-    // -------------------------
-    {
-      const arr = toArray(safeConfig.furniture);
-      arr.forEach((item) => {
-        if (!item) return;
+    return labels;
+  };
 
-        if (typeof item === "string") {
-          labels.push(`家私：${item}`);
-          return;
-        }
+  const labels = generateLabels();
 
-        const name = getName(item);
-        if (!name) return;
+  return (
+    <div className="space-y-6">
+      {labels.map((label) => (
+        <div key={label} className="space-y-2 border rounded p-2">
+          <p className="font-semibold">{label}</p>
 
-        const c = toCount(item.count || 1) || 1;
-        if (c <= 1) {
-          labels.push(`家私：${name}`);
-        } else {
-          for (let i = 1; i <= c; i++) {
-            labels.push(`家私：${name}${i}`);
-          }
-        }
-      });
-    }
+          <input
+            type="file"
+            multiple
+            accept="image/*"
+            onChange={(e) => handleImageChange(e, label)}
+          />
 
-    // ❌ 按你的要求，不生成「公共交通 / 周边配套」上传框
-
-    // 去重
-    labels = [...new Set(labels)];
-
-    // ⭐兜底：如果一个都没有，放一个「房源照片」
-    if (!labels.length) labels.push("房源照片");
-
-    return labels;
-  };
-
-  const labels = generateLabels();
-
-  return (
-    <div className="space-y-6">
-      {labels.map((label) => (
-        <div key={label} className="space-y-2 border rounded p-2">
-          <p className="font-semibold">{label}</p>
-
-          <input
-            type="file"
-            multiple
-            accept="image/*"
-            onChange={(e) => handleImageChange(e, label)}
-          />
-
-          <ReactSortable
-            list={localImages[label] || []}
-            setList={(newList) => {
-              const updated = { ...localImages, [label]: newList };
-              setLocalImages(updated);
-              setImages && setImages(updated);
-            }}
-            className="grid grid-cols-3 gap-2"
-          >
-            {(localImages[label] || []).map((img, index) => (
-              <div key={img.url || index} className="relative">
-                <img
-                  src={img.url}
-                  alt={`preview-${index}`}
-                  className={`w-full h-32 object-cover rounded ${
-                    img.isCover ? "border-4 border-green-500" : ""
-                  }`}
-                />
-                <button
-                  type="button"
-                  className="absolute top-1 right-1 bg-red-500 text-white text-xs px-1 rounded"
-                  onClick={() => removeImage(label, index)}
-                >
-                  X
-                </button>
-                <button
-                  type="button"
-                  className="absolute bottom-1 left-1 bg-black text-white text-xs px-1 rounded"
-                  onClick={() => setCover(label, index)}
-                >
-                  {img.isCover ? "封面" : "设为封面"}
-                </button>
-              </div>
-            ))}
-          </ReactSortable>
-        </div>
-      ))}
-    </div>
-  );
+          <ReactSortable
+            list={localImages[label] || []}
+            setList={(newList) => {
+              const updated = { ...localImages, [label]: newList };
+              setLocalImages(updated);
+              setImages && setImages(updated);
+            }}
+            className="grid grid-cols-3 gap-2"
+          >
+            {(localImages[label] || []).map((img, index) => (
+              <div key={img.url || index} className="relative">
+                <img
+                  src={img.url}
+                  alt={`preview-${index}`}
+                  className={`w-full h-32 object-cover rounded ${
+                    img.isCover ? "border-4 border-green-500" : ""
+                  }`}
+                />
+                <button
+                  type="button"
+                  className="absolute top-1 right-1 bg-red-500 text-white text-xs px-1 rounded"
+                  onClick={() => removeImage(label, index)}
+                >
+                  X
+                </button>
+                <button
+                  type="button"
+                  className="absolute bottom-1 left-1 bg-black text-white text-xs px-1 rounded"
+                  onClick={() => setCover(label, index)}
+                >
+                  {img.isCover ? "封面" : "设为封面"}
+                </button>
+              </div>
+            ))}
+          </ReactSortable>
+        </div>
+      ))}
+    </div>
+  );
 }
