@@ -221,33 +221,19 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     handleFieldChange("layoutPhotos", newPhotos);
   };
 
-  // ⬇️ 供 ImageUpload 生成分组用的 config
+  // ⬇️ 供 ImageUpload 生成分组用的 config（⚠️ 这里不要再乱改类型，直接把原始数据塞给 ImageUpload）
   const config = {
-    // 房间数量
     bedrooms: roomCounts.bedrooms || "",
     bathrooms: roomCounts.bathrooms || "",
     kitchens: roomCounts.kitchens || "",
     livingRooms: roomCounts.livingRooms || "",
 
-    // 车位：可能是数字 / 字符串 / {min,max}
-    carpark: layout.carpark,
-
-    // 储藏室数量（数字）
-    store: layout.store || "",
-
-    // 额外空间：数组 [{label,count}, ...]
-    extraSpaces: Array.isArray(layout.extraSpaces) ? layout.extraSpaces : [],
-
-    // 家私：数组 [{label,count}, ...]
-    furniture: Array.isArray(layout.furniture) ? layout.furniture : [],
-
-    // 设施：数组 ['游泳池','健身房',...]
-    facilities: Array.isArray(layout.facilities) ? layout.facilities : [],
-
-    // 朝向：有值就会生成「朝向/风景」上传框
-    orientation: layout.facing || "",
-
-    // 交通信息（目前不用于生成标签，只是保持结构一致）
+    carpark: layout.carpark,           // 原样传递（可能是数字 / 字符串 / 对象）
+    store: layout.store,               // 储藏室原值
+    extraSpaces: layout.extraSpaces,   // 不再强制 Array.isArray
+    furniture: layout.furniture,
+    facilities: layout.facilities,
+    orientation: layout.facing,        // 不再加 || ""
     transit: layout.transit || null,
   };
 
