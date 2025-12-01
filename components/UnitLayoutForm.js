@@ -364,6 +364,9 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   const layout = data || {};
   const fileInputRef = useRef(null);
 
+  // ⭐ 本地记住当前选中的 Property Category
+  const [category, setCategory] = useState(layout.propertyCategory || "");
+
   // PSF 相关
   const [areaForPsf, setAreaForPsf] = useState(layout.buildUp || {});
   const [priceForPsf, setPriceForPsf] = useState(
@@ -480,16 +483,17 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         className="border p-2 rounded w-full mb-3"
       />
 
-      {/* Property Category */}
+            {/* Property Category */}
       <div className="mb-3">
         <label className="block font-medium mb-1">Property Category</label>
         <select
-          value={layout.propertyCategory || ""}
+          value={category}
           onChange={(e) => {
             const cat = e.target.value;
+            setCategory(cat); // ✅ 先更新本地 state，让下拉框马上记住
             updateLayout({
               propertyCategory: cat,
-              subType: "",
+              subType: "",  // 换了大类，清空 Sub Type
             });
           }}
           className="border p-2 rounded w-full"
