@@ -224,7 +224,6 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     // ⭐ 供 ImageUpload 生成分组用的 config
   //   完全对齐 subsale 的 photoConfig 结构
   const config = {
-    const config = {
     bedrooms: roomCounts.bedrooms || "",
     bathrooms: roomCounts.bathrooms || "",
     kitchens: roomCounts.kitchens || "",
