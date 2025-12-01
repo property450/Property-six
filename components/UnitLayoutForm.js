@@ -224,24 +224,21 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     // ⭐ 供 ImageUpload 生成分组用的 config
   //   完全对齐 subsale 的 photoConfig 结构
   const config = {
-    // 房间数量：优先 layout 里的值，退回到 roomCounts
-    bedrooms: layout.bedrooms ?? roomCounts.bedrooms ?? "",
-    bathrooms: layout.bathrooms ?? roomCounts.bathrooms ?? "",
-    kitchens: layout.kitchens ?? roomCounts.kitchens ?? "",
-    livingRooms: layout.livingRooms ?? roomCounts.livingRooms ?? "",
+    const config = {
+    bedrooms: roomCounts.bedrooms || "",
+    bathrooms: roomCounts.bathrooms || "",
+    kitchens: roomCounts.kitchens || "",
+    livingRooms: roomCounts.livingRooms || "",
 
-    // 车位：subsalae 那边传的是可能是 "" / 数字 / {min,max}
-    carpark: layout.carpark ?? "",
+    carpark: layout.carpark,
+    store: layout.store,
 
-    // 额外空间 / 家私 / 设施：和 subsale 一样，全部用数组
+    // ⭐ 保证一定是数组（和 subsale 一样）
     extraSpaces: layout.extraSpaces || [],
-    facilities: layout.facilities || [],
     furniture: layout.furniture || [],
+    facilities: layout.facilities || [],
 
-    // 朝向：FacingSelector 返回的是数组（例如 ["东","南"]）
-    orientation: layout.facing || "",
-
-    // 公共交通：有就传，没有就 null
+    orientation: layout.facing,
     transit: layout.transit || null,
   };
 
