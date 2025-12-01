@@ -18,8 +18,14 @@ function toCount(value) {
   return Math.floor(num);
 }
 
+// 把任意值转成数组，方便统一处理
+function toArray(val) {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  return [val];
+}
+
 export default function ImageUpload({ config, images, setImages }) {
-  // 避免 props 上没传 config 时每次生成新的 {} 导致无限循环
   const safeConfig = config || {};
 
   // 只在初始化时同步一次
@@ -162,95 +168,95 @@ export default function ImageUpload({ config, images, setImages }) {
     }
 
     // -------------------------
-    //  朝向 / 风景  ⭐这里是唯一改动的地方
+    //  朝向（重点）
     // -------------------------
     {
-      const ori = safeConfig.orientation;
-
-      if (Array.isArray(ori)) {
-        // FacingSelector 多选：["东","南"] => 朝向：东 / 朝向：南
-        ori.forEach((item) => {
-          if (!item) return;
-          const name =
-            typeof item === "string"
-              ? item
-              : item.label || item.value || item.name || "";
-          if (name) labels.push(`朝向：${name}`);
-        });
-      } else if (ori) {
-        // 单值：直接用字符串
-        labels.push(`朝向：${ori}`);
-      }
-    }
-
-    // -------------------------
-    //  设施
-    // -------------------------
-    {
-      const before = labels.length;
-      if (safeConfig.facilities?.length) {
-        safeConfig.facilities.forEach((facility) => {
-          if (typeof facility === "string") labels.push(facility);
-          else if (facility?.name) labels.push(facility.name);
-          else if (facility?.label) labels.push(facility.label);
-        });
-        // 如果一个名字都没推成功，给一个通用的
-        if (labels.length === before) {
-          labels.push("设施照片");
+      const oriArr = toArray(safeConfig.orientation);
+      oriArr.forEach((item) => {
+        if (!item) return;
+        const name =
+          typeof item === "string"
+            ? item
+            : item.label || item.value || item.name || "";
+        if (name) {
+          labels.push(`朝向：${name}`);
         }
-      }
+      });
     }
 
     // -------------------------
-    //  额外空间
+    //  设施（重点）
     // -------------------------
     {
-      const before = labels.length;
-      if (safeConfig.extraSpaces?.length) {
-        safeConfig.extraSpaces.forEach((extra) => {
-          if (typeof extra === "string") {
-            labels.push(extra);
-          } else if (extra?.label) {
-            const count = toCount(extra.count || 1) || 1;
-            for (let i = 1; i <= count; i++) {
-              labels.push(`${extra.label}${i}`);
-            }
+      const facArr = toArray(safeConfig.facilities);
+      facArr.forEach((facility) => {
+        if (!facility) return;
+        const name =
+          typeof facility === "string"
+            ? facility
+            : facility.label || facility.value || facility.name || "";
+        if (name) {
+          labels.push(`设施：${name}`);
+        }
+      });
+    }
+
+    // -------------------------
+    //  额外空间（重点）
+    // -------------------------
+    {
+      const extraArr = toArray(safeConfig.extraSpaces);
+      extraArr.forEach((extra) => {
+        if (!extra) return;
+
+        if (typeof extra === "string") {
+          labels.push(`额外空间：${extra}`);
+          return;
+        }
+
+        const name = extra.label || extra.value || "";
+        if (!name) return;
+
+        const count = toCount(extra.count || 1) || 1;
+        if (count <= 1) {
+          labels.push(`额外空间：${name}`);
+        } else {
+          for (let i = 1; i <= count; i++) {
+            labels.push(`额外空间：${name}${i}`);
           }
-        });
-        if (labels.length === before) {
-          labels.push("额外空间照片");
         }
-      }
+      });
     }
 
     // -------------------------
-    //  家私
+    //  家私（重点）
     // -------------------------
     {
-      const before = labels.length;
-      if (safeConfig.furniture?.length) {
-        safeConfig.furniture.forEach((item) => {
-          if (typeof item === "string") labels.push(item);
-          else if (item?.label) {
-            const count = toCount(item.count || 1) || 1;
-            for (let i = 1; i <= count; i++) {
-              labels.push(`${item.label}${i}`);
-            }
+      const furnArr = toArray(safeConfig.furniture);
+      furnArr.forEach((item) => {
+        if (!item) return;
+
+        if (typeof item === "string") {
+          labels.push(`家私：${item}`);
+          return;
+        }
+
+        const name = item.label || item.value || "";
+        if (!name) return;
+
+        const count = toCount(item.count || 1) || 1;
+        if (count <= 1) {
+          labels.push(`家私：${name}`);
+        } else {
+          for (let i = 1; i <= count; i++) {
+            labels.push(`家私：${name}${i}`);
           }
-        });
-        if (labels.length === before) {
-          labels.push("家私照片");
         }
-      }
+      });
     }
 
-    // -------------------------
-    //  平面图
-    // -------------------------
-    {
-      const num = toCount(safeConfig.floorPlans);
-      for (let i = 1; i <= num; i++) labels.push(`平面图${i}`);
-    }
+    // ❌ 按你的要求，不再生成「公共交通 / 周边配套」的上传框
+    // if (safeConfig.transit) { ... } 这块直接删掉
 
     // 去重
     labels = [...new Set(labels)];
