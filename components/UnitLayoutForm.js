@@ -221,18 +221,24 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   };
 
   // ⬇️ 供 ImageUpload 生成分组用的 config
-  const config = {
+    const config = {
     bedrooms: roomCounts.bedrooms || "",
     bathrooms: roomCounts.bathrooms || "",
     kitchens: roomCounts.kitchens || "",
     livingRooms: roomCounts.livingRooms || "",
+
     carpark: layout.carpark,
     store: layout.store || "",
+
     extraSpaces: layout.extraSpaces || [],
     facilities: layout.facilities || [],
     furniture: layout.furniture || [],
-    // ❗ new project 不需要朝向照片上传框，这里传空字符串
-    orientation: "",
+
+    // ⭐ 把 FacingSelector 选到的值传给 ImageUpload
+    // FacingSelector 返回可能是 ["东","南"] 这样的数组
+    orientation: layout.facing || [],
+
+    // 这里传不传都无所谓，因为 ImageUpload 不会用 transit 生成上传框
     transit: layout.transit || null,
   };
 
