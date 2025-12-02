@@ -14,6 +14,7 @@ import CarparkLevelSelector from "./CarparkLevelSelector";
 import RoomCountSelector from "./RoomCountSelector";
 import AreaSelector from "./AreaSelector";
 import TransitSelector from "./TransitSelector";
+import FloorCountSelector from "./FloorCountSelector"; // ⭐ 新增
 
 /** 把 AreaSelector 返回的对象，转换成「总平方英尺」 */
 function getAreaSqftFromAreaSelector(area) {
@@ -123,17 +124,11 @@ const CATEGORY_OPTIONS = {
   ],
   "Semi-Detached House": ["Cluster House", "Semi-Detached House"],
   "Terrace / Link House": [
-    "1-storey Terraced House",
-    "1.5-storey Terraced House",
-    "2-storey Terraced House",
-    "2.5-storey Terraced House",
-    "3-storey Terraced House",
-    "3.5-storey Terraced House",
-    "4-storey Terraced House",
-    "4.5-storey Terraced House",
+    // ✅ 精简后的版本
     "Terraced House",
     "Townhouse",
   ],
+  
   "Business Property": [
     "Hotel / Resort",
     "Hostel / Dormitory",
@@ -181,6 +176,15 @@ const CATEGORY_OPTIONS = {
     "Vacant Agricultural Land",
   ],
 };
+
+// ⭐ 哪些 Category 需要显示「有多少层」
+const NEED_STOREYS_CATEGORY = new Set([
+  "Bungalow / Villa",
+  "Business Property",
+  "Industrial Property",
+  "Semi-Detached House",
+  "Terrace / Link House",
+]);
 
 // 千分位格式化
 const formatNumber = (num) => {
@@ -336,6 +340,9 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   // ⭐ Property Category / Sub Type（本地记住）
   const [category, setCategory] = useState(layout.propertyCategory || "");
   const [subType, setSubType] = useState(layout.subType || "");
+  const [storeys, setStoreys] = useState(
+  layout.storeys ? String(layout.storeys) : ""
+);
 
   // ⭐ 房型单位数量：一个框，既能输入又能下拉选
   const [unitCountLocal, setUnitCountLocal] = useState(
@@ -346,10 +353,11 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 
   // 数据变化时同步一次（防止父组件重置）
   useEffect(() => {
-    setCategory(layout.propertyCategory || "");
-    setSubType(layout.subType || "");
-    setUnitCountLocal(layout.unitCount ? String(layout.unitCount) : "");
-  }, [layout.propertyCategory, layout.subType, layout.unitCount]);
+  setCategory(layout.propertyCategory || "");
+  setSubType(layout.subType || "");
+  setUnitCountLocal(layout.unitCount ? String(layout.unitCount) : "");
+  setStoreys(layout.storeys ? String(layout.storeys) : ""); // ⭐ 新增
+}, [layout.propertyCategory, layout.subType, layout.unitCount, layout.storeys]);
 
   // 点击外面关闭下拉
   useEffect(() => {
@@ -504,28 +512,44 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         </select>
       </div>
 
-      {/* Sub Type */}
-      {category && CATEGORY_OPTIONS[category] && (
-        <div className="mb-3">
-          <label className="block font-medium mb-1">Sub Type</label>
-          <select
-            value={subType}
-            onChange={(e) => {
-              const val = e.target.value;
-              setSubType(val);
-              handleFieldChange("subType", val);
-            }}
-            className="border p-2 rounded w-full"
-          >
-            <option value="">请选择具体类型</option>
-            {CATEGORY_OPTIONS[category].map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
+
+    {/* Sub Type */}
+{category && CATEGORY_OPTIONS[category] && (
+  <>
+    <div className="mb-3">
+      <label className="block font-medium mb-1">Sub Type</label>
+      <select
+        value={subType}
+        onChange={(e) => {
+          const val = e.target.value;
+          setSubType(val);
+          handleFieldChange("subType", val);
+        }}
+        className="border p-2 rounded w-full"
+      >
+        <option value="">请选择具体类型</option>
+        {CATEGORY_OPTIONS[category].map((item) => (
+          <option key={item} value={item}>
+            {item}
+          </option>
+        ))}
+      </select>
+    </div>
+
+    {/* ⭐ 在指定 Category 时，Sub Type 下面多一个「有多少层」 */}
+    {NEED_STOREYS_CATEGORY.has(category) && (
+      <div className="mb-3">
+        <FloorCountSelector
+          value={storeys}
+          onChange={(val) => {
+            setStoreys(val);
+            handleFieldChange("storeys", val); // 存进 layout.unit_layouts 里
+          }}
+        />
+      </div>
+    )}
+  </>
+)}
 
       {/* 这个房型有多少个单位？：一个框 + 下拉选择 */}
       <div className="mb-3" ref={unitCountRef}>
