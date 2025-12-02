@@ -599,7 +599,7 @@ const [showSubtype, setShowSubtype] = useState(false);
         </select>
       </div>
     )}
-  </>
+</div>
 )}
 
       {/* 这个房型有多少个单位？：一个框 + 下拉选择 */}
