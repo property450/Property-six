@@ -1,43 +1,79 @@
 // components/FloorCountSelector.js
 "use client";
 
-const STOREY_OPTIONS = Array.from({ length: 400 }, (_, index) => {
-  const val = 1 + index * 0.5; // 1, 1.5, 2, 2.5 ... 到 200
-  // 把 2.0 这种变成 2
-  return Number.isInteger(val) ? String(val) : String(val);
-});
+import { useState, useRef, useEffect } from "react";
 
 export default function FloorCountSelector({ value, onChange }) {
-  const handleChange = (e) => {
-    const val = e.target.value;
-    // 允许清空（删除），也允许手动输入任意数字/小数
-    onChange?.(val);
-  };
+  const [open, setOpen] = useState(false);
+  const [inputValue, setInputValue] = useState(value || "");
+  const wrapperRef = useRef(null);
+
+  // 生成 1, 1.5, 2 ... 200
+  const storeyOptions = [];
+  for (let v = 1; v <= 200; v += 0.5) {
+    storeyOptions.push(Number.isInteger(v) ? String(v) : String(v));
+  }
+
+  // 过滤（如果输入“2”，显示例如 2 / 2.5 / 12 / 20）
+  const filteredOptions = storeyOptions.filter((opt) =>
+    opt.startsWith(inputValue)
+  );
+
+  // 点击外面关闭
+  useEffect(() => {
+    const handler = (e) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   return (
-    <div className="mt-3 space-y-1">
-      <label className="block text-sm font-medium text-gray-700">
-        有多少层（Storeys）
-      </label>
+    <div className="mb-3" ref={wrapperRef}>
+      <label className="block font-medium mb-1">有多少层（Storeys）</label>
 
-      {/* 使用 datalist：既有下拉选，又能手动输入 */}
-      <input
-        list="storey-options"
-        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-        placeholder="例如：2 或 2.5"
-        value={value || ""}
-        onChange={handleChange}
-      />
+      <div className="relative">
+        {/* 白色输入框 */}
+        <input
+          type="text"
+          placeholder="例如：2 或 2.5"
+          value={inputValue}
+          onChange={(e) => {
+            const val = e.target.value;
+            setInputValue(val);
+            onChange(val); // 手动输入时同步父组件
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          className="border p-2 rounded w-full bg-white"
+        />
 
-      <datalist id="storey-options">
-        {STOREY_OPTIONS.map((val) => (
-          <option key={val} value={val} />
-        ))}
-      </datalist>
+        {/* 白色下拉面板 */}
+        {open && (
+          <ul className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+            <li className="px-3 py-2 text-gray-500 cursor-default border-b select-none">
+              从 1 ~ 200 中选择，或直接输入
+            </li>
 
-      <p className="mt-1 text-xs text-gray-500">
-        可以从下拉列表选择，也可以直接输入或清空。
-      </p>
+            {filteredOptions.map((opt) => (
+              <li
+                key={opt}
+                className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                onMouseDown={(e) => {
+                  e.preventDefault(); // 避免 input 失焦
+                  setInputValue(opt);
+                  onChange(opt); // 选中后回传父组件
+                  setOpen(false);
+                }}
+              >
+                {opt}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
