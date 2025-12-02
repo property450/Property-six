@@ -711,4 +711,104 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       {/* 车位楼层 */}
       <CarparkLevelSelector
         value={layout.carparkPosition}
-        onChange={(val) 
+        onChange={(val) => handleFieldChange("carparkPosition", val)}
+        mode="range"
+      />
+
+      {/* 家具 / 设施 */}
+      <FurnitureSelector
+        value={photoConfig.furniture}
+        onChange={(val) => {
+          setPhotoConfig((prev) => ({ ...prev, furniture: val }));
+          handleFieldChange("furniture", val);
+        }}
+      />
+
+      <FacilitiesSelector
+        value={photoConfig.facilities}
+        onChange={(val) => {
+          setPhotoConfig((prev) => ({ ...prev, facilities: val }));
+          handleFieldChange("facilities", val);
+        }}
+      />
+
+          {/* 交通信息（每个 layout 自己的） */}
+      <div className="mb-4">
+        <label className="font-medium">交通信息</label>
+        <TransitSelector
+          onChange={(val) => {
+            handleFieldChange("transit", val);
+          }}
+        />
+      </div>
+
+      {/* 建成年份 + 季度 */}
+      <BuildYearSelector
+        value={layout.buildYear}
+        onChange={(val) => handleFieldChange("buildYear", val)}
+        quarter={layout.quarter}
+        onQuarterChange={(val) => handleFieldChange("quarter", val)}
+        showQuarter={true}
+      />
+
+          {/* 每个 Layout 自己的房源描述 */}
+      <div className="mt-3 mb-3">
+        <label className="block font-medium mb-1">房源描述</label>
+        <textarea
+          value={layout.description || ""}
+          onChange={(e) => handleFieldChange("description", e.target.value)}
+          placeholder="请输入这个房型的详细描述..."
+          rows={3}
+          className="w-full border rounded-lg p-2 resize-y"
+        />
+      </div>
+
+      {/* 上传此 Layout 的照片 */}
+      <div className="mb-3">
+        <label className="block mb-1 font-medium">上传此 Layout 的照片</label>
+        <div className="space-y-4">
+          {uploadLabels.map((label) => (
+            <div key={label} className="space-y-2 border rounded p-2">
+              <p className="font-semibold">{label}</p>
+
+              <input
+                type="file"
+                 multiple
+                accept="image/*"
+                onChange={(e) => handlePhotoChange(e, label)}
+              />
+
+              <div className="grid grid-cols-3 gap-2">
+                {(photosByLabel[label] || []).map((img, index) => (
+                  <div key={img.url || index} className="relative">
+                    <img
+                      src={img.url}
+                      alt={`preview-${index}`}
+                      className={`w-full h-32 object-cover rounded ${
+                        img.isCover ? "border-4 border-green-500" : ""
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      className="absolute top-1 right-1 bg-red-500 text-white text-xs px-1 rounded"
+                      onClick={() => removePhoto(label, index)}
+                    >       
+                        X
+                    </button>
+                    <button
+                      type="button"
+                      className="absolute bottom-1 left-1 bg-black text-white text-xs px-1 rounded"
+                      onClick={() => setCover(label, index)}
+                    >
+                      {img.isCover ? "封面" : "设为封面"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
