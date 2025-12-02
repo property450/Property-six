@@ -177,6 +177,15 @@ const CATEGORY_OPTIONS = {
   ],
 };
 
+// ⭐ 布局里的 Property Subtype（跟 TypeSelector 一样）
+const SUBTYPE_OPTIONS = [
+  "Penthouse",
+  "Duplex",
+  "Triplex",
+  "Dual Key",
+  "None / Not Applicable",
+];
+
 // ⭐ 哪些 Category 需要显示「有多少层」
 const NEED_STOREYS_CATEGORY = new Set([
   "Bungalow / Villa",
@@ -343,6 +352,11 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   const [storeys, setStoreys] = useState(
   layout.storeys ? String(layout.storeys) : ""
 );
+  const [propertySubtype, setPropertySubtype] = useState(
+  layout.propertySubtype || ""
+);
+const [showSubtype, setShowSubtype] = useState(false);
+
 
   // ⭐ 房型单位数量：一个框，既能输入又能下拉选
   const [unitCountLocal, setUnitCountLocal] = useState(
@@ -356,8 +370,20 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   setCategory(layout.propertyCategory || "");
   setSubType(layout.subType || "");
   setUnitCountLocal(layout.unitCount ? String(layout.unitCount) : "");
-  setStoreys(layout.storeys ? String(layout.storeys) : ""); // ⭐ 新增
-}, [layout.propertyCategory, layout.subType, layout.unitCount, layout.storeys]);
+  setPropertySubtype(layout.propertySubtype || ""); // ⭐ 新增
+}, [
+  layout.propertyCategory,
+  layout.subType,
+  layout.unitCount,
+  layout.propertySubtype,
+]);
+
+  useEffect(() => {
+  const shouldShow =
+    category === "Apartment / Condo / Service Residence" ||
+    category === "Business Property";
+  setShowSubtype(shouldShow);
+}, [category]);
 
   // 点击外面关闭下拉
   useEffect(() => {
@@ -546,6 +572,31 @@ export default function UnitLayoutForm({ index, data, onChange }) {
             handleFieldChange("storeys", val); // 存进 layout.unit_layouts 里
           }}
         />
+      </div>
+    )}
+  </>
+)}
+
+{/* ⭐ Property Subtype：只在 Apartment / Business 这些需要时显示 */}
+    {showSubtype && (
+      <div className="mb-3">
+        <label className="block font-medium mb-1">Property Subtype</label>
+        <select
+          className="border p-2 rounded w-full"
+          value={propertySubtype}
+          onChange={(e) => {
+            const val = e.target.value;
+            setPropertySubtype(val);
+            handleFieldChange("propertySubtype", val);
+          }}
+        >
+          <option value="">请选择 subtype（如有）</option>
+          {SUBTYPE_OPTIONS.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </select>
       </div>
     )}
   </>
