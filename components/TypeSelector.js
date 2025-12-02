@@ -111,19 +111,12 @@ useEffect(() => {
   const categoryOptions = {
     'Bungalow / Villa': ['Bungalow', 'Link Bungalow', 'Twin Villa', 'Zero-Lot Bungalow', 'Bungalow land'],
     'Apartment / Condo / Service Residence': ['Apartment', 'Condominium', 'Flat', 'Service Residence'],
-    'Semi-Detached House': ['Cluster House', 'Semi-Detached House'],
-    'Terrace / Link House': [
-      '1-storey Terraced House',
-      '1.5-storey Terraced House',
-      '2-storey Terraced House',
-      '2.5-storey Terraced House',
-      '3-storey Terraced House',
-      '3.5-storey Terraced House',
-      '4-storey Terraced House',
-      '4.5-storey Terraced House',
-      'Terraced House',
-      'Townhouse',
-    ],
+    "Semi-Detached House": ["Cluster House", "Semi-Detached House"],
+"Terrace / Link House": [
+  "Terraced House",
+  "Townhouse",
+],
+
     'Business Property': [
       'Hotel / Resort',
       'Hostel / Dormitory',
