@@ -20,9 +20,7 @@ export default function TypeSelector({
   const [subtype, setSubtype] = useState("");
   const [auctionDate, setAuctionDate] = useState("");
   const [showSubtype, setShowSubtype] = useState(false);
-
-  // ⭐ 新增：有多少层（storeys）
-  const [storeys, setStoreys] = useState("");
+  const [storeys, setStoreys] = useState(""); // ⭐ 有多少层
 
   const subtypeOptions = [
     "Penthouse",
@@ -70,7 +68,7 @@ export default function TypeSelector({
     if (value && value !== finalType) {
       setFinalType(value);
     }
-    // ⚠️ 不依赖 finalType，否则每次都会循环
+    // ⚠️ 不依赖 finalType，否则会循环
   }, [value]);
 
   // 当 saleType 或 finalType 改变时，组合成对外暴露的字符串
@@ -82,12 +80,10 @@ export default function TypeSelector({
       newValue = finalType;
     }
 
-    // 只在确实不同的时候才回传
     if (newValue && newValue !== value) {
       onChange(newValue);
     }
-    // ⚠️ 不依赖 value，否则会循环
-  }, [saleType, finalType, onChange]);
+  }, [saleType, finalType, onChange]); // 不依赖 value
 
   const categoryOptions = {
     "Bungalow / Villa": [
@@ -105,7 +101,7 @@ export default function TypeSelector({
     ],
     "Semi-Detached House": ["Cluster House", "Semi-Detached House"],
     "Terrace / Link House": [
-      // ✅ 按你要求，只保留这两个
+      // ✅ 只保留这两个
       "Terraced House",
       "Townhouse",
     ],
@@ -195,9 +191,21 @@ export default function TypeSelector({
     "Agricultural",
   ];
 
-  const showCategory = saleType === "Rent" || usage;
+  // ⭐ 当前是否为「项目类」成交状态（New Project / Completed Unit）
+  const isProjectStatus =
+    propertyStatus === "New Project / Under Construction" ||
+    propertyStatus === "Completed Unit / Developer Unit";
 
-  // ⭐ 哪些 Category 需要显示「有多少层」
+  // ⭐ Property Category 什么时候显示？
+  // 1. Sale & 非项目类（Subsale / Auction / RTO）
+  // 2. Rent
+  // 3. 或者已经选了 usage（但项目类仍然不显示）
+  const showCategory =
+    (!isProjectStatus && saleType === "Sale") ||
+    saleType === "Rent" ||
+    (!isProjectStatus && !!usage);
+
+  // 哪些 Category 要显示「有多少层」
   const needStoreysCategories = new Set([
     "Bungalow / Villa",
     "Business Property",
@@ -206,7 +214,7 @@ export default function TypeSelector({
     "Terrace / Link House",
   ]);
 
-  // 如果外部希望得到整个表单数据，可以传 onFormChange 回调（可选）
+  // 把所有表单字段回传给父组件（UploadProperty 用 onFormChange 拿 propertyStatus 等）
   useEffect(() => {
     const formData = {
       saleType,
@@ -219,7 +227,7 @@ export default function TypeSelector({
       finalType,
       subtype,
       auctionDate,
-      storeys, // ⭐ 把有多少层一并回传给父组件
+      storeys,
     };
     if (typeof onFormChange === "function") {
       onFormChange(formData);
@@ -250,8 +258,18 @@ export default function TypeSelector({
           className="w-full border rounded p-2"
           value={saleType}
           onChange={(e) => {
-            setSaleType(e.target.value);
+            const newSaleType = e.target.value;
+            setSaleType(newSaleType);
             setFinalType("");
+
+            // 如果切去 Homestay/Hotel，清空 Sale 专用字段
+            if (newSaleType === "Homestay" || newSaleType === "Hotel/Resort") {
+              setUsage("");
+              setPropertyStatus("");
+              setCategory("");
+              setSubtype("");
+              setStoreys("");
+            }
           }}
         >
           <option value="">请选择</option>
@@ -326,7 +344,23 @@ export default function TypeSelector({
             <select
               className="w-full border rounded p-2"
               value={propertyStatus}
-              onChange={(e) => setPropertyStatus(e.target.value)}
+              onChange={(e) => {
+                const status = e.target.value;
+                setPropertyStatus(status);
+
+                const nextIsProject =
+                  status === "New Project / Under Construction" ||
+                  status === "Completed Unit / Developer Unit";
+
+                // ⭐ 从 Subsale 切去 New Project / Completed Unit：
+                // 1. 顶部的 Property Category / Subtype / 层数全部清空
+                // 2. 顶部 Category 隐藏，只保留 Layout 里的 Category
+                if (nextIsProject) {
+                  setCategory("");
+                  setSubtype("");
+                  setStoreys("");
+                }
+              }}
             >
               <option value="">请选择</option>
               {saleTypeOptions.map((t) => (
@@ -364,9 +398,7 @@ export default function TypeSelector({
 
           {affordable === "Yes" && (
             <div>
-              <label className="block font-medium">
-                Affordable Housing Type
-              </label>
+              <label className="block font-medium">Affordable Housing Type</label>
               <select
                 className="w-full border rounded p-2"
                 value={affordableType}
@@ -400,98 +432,103 @@ export default function TypeSelector({
         </>
       )}
 
-      {/* Property Category */}
-      {showCategory && saleType !== "Homestay" && saleType !== "Hotel/Resort" && (
-        <>
-          <div>
-            <label className="block font-medium">Property Category</label>
-            <select
-              className="w-full border rounded p-2"
-              value={category}
-              onChange={(e) => {
-                const newCat = e.target.value;
-                setCategory(newCat);
-                setFinalType("");
-                setSubtype("");
-                setShowSubtype(false);
-                setStoreys(""); // ⭐ 切换 Category 时清空层数
-              }}
-            >
-              <option value="">请选择类别</option>
-              {Object.keys(categoryOptions)
-                .filter((cat) => {
-                  if (affordable === "Yes") {
-                    return ![
-                      "Business Property",
-                      "Industrial Property",
-                      "Land",
-                    ].includes(cat);
-                  }
-                  return true;
-                })
-                .map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-            </select>
-          </div>
-
-          {category && categoryOptions[category] && (
-            <>
-              <div>
-                <label className="block font-medium">Sub Type</label>
-                <select
-                  className="w-full border rounded p-2"
-                  value={finalType}
-                  onChange={(e) => {
-                    const selected = e.target.value;
-                    setFinalType(selected);
-
-                    const shouldShow =
-                      category === "Apartment / Condo / Service Residence" ||
-                      category === "Business Property";
-                    setShowSubtype(shouldShow);
-                  }}
-                >
-                  <option value="">请选择具体类型</option>
-                  {categoryOptions[category].map((item) => (
-                    <option key={item} value={item}>
-                      {item}
+      {/* Property Category —— 只在 非 Homestay/Hotel 且 非项目类 时显示 */}
+      {showCategory &&
+        saleType !== "Homestay" &&
+        saleType !== "Hotel/Resort" &&
+        !isProjectStatus && (
+          <>
+            <div>
+              <label className="block font-medium">Property Category</label>
+              <select
+                className="w-full border rounded p-2"
+                value={category}
+                onChange={(e) => {
+                  const newCat = e.target.value;
+                  setCategory(newCat);
+                  setFinalType("");
+                  setSubtype("");
+                  setStoreys("");
+                }}
+              >
+                <option value="">请选择类别</option>
+                {Object.keys(categoryOptions)
+                  .filter((cat) => {
+                    if (affordable === "Yes") {
+                      return ![
+                        "Business Property",
+                        "Industrial Property",
+                        "Land",
+                      ].includes(cat);
+                    }
+                    return true;
+                  })
+                  .map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
                     </option>
                   ))}
-                </select>
-              </div>
+              </select>
+            </div>
 
-              {/* ⭐ 指定 Category 时，在 Sub Type 下面显示「有多少层」 */}
-              {needStoreysCategories.has(category) && (
-                <FloorCountSelector
-                  value={storeys}
-                  onChange={(val) => setStoreys(val)}
-                />
-              )}
-
-              {showSubtype && (
+            {category && categoryOptions[category] && (
+              <>
                 <div>
-                  <label className="block font-medium">Property Subtype</label>
+                  <label className="block font-medium">Sub Type</label>
                   <select
                     className="w-full border rounded p-2"
-                    value={subtype}
-                    onChange={(e) => setSubtype(e.target.value)}
+                    value={finalType}
+                    onChange={(e) => {
+                      const selected = e.target.value;
+                      setFinalType(selected);
+
+                      const shouldShowSubtype =
+                        category ===
+                          "Apartment / Condo / Service Residence" ||
+                        category === "Business Property";
+                      setShowSubtype(shouldShowSubtype);
+                    }}
                   >
-                    <option value="">请选择 subtype（如有）</option>
-                    {subtypeOptions.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
+                    <option value="">请选择具体类型</option>
+                    {categoryOptions[category].map((item) => (
+                      <option key={item} value={item}>
+                        {item}
                       </option>
                     ))}
                   </select>
                 </div>
-              )}
-            </>
-          )}
-        </>
-      )}
+
+                {/* 有多少层（和你 Layout 里的一样白色下拉） */}
+                {needStoreysCategories.has(category) && (
+                  <FloorCountSelector
+                    value={storeys}
+                    onChange={(val) => setStoreys(val)}
+                  />
+                )}
+
+                {showSubtype && (
+                  <div>
+                    <label className="block font-medium">
+                      Property Subtype
+                    </label>
+                    <select
+                      className="w-full border rounded p-2"
+                      value={subtype}
+                      onChange={(e) => setSubtype(e.target.value)}
+                    >
+                      <option value="">请选择 subtype（如有）</option>
+                      {subtypeOptions.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </>
+            )}
+          </>
+        )}
     </div>
   );
 }
