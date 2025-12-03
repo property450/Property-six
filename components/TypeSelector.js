@@ -453,12 +453,12 @@ export default function TypeSelector({
               >
                 <option value="">请选择类别</option>
                 {Object.keys(categoryOptions)
-                  <option key={cat} value={cat}>
-            {cat}
-          </option>
-        ))}
-      </select>
-    </div>
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+              </select>
+            </div>
 
             {category && categoryOptions[category] && (
               <>
@@ -520,4 +520,4 @@ export default function TypeSelector({
         )}
     </div>
   );
-}
+                  }
