@@ -73,17 +73,17 @@ export default function TypeSelector({
 
   // 当 saleType 或 finalType 改变时，组合成对外暴露的字符串
   useEffect(() => {
-    let newValue;
-    if (saleType === "Homestay" || saleType === "Hotel/Resort") {
-      newValue = finalType ? `${saleType} - ${finalType}` : "";
-    } else {
-      newValue = finalType;
-    }
+  let newValue = "";
 
-    if (newValue && newValue !== value) {
-      onChange(newValue);
-    }
-  }, [saleType, finalType, onChange]); // 不依赖 value
+  if (saleType === "Homestay" || saleType === "Hotel/Resort") {
+    newValue = finalType ? `${saleType} - ${finalType}` : saleType;
+  } else {
+    newValue = finalType || saleType || "";
+  }
+
+  // 始终同步给父组件
+  onChange(newValue);
+}, [saleType, finalType]);
 
   const categoryOptions = {
     "Bungalow / Villa": [
