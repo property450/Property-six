@@ -348,6 +348,19 @@ export default function UploadProperty() {
             mode="single"
           />
 
+                        {/* 车位位置（Subsale / 普通房源用 single 模式） */}
+          <CarparkLevelSelector
+            value={singleFormData.carparkPosition}
+            onChange={(val) =>
+              setSingleFormData((prev) => ({
+                ...prev,
+                carparkPosition: val,
+              }))
+            }
+            mode="single"
+          />
+
+
           <ExtraSpacesSelector
             value={singleFormData.extraSpaces || []}
             onChange={(val) =>
@@ -402,17 +415,6 @@ export default function UploadProperty() {
           <AdvancedAvailabilityCalendar
             value={availability}
             onChange={setAvailability}
-          />
-
-          <CarparkLevelSelector
-            value={singleFormData.carparkPosition}
-            onChange={(val) =>
-              setSingleFormData((prev) => ({
-                ...prev,
-                carparkPosition: val,
-              }))
-            }
-            mode={isProject ? "range" : "single"}
           />
 
           <BuildYearSelector
