@@ -433,32 +433,29 @@ export default function TypeSelector({
       )}
 
       {/* Property Category —— 只在 非 Homestay/Hotel 且 非项目类 时显示 */}
-      {showCategory &&
-        saleType !== "Homestay" &&
-        saleType !== "Hotel/Resort" &&
-        !isProjectStatus && (
-          <>
-            <div>
-              <label className="block font-medium">Property Category</label>
-              <select
-                className="w-full border rounded p-2"
-                value={category}
-                onChange={(e) => {
-                  const newCat = e.target.value;
-                  setCategory(newCat);
-                  setFinalType("");
-                  setSubtype("");
-                  setStoreys("");
-                }}
-              >
-                <option value="">请选择类别</option>
-                {Object.keys(categoryOptions)
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-              </select>
-            </div>
+      {/* Property Category */}
+{showCategory && saleType !== 'Homestay' && saleType !== 'Hotel/Resort' && (
+  <>
+    <div>
+      <label className="block font-medium">Property Category</label>
+      <select
+        className="w-full border rounded p-2"
+        value={category}
+        onChange={(e) => {
+          setCategory(e.target.value);
+          setFinalType('');
+          setSubtype('');
+          setShowSubtype(false);
+        }}
+      >
+        <option value="">请选择类别</option>
+        {Object.keys(categoryOptions).map((cat) => (
+          <option key={cat} value={cat}>
+            {cat}
+          </option>
+        ))}
+      </select>
+    </div>
 
             {category && categoryOptions[category] && (
               <>
