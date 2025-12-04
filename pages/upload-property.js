@@ -1,5 +1,6 @@
 // pages/upload-property.js
 "use client";
+
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import dynamic from "next/dynamic";
@@ -47,9 +48,8 @@ export default function UploadProperty() {
   const [address, setAddress] = useState("");
   const [latitude, setLatitude] = useState(null);
   const [longitude, setLongitude] = useState(null);
-  const [rentBatchMode, setRentBatchMode] = useState("no"); // "no" | "yes"
 
-  // type: Sale / Rent / Homestay / Hotel
+  // type: Sale / Rent / Homestay / Hotel/Resort
   const [type, setType] = useState("");
   // propertyStatus: New Project / Completed Unit / Subsale 等
   const [propertyStatus, setPropertyStatus] = useState("");
@@ -214,36 +214,45 @@ export default function UploadProperty() {
     <div className="max-w-3xl mx-auto p-4 space-y-4">
       <h1 className="text-2xl font-bold mb-4">上传房源</h1>
 
+      {/* 标题 */}
+      <div className="space-y-2">
+        <label
+          htmlFor="title"
+          className="block text-sm font-medium text-gray-700"
+        >
+          标题
+        </label>
+        <input
+          id="title"
+          type="text"
+          className="w-full border rounded-lg p-2"
+          placeholder="例如：KLCC 附近高楼公寓，3 房 2 卫"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+        />
+      </div>
+
       {/* 地址 */}
       <AddressSearchInput onLocationSelect={handleLocationSelect} />
 
       {/* 类型 & 成交状态 */}
       <TypeSelector
-  value={type}
-  onChange={setType}
-  rentBatchMode={rentBatchMode}                 // ⭐ 新增
-  onChangeRentBatchMode={setRentBatchMode}      // ⭐ 新增
-  onFormChange={(formData) => {
-    const newStatus = formData?.propertyStatus || "";
-    setPropertyStatus((prev) => {
-      if (prev === newStatus) return prev;
-      return newStatus;
-    });
-  }}
-/>
-
-      {/* Rent 专用：是否批量操作（多个房型 / Layout） */}
-      
+        value={type}
+        onChange={setType}
+        rentBatchMode={rentBatchMode} // ⭐ 传入 Rent 批量模式
+        onChangeRentBatchMode={setRentBatchMode} // ⭐ 接收 Rent 批量模式
+        onFormChange={(formData) => {
+          const newStatus = formData?.propertyStatus || "";
+          setPropertyStatus((prev) => {
+            if (prev === newStatus) return prev;
+            return newStatus;
+          });
+        }}
+      />
 
       {/* ------------ 项目类房源 (New Project / Completed Unit / Developer Unit / Rent 批量) ------------ */}
       {isProject ? (
         <>
-
-        // 上面 isBulkRentProject 已经有：type === "Rent" && rentBatchMode === "yes"
-const computedStatus = isBulkRentProject
-  ? "Completed Unit (Rent)"    // ⭐ 让 UnitTypeSelector 以为这是 Completed Unit
-  : propertyStatus;
-       
           <UnitTypeSelector
             propertyStatus={propertyStatus}
             layouts={unitLayouts}
@@ -332,9 +341,7 @@ const computedStatus = isBulkRentProject
               const priceVal = singleFormData.price;
               if (!totalAreaSqft || !priceVal) return null;
 
-              const priceNum = Number(
-                String(priceVal).replace(/,/g, "")
-              );
+              const priceNum = Number(String(priceVal).replace(/,/g, ""));
               if (!priceNum || !isFinite(priceNum)) return null;
 
               const psf = priceNum / totalAreaSqft;
