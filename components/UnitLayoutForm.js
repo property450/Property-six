@@ -340,6 +340,10 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   const layout = data || {};
   const fileInputRef = useRef(null);
 
+  // 在 UnitLayoutForm 组件函数内部最前面先取出 layout：
+const layout = data || {};
+const isBulkRent = layout.rentMode === "Rent";
+
   // Category / SubType / SubtypeExtra / 层数
   const [category, setCategory] = useState(layout.propertyCategory || "");
   const [subType, setSubType] = useState(layout.subType || "");
@@ -652,6 +656,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       <PriceInput
         value={priceForPsf}
         onChange={(val) => {
+          listingMode={isBulkRent ? "Rent" : "Sale"}   // ⭐ Rent 批量时走 Rent 模式
           setPriceForPsf(val);
           handleFieldChange("price", val);
         }}
