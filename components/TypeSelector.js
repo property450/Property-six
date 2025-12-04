@@ -23,7 +23,7 @@ export default function TypeSelector({
   const [subtype, setSubtype] = useState("");     // Penthouse / Duplex...
   const [auctionDate, setAuctionDate] = useState("");
   const [showSubtype, setShowSubtype] = useState(false);
-  const [storeys, setStoreys] = useState("");     // ⭐ 有多少层（单一 Rent 用）
+  const [storeys, setStoreys] = useState("");     // ⭐ 有多少层（单一 Rent、Subsale 用）
 
   // ================= Homestay / Hotel 选项 =================
   const subtypeOptions = [
@@ -178,7 +178,31 @@ export default function TypeSelector({
     "Terrace / Link House",
   ]);
 
-  // ============ 1. 把内部状态组合成对外的 value ============
+  // ============ 1. 计算当前是否项目类状态 ============
+  const isProjectStatus =
+    saleType === "Sale" &&
+    (propertyStatus?.includes("New Project") ||
+      propertyStatus?.includes("Under Construction") ||
+      propertyStatus?.includes("Completed Unit") ||
+      propertyStatus?.includes("Developer Unit"));
+
+  // Category 是否显示：
+  // - Sale：但不是项目类 (New Project / Completed Unit / Developer Unit)
+  // - Rent：只有「不批量」时显示（批量时每个 Layout 自己选）
+  const showCategory =
+    (saleType === "Sale" && !isProjectStatus) ||
+    (saleType === "Rent" && rentBatchMode !== "yes");
+
+  // FloorCountSelector 什么时候显示：
+  // - Category 在 NEED_STOREYS_CATEGORY 里
+  // - 并且 (单一 Rent) 或 (Sale + Subsale)
+  const showStoreys =
+    NEED_STOREYS_CATEGORY.has(category) &&
+    ((saleType === "Rent" && rentBatchMode !== "yes") ||
+      (saleType === "Sale" &&
+        propertyStatus === "Subsale / Secondary Market"));
+
+  // ============ 2. 把内部状态组合成对外的 value ============
   useEffect(() => {
     let newValue = "";
 
@@ -195,7 +219,7 @@ export default function TypeSelector({
     }
   }, [saleType, finalType]); // 不依赖 value，避免死循环
 
-  // ============ 2. 把整份表单其它字段通过 onFormChange 回传 ============
+  // ============ 3. 把整份表单其它字段通过 onFormChange 回传 ============
   useEffect(() => {
     const formData = {
       saleType,
@@ -227,18 +251,6 @@ export default function TypeSelector({
     storeys,
     onFormChange,
   ]);
-
-  // Category 是否显示：
-  // - Sale：一定显示
-  // - Rent：只有「不批量」时显示（批量时每个 Layout 自己选）
-  const showCategory =
-    saleType === "Sale" || (saleType === "Rent" && rentBatchMode !== "yes");
-
-  // 单一 Rent & 需要显示层数？
-  const showSingleRentStoreys =
-    saleType === "Rent" &&
-    rentBatchMode !== "yes" &&
-    NEED_STOREYS_CATEGORY.has(category);
 
   // =========================== JSX ===========================
   return (
@@ -485,8 +497,8 @@ export default function TypeSelector({
             </div>
           )}
 
-          {/* ⭐ 单一 Rent：Bungalow / Semi-D / Terrace / Business / Industrial 显示「有多少层」 */}
-          {showSingleRentStoreys && (
+          {/* ⭐ 单一 Rent 或 Subsale：显示有多少层 */}
+          {showStoreys && (
             <div className="mt-2">
               <FloorCountSelector
                 value={storeys}
