@@ -172,7 +172,7 @@ const CATEGORY_OPTIONS = {
   ],
 };
 
-// ⭐ 布局里的 Property Subtype（跟 TypeSelector 一样）
+// 布局里的 Property Subtype（跟 TypeSelector 一样）
 const SUBTYPE_OPTIONS = [
   "Penthouse",
   "Duplex",
@@ -181,7 +181,7 @@ const SUBTYPE_OPTIONS = [
   "None / Not Applicable",
 ];
 
-// ⭐ 哪些 Category 需要显示「有多少层」
+// 哪些 Category 需要显示「有多少层」
 const NEED_STOREYS_CATEGORY = new Set([
   "Bungalow / Villa",
   "Business Property",
@@ -219,7 +219,7 @@ const getName = (item) => {
   return item.label || item.value || item.name || "";
 };
 
-// 根据 photoConfig 生成所有上传框的 label（包含卧室/浴室/厨房/客厅/车位/储藏室/朝向/设施/额外空间/家私）
+// 根据 photoConfig 生成所有上传框的 label
 function getPhotoLabelsFromConfig(config) {
   const safe = config || {};
   let labels = [];
@@ -253,7 +253,7 @@ function getPhotoLabelsFromConfig(config) {
     for (let i = 1; i <= num; i++) labels.push(`客厅${i}`);
   }
 
-  // 停车位（只 1 个 label）
+  // 停车位
   {
     const v = safe.carpark;
     if (v) {
@@ -340,9 +340,8 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   const layout = data || {};
   const fileInputRef = useRef(null);
 
-  // 在 UnitLayoutForm 组件函数内部最前面先取出 layout：
-const layout = data || {};
-const isBulkRent = layout.rentMode === "Rent";
+  // ⭐ 批量 Rent 的 Layout
+  const isBulkRent = layout.rentMode === "Rent";
 
   // Category / SubType / SubtypeExtra / 层数
   const [category, setCategory] = useState(layout.propertyCategory || "");
@@ -656,10 +655,11 @@ const isBulkRent = layout.rentMode === "Rent";
       <PriceInput
         value={priceForPsf}
         onChange={(val) => {
-          listingMode={isBulkRent ? "Rent" : "Sale"}   // ⭐ Rent 批量时走 Rent 模式
           setPriceForPsf(val);
           handleFieldChange("price", val);
         }}
+        // ⭐ 批量 Rent 的 Layout 使用 Rent 的价格模式（500~1,000,000，单价）
+        listingMode={isBulkRent ? "Rent" : undefined}
         type={layout.projectType}
       />
 
@@ -737,7 +737,7 @@ const isBulkRent = layout.rentMode === "Rent";
         }}
       />
 
-          {/* 交通信息（每个 layout 自己的） */}
+      {/* 交通信息（每个 layout 自己的） */}
       <div className="mb-4">
         <label className="font-medium">交通信息</label>
         <TransitSelector
@@ -747,7 +747,7 @@ const isBulkRent = layout.rentMode === "Rent";
         />
       </div>
 
-      {/* 建成年份 + 季度 */}
+{/* 建成年份 + 季度 */}
       <BuildYearSelector
         value={layout.buildYear}
         onChange={(val) => handleFieldChange("buildYear", val)}
@@ -756,7 +756,7 @@ const isBulkRent = layout.rentMode === "Rent";
         showQuarter={true}
       />
 
-          {/* 每个 Layout 自己的房源描述 */}
+      {/* 每个 Layout 自己的房源描述 */}
       <div className="mt-3 mb-3">
         <label className="block font-medium mb-1">房源描述</label>
         <textarea
@@ -768,7 +768,7 @@ const isBulkRent = layout.rentMode === "Rent";
         />
       </div>
 
-      {/* 上传此 Layout 的照片 */}
+{/* 上传此 Layout 的照片 */}
       <div className="mb-3">
         <label className="block mb-1 font-medium">上传此 Layout 的照片</label>
         <div className="space-y-4">
@@ -778,12 +778,11 @@ const isBulkRent = layout.rentMode === "Rent";
 
               <input
                 type="file"
-                 multiple
+                multiple
                 accept="image/*"
                 onChange={(e) => handlePhotoChange(e, label)}
               />
-
-              <div className="grid grid-cols-3 gap-2">
+<div className="grid grid-cols-3 gap-2">
                 {(photosByLabel[label] || []).map((img, index) => (
                   <div key={img.url || index} className="relative">
                     <img
@@ -797,15 +796,15 @@ const isBulkRent = layout.rentMode === "Rent";
                       type="button"
                       className="absolute top-1 right-1 bg-red-500 text-white text-xs px-1 rounded"
                       onClick={() => removePhoto(label, index)}
-                    >       
-                        X
+                    >
+                      X
                     </button>
                     <button
                       type="button"
                       className="absolute bottom-1 left-1 bg-black text-white text-xs px-1 rounded"
                       onClick={() => setCover(label, index)}
                     >
-                      {img.isCover ? "封面" : "设为封面"}
+                        {img.isCover ? "封面" : "设为封面"}
                     </button>
                   </div>
                 ))}
@@ -817,3 +816,4 @@ const isBulkRent = layout.rentMode === "Rent";
     </div>
   );
 }
+                  
