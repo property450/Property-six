@@ -49,8 +49,8 @@ export default function UploadProperty() {
   const [latitude, setLatitude] = useState(null);
   const [longitude, setLongitude] = useState(null);
 
-  const [type, setType] = useState("");          // 最终类型（Condo / Homestay - Entire Place 等）
-  const [saleType, setSaleType] = useState("");  // Sale / Rent / Homestay / Hotel
+  const [type, setType] = useState(""); // 最终类型（Condo / Homestay - Entire Place 等）
+  const [saleType, setSaleType] = useState(""); // Sale / Rent / Homestay / Hotel
   const [propertyStatus, setPropertyStatus] = useState(""); // New Project / Completed Unit / ...
   const [rentBatchMode, setRentBatchMode] = useState("no"); // "no" | "yes"
 
@@ -76,7 +76,7 @@ export default function UploadProperty() {
     buildYear: "",
     quarter: "",
     carparkPosition: "",
-    storeys: "",        // 层数
+    storeys: "", // 层数
   });
 
   const [areaData, setAreaData] = useState({
@@ -284,7 +284,6 @@ export default function UploadProperty() {
                 <UnitLayoutForm
                   key={index}
                   index={index}
-                  // 透传一些项目级别的信息给每个 layout
                   data={{
                     ...layout,
                     projectType: computedStatus,
@@ -342,7 +341,9 @@ export default function UploadProperty() {
               const priceVal = singleFormData.price;
               if (!totalAreaSqft || !priceVal) return null;
 
-              const priceNum = Number(String(priceVal).replace(/,/g, ""));
+              const priceNum = Number(
+                String(priceVal).replace(/,/g, "")
+              );
               if (!priceNum || !isFinite(priceNum)) return null;
 
               const psf = priceNum / totalAreaSqft;
