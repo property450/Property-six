@@ -47,24 +47,17 @@ export default function UploadProperty() {
   const [address, setAddress] = useState("");
   const [latitude, setLatitude] = useState(null);
   const [longitude, setLongitude] = useState(null);
+
+  // type: Sale / Rent / Homestay / Hotel
   const [type, setType] = useState("");
+  // propertyStatus: New Project / Completed Unit / Subsale 等
   const [propertyStatus, setPropertyStatus] = useState("");
+
+  // Rent 是否开启批量模式（多个 Layout）
+  const [rentBatchMode, setRentBatchMode] = useState("no"); // "no" | "yes"
 
   // 项目类房源的 layout 列表
   const [unitLayouts, setUnitLayouts] = useState([]);
-
-  // 成交状态变化时：如果不是项目类，就清空房型 layouts
-  useEffect(() => {
-    const isProjectStatus =
-      propertyStatus?.includes("New Project") ||
-      propertyStatus?.includes("Under Construction") ||
-      propertyStatus?.includes("Completed Unit") ||
-      propertyStatus?.includes("Developer Unit");
-
-    if (!isProjectStatus) {
-      setUnitLayouts([]); // 切回 Subsale/Homestay 等非项目类时清空
-    }
-  }, [propertyStatus]);
 
   // 普通单一房源的数据
   const [singleFormData, setSingleFormData] = useState({
@@ -96,12 +89,26 @@ export default function UploadProperty() {
   const [transitInfo, setTransitInfo] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // 当前是否是「项目类」房源（和 UnitTypeSelector 判定保持一致）
-  const isProject =
+  // ---------- 判定「是否项目类」 ----------
+  const isProjectStatus =
     propertyStatus?.includes("New Project") ||
     propertyStatus?.includes("Under Construction") ||
     propertyStatus?.includes("Completed Unit") ||
     propertyStatus?.includes("Developer Unit");
+
+  // Rent + 批量模式 => 视为项目类房源
+  const isBulkRentProject = type === "Rent" && rentBatchMode === "yes";
+
+  // 统一：是否项目类房源（New Project / Completed Unit / Developer Unit / 或 Rent 批量）
+  const isProject = isProjectStatus || isBulkRentProject;
+
+  // 成交状态 / Rent 批量变化时：
+  // 如果不是项目类，就清空 layouts
+  useEffect(() => {
+    if (!isProject) {
+      setUnitLayouts([]);
+    }
+  }, [isProject]);
 
   // 根据单一房源的配置生成图片上传配置
   const photoConfig = {
@@ -222,71 +229,99 @@ export default function UploadProperty() {
         }}
       />
 
-      {/* ------------ 项目类房源 (New Project / Completed Unit) ------------ */}
+      {/* Rent 专用：是否批量操作（多个房型 / Layout） */}
+      {type === "Rent" && (
+        <div className="mt-4 space-y-1">
+          <label className="block text-sm font-medium text-gray-700">
+            需要批量操作吗？
+          </label>
+          <select
+            className="border rounded w-full p-2"
+            value={rentBatchMode}
+            onChange={(e) => setRentBatchMode(e.target.value)}
+          >
+            <option value="no">否，只是单一房源</option>
+            <option value="yes">是，这个项目有多个房型</option>
+          </select>
+        </div>
+      )}
+
+      {/* ------------ 项目类房源 (New Project / Completed Unit / Developer Unit / Rent 批量) ------------ */}
       {isProject ? (
         <>
-              <UnitTypeSelector
-      propertyStatus={propertyStatus}
-      layouts={unitLayouts}
-      onChange={(newLayouts) => {
-        setUnitLayouts((prev) => {
-          const oldList = Array.isArray(prev) ? prev : [];
-          const nextList = Array.isArray(newLayouts) ? newLayouts : [];
+          <UnitTypeSelector
+            propertyStatus={propertyStatus}
+            layouts={unitLayouts}
+            onChange={(newLayouts) => {
+              setUnitLayouts((prev) => {
+                const oldList = Array.isArray(prev) ? prev : [];
+                const nextList = Array.isArray(newLayouts) ? newLayouts : [];
 
-          const maxLen = Math.max(oldList.length, nextList.length);
-          const merged = [];
+                const maxLen = Math.max(oldList.length, nextList.length);
+                const merged = [];
 
-          for (let i = 0; i < maxLen; i++) {
-            const oldItem = oldList[i] || {};
-            const newItem = nextList[i] || {};
-            // ⭐ 用旧数据铺在前面，新数据覆盖它负责的字段
-            merged[i] = { ...oldItem, ...newItem };
-          }
+                for (let i = 0; i < maxLen; i++) {
+                  const oldItem = oldList[i] || {};
+                  const newItem = nextList[i] || {};
+                  merged[i] = { ...oldItem, ...newItem };
+                }
 
-          return merged;
-        });
-      }}
-    />
+                return merged;
+              });
+            }}
+          />
 
-
-            {unitLayouts.length > 0 && (
-  <div className="space-y-4 mt-4">
-    {unitLayouts.map((layout, index) => (
-      <UnitLayoutForm
-        key={index}
-        index={index}
-        data={{ ...layout, projectType: propertyStatus }}
-        onChange={(updated) => {
-          setUnitLayouts((prev) => {
-            const base = Array.isArray(prev) ? prev : [];
-            const next = [...base];
-            next[index] = updated;
-            return next;
-          });
-        }}
-      />
-    ))}
-
+          {unitLayouts.length > 0 && (
+            <div className="space-y-4 mt-4">
+              {unitLayouts.map((layout, index) => (
+                <UnitLayoutForm
+                  key={index}
+                  index={index}
+                  data={{
+                    ...layout,
+                    // ⭐ Rent 批量时，让 layout 也走「Completed Unit」的范围价格逻辑
+                    projectType: isBulkRentProject
+                      ? "Completed Unit (Rent)"
+                      : propertyStatus,
+                  }}
+                  onChange={(updated) => {
+                    setUnitLayouts((prev) => {
+                      const base = Array.isArray(prev) ? prev : [];
+                      const next = [...base];
+                      next[index] = updated;
+                      return next;
+                    });
+                  }}
+                />
+              ))}
             </div>
           )}
         </>
       ) : (
-        /* ------------ 普通非项目房源：保持原逻辑 ------------ */
+        /* ------------ 普通非项目房源（包括 Rent 单一房源） ------------ */
         <div className="space-y-4 mt-6">
           <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
 
           <PriceInput
-  value={singleFormData.price}
-  onChange={(val) =>
-    setSingleFormData((prev) => ({ ...prev, price: val }))
-  }
-  listingMode={type}            // ⭐ 新增：Sale / Rent / Homestay / Hotel
-  area={{
-    buildUp: convertToSqft(areaData.values.buildUp, areaData.units.buildUp),
-    land: convertToSqft(areaData.values.land, areaData.units.land),
-  }}
-/>
+            value={singleFormData.price}
+            onChange={(val) =>
+              setSingleFormData((prev) => ({ ...prev, price: val }))
+            }
+            type={propertyStatus}
+            listingMode={type} // ⭐ 告诉 PriceInput：现在是 Sale / Rent / Homestay / Hotel
+            area={{
+              buildUp: convertToSqft(
+                areaData.values.buildUp,
+                areaData.units.buildUp
+              ),
+              land: convertToSqft(
+                areaData.values.land,
+                areaData.units.land
+              ),
+            }}
+          />
 
+          {/* 单一房源：每平方英尺价格 */}
           {(() => {
             try {
               const buildUpSqft = convertToSqft(
@@ -342,7 +377,7 @@ export default function UploadProperty() {
             mode="single"
           />
 
-                        {/* 车位位置（Subsale / 普通房源用 single 模式） */}
+          {/* 车位位置（Subsale / 普通房源用 single 模式） */}
           <CarparkLevelSelector
             value={singleFormData.carparkPosition}
             onChange={(val) =>
@@ -353,7 +388,6 @@ export default function UploadProperty() {
             }
             mode="single"
           />
-
 
           <ExtraSpacesSelector
             value={singleFormData.extraSpaces || []}
