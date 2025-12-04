@@ -76,8 +76,8 @@ export default function UploadProperty() {
     buildYear: "",
     quarter: "",
     carparkPosition: "",
-    storeys: "",        // ⭐ 新增：层数
-});
+    storeys: "",        // 层数
+  });
 
   const [areaData, setAreaData] = useState({
     types: ["buildUp"],
@@ -186,8 +186,8 @@ export default function UploadProperty() {
             lat: latitude,
             lng: longitude,
             user_id: user.id,
-            type, // 这里仍然保存最终类型（Condo / Homestay - Entire Place 等）
-            sale_type: saleType || null, // 如果你表里还没有，可以之后加一列
+            type, // 最终类型
+            sale_type: saleType || null,
             property_status: computedStatus || null,
             build_year: singleFormData.buildYear,
             bedrooms: singleFormData.bedrooms,
@@ -234,6 +234,7 @@ export default function UploadProperty() {
         onFormChange={(formData) => {
           const newStatus = formData?.propertyStatus || "";
           const newSaleType = formData?.saleType || "";
+          const newStoreys = formData?.storeys;
 
           setSaleType(newSaleType);
 
@@ -241,18 +242,16 @@ export default function UploadProperty() {
             if (prev === newStatus) return prev;
             return newStatus;
           });
+
+          // 把「有多少层」同步到单一房源数据，方便保存
+          if (typeof newStoreys !== "undefined") {
+            setSingleFormData((prev) => ({
+              ...prev,
+              storeys: newStoreys,
+            }));
+          }
         }}
       />
-
-          // ⭐ 把层数写进 singleFormData，这样会进入 unit_layouts JSON
-    if (typeof newStoreys !== "undefined") {
-      setSingleFormData((prev) => ({
-        ...prev,
-        storeys: newStoreys,
-      }));
-    }
-  }}
-/>
 
       {/* ------------ 项目类房源 (New Project / Completed Unit / 批量 Rent 项目) ------------ */}
       {isProject ? (
@@ -343,9 +342,7 @@ export default function UploadProperty() {
               const priceVal = singleFormData.price;
               if (!totalAreaSqft || !priceVal) return null;
 
-              const priceNum = Number(
-                String(priceVal).replace(/,/g, "")
-              );
+              const priceNum = Number(String(priceVal).replace(/,/g, ""));
               if (!priceNum || !isFinite(priceNum)) return null;
 
               const psf = priceNum / totalAreaSqft;
