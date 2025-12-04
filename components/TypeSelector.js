@@ -4,11 +4,10 @@ export default function TypeSelector({
   value,
   onChange,
   onFormChange,
-  rentBatchMode,            // ⭐ 新增
-  onChangeRentBatchMode,    // ⭐ 新增
-  ...
+  rentBatchMode = "no",      // ⭐ 默认值：no
+  onChangeRentBatchMode,
+  ...restProps
 }) {
-
   const [saleType, setSaleType] = useState("");
   const [usage, setUsage] = useState("");
   const [propertyStatus, setPropertyStatus] = useState("");
@@ -166,7 +165,7 @@ export default function TypeSelector({
   ];
 
   // ============ 1. 把内部状态组合成对外的 value ============
-  // ❌ 重要：不要再用 value 去覆盖 finalType（之前的 bug 就在这里）
+  // ❗ 这里不再用 value 去反向覆盖 finalType，避免 Homestay / Hotel 选择被清掉
   useEffect(() => {
     let newValue = "";
 
@@ -178,11 +177,10 @@ export default function TypeSelector({
       newValue = finalType || saleType || "";
     }
 
-    // 避免无意义重复 set
     if (newValue !== value) {
-      onChange(newValue);
+      onChange && onChange(newValue);
     }
-  }, [saleType, finalType]); // 注意：不依赖 value，避免死循环
+  }, [saleType, finalType]); // 不依赖 value，避免死循环
 
   // ============ 2. 把整份表单其它字段通过 onFormChange 回传 ============
   useEffect(() => {
@@ -197,6 +195,7 @@ export default function TypeSelector({
       finalType,
       subtype,
       auctionDate,
+      rentBatchMode,
     };
     if (typeof onFormChange === "function") {
       onFormChange(formData);
@@ -212,24 +211,27 @@ export default function TypeSelector({
     finalType,
     subtype,
     auctionDate,
+    rentBatchMode,
     onFormChange,
   ]);
 
-  // Category 是否显示
-  const showCategory = saleType === "Rent" || usage; // 你的原逻辑：选了 usage 才出现 Category
+  // ============ JSX ============
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" {...restProps}>
       {/* Sale / Rent / Homestay / Hotel */}
       <div>
-        <label className="block font-medium">Sale / Rent / Homestay / Hotel</label>
+        <label className="block font-medium">
+          Sale / Rent / Homestay / Hotel
+        </label>
         <select
           className="w-full border rounded p-2"
           value={saleType}
           onChange={(e) => {
             const v = e.target.value;
             setSaleType(v);
-            // 切换大类时，重置跟类型相关的字段
+
+            // 切换大类时，重置相关字段
             setUsage("");
             setPropertyStatus("");
             setAffordable("");
@@ -240,6 +242,11 @@ export default function TypeSelector({
             setSubtype("");
             setAuctionDate("");
             setShowSubtype(false);
+
+            // 如果从 Rent 切换出去，可以顺便把 batchMode 重置为 no（可选）
+            if (v !== "Rent" && onChangeRentBatchMode) {
+              onChangeRentBatchMode("no");
+            }
           }}
         >
           <option value="">请选择</option>
@@ -250,42 +257,96 @@ export default function TypeSelector({
         </select>
       </div>
 
-{/* Sale / Rent / Homestay / Hotel 的下拉后面，紧接着加这一块 */}
-{value === "Rent" && (
-  <div className="mt-2">
-    <label className="block text-sm font-medium text-gray-700">
-      需要批量操作吗？
-    </label>
-    <select
-      className="border rounded w-full p-2"
-      value={rentBatchMode || "no"}
-      onChange={(e) => onChangeRentBatchMode && onChangeRentBatchMode(e.target.value)}
-    >
-      <option value="no">否，只是单一房源</option>
-      <option value="yes">是，这个项目有多个房型</option>
-    </select>
-  </div>
-)}
+      {/* ⭐⭐⭐ Rent 专属：需要批量操作吗 + （单一房源时的 Property Category） */}
+      {saleType === "Rent" && (
+        <>
+          {/* 需要批量操作吗？ */}
+          <div className="mt-2">
+            <label className="block text-sm font-medium text-gray-700">
+              需要批量操作吗？
+            </label>
+            <select
+              className="border rounded w-full p-2"
+              value={rentBatchMode || "no"}
+              onChange={(e) =>
+                onChangeRentBatchMode && onChangeRentBatchMode(e.target.value)
+              }
+            >
+              <option value="no">否，只是单一房源</option>
+              <option value="yes">是，这个项目有多个房型</option>
+            </select>
+          </div>
 
-{/* ⭐ Rent 且批量 = yes 时，不在这里显示 Property Category */}
-{!(value === "Rent" && rentBatchMode === "yes") && (
-  <>
-    <label className="block text-sm font-medium text-gray-700 mt-3">
-      Property Category
-    </label>
-    <select
-      className="border rounded w-full p-2"
-      value={form.propertyCategory || ""}
-      onChange={(e) => {
-        const next = { ...form, propertyCategory: e.target.value };
-        setForm(next);
-        onFormChange && onFormChange(next);
-      }}
-    >
-      {/* 你原本的 options 保持不变 */}
-    </select>
-  </>
-)}
+          {/* ⭐ Rent 且批量 = yes 时，不在这里显示 Property Category */}
+          {rentBatchMode !== "yes" && (
+            <>
+              {/* Property Category */}
+              <div className="mt-3">
+                <label className="block font-medium">Property Category</label>
+                <select
+                  className="w-full border rounded p-2"
+                  value={category}
+                  onChange={(e) => {
+                    const cat = e.target.value;
+                    setCategory(cat);
+                    setFinalType("");
+                    setSubtype("");
+                    setShowSubtype(
+                      cat === "Apartment / Condo / Service Residence" ||
+                        cat === "Business Property"
+                    );
+                  }}
+                >
+                  <option value="">请选择类别</option>
+                  {Object.keys(categoryOptions).map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Sub Type */}
+              {category && categoryOptions[category] && (
+                <div>
+                  <label className="block font-medium">Sub Type</label>
+                  <select
+                    className="w-full border rounded p-2"
+                    value={finalType}
+                    onChange={(e) => setFinalType(e.target.value)}
+                  >
+                    <option value="">请选择具体类型</option>
+                    {categoryOptions[category].map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Property Subtype（Penthouse / Duplex 等） */}
+              {showSubtype && (
+                <div>
+                  <label className="block font-medium">Property Subtype</label>
+                  <select
+                    className="w-full border rounded p-2"
+                    value={subtype}
+                    onChange={(e) => setSubtype(e.target.value)}
+                  >
+                    <option value="">请选择 subtype（如有）</option>
+                    {subtypeOptions.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </>
+          )}
+        </>
+      )}
 
       {/* Homestay 分类 */}
       {saleType === "Homestay" && (
@@ -430,8 +491,8 @@ export default function TypeSelector({
         </>
       )}
 
-      {/* Property Category + Sub Type（Subsale / Rent 等） */}
-      {showCategory && saleType !== "Homestay" && saleType !== "Hotel/Resort" && (
+      {/* ⭐ Sale 情况下的 Property Category + SubType（在选择了 usage 之后） */}
+      {saleType === "Sale" && usage && (
         <>
           {/* Category */}
           <div>
