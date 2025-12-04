@@ -21,6 +21,7 @@ export default function TypeSelector({
   const [subtype, setSubtype] = useState("");
   const [auctionDate, setAuctionDate] = useState("");
   const [showSubtype, setShowSubtype] = useState(false);
+  const [storeys, setStoreys] = useState(""); // ⭐ 新增：有多少层（Storeys）
 
   // ---------- 下拉选项 ----------
   const subtypeOptions = [
@@ -170,10 +171,8 @@ export default function TypeSelector({
     let newValue = "";
 
     if (saleType === "Homestay" || saleType === "Hotel/Resort") {
-      // Homestay / Hotel: 例如 "Homestay - Entire Place"
       newValue = finalType ? `${saleType} - ${finalType}` : saleType;
     } else {
-      // 其它：优先用具体类型，其次用 Sale / Rent
       newValue = finalType || saleType || "";
     }
 
@@ -195,6 +194,7 @@ export default function TypeSelector({
       finalType,
       subtype,
       auctionDate,
+      storeys, // ⭐ 把层数一起传回去
     };
     onFormChange?.(formData);
   }, [
@@ -208,15 +208,26 @@ export default function TypeSelector({
     finalType,
     subtype,
     auctionDate,
+    storeys,
     onFormChange,
   ]);
 
   // ---------- 3. Category 是否显示 ----------
-  // Sale：需要先选 Usage 才出现 Category
-  // Rent：只有在不是批量模式时才显示 Category
+  // 现在改成：
+  //  - 只要是 Sale 就显示（不再依赖 usage）
+  //  - Rent 且不是批量模式也显示
   const showCategory =
-    (saleType === "Sale" && !!usage) ||
+    saleType === "Sale" ||
     (saleType === "Rent" && rentBatchMode !== "yes");
+
+  // 需要显示「有多少层」的 Category
+  const needStoreysCategories = [
+    "Bungalow / Villa",
+    "Semi-Detached House",
+    "Terrace / Link House",
+    "Business Property",
+    "Industrial Property",
+  ];
 
   return (
     <div className="space-y-4">
@@ -240,7 +251,7 @@ export default function TypeSelector({
             setSubtype("");
             setAuctionDate("");
             setShowSubtype(false);
-            // 切换到其它类型时，把批量模式恢复为 "no"
+            setStoreys("");
             if (v !== "Rent") {
               onChangeRentBatchMode?.("no");
             }
@@ -307,7 +318,7 @@ export default function TypeSelector({
         </div>
       )}
 
-      {/* Sale 相关字段（Usage / Status / Affordable / Tenure） */}
+      {/* Sale 相关字段 */}
       {saleType === "Sale" && (
         <>
           {/* Property Usage */}
@@ -412,7 +423,7 @@ export default function TypeSelector({
         </>
       )}
 
-      {/* Property Category + Sub Type（给 Sale / Rent 用，Homestay/Hotel 不用） */}
+      {/* Property Category + Sub Type */}
       {showCategory &&
         saleType !== "Homestay" &&
         saleType !== "Hotel/Resort" && (
@@ -432,6 +443,10 @@ export default function TypeSelector({
                     cat === "Apartment / Condo / Service Residence" ||
                       cat === "Business Property"
                   );
+                  // 换 Category 时，把层数清空
+                  if (!needStoreysCategories.includes(cat)) {
+                    setStoreys("");
+                  }
                 }}
               >
                 <option value="">请选择类别</option>
@@ -461,6 +476,25 @@ export default function TypeSelector({
                 </select>
               </div>
             )}
+
+            {/* ⭐ Rent + 非批量 + 特定 Category 时，显示「有多少层」 */}
+            {saleType === "Rent" &&
+              rentBatchMode !== "yes" &&
+              category &&
+              needStoreysCategories.includes(category) && (
+                <div>
+                  <label className="block font-medium">
+                    有多少层（Storeys）
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full border rounded p-2"
+                    placeholder="例如：2 或 2.5"
+                    value={storeys}
+                    onChange={(e) => setStoreys(e.target.value)}
+                  />
+                </div>
+              )}
 
             {/* Property Subtype（Penthouse / Duplex 等） */}
             {showSubtype && (
