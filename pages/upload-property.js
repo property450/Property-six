@@ -47,6 +47,7 @@ export default function UploadProperty() {
   const [address, setAddress] = useState("");
   const [latitude, setLatitude] = useState(null);
   const [longitude, setLongitude] = useState(null);
+  const [rentBatchMode, setRentBatchMode] = useState("no"); // "no" | "yes"
 
   // type: Sale / Rent / Homestay / Hotel
   const [type, setType] = useState("");
@@ -218,37 +219,31 @@ export default function UploadProperty() {
 
       {/* 类型 & 成交状态 */}
       <TypeSelector
-        value={type}
-        onChange={setType}
-        onFormChange={(formData) => {
-          const newStatus = formData?.propertyStatus || "";
-          setPropertyStatus((prev) => {
-            if (prev === newStatus) return prev;
-            return newStatus;
-          });
-        }}
-      />
+  value={type}
+  onChange={setType}
+  rentBatchMode={rentBatchMode}                 // ⭐ 新增
+  onChangeRentBatchMode={setRentBatchMode}      // ⭐ 新增
+  onFormChange={(formData) => {
+    const newStatus = formData?.propertyStatus || "";
+    setPropertyStatus((prev) => {
+      if (prev === newStatus) return prev;
+      return newStatus;
+    });
+  }}
+/>
 
       {/* Rent 专用：是否批量操作（多个房型 / Layout） */}
-      {type === "Rent" && (
-        <div className="mt-4 space-y-1">
-          <label className="block text-sm font-medium text-gray-700">
-            需要批量操作吗？
-          </label>
-          <select
-            className="border rounded w-full p-2"
-            value={rentBatchMode}
-            onChange={(e) => setRentBatchMode(e.target.value)}
-          >
-            <option value="no">否，只是单一房源</option>
-            <option value="yes">是，这个项目有多个房型</option>
-          </select>
-        </div>
-      )}
+      
 
       {/* ------------ 项目类房源 (New Project / Completed Unit / Developer Unit / Rent 批量) ------------ */}
       {isProject ? (
         <>
+
+        // 上面 isBulkRentProject 已经有：type === "Rent" && rentBatchMode === "yes"
+const computedStatus = isBulkRentProject
+  ? "Completed Unit (Rent)"    // ⭐ 让 UnitTypeSelector 以为这是 Completed Unit
+  : propertyStatus;
+       
           <UnitTypeSelector
             propertyStatus={propertyStatus}
             layouts={unitLayouts}
