@@ -19,6 +19,9 @@ export default function PriceInput({ value, onChange, type, area }) {
     300000, 500000, 1000000,
   ];
 
+  // ⭐ 根据 Sale / Rent 切换价格表
+  const priceOptions = mode === "Rent" ? RENT_PRICE_OPTIONS : SALE_PRICE_OPTIONS;
+
   // ---------- 1. 解析 propertyStatus，判断是不是范围价格 ----------
   let propertyStatus = "";
   if (typeof type === "object" && type !== null) {
