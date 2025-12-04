@@ -276,22 +276,16 @@ export default function UploadProperty() {
           <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
 
           <PriceInput
-            value={singleFormData.price}
-            onChange={(val) =>
-              setSingleFormData((prev) => ({ ...prev, price: val }))
-            }
-            type={propertyStatus}
-            area={{
-              buildUp: convertToSqft(
-                areaData.values.buildUp,
-                areaData.units.buildUp
-              ),
-              land: convertToSqft(
-                areaData.values.land,
-                areaData.units.land
-              ),
-            }}
-          />
+  value={singleFormData.price}
+  onChange={(val) =>
+    setSingleFormData((prev) => ({ ...prev, price: val }))
+  }
+  listingMode={type}            // ⭐ 新增：Sale / Rent / Homestay / Hotel
+  area={{
+    buildUp: convertToSqft(areaData.values.buildUp, areaData.units.buildUp),
+    land: convertToSqft(areaData.values.land, areaData.units.land),
+  }}
+/>
 
           {(() => {
             try {
