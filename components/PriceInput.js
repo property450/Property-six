@@ -11,6 +11,14 @@ export default function PriceInput({ value, onChange, type, area }) {
     50000000, 100000000,
   ];
 
+  // RENT 价格
+  const RENT_PRICE_OPTIONS = [
+    500, 800, 1000, 1500, 2000,
+    2500, 3000, 4000, 5000, 8000,
+    10000, 15000, 20000, 50000, 100000,
+    300000, 500000, 1000000,
+  ];
+
   // ---------- 1. 解析 propertyStatus，判断是不是范围价格 ----------
   let propertyStatus = "";
   if (typeof type === "object" && type !== null) {
