@@ -651,16 +651,17 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         }}
       />
 
-      {/* 价格 */}
+            {/* 价格 */}
       <PriceInput
         value={priceForPsf}
         onChange={(val) => {
           setPriceForPsf(val);
           handleFieldChange("price", val);
         }}
-        // ⭐ 批量 Rent 的 Layout 使用 Rent 的价格模式（500~1,000,000，单价）
+        // ⭐ 批量 Rent 的 Layout 使用 Rent 的价格模式（500~1,000,000，单一价格）
         listingMode={isBulkRent ? "Rent" : undefined}
-        type={layout.projectType}
+        // ⭐ 不把 projectType 传给 PriceInput，让它不要走 New Project 的「价格范围」逻辑
+        type={isBulkRent ? undefined : layout.projectType}
       />
 
       {/* 每平方英尺 */}
