@@ -76,7 +76,8 @@ export default function UploadProperty() {
     buildYear: "",
     quarter: "",
     carparkPosition: "",
-  });
+    storeys: "",        // ⭐ 新增：层数
+});
 
   const [areaData, setAreaData] = useState({
     types: ["buildUp"],
@@ -242,6 +243,16 @@ export default function UploadProperty() {
           });
         }}
       />
+
+          // ⭐ 把层数写进 singleFormData，这样会进入 unit_layouts JSON
+    if (typeof newStoreys !== "undefined") {
+      setSingleFormData((prev) => ({
+        ...prev,
+        storeys: newStoreys,
+      }));
+    }
+  }}
+/>
 
       {/* ------------ 项目类房源 (New Project / Completed Unit / 批量 Rent 项目) ------------ */}
       {isProject ? (
