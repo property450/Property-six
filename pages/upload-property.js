@@ -49,6 +49,7 @@ export default function UploadProperty() {
   const [longitude, setLongitude] = useState(null);
   const [type, setType] = useState("");
   const [propertyStatus, setPropertyStatus] = useState("");
+  const [rentBatchMode, setRentBatchMode] = useState("no"); // "no" | "yes"
 
   // 项目类房源的 layout 列表
   const [unitLayouts, setUnitLayouts] = useState([]);
@@ -211,20 +212,28 @@ export default function UploadProperty() {
 
       {/* 类型 & 成交状态 */}
       <TypeSelector
-        value={type}
-        onChange={setType}
-        onFormChange={(formData) => {
-          const newStatus = formData?.propertyStatus || "";
-          setPropertyStatus((prev) => {
-            if (prev === newStatus) return prev;
-            return newStatus;
-          });
-        }}
-      />
+  value={type}
+  onChange={setType}
+  rentBatchMode={rentBatchMode}                 // ⭐ 新增
+  onChangeRentBatchMode={setRentBatchMode}      // ⭐ 新增
+  onFormChange={(formData) => {
+    const newStatus = formData?.propertyStatus || "";
+    setPropertyStatus((prev) => {
+      if (prev === newStatus) return prev;
+      return newStatus;
+    });
+  }}
+/>
 
       {/* ------------ 项目类房源 (New Project / Completed Unit) ------------ */}
       {isProject ? (
         <>
+
+          // 上面 isBulkRentProject 已经有：type === "Rent" && rentBatchMode === "yes"
+const computedStatus = isBulkRentProject
+  ? "Completed Unit (Rent)"    // ⭐ 让 UnitTypeSelector 以为这是 Completed Unit
+  : propertyStatus;
+       
               <UnitTypeSelector
       propertyStatus={propertyStatus}
       layouts={unitLayouts}
