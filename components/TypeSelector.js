@@ -4,10 +4,14 @@
 import { useState, useEffect } from "react";
 
 export default function TypeSelector({
-  value = "",
-  onChange = () => {},
+  value,
+  onChange,
   onFormChange,
+  rentBatchMode,            // ⭐ 新增
+  onChangeRentBatchMode,    // ⭐ 新增
+  ...
 }) {
+
   const [saleType, setSaleType] = useState("");
   const [usage, setUsage] = useState("");
   const [propertyStatus, setPropertyStatus] = useState("");
@@ -325,6 +329,43 @@ export default function TypeSelector({
               ))}
             </select>
           </div>
+
+       {/* Sale / Rent / Homestay / Hotel 的下拉后面，紧接着加这一块 */}
+{value === "Rent" && (
+  <div className="mt-2">
+    <label className="block text-sm font-medium text-gray-700">
+      需要批量操作吗？
+    </label>
+    <select
+      className="border rounded w-full p-2"
+      value={rentBatchMode || "no"}
+      onChange={(e) => onChangeRentBatchMode && onChangeRentBatchMode(e.target.value)}
+    >
+      <option value="no">否，只是单一房源</option>
+      <option value="yes">是，这个项目有多个房型</option>
+    </select>
+  </div>
+)}
+
+  {/* ⭐ Rent 且批量 = yes 时，不在这里显示 Property Category */}
+{!(value === "Rent" && rentBatchMode === "yes") && (
+  <>
+    <label className="block text-sm font-medium text-gray-700 mt-3">
+      Property Category
+    </label>
+    <select
+      className="border rounded w-full p-2"
+      value={form.propertyCategory || ""}
+      onChange={(e) => {
+        const next = { ...form, propertyCategory: e.target.value };
+        setForm(next);
+        onFormChange && onFormChange(next);
+      }}
+    >
+      {/* 你原本的 options 保持不变 */}
+    </select>
+  </>
+)}
 
           {/* 拍卖日期 */}
           {propertyStatus === "Auction Property" && (
