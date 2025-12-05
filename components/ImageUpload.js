@@ -19,24 +19,10 @@ function toCount(value) {
   return Math.floor(num);
 }
 
-/**
- * props:
- *  - config: {
- *      bedrooms, bathrooms, kitchens, livingRooms, carpark,
- *      extraSpaces: string[],
- *      facilities: string[],
- *      furniture: string[],
- *      facing: string,        // 朝向
- *      transit: any
- *    }
- *  - images: { [sectionKey]: File[] }
- *  - setImages: (nextObj) => void
- */
 export default function ImageUpload({ config, images, setImages }) {
   const safeConfig = config || {};
   const safeImages = normalizeImages(images);
 
-  // 生成所有需要的上传分组
   const sections = useMemo(() => {
     const list = [];
 
@@ -89,18 +75,24 @@ export default function ImageUpload({ config, images, setImages }) {
       });
     }
 
-    // 朝向
-    if (safeConfig.facing) {
+    // -------- 朝向（兼容 facing 和 orientation）--------
+    let facingLabel = safeConfig.facing ?? safeConfig.orientation;
+    if (Array.isArray(facingLabel)) {
+      // 如果是数组（例如多选朝向），就用逗号连接
+      facingLabel = facingLabel.join(" / ");
+    }
+    if (facingLabel) {
       list.push({
-        key: `facing_${safeConfig.facing}`,
-        label: safeConfig.facing,
+        key: `facing_${facingLabel}`,
+        label: facingLabel,
         kind: "facing",
       });
     }
 
     // 设施
     if (Array.isArray(safeConfig.facilities)) {
-      safeConfig.facilities.forEach((name, idx) => {
+      safeConfig.facilities.forEach((item, idx) => {
+        const name = typeof item === "string" ? item : item?.label;
         if (!name) return;
         list.push({
           key: `facility_${idx}`,
@@ -112,7 +104,8 @@ export default function ImageUpload({ config, images, setImages }) {
 
     // 额外空间
     if (Array.isArray(safeConfig.extraSpaces)) {
-      safeConfig.extraSpaces.forEach((name, idx) => {
+      safeConfig.extraSpaces.forEach((item, idx) => {
+        const name = typeof item === "string" ? item : item?.label;
         if (!name) return;
         list.push({
           key: `extra_${idx}`,
@@ -124,7 +117,8 @@ export default function ImageUpload({ config, images, setImages }) {
 
     // 家私
     if (Array.isArray(safeConfig.furniture)) {
-      safeConfig.furniture.forEach((name, idx) => {
+      safeConfig.furniture.forEach((item, idx) => {
+        const name = typeof item === "string" ? item : item?.label;
         if (!name) return;
         list.push({
           key: `furniture_${idx}`,
@@ -137,7 +131,6 @@ export default function ImageUpload({ config, images, setImages }) {
     return list;
   }, [safeConfig]);
 
-  // 统一更新函数
   const handleFilesChange = (sectionKey, files) => {
     const fileArr = Array.from(files || []);
     const next = {
@@ -147,16 +140,14 @@ export default function ImageUpload({ config, images, setImages }) {
     setImages && setImages(next);
   };
 
-  if (!sections.length) {
-    return null;
-  }
+  if (!sections.length) return null;
 
   return (
     <div className="mt-6 space-y-4">
       {sections.map((sec) => {
         const files = safeImages[sec.key] || [];
 
-        // 根据 kind 强制加前缀
+        // 根据 kind 加前缀
         let displayLabel = sec.label;
         if (sec.kind === "facing") {
           displayLabel = `朝向：${sec.label}`;
@@ -171,13 +162,11 @@ export default function ImageUpload({ config, images, setImages }) {
         return (
           <div key={sec.key} className="border rounded-md p-3">
             <p className="font-medium mb-1">{displayLabel}</p>
-
             <input
               type="file"
               multiple
               onChange={(e) => handleFilesChange(sec.key, e.target.files)}
             />
-
             {files.length > 0 && (
               <p className="mt-1 text-xs text-gray-500">
                 已选择 {files.length} 张图片
