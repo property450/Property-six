@@ -20,7 +20,7 @@ import FacingSelector from "@/components/FacingSelector";
 import CarparkLevelSelector from "@/components/CarparkLevelSelector";
 import FacilitiesSelector from "@/components/FacilitiesSelector";
 import FurnitureSelector from "@/components/FurnitureSelector";
-import BuildYearSelector from "@/components/BuildYearSelector"; // 只在 layout 里用，这里不用也没关系
+import BuildYearSelector from "@/components/BuildYearSelector";
 import ImageUpload from "@/components/ImageUpload";
 import TransitSelector from "@/components/TransitSelector";
 import AdvancedAvailabilityCalendar from "@/components/AdvancedAvailabilityCalendar";
@@ -76,7 +76,7 @@ export default function UploadProperty() {
     buildYear: "",
     quarter: "",
     carparkPosition: "",
-    storeys: "", // 有多少层（单一房源时备用）
+    storeys: "", // 单一房源的层数（备用）
   });
 
   const [areaData, setAreaData] = useState({
@@ -243,7 +243,6 @@ export default function UploadProperty() {
             return newStatus;
           });
 
-          // 如果 TypeSelector 自己有楼层输入，也同步过来（主要是 subsale 用）
           if (typeof newStoreys !== "undefined") {
             setSingleFormData((prev) => ({
               ...prev,
@@ -358,6 +357,27 @@ export default function UploadProperty() {
               return null;
             }
           })()}
+
+          {/* ✅ Sale + Subsale/Auction/Rent-to-Own 时显示「完成年份」 */}
+          {saleType === "Sale" &&
+            [
+              "Subsale / Secondary Market",
+              "Auction Property",
+              "Rent-to-Own Scheme",
+            ].includes(propertyStatus) && (
+              <BuildYearSelector
+                value={singleFormData.buildYear}
+                onChange={(val) =>
+                  setSingleFormData((prev) => ({ ...prev, buildYear: val }))
+                }
+                quarter={singleFormData.quarter}
+                onQuarterChange={(val) =>
+                  setSingleFormData((prev) => ({ ...prev, quarter: val }))
+                }
+                showQuarter={false}
+                label="完成年份"
+              />
+            )}
 
           <RoomCountSelector
             value={{
