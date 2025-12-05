@@ -15,14 +15,12 @@ const parseNumber = (str) => String(str || "").replace(/,/g, "");
 const FIELD_DEFS = [
   {
     key: "bedrooms",
-    label: "卧室 / 房间
-",
+    label: "卧室 / 房间",
     options: ["Studio", 0, 1, 2, 3, 4, 5, 6, "custom"],
   },
   {
     key: "bathrooms",
-    label: "浴室 / 卫生间
-",
+    label: "浴室 / 卫生间",
     options: [0, 1, 2, 3, 4, 5, 6, "custom"],
   },
   {
