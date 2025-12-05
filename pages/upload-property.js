@@ -37,6 +37,23 @@ export default function UploadProperty() {
   const user = useUser();
   const fileInputRef = useRef(null);
 
+  function shouldShowFloorSelector(selectedCategory, mode) {
+  if (!selectedCategory) return false;
+
+  const categoriesNeedingFloors = [
+    "Bungalow / Villa",
+    "Semi-Detached House",
+    "Terrace / Link House",
+    "Business Property",
+    "Industrial Property",
+  ];
+
+  // ❗ 无论是 subsale / new project / rent
+  // 只要 category 属于以上列表，就显示楼层选择框
+  return categoriesNeedingFloors.includes(selectedCategory);
+}
+
+
   useEffect(() => {
     if (user === null) router.push("/login");
   }, [user, router]);
@@ -413,6 +430,14 @@ export default function UploadProperty() {
               setSingleFormData((prev) => ({ ...prev, furniture: val }))
             }
           />
+
+              {shouldShowFloorSelector(propertyCategory, mode) && (
+  <FloorSelector
+    value={floorCount}
+    onChange={(v) => setFloorCount(v)}
+  />
+)}
+
 
           <FacilitiesSelector
             value={singleFormData.facilities}
