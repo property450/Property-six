@@ -9,7 +9,7 @@ import { toast } from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 
 import TypeSelector from "@/components/TypeSelector";
-import UnitTypeSelector from "@/components/UnitTypeSelector";
+import UnitTypeSelector from "@/components/UnitLayoutForm";
 import UnitLayoutForm from "@/components/UnitLayoutForm";
 import AreaSelector from "@/components/AreaSelector";
 import PriceInput from "@/components/PriceInput";
@@ -33,9 +33,9 @@ const AddressSearchInput = dynamic(
   { ssr: false }
 );
 
-// ✅ 用「Property Category + saleType」来判断要不要显示“有多少层”
-function shouldShowFloorSelector(propertyCategory, saleType) {
-  if (!propertyCategory) return false;
+// ✅ 用最终 type + saleType 判断要不要显示“有多少层”
+function shouldShowFloorSelector(selectedType, saleType) {
+  if (!selectedType || !saleType) return false;
   if (saleType !== "Rent") return false; // 只在 Rent 模式下显示
 
   const categoriesNeedingFloors = [
@@ -46,7 +46,12 @@ function shouldShowFloorSelector(propertyCategory, saleType) {
     "Industrial Property",
   ];
 
-  return categoriesNeedingFloors.includes(propertyCategory);
+  // type 一般长这样：
+  // "Bungalow / Villa - Bungalow"
+  // "Business Property - Shop"
+  return categoriesNeedingFloors.some((cat) =>
+    selectedType.startsWith(cat)
+  );
 }
 
 export default function UploadProperty() {
@@ -66,11 +71,10 @@ export default function UploadProperty() {
   const [latitude, setLatitude] = useState(null);
   const [longitude, setLongitude] = useState(null);
 
-  const [type, setType] = useState("");              // 最终类型（含 Sub Type）
-  const [saleType, setSaleType] = useState("");      // Sale / Rent / Homestay / Hotel
-  const [propertyStatus, setPropertyStatus] = useState("");   // New Project / Completed Unit / ...
-  const [rentBatchMode, setRentBatchMode] = useState("no");   // "no" | "yes"
-  const [propertyCategory, setPropertyCategory] = useState(""); // ✅ 新增：Property Category
+  const [type, setType] = useState("");         // ✅ 最终类型（含 Sub Type）
+  const [saleType, setSaleType] = useState(""); // Sale / Rent / Homestay / Hotel
+  const [propertyStatus, setPropertyStatus] = useState(""); // New Project / Completed Unit / ...
+  const [rentBatchMode, setRentBatchMode] = useState("no"); // "no" | "yes"
 
   // 项目类房源的 layout 列表
   const [unitLayouts, setUnitLayouts] = useState([]);
@@ -246,17 +250,15 @@ export default function UploadProperty() {
       {/* 类型 & 成交状态 */}
       <TypeSelector
         value={type}
-        onChange={setType}
+        onChange={setType}           // ✅ 这里会把最终 type 设进来
         rentBatchMode={rentBatchMode}
         onChangeRentBatchMode={setRentBatchMode}
         onFormChange={(formData) => {
           const newStatus = formData?.propertyStatus || "";
           const newSaleType = formData?.saleType || "";
           const newStoreys = formData?.storeys;
-          const newCategory = formData?.propertyCategory || ""; // ✅ 从 TypeSelector 拿到 Property Category
 
           setSaleType(newSaleType);
-          setPropertyCategory(newCategory);
 
           setPropertyStatus((prev) => {
             if (prev === newStatus) return prev;
@@ -332,7 +334,7 @@ export default function UploadProperty() {
             onChange={(val) =>
               setSingleFormData((prev) => ({ ...prev, price: val }))
             }
-            listingMode={saleType} // 用 Sale / Rent / Homestay / Hotel
+            listingMode={saleType}
             area={{
               buildUp: convertToSqft(
                 areaData.values.buildUp,
@@ -432,8 +434,8 @@ export default function UploadProperty() {
             }
           />
 
-          {/* ✅ Rent + 指定 Property Category 时显示「有多少层」 */}
-          {shouldShowFloorSelector(propertyCategory, saleType) && (
+          {/* ✅ Rent + (Bungalow/Villa / Semi-D / Terrace / Business / Industrial) 才出现「有多少层」 */}
+          {shouldShowFloorSelector(type, saleType) && (
             <FloorCountSelector
               value={singleFormData.storeys}
               onChange={(v) =>
@@ -516,5 +518,4 @@ export default function UploadProperty() {
       </Button>
     </div>
   );
-          }
-           
+}
