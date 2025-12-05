@@ -15,12 +15,14 @@ const parseNumber = (str) => String(str || "").replace(/,/g, "");
 const FIELD_DEFS = [
   {
     key: "bedrooms",
-    label: "卧室",
+    label: "卧室 / 房间
+",
     options: ["Studio", 0, 1, 2, 3, 4, 5, 6, "custom"],
   },
   {
     key: "bathrooms",
-    label: "浴室",
+    label: "浴室 / 卫生间
+",
     options: [0, 1, 2, 3, 4, 5, 6, "custom"],
   },
   {
@@ -138,9 +140,9 @@ export default function RoomCountSelector({ value = {}, onChange }) {
 
         let placeholder = "输入或选择数量";
         if (def.key === "bedrooms") {
-          placeholder = "选择卧室数量（可输入或 Studio）";
+          placeholder = "选择卧室 / 房间数量（可输入或 Studio）";
         } else if (def.key === "bathrooms") {
-          placeholder = "选择浴室数量";
+          placeholder = "选择浴室/卫生间数量";
         } else if (def.key === "kitchens") {
           placeholder = "选择厨房数量";
         } else if (def.key === "livingRooms") {
