@@ -275,25 +275,27 @@ function getPhotoLabelsFromConfig(config) {
     for (let i = 1; i <= num; i++) labels.push(`储藏室${i}`);
   }
 
-  // 朝向
+  // ✅ 朝向：统一加前缀「朝向：」
   {
     const arr = toArray(safe.orientation);
     arr.forEach((item) => {
       const n = getName(item);
-      if (n) labels.push(n);
+      if (!n) return;
+      labels.push(`朝向：${n}`);
     });
   }
 
-  // 设施
+  // ✅ 设施：统一加前缀「设施：」
   {
     const arr = toArray(safe.facilities);
     arr.forEach((item) => {
       const n = getName(item);
-      if (n) labels.push(n);
+      if (!n) return;
+      labels.push(`设施：${n}`);
     });
   }
 
-  // 额外空间
+  // ✅ 额外空间：统一加前缀「额外空间：」
   {
     const arr = toArray(safe.extraSpaces);
     arr.forEach((extra) => {
@@ -303,14 +305,16 @@ function getPhotoLabelsFromConfig(config) {
 
       const count = toCount(extra.count || 1) || 1;
       if (count <= 1) {
-        labels.push(name);
+        labels.push(`额外空间：${name}`);
       } else {
-        for (let i = 1; i <= count; i++) labels.push(`${name}${i}`);
+        for (let i = 1; i <= count; i++) {
+          labels.push(`额外空间：${name}${i}`);
+        }
       }
     });
   }
 
-  // 家私
+  // ✅ 家私：统一加前缀「家私：」
   {
     const arr = toArray(safe.furniture);
     arr.forEach((item) => {
@@ -320,9 +324,11 @@ function getPhotoLabelsFromConfig(config) {
 
       const count = toCount(item.count || 1) || 1;
       if (count <= 1) {
-        labels.push(name);
+        labels.push(`家私：${name}`);
       } else {
-        for (let i = 1; i <= count; i++) labels.push(`${name}${i}`);
+        for (let i = 1; i <= count; i++) {
+          labels.push(`家私：${name}${i}`);
+        }
       }
     });
   }
@@ -340,13 +346,11 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   const layout = data || {};
   const fileInputRef = useRef(null);
 
-    const projectType = layout.projectType;   // UploadProperty 里已经传进来了
-  const rentMode = layout.rentMode;        // "Sale" / "Rent" 之类
+  const projectType = layout.projectType; // UploadProperty 里已经传进来了
+  const rentMode = layout.rentMode; // "Sale" / "Rent" 之类
 
-  const isNewProject =
-    projectType === "New Project / Under Construction";
-  const isCompletedProject =
-    projectType === "Completed Unit / Developer Unit";
+  const isNewProject = projectType === "New Project / Under Construction";
+  const isCompletedProject = projectType === "Completed Unit / Developer Unit";
 
   // 只有 Sale 的项目，需要显示年份；Rent / Homestay / Hotel 都不要
   const showBuildYear =
@@ -425,7 +429,8 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () =>
+      document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   // 更新 layout
@@ -588,7 +593,9 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 
           {showSubtype && (
             <div className="mb-3">
-              <label className="block font-medium mb-1">Property Subtype</label>
+              <label className="block font-medium mb-1">
+                Property Subtype
+              </label>
               <select
                 className="border p-2 rounded w-full"
                 value={propertySubtype}
@@ -612,7 +619,9 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 
       {/* 这个房型有多少个单位？ */}
       <div className="mb-3" ref={unitCountRef}>
-        <label className="block font-medium mb-1">这个房型有多少个单位？</label>
+        <label className="block font-medium mb-1">
+          这个房型有多少个单位？
+        </label>
         <div className="relative">
           <input
             type="text"
@@ -663,7 +672,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         }}
       />
 
-            {/* 价格 */}
+      {/* 价格 */}
       <PriceInput
         value={priceForPsf}
         onChange={(val) => {
@@ -717,7 +726,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         }}
       />
 
-      {/* 朝向 */}
+          {/* 朝向 */}
       <FacingSelector
         value={photoConfig.orientation}
         onChange={(val) => {
@@ -740,7 +749,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
           setPhotoConfig((prev) => ({ ...prev, furniture: val }));
           handleFieldChange("furniture", val);
         }}
-      />
+        />
 
       <FacilitiesSelector
         value={photoConfig.facilities}
@@ -760,17 +769,17 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         />
       </div>
 
-{/* 建成年份 + 季度 */}
+     {/* 建成年份 + 季度 */}
       {showBuildYear && (
-  <BuildYearSelector
-    value={layout.buildYear}
-    onChange={(val) => updateLayout({ buildYear: val })}
-    quarter={layout.quarter}
-    onQuarterChange={(val) => updateLayout({ quarter: val })}
-    showQuarter={isNewProject} // 新项目才显示季度
-    label={isNewProject ? "预计交付时间" : "完成年份"}
-  />
-)}
+        <BuildYearSelector
+          value={layout.buildYear}
+          onChange={(val) => updateLayout({ buildYear: val })}
+          quarter={layout.quarter}
+          onQuarterChange={(val) => updateLayout({ quarter: val })}
+          showQuarter={isNewProject} // 新项目才显示季度
+          label={isNewProject ? "预计交付时间" : "完成年份"}
+        />
+      )}
 
       {/* 每个 Layout 自己的房源描述 */}
       <div className="mt-3 mb-3">
@@ -782,9 +791,9 @@ export default function UnitLayoutForm({ index, data, onChange }) {
           rows={3}
           className="w-full border rounded-lg p-2 resize-y"
         />
-      </div>
+            </div>
 
-{/* 上传此 Layout 的照片 */}
+      {/* 上传此 Layout 的照片 */}
       <div className="mb-3">
         <label className="block mb-1 font-medium">上传此 Layout 的照片</label>
         <div className="space-y-4">
@@ -798,7 +807,8 @@ export default function UnitLayoutForm({ index, data, onChange }) {
                 accept="image/*"
                 onChange={(e) => handlePhotoChange(e, label)}
               />
-<div className="grid grid-cols-3 gap-2">
+
+              <div className="grid grid-cols-3 gap-2">
                 {(photosByLabel[label] || []).map((img, index) => (
                   <div key={img.url || index} className="relative">
                     <img
@@ -820,11 +830,11 @@ export default function UnitLayoutForm({ index, data, onChange }) {
                       className="absolute bottom-1 left-1 bg-black text-white text-xs px-1 rounded"
                       onClick={() => setCover(label, index)}
                     >
-                        {img.isCover ? "封面" : "设为封面"}
+                      {img.isCover ? "封面" : "设为封面"}
                     </button>
                   </div>
                 ))}
-              </div>
+                </div>
             </div>
           ))}
         </div>
@@ -832,4 +842,3 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     </div>
   );
 }
-                  
