@@ -26,7 +26,7 @@ function toCount(value) {
  *      extraSpaces: string[],
  *      facilities: string[],
  *      furniture: string[],
- *      orientation: string,
+ *      facing: string,        // 朝向（注意这里用 facing）
  *      transit: any
  *    }
  *  - images: { [sectionKey]: File[] }
@@ -46,7 +46,6 @@ export default function ImageUpload({ config, images, setImages }) {
       list.push({
         key: `bedroom_${i}`,
         label: bedroomCount === 1 ? "卧室" : `卧室${i}`,
-        category: "bedroom",
       });
     }
 
@@ -56,7 +55,6 @@ export default function ImageUpload({ config, images, setImages }) {
       list.push({
         key: `bathroom_${i}`,
         label: bathroomCount === 1 ? "浴室" : `浴室${i}`,
-        category: "bathroom",
       });
     }
 
@@ -66,7 +64,6 @@ export default function ImageUpload({ config, images, setImages }) {
       list.push({
         key: `kitchen_${i}`,
         label: kitchenCount === 1 ? "厨房" : `厨房${i}`,
-        category: "kitchen",
       });
     }
 
@@ -76,7 +73,6 @@ export default function ImageUpload({ config, images, setImages }) {
       list.push({
         key: `living_${i}`,
         label: livingCount === 1 ? "客厅" : `客厅${i}`,
-        category: "living",
       });
     }
 
@@ -85,16 +81,14 @@ export default function ImageUpload({ config, images, setImages }) {
       list.push({
         key: "carpark",
         label: "停车位",
-        category: "carpark",
       });
     }
 
-    // 朝向
-    if (safeConfig.orientation) {
+    // 朝向：用 facing 字段
+    if (safeConfig.facing) {
       list.push({
-        key: `orientation_${safeConfig.orientation}`,
-        label: safeConfig.orientation,
-        category: "orientation",
+        key: `orientation_${safeConfig.facing}`,
+        label: safeConfig.facing,
       });
     }
 
@@ -105,7 +99,6 @@ export default function ImageUpload({ config, images, setImages }) {
         list.push({
           key: `facility_${idx}`,
           label: name,
-          category: "facilities",
         });
       });
     }
@@ -117,7 +110,6 @@ export default function ImageUpload({ config, images, setImages }) {
         list.push({
           key: `extra_${idx}`,
           label: name,
-          category: "extraSpaces",
         });
       });
     }
@@ -129,7 +121,6 @@ export default function ImageUpload({ config, images, setImages }) {
         list.push({
           key: `furniture_${idx}`,
           label: name,
-          category: "furniture",
         });
       });
     }
@@ -147,14 +138,6 @@ export default function ImageUpload({ config, images, setImages }) {
     setImages && setImages(next);
   };
 
-  // 不同分类的前缀
-  const prefixMap = {
-    orientation: "朝向：",
-    facilities: "设施：",
-    extraSpaces: "额外空间：",
-    furniture: "家私：",
-  };
-
   if (!sections.length) {
     return null;
   }
@@ -163,8 +146,18 @@ export default function ImageUpload({ config, images, setImages }) {
     <div className="mt-6 space-y-4">
       {sections.map((sec) => {
         const files = safeImages[sec.key] || [];
-        const prefix = prefixMap[sec.category] || "";
-        const displayLabel = prefix ? `${prefix}${sec.label}` : sec.label;
+
+        // 根据 key 前缀强制加上前缀文字
+        let displayLabel = sec.label;
+        if (sec.key.startsWith("orientation_")) {
+          displayLabel = `朝向：${sec.label}`;
+        } else if (sec.key.startsWith("facility_")) {
+          displayLabel = `设施：${sec.label}`;
+        } else if (sec.key.startsWith("extra_")) {
+          displayLabel = `额外空间：${sec.label}`;
+        } else if (sec.key.startsWith("furniture_")) {
+          displayLabel = `家私：${sec.label}`;
+        }
 
         return (
           <div key={sec.key} className="border rounded-md p-3">
