@@ -9,7 +9,7 @@ import { toast } from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 
 import TypeSelector from "@/components/TypeSelector";
-import UnitTypeSelector from "@/components/UnitLayoutForm";
+import UnitTypeSelector from "@/components/UnitTypeSelector";
 import UnitLayoutForm from "@/components/UnitLayoutForm";
 import AreaSelector from "@/components/AreaSelector";
 import PriceInput from "@/components/PriceInput";
@@ -24,7 +24,7 @@ import BuildYearSelector from "@/components/BuildYearSelector";
 import ImageUpload from "@/components/ImageUpload";
 import TransitSelector from "@/components/TransitSelector";
 import AdvancedAvailabilityCalendar from "@/components/AdvancedAvailabilityCalendar";
-import FloorCountSelector from "@/components/FloorCountSelector"; // ✅ 楼层选择组件
+import FloorCountSelector from "@/components/FloorCountSelector"; // ✅ 有多少层
 
 import { useUser } from "@supabase/auth-helpers-react";
 
@@ -33,12 +33,13 @@ const AddressSearchInput = dynamic(
   { ssr: false }
 );
 
-// ✅ 用最终 type + saleType 判断要不要显示“有多少层”
-function shouldShowFloorSelector(selectedType, saleType) {
-  if (!selectedType || !saleType) return false;
-  if (saleType !== "Rent") return false; // 只在 Rent 模式下显示
+// ✅ 只在 Rent + 这几种 landed / business / industrial 才显示「有多少层」
+function shouldShowFloorSelector(type, saleType, rentBatchMode) {
+  if (!type) return false;
+  if (saleType !== "Rent") return false;      // 只处理租赁
+  if (rentBatchMode === "yes") return false;  // 批量租项目用 layout 自己的楼层，不在这里显示
 
-  const categoriesNeedingFloors = [
+  const prefixes = [
     "Bungalow / Villa",
     "Semi-Detached House",
     "Terrace / Link House",
@@ -46,12 +47,8 @@ function shouldShowFloorSelector(selectedType, saleType) {
     "Industrial Property",
   ];
 
-  // type 一般长这样：
-  // "Bungalow / Villa - Bungalow"
-  // "Business Property - Shop"
-  return categoriesNeedingFloors.some((cat) =>
-    selectedType.startsWith(cat)
-  );
+  // type 一般是： "Bungalow / Villa - Bungalow" 这样的
+  return prefixes.some((p) => type.startsWith(p));
 }
 
 export default function UploadProperty() {
@@ -71,8 +68,8 @@ export default function UploadProperty() {
   const [latitude, setLatitude] = useState(null);
   const [longitude, setLongitude] = useState(null);
 
-  const [type, setType] = useState("");         // ✅ 最终类型（含 Sub Type）
-  const [saleType, setSaleType] = useState(""); // Sale / Rent / Homestay / Hotel
+  const [type, setType] = useState("");           // 最终类型（含 Sub Type）
+  const [saleType, setSaleType] = useState("");   // Sale / Rent / Homestay / Hotel
   const [propertyStatus, setPropertyStatus] = useState(""); // New Project / Completed Unit / ...
   const [rentBatchMode, setRentBatchMode] = useState("no"); // "no" | "yes"
 
@@ -247,10 +244,10 @@ export default function UploadProperty() {
       {/* 地址搜索 */}
       <AddressSearchInput onLocationSelect={handleLocationSelect} />
 
-      {/* 类型 & 成交状态 */}
+      {/* Sale / Rent / Category / Sub Type 等 */}
       <TypeSelector
         value={type}
-        onChange={setType}           // ✅ 这里会把最终 type 设进来
+        onChange={setType}
         rentBatchMode={rentBatchMode}
         onChangeRentBatchMode={setRentBatchMode}
         onFormChange={(formData) => {
@@ -265,7 +262,7 @@ export default function UploadProperty() {
             return newStatus;
           });
 
-          // 把「有多少层」同步到单一房源数据，方便保存
+          // 如果 TypeSelector 自己有楼层输入，也同步过来（主要是 subsale 用）
           if (typeof newStoreys !== "undefined") {
             setSingleFormData((prev) => ({
               ...prev,
@@ -274,6 +271,20 @@ export default function UploadProperty() {
           }
         }}
       />
+
+      {/* ✅ Rent + landed/business/industrial + 单一房源 → 在 Sub Type 下面显示「有多少层」 */}
+      {!isProject &&
+        shouldShowFloorSelector(type, saleType, rentBatchMode) && (
+          <FloorCountSelector
+            value={singleFormData.storeys}
+            onChange={(v) =>
+              setSingleFormData((prev) => ({
+                ...prev,
+                storeys: v,
+              }))
+            }
+          />
+        )}
 
       {/* ------------ 项目类房源 (New Project / Completed Unit / 批量 Rent 项目) ------------ */}
       {isProject ? (
@@ -334,7 +345,7 @@ export default function UploadProperty() {
             onChange={(val) =>
               setSingleFormData((prev) => ({ ...prev, price: val }))
             }
-            listingMode={saleType}
+            listingMode={saleType} // 用 Sale / Rent / Homestay / Hotel
             area={{
               buildUp: convertToSqft(
                 areaData.values.buildUp,
@@ -433,19 +444,6 @@ export default function UploadProperty() {
               setSingleFormData((prev) => ({ ...prev, furniture: val }))
             }
           />
-
-          {/* ✅ Rent + (Bungalow/Villa / Semi-D / Terrace / Business / Industrial) 才出现「有多少层」 */}
-          {shouldShowFloorSelector(type, saleType) && (
-            <FloorCountSelector
-              value={singleFormData.storeys}
-              onChange={(v) =>
-                setSingleFormData((prev) => ({
-                  ...prev,
-                  storeys: v,
-                }))
-              }
-            />
-          )}
 
           <FacilitiesSelector
             value={singleFormData.facilities}
