@@ -493,18 +493,22 @@ export default function TypeSelector({
               </div>
             )}
 
-            {/* 有多少层（Subsale / Auction / Rent-to-Own 都要） */}
-            {["Subsale / Secondary Market", "Auction Property", "Rent-to-Own Scheme"].includes(
-              propertyStatus
-            ) &&
-              NEED_STOREYS_CATEGORY.has(category) && (
-                <div>
-                  <FloorCountSelector
-                    value={storeys}
-                    onChange={(val) => setStoreys(val)}
-                  />
-                </div>
-              )}
+            {/* 有多少层（Subsale / Auction / Rent-to-Own + Rent 单一房源） */}
+{(
+    // ① Sale：Subsale / Auction / Rent-to-Own
+    ["Subsale / Secondary Market", "Auction Property", "Rent-to-Own Scheme"].includes(
+      propertyStatus
+    )
+    // ② Rent：不是批量（rentBatchMode !== "yes"）
+    || (saleType === "Rent" && rentBatchMode !== "yes")
+  ) &&
+  // 只对这 5 个类别显示
+  NEED_STOREYS_CATEGORY.has(category) && (
+    <FloorCountSelector
+      value={storeys}
+      onChange={(val) => setStoreys(val)}
+    />
+  )}
 
             {/* Property Subtype（Penthouse / Duplex 等） */}
             {showSubtype && (
