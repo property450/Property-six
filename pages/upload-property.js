@@ -24,7 +24,7 @@ import BuildYearSelector from "@/components/BuildYearSelector";
 import ImageUpload from "@/components/ImageUpload";
 import TransitSelector from "@/components/TransitSelector";
 import AdvancedAvailabilityCalendar from "@/components/AdvancedAvailabilityCalendar";
-import FloorCountSelector from "@/components/FloorCountSelector"; // ✅ 新增：楼层选择组件
+import FloorCountSelector from "@/components/FloorCountSelector"; // ✅ 楼层选择组件
 
 import { useUser } from "@supabase/auth-helpers-react";
 
@@ -33,10 +33,10 @@ const AddressSearchInput = dynamic(
   { ssr: false }
 );
 
-// ✅ 只要是 Rent，并且类型属于以下 5 类，就显示「有多少层」
-function shouldShowFloorCountSelector(selectedType, saleType) {
-  if (!selectedType) return false;
-  if (saleType !== "Rent") return false;
+// ✅ 用「Property Category + saleType」来判断要不要显示“有多少层”
+function shouldShowFloorSelector(propertyCategory, saleType) {
+  if (!propertyCategory) return false;
+  if (saleType !== "Rent") return false; // 只在 Rent 模式下显示
 
   const categoriesNeedingFloors = [
     "Bungalow / Villa",
@@ -46,13 +46,7 @@ function shouldShowFloorCountSelector(selectedType, saleType) {
     "Industrial Property",
   ];
 
-  // type 通常会长成类似：
-  // "Bungalow / Villa - Bungalow"
-  // "Business Property - Shop"
-  // 所以这里用 startsWith / includes 来判断
-  return categoriesNeedingFloors.some((cat) =>
-    selectedType.startsWith(cat) || selectedType.includes(cat)
-  );
+  return categoriesNeedingFloors.includes(propertyCategory);
 }
 
 export default function UploadProperty() {
@@ -72,10 +66,11 @@ export default function UploadProperty() {
   const [latitude, setLatitude] = useState(null);
   const [longitude, setLongitude] = useState(null);
 
-  const [type, setType] = useState(""); // 最终类型（Condo / Homestay - Entire Place 等）
-  const [saleType, setSaleType] = useState(""); // Sale / Rent / Homestay / Hotel
-  const [propertyStatus, setPropertyStatus] = useState(""); // New Project / Completed Unit / ...
-  const [rentBatchMode, setRentBatchMode] = useState("no"); // "no" | "yes"
+  const [type, setType] = useState("");              // 最终类型（含 Sub Type）
+  const [saleType, setSaleType] = useState("");      // Sale / Rent / Homestay / Hotel
+  const [propertyStatus, setPropertyStatus] = useState("");   // New Project / Completed Unit / ...
+  const [rentBatchMode, setRentBatchMode] = useState("no");   // "no" | "yes"
+  const [propertyCategory, setPropertyCategory] = useState(""); // ✅ 新增：Property Category
 
   // 项目类房源的 layout 列表
   const [unitLayouts, setUnitLayouts] = useState([]);
@@ -258,8 +253,10 @@ export default function UploadProperty() {
           const newStatus = formData?.propertyStatus || "";
           const newSaleType = formData?.saleType || "";
           const newStoreys = formData?.storeys;
+          const newCategory = formData?.propertyCategory || ""; // ✅ 从 TypeSelector 拿到 Property Category
 
           setSaleType(newSaleType);
+          setPropertyCategory(newCategory);
 
           setPropertyStatus((prev) => {
             if (prev === newStatus) return prev;
@@ -435,8 +432,8 @@ export default function UploadProperty() {
             }
           />
 
-          {/* ✅ Rent + (Bungalow/Villa / Semi-D / Terrace / Business / Industrial) 才出现「有多少层」 */}
-          {shouldShowFloorCountSelector(type, saleType) && (
+          {/* ✅ Rent + 指定 Property Category 时显示「有多少层」 */}
+          {shouldShowFloorSelector(propertyCategory, saleType) && (
             <FloorCountSelector
               value={singleFormData.storeys}
               onChange={(v) =>
@@ -519,4 +516,5 @@ export default function UploadProperty() {
       </Button>
     </div>
   );
-}
+          }
+           
