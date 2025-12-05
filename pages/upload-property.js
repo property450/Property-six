@@ -358,27 +358,6 @@ export default function UploadProperty() {
             }
           })()}
 
-          {/* ✅ Sale + Subsale/Auction/Rent-to-Own 时显示「完成年份」 */}
-          {saleType === "Sale" &&
-            [
-              "Subsale / Secondary Market",
-              "Auction Property",
-              "Rent-to-Own Scheme",
-            ].includes(propertyStatus) && (
-              <BuildYearSelector
-                value={singleFormData.buildYear}
-                onChange={(val) =>
-                  setSingleFormData((prev) => ({ ...prev, buildYear: val }))
-                }
-                quarter={singleFormData.quarter}
-                onQuarterChange={(val) =>
-                  setSingleFormData((prev) => ({ ...prev, quarter: val }))
-                }
-                showQuarter={false}
-                label="完成年份"
-              />
-            )}
-
           <RoomCountSelector
             value={{
               bedrooms: singleFormData.bedrooms,
@@ -432,6 +411,20 @@ export default function UploadProperty() {
             }
           />
 
+          {/* Rent + landed/business/industrial + 单一房源 → 有多少层 */}
+          {!isProject &&
+            shouldShowFloorSelector(type, saleType, rentBatchMode) && (
+              <FloorCountSelector
+                value={singleFormData.storeys}
+                onChange={(v) =>
+                  setSingleFormData((prev) => ({
+                    ...prev,
+                    storeys: v,
+                  }))
+                }
+              />
+            )}
+
           <FacilitiesSelector
             value={singleFormData.facilities}
             onChange={(val) =>
@@ -441,13 +434,41 @@ export default function UploadProperty() {
 
           <TransitSelector onChange={setTransitInfo} />
 
-          {/* Homestay / Hotel 的可租期（不再显示年份 / 季度） */}
-          {(type?.includes("Homestay") || type?.includes("Hotel")) && (
-            <AdvancedAvailabilityCalendar
-              value={availability}
-              onChange={setAvailability}
-            />
-          )}
+          {/* ====== 建成年份 / 预计完成年份：统一放在交通信息下面，只在 Sale 时显示 ====== */}
+          {saleType === "Sale" &&
+            computedStatus === "New Project / Under Construction" && (
+              <BuildYearSelector
+                value={singleFormData.buildYear}
+                onChange={(val) =>
+                  setSingleFormData((prev) => ({ ...prev, buildYear: val }))
+                }
+                quarter={singleFormData.quarter}
+                onQuarterChange={(val) =>
+                  setSingleFormData((prev) => ({ ...prev, quarter: val }))
+                }
+                showQuarter={true}
+                label="预计交付时间"
+              />
+            )}
+
+          {saleType === "Sale" &&
+            [
+              "Completed Unit / Developer Unit",
+              "Subsale / Secondary Market",
+              "Auction Property",
+              "Rent-to-Own Scheme",
+            ].includes(computedStatus) && (
+              <BuildYearSelector
+                value={singleFormData.buildYear}
+                onChange={(val) =>
+                  setSingleFormData((prev) => ({ ...prev, buildYear: val }))
+                }
+                quarter={undefined}
+                onQuarterChange={() => {}}
+                showQuarter={false}
+                label="完成年份"
+              />
+            )}
 
           {/* 房源描述 */}
           <div className="space-y-2">
@@ -468,6 +489,7 @@ export default function UploadProperty() {
           </div>
         </div>
       )}
+
 
       {/* 非项目类时的图片上传 */}
       {!isProject && (
