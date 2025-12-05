@@ -24,6 +24,7 @@ import BuildYearSelector from "@/components/BuildYearSelector";
 import ImageUpload from "@/components/ImageUpload";
 import TransitSelector from "@/components/TransitSelector";
 import AdvancedAvailabilityCalendar from "@/components/AdvancedAvailabilityCalendar";
+import FloorCountSelector from "@/components/FloorCountSelector"; // ✅ 有多少层
 
 import { useUser } from "@supabase/auth-helpers-react";
 
@@ -31,6 +32,23 @@ const AddressSearchInput = dynamic(
   () => import("@/components/AddressSearchInput"),
   { ssr: false }
 );
+
+// ✅ Rent + landed / business / industrial + 单一房源时，显示「有多少层」
+function shouldShowFloorSelector(type, saleType, rentBatchMode) {
+  if (!type) return false;
+  if (saleType !== "Rent") return false;
+  if (rentBatchMode === "yes") return false; // 批量项目在 layout 里自己处理
+
+  const prefixes = [
+    "Bungalow / Villa",
+    "Semi-Detached House",
+    "Terrace / Link House",
+    "Business Property",
+    "Industrial Property",
+  ];
+
+  return prefixes.some((p) => type.startsWith(p));
+}
 
 export default function UploadProperty() {
   const router = useRouter();
@@ -76,7 +94,7 @@ export default function UploadProperty() {
     buildYear: "",
     quarter: "",
     carparkPosition: "",
-    storeys: "", // 单一房源的层数（备用）
+    storeys: "", // 单一房源的层数
   });
 
   const [areaData, setAreaData] = useState({
@@ -490,6 +508,13 @@ export default function UploadProperty() {
         </div>
       )}
 
+      {/* Homestay / Hotel 的可租期（项目 or 单一房源都通用） */}
+      {(type?.includes("Homestay") || type?.includes("Hotel")) && (
+        <AdvancedAvailabilityCalendar
+          value={availability}
+          onChange={setAvailability}
+        />
+      )}
 
       {/* 非项目类时的图片上传 */}
       {!isProject && (
