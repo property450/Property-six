@@ -24,7 +24,7 @@ import BuildYearSelector from "@/components/BuildYearSelector";
 import ImageUpload from "@/components/ImageUpload";
 import TransitSelector from "@/components/TransitSelector";
 import AdvancedAvailabilityCalendar from "@/components/AdvancedAvailabilityCalendar";
-import FloorSelector from "@/components/FloorSelector"; // ✅ 新增：楼层选择组件
+import FloorCountSelector from "@/components/FloorCountSelector"; // ✅ 新增：楼层选择组件
 
 import { useUser } from "@supabase/auth-helpers-react";
 
