@@ -340,6 +340,18 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   const layout = data || {};
   const fileInputRef = useRef(null);
 
+    const projectType = layout.projectType;   // UploadProperty 里已经传进来了
+  const rentMode = layout.rentMode;        // "Sale" / "Rent" 之类
+
+  const isNewProject =
+    projectType === "New Project / Under Construction";
+  const isCompletedProject =
+    projectType === "Completed Unit / Developer Unit";
+
+  // 只有 Sale 的项目，需要显示年份；Rent / Homestay / Hotel 都不要
+  const showBuildYear =
+    rentMode === "Sale" && (isNewProject || isCompletedProject);
+
   // ⭐ 批量 Rent 的 Layout
   const isBulkRent = layout.rentMode === "Rent";
 
@@ -749,13 +761,16 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       </div>
 
 {/* 建成年份 + 季度 */}
-      <BuildYearSelector
-        value={layout.buildYear}
-        onChange={(val) => handleFieldChange("buildYear", val)}
-        quarter={layout.quarter}
-        onQuarterChange={(val) => handleFieldChange("quarter", val)}
-        showQuarter={true}
-      />
+      {showBuildYear && (
+  <BuildYearSelector
+    value={layout.buildYear}
+    onChange={(val) => updateLayout({ buildYear: val })}
+    quarter={layout.quarter}
+    onQuarterChange={(val) => updateLayout({ quarter: val })}
+    showQuarter={isNewProject} // 新项目才显示季度
+    label={isNewProject ? "预计交付时间" : "完成年份"}
+  />
+)}
 
       {/* 每个 Layout 自己的房源描述 */}
       <div className="mt-3 mb-3">
