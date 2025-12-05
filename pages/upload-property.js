@@ -24,6 +24,7 @@ import BuildYearSelector from "@/components/BuildYearSelector";
 import ImageUpload from "@/components/ImageUpload";
 import TransitSelector from "@/components/TransitSelector";
 import AdvancedAvailabilityCalendar from "@/components/AdvancedAvailabilityCalendar";
+import FloorSelector from "@/components/FloorSelector"; // ✅ 新增：楼层选择组件
 
 import { useUser } from "@supabase/auth-helpers-react";
 
@@ -32,13 +33,10 @@ const AddressSearchInput = dynamic(
   { ssr: false }
 );
 
-export default function UploadProperty() {
-  const router = useRouter();
-  const user = useUser();
-  const fileInputRef = useRef(null);
-
-  function shouldShowFloorSelector(selectedCategory, mode) {
-  if (!selectedCategory) return false;
+// ✅ 只要是 Rent，并且类型属于以下 5 类，就显示「有多少层」
+function shouldShowFloorSelector(selectedType, saleType) {
+  if (!selectedType) return false;
+  if (saleType !== "Rent") return false;
 
   const categoriesNeedingFloors = [
     "Bungalow / Villa",
@@ -48,11 +46,19 @@ export default function UploadProperty() {
     "Industrial Property",
   ];
 
-  // ❗ 无论是 subsale / new project / rent
-  // 只要 category 属于以上列表，就显示楼层选择框
-  return categoriesNeedingFloors.includes(selectedCategory);
+  // type 通常会长成类似：
+  // "Bungalow / Villa - Bungalow"
+  // "Business Property - Shop"
+  // 所以这里用 startsWith / includes 来判断
+  return categoriesNeedingFloors.some((cat) =>
+    selectedType.startsWith(cat) || selectedType.includes(cat)
+  );
 }
 
+export default function UploadProperty() {
+  const router = useRouter();
+  const user = useUser();
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (user === null) router.push("/login");
@@ -93,7 +99,7 @@ export default function UploadProperty() {
     buildYear: "",
     quarter: "",
     carparkPosition: "",
-    storeys: "", // 层数
+    storeys: "", // ✅ 有多少层
   });
 
   const [areaData, setAreaData] = useState({
@@ -358,9 +364,7 @@ export default function UploadProperty() {
               const priceVal = singleFormData.price;
               if (!totalAreaSqft || !priceVal) return null;
 
-              const priceNum = Number(
-                String(priceVal).replace(/,/g, "")
-              );
+              const priceNum = Number(String(priceVal).replace(/,/g, ""));
               if (!priceNum || !isFinite(priceNum)) return null;
 
               const psf = priceNum / totalAreaSqft;
@@ -431,13 +435,18 @@ export default function UploadProperty() {
             }
           />
 
-              {shouldShowFloorSelector(propertyCategory, mode) && (
-  <FloorSelector
-    value={floorCount}
-    onChange={(v) => setFloorCount(v)}
-  />
-)}
-
+          {/* ✅ Rent + (Bungalow/Villa / Semi-D / Terrace / Business / Industrial) 才出现「有多少层」 */}
+          {shouldShowFloorSelector(type, saleType) && (
+            <FloorSelector
+              value={singleFormData.storeys}
+              onChange={(v) =>
+                setSingleFormData((prev) => ({
+                  ...prev,
+                  storeys: v,
+                }))
+              }
+            />
+          )}
 
           <FacilitiesSelector
             value={singleFormData.facilities}
@@ -485,9 +494,7 @@ export default function UploadProperty() {
             onQuarterChange={(val) =>
               setSingleFormData((prev) => ({ ...prev, quarter: val }))
             }
-            showQuarter={
-              computedStatus === "New Project / Under Construction"
-            }
+            showQuarter={computedStatus === "New Project / Under Construction"}
           />
         </>
       )}
