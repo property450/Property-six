@@ -1,104 +1,76 @@
 // components/BuildYearSelector.js
-import React, { useState, useRef, useEffect } from "react";
+"use client";
+
+import { useMemo } from "react";
 
 export default function BuildYearSelector({
   value,
   onChange,
   quarter,
   onQuarterChange,
-  showQuarter,
+  showQuarter = false, // true = 有季度（新项目），false = 只选年份（完成年份）
+  label,
 }) {
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 70 + 5 + 1 }, (_, i) => currentYear + 5 - i);
+  // 默认标签：新项目时叫 预计交付时间；其它情况叫 完成年份
+  const finalLabel =
+    label || (showQuarter ? "预计交付时间" : "完成年份");
 
-  const [inputVal, setInputVal] = useState(value || "");
-  const [showDropdown, setShowDropdown] = useState(false);
-  const containerRef = useRef(null);
-
-  useEffect(() => {
-    setInputVal(value || "");
-  }, [value]);
-
-  // 点击页面外关闭下拉
-  useEffect(() => {
-    function handleClickOutside(e) {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setShowDropdown(false);
-      }
+  // 生成年份列表：从今年往前后 50 年左右，你可以按需要调整
+  const yearOptions = useMemo(() => {
+    const years = [];
+    const now = new Date().getFullYear();
+    const start = now - 30;
+    const end = now + 20;
+    for (let y = end; y >= start; y--) {
+      years.push(String(y));
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return years;
   }, []);
 
-  const handleInputChange = (e) => {
-    const val = e.target.value;
-    if (val === "" || /^\d{0,4}$/.test(val)) {
-      setInputVal(val);
-      onChange(val);
-    }
-  };
-
-  const handleOptionClick = (year) => {
-    setInputVal(String(year));
-    onChange(String(year));
-    setShowDropdown(false);
-  };
-
-  // ✅ 根据 showQuarter 切换 label 和 placeholder
-  const labelText = showQuarter ? "预计交付时间" : "完成年份";
-  const placeholderText = showQuarter
-    ? "请选择或输入建造年份"
-    : "请选择或输入完成年份";
+  const quarterOptions = ["Q1", "Q2", "Q3", "Q4"];
 
   return (
-    <div className="mb-4 relative">
-      <label className="block font-medium mb-1">{labelText}</label>
-      <div className="flex gap-2 items-end">
-        {/* 年份输入框 */}
-        <div className="flex-1 relative" ref={containerRef}>
-          <input
-            type="text"
-            maxLength={4}
-            inputMode="numeric"
-            pattern="[0-9]*"
-            placeholder={placeholderText}
-            className="w-full border p-2 rounded"
-            value={inputVal}
-            onChange={handleInputChange}
-            onFocus={() => setShowDropdown(true)}
-          />
-          {showDropdown && (
-            <ul className="absolute z-10 w-full max-h-40 overflow-auto border bg-white rounded mt-1 shadow-lg">
-              {years.map((year) => (
-                <li
-                  key={year}
-                  className="p-2 cursor-pointer hover:bg-blue-500 hover:text-white"
-                  onClick={() => handleOptionClick(year)}
-                >
-                  {year}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-gray-700">
+        {finalLabel}
+      </label>
 
-        {/* 季度下拉框 */}
-        {showQuarter && (
-          <div className="w-1/3">
-            <select
-              className="w-full border p-2 rounded"
-              value={quarter}
-              onChange={(e) => onQuarterChange(e.target.value)}
-            >
-              <option value="">选择季度</option>
-              <option value="Q1">Q1</option>
-              <option value="Q2">Q2</option>
-              <option value="Q3">Q3</option>
-              <option value="Q4">Q4</option>
-            </select>
-          </div>
-        )}
-      </div>
+      {/* 年份选择 */}
+      <select
+        className="w-full border rounded p-2"
+        value={value || ""}
+        onChange={(e) => onChange && onChange(e.target.value)}
+      >
+        <option value="">
+          {showQuarter ? "请选择预计交付年份" : "请选择完成年份"}
+        </option>
+        {yearOptions.map((y) => (
+          <option key={y} value={y}>
+            {y}
+          </option>
+        ))}
+      </select>
+
+      {/* 只有 showQuarter = true 才显示季度 */}
+      {showQuarter && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            选择季度
+          </label>
+          <select
+            className="w-full border rounded p-2"
+            value={quarter || ""}
+            onChange={(e) => onQuarterChange && onQuarterChange(e.target.value)}
+          >
+            <option value="">请选择季度</option>
+            {quarterOptions.map((q) => (
+              <option key={q} value={q}>
+                {q}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
     </div>
   );
 }
