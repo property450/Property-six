@@ -20,7 +20,7 @@ import FacingSelector from "@/components/FacingSelector";
 import CarparkLevelSelector from "@/components/CarparkLevelSelector";
 import FacilitiesSelector from "@/components/FacilitiesSelector";
 import FurnitureSelector from "@/components/FurnitureSelector";
-import BuildYearSelector from "@/components/BuildYearSelector";
+import BuildYearSelector from "@/components/BuildYearSelector"; // 只在 layout 里用，这里不用也没关系
 import ImageUpload from "@/components/ImageUpload";
 import TransitSelector from "@/components/TransitSelector";
 import AdvancedAvailabilityCalendar from "@/components/AdvancedAvailabilityCalendar";
@@ -49,8 +49,8 @@ export default function UploadProperty() {
   const [latitude, setLatitude] = useState(null);
   const [longitude, setLongitude] = useState(null);
 
-  const [type, setType] = useState("");           // 最终类型（含 Sub Type）
-  const [saleType, setSaleType] = useState("");   // Sale / Rent / Homestay / Hotel
+  const [type, setType] = useState(""); // 最终类型（含 Sub Type）
+  const [saleType, setSaleType] = useState(""); // Sale / Rent / Homestay / Hotel
   const [propertyStatus, setPropertyStatus] = useState(""); // New Project / Completed Unit / ...
   const [rentBatchMode, setRentBatchMode] = useState("no"); // "no" | "yes"
 
@@ -76,7 +76,7 @@ export default function UploadProperty() {
     buildYear: "",
     quarter: "",
     carparkPosition: "",
-    storeys: "", // 有多少层（从 TypeSelector 同步过来）
+    storeys: "", // 有多少层（单一房源时备用）
   });
 
   const [areaData, setAreaData] = useState({
@@ -225,7 +225,7 @@ export default function UploadProperty() {
       {/* 地址搜索 */}
       <AddressSearchInput onLocationSelect={handleLocationSelect} />
 
-      {/* Sale / Rent / Category / Sub Type 等，楼层输入也在这个组件内部处理 */}
+      {/* Sale / Rent / Category / Sub Type 等 */}
       <TypeSelector
         value={type}
         onChange={setType}
@@ -243,7 +243,7 @@ export default function UploadProperty() {
             return newStatus;
           });
 
-          // 从 TypeSelector 同步楼层数，保存到单一房源
+          // 如果 TypeSelector 自己有楼层输入，也同步过来（主要是 subsale 用）
           if (typeof newStoreys !== "undefined") {
             setSingleFormData((prev) => ({
               ...prev,
@@ -421,6 +421,14 @@ export default function UploadProperty() {
 
           <TransitSelector onChange={setTransitInfo} />
 
+          {/* Homestay / Hotel 的可租期（不再显示年份 / 季度） */}
+          {(type?.includes("Homestay") || type?.includes("Hotel")) && (
+            <AdvancedAvailabilityCalendar
+              value={availability}
+              onChange={setAvailability}
+            />
+          )}
+
           {/* 房源描述 */}
           <div className="space-y-2">
             <label
@@ -441,14 +449,6 @@ export default function UploadProperty() {
         </div>
       )}
 
-      {/* Homestay / Hotel 的可租期 & 建成年份 */}
-      {(type?.includes("Homestay") || type?.includes("Hotel")) && (
-  
-          <AdvancedAvailabilityCalendar
-            value={availability}
-            onChange={setAvailability}
-          />
-
       {/* 非项目类时的图片上传 */}
       {!isProject && (
         <ImageUpload
@@ -467,6 +467,6 @@ export default function UploadProperty() {
       >
         {loading ? "上传中..." : "提交房源"}
       </Button>
-   (/div)
+    </div>
   );
 }
