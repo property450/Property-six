@@ -91,6 +91,7 @@ export default function BuildYearSelector({
           value={inputValue}
           onChange={handleInputChange}
           onFocus={() => setOpen(true)}
+          onClick={() => setOpen(true)}  // ✅ 再次点击也会重新展开下拉
         />
 
         {/* 自定义白色下拉列表 */}
@@ -109,7 +110,7 @@ export default function BuildYearSelector({
                   e.preventDefault(); // 避免 input 失焦
                   setInputValue(y);
                   onChange && onChange(y);
-                  setOpen(false);
+                  setOpen(false);    // 选中后先收起
                 }}
               >
                 {y}
