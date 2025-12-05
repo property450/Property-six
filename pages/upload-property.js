@@ -467,6 +467,6 @@ export default function UploadProperty() {
       >
         {loading ? "上传中..." : "提交房源"}
       </Button>
-    </div>
+   <>
   );
 }
