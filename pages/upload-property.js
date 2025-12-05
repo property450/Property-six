@@ -443,7 +443,7 @@ export default function UploadProperty() {
 
       {/* Homestay / Hotel 的可租期 & 建成年份 */}
       {(type?.includes("Homestay") || type?.includes("Hotel")) && (
-        <>
+  
           <AdvancedAvailabilityCalendar
             value={availability}
             onChange={setAvailability}
@@ -467,6 +467,6 @@ export default function UploadProperty() {
       >
         {loading ? "上传中..." : "提交房源"}
       </Button>
-   <>
+   (/div)
   );
 }
