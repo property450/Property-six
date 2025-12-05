@@ -449,20 +449,6 @@ export default function UploadProperty() {
             onChange={setAvailability}
           />
 
-          <BuildYearSelector
-            value={singleFormData.buildYear}
-            onChange={(val) =>
-              setSingleFormData((prev) => ({ ...prev, buildYear: val }))
-            }
-            quarter={singleFormData.quarter}
-            onQuarterChange={(val) =>
-              setSingleFormData((prev) => ({ ...prev, quarter: val }))
-            }
-            showQuarter={computedStatus === "New Project / Under Construction"}
-          />
-        </>
-      )}
-
       {/* 非项目类时的图片上传 */}
       {!isProject && (
         <ImageUpload
