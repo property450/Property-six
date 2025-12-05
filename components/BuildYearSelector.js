@@ -78,7 +78,7 @@ export default function BuildYearSelector({
         {finalLabel}
       </label>
 
-      {/* 一个白色输入框：既可以输入，也可以点开下拉 */}
+      {/* 一个白色输入框：既可以输入，也可以点开/收起下拉 */}
       <div className="relative">
         <input
           type="text"
@@ -91,7 +91,7 @@ export default function BuildYearSelector({
           value={inputValue}
           onChange={handleInputChange}
           onFocus={() => setOpen(true)}
-          onClick={() => setOpen(true)}  // ✅ 再次点击也会重新展开下拉
+          onClick={() => setOpen((prev) => !prev)}  // ✅ 再次点击切换展开/收起
         />
 
         {/* 自定义白色下拉列表 */}
@@ -110,7 +110,7 @@ export default function BuildYearSelector({
                   e.preventDefault(); // 避免 input 失焦
                   setInputValue(y);
                   onChange && onChange(y);
-                  setOpen(false);    // 选中后先收起
+                  setOpen(false);     // 选中后先收起
                 }}
               >
                 {y}
