@@ -1,7 +1,7 @@
 // components/BuildYearSelector.js
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 
 export default function BuildYearSelector({
   value,
@@ -16,7 +16,7 @@ export default function BuildYearSelector({
 
   const currentYear = new Date().getFullYear();
 
-  // 生成年份选项
+  // ⬇️ 生成年份选项
   const yearOptions = useMemo(() => {
     const years = [];
     if (showQuarter) {
@@ -37,56 +37,89 @@ export default function BuildYearSelector({
 
   const quarterOptions = ["Q1", "Q2", "Q3", "Q4"];
 
-  // 当前 value 是否在下拉选项里
-  const stringValue = value ? String(value) : "";
-  const selectValue = yearOptions.includes(stringValue) ? stringValue : "";
+  // 本地状态：一个框既负责显示又负责编辑
+  const [open, setOpen] = useState(false);
+  const [inputValue, setInputValue] = useState(value || "");
+  const wrapperRef = useRef(null);
 
-  // 统一处理输入：只允许最多 4 位数字
-  const handleManualInput = (e) => {
+  // 外部 value 变化时，同步到本地
+  useEffect(() => {
+    setInputValue(value || "");
+  }, [value]);
+
+  // 只允许最多 4 位数字
+  const handleInputChange = (e) => {
     const raw = e.target.value || "";
     const digitsOnly = raw.replace(/\D/g, "").slice(0, 4);
+    setInputValue(digitsOnly);
     onChange && onChange(digitsOnly);
+    setOpen(true);
   };
 
-  const handleSelectChange = (e) => {
-    const v = e.target.value;
-    onChange && onChange(v);
-  };
+  // 过滤列表（例如输入“202”就显示 2020~2029）
+  const filteredOptions = yearOptions.filter((y) =>
+    inputValue ? y.startsWith(inputValue) : true
+  );
+
+  // 点击外面关闭下拉
+  useEffect(() => {
+    const handler = (e) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" ref={wrapperRef}>
       <label className="block text-sm font-medium text-gray-700">
         {finalLabel}
       </label>
 
-      {/* 第一行：白色下拉选择（和你其它 select 一样） */}
-      <select
-        className="w-full border rounded p-2 bg-white"
-        value={selectValue}
-        onChange={handleSelectChange}
-      >
-        <option value="">
-          {showQuarter ? "请选择预计完成年份" : "请选择完成年份"}
-        </option>
-        {yearOptions.map((y) => (
-          <option key={y} value={y}>
-            {y}
-          </option>
-        ))}
-      </select>
+      {/* 一个白色输入框：既可以输入，也可以点开下拉 */}
+      <div className="relative">
+        <input
+          type="text"
+          className="w-full border rounded p-2 bg-white"
+          placeholder={
+            showQuarter
+              ? "请选择或输入预计完成年份（4位数字）"
+              : "请选择或输入完成年份（4位数字）"
+          }
+          value={inputValue}
+          onChange={handleInputChange}
+          onFocus={() => setOpen(true)}
+        />
 
-      {/* 第二行：手动输入年份（可选，用于输入不在列表里的年份） */}
-      <input
-        type="text"
-        className="w-full border rounded p-2 bg-white"
-        placeholder={
-          showQuarter ? "或手动输入预计完成年份（4位数字）" : "或手动输入完成年份（4位数字）"
-        }
-        value={stringValue}
-        onChange={handleManualInput}
-      />
+        {/* 自定义白色下拉列表 */}
+        {open && (
+          <ul className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+            <li className="px-3 py-2 text-gray-500 cursor-default border-b select-none">
+              {showQuarter
+                ? "从列表中选择，或在上面输入年份"
+                : "从列表中选择，或在上面输入年份"}
+            </li>
+            {filteredOptions.map((y) => (
+              <li
+                key={y}
+                className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                onMouseDown={(e) => {
+                  e.preventDefault(); // 避免 input 失焦
+                  setInputValue(y);
+                  onChange && onChange(y);
+                  setOpen(false);
+                }}
+              >
+                {y}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
-      {/* 只有 预计完成年份（新项目）才显示季度 */}
+      {/* 只有“预计完成年份”才显示季度 */}
       {showQuarter && (
         <div>
           <label className="block text-sm font-medium text-gray-700">
