@@ -163,7 +163,6 @@ export default function TypeSelector({
   rentBatchMode = "no",
   onChangeRentBatchMode,
 }) {
-  // 顶层状态
   const [saleType, setSaleType] = useState("");
   const [usage, setUsage] = useState("");
   const [propertyStatus, setPropertyStatus] = useState("");
@@ -175,9 +174,9 @@ export default function TypeSelector({
   const [subtype, setSubtype] = useState("");
   const [auctionDate, setAuctionDate] = useState("");
   const [showSubtype, setShowSubtype] = useState(false);
-  const [storeys, setStoreys] = useState(""); // 有多少层
+  const [storeys, setStoreys] = useState("");
 
-  // ---------- 组合成外部 value ----------
+  // ---------- 外部 value（最终 type） ----------
   useEffect(() => {
     let newValue = "";
 
@@ -190,9 +189,9 @@ export default function TypeSelector({
     if (newValue !== value) {
       onChange && onChange(newValue);
     }
-  }, [saleType, finalType]);
+  }, [saleType, finalType, value, onChange]);
 
-  // ---------- 把整份表单通过 onFormChange 回传 ----------
+  // ---------- 通知外部完整表单 ----------
   useEffect(() => {
     const formData = {
       saleType,
@@ -237,16 +236,27 @@ export default function TypeSelector({
     propertyStatus === "New Project / Under Construction" ||
     propertyStatus === "Completed Unit / Developer Unit";
 
-  // 顶部 Property Category 是否需要显示：
-  // - Rent：只在「不批量」时显示
-  // - Sale：只在非项目类（Subsale / Auction / Rent-to-Own）时显示
+  // 顶部 Category 是否显示
   const showCategoryBlock =
     (saleType === "Rent" && rentBatchMode !== "yes") ||
     (saleType === "Sale" && !isProjectStatus);
 
+  // 需要显示楼层的情况：
+  const needStoreysForSale =
+    ["Subsale / Secondary Market", "Auction Property", "Rent-to-Own Scheme"].includes(
+      propertyStatus
+    ) && NEED_STOREYS_CATEGORY.has(category);
+
+  const needStoreysForRent =
+    saleType === "Rent" &&
+    rentBatchMode !== "yes" &&
+    NEED_STOREYS_CATEGORY.has(category);
+
+  const showStoreys = needStoreysForSale || needStoreysForRent;
+
   return (
     <div className="space-y-4">
-      {/* Sale / Rent / Homestay / Hotel */}
+      {/* ---------- 顶部：Sale / Rent / Homestay / Hotel ---------- */}
       <div>
         <label className="block font-medium">
           Sale / Rent / Homestay / Hotel
@@ -257,7 +267,8 @@ export default function TypeSelector({
           onChange={(e) => {
             const v = e.target.value;
             setSaleType(v);
-            // 切换大类时，重置相关字段
+
+            // 切换大类时重置
             setUsage("");
             setPropertyStatus("");
             setAffordable("");
@@ -280,7 +291,7 @@ export default function TypeSelector({
         </select>
       </div>
 
-      {/* Rent 批量操作开关 */}
+      {/* Rent 批量开关 */}
       {saleType === "Rent" && (
         <div className="mt-2">
           <label className="block text-sm font-medium text-gray-700">
@@ -318,7 +329,7 @@ export default function TypeSelector({
         </div>
       )}
 
-      {/* Hotel/Resort 分类 */}
+      {/* Hotel / Resort 分类 */}
       {saleType === "Hotel/Resort" && (
         <div>
           <label className="block font-medium">Hotel / Resort Type</label>
@@ -337,7 +348,7 @@ export default function TypeSelector({
         </div>
       )}
 
-      {/* Sale 相关字段 */}
+      {/* ---------- Sale 相关字段 ---------- */}
       {saleType === "Sale" && (
         <>
           {/* Property Usage */}
@@ -367,7 +378,6 @@ export default function TypeSelector({
               value={propertyStatus}
               onChange={(e) => {
                 setPropertyStatus(e.target.value);
-                // 切换 status 时清空楼层
                 setStoreys("");
               }}
             >
@@ -380,7 +390,7 @@ export default function TypeSelector({
             </select>
           </div>
 
-          {/* 拍卖日期 */}
+          {/* Auction Date */}
           {propertyStatus === "Auction Property" && (
             <div>
               <label className="block font-medium">Auction Date</label>
@@ -446,7 +456,7 @@ export default function TypeSelector({
         </>
       )}
 
-      {/* Property Category + Sub Type + Storeys（Sale / Rent 单一） */}
+      {/* ---------- Category + Sub Type + Storeys ---------- */}
       {showCategoryBlock &&
         saleType !== "Homestay" &&
         saleType !== "Hotel/Resort" && (
@@ -493,22 +503,13 @@ export default function TypeSelector({
               </div>
             )}
 
-            {/* 有多少层（Subsale / Auction / Rent-to-Own + Rent 单一房源） */}
-{(
-    // ① Sale：Subsale / Auction / Rent-to-Own
-    ["Subsale / Secondary Market", "Auction Property", "Rent-to-Own Scheme"].includes(
-      propertyStatus
-    )
-    // ② Rent：不是批量（rentBatchMode !== "yes"）
-    || (saleType === "Rent" && rentBatchMode !== "yes")
-  ) &&
-  // 只对这 5 个类别显示
-  NEED_STOREYS_CATEGORY.has(category) && (
-    <FloorCountSelector
-      value={storeys}
-      onChange={(val) => setStoreys(val)}
-    />
-  )}
+            {/* ✅ 在 Sub Type 下面显示「有多少层」 */}
+            {showStoreys && (
+              <FloorCountSelector
+                value={storeys}
+                onChange={(val) => setStoreys(val)}
+              />
+            )}
 
             {/* Property Subtype（Penthouse / Duplex 等） */}
             {showSubtype && (
