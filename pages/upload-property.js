@@ -34,7 +34,7 @@ const AddressSearchInput = dynamic(
 );
 
 // ✅ 只要是 Rent，并且类型属于以下 5 类，就显示「有多少层」
-function shouldShowFloorSelector(selectedType, saleType) {
+function shouldShowFloorCountSelector(selectedType, saleType) {
   if (!selectedType) return false;
   if (saleType !== "Rent") return false;
 
@@ -436,8 +436,8 @@ export default function UploadProperty() {
           />
 
           {/* ✅ Rent + (Bungalow/Villa / Semi-D / Terrace / Business / Industrial) 才出现「有多少层」 */}
-          {shouldShowFloorSelector(type, saleType) && (
-            <FloorSelector
+          {shouldShowFloorCountSelector(type, saleType) && (
+            <FloorCountSelector
               value={singleFormData.storeys}
               onChange={(v) =>
                 setSingleFormData((prev) => ({
