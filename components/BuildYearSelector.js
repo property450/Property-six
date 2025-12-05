@@ -40,13 +40,10 @@ export default function BuildYearSelector({
   // 年份输入框状态
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState(value || "");
-
-  // 季度用本地 state，保证选择后立刻能看到
   const [localQuarter, setLocalQuarter] = useState(quarter || "");
-
   const wrapperRef = useRef(null);
 
-  // 外部传进来的 value / quarter 变化时，同步到本地
+  // 外部 value / quarter 变化时，同步到本地
   useEffect(() => {
     setInputValue(value || "");
   }, [value]);
@@ -61,10 +58,10 @@ export default function BuildYearSelector({
     const digitsOnly = raw.replace(/\D/g, "").slice(0, 4);
     setInputValue(digitsOnly);
     onChange && onChange(digitsOnly);
-    setOpen(true);
+    setOpen(true); // 输入时展开列表
   };
 
-  // ⬇️ 不再按输入过滤列表，永远显示完整年份范围
+  // 始终显示完整列表（不按输入过滤）
   const filteredOptions = yearOptions;
 
   // 点击外面关闭下拉
@@ -84,7 +81,7 @@ export default function BuildYearSelector({
         {finalLabel}
       </label>
 
-      {/* 一个白色输入框：既可以输入，也可以点开/收起下拉 */}
+      {/* 一个白色输入框：既可以输入，也可以点开下拉 */}
       <div className="relative">
         <input
           type="text"
@@ -96,11 +93,10 @@ export default function BuildYearSelector({
           }
           value={inputValue}
           onChange={handleInputChange}
-          onFocus={() => setOpen(true)}
-          onClick={() => setOpen((prev) => !prev)} // ✅ 再次点击切换展开/收起
+          onClick={() => setOpen(true)} // ✅ 第一次点击就展开完整列表
         />
 
-        {/* 自定义白色下拉列表：总是显示完整年份  */}
+        {/* 自定义白色下拉列表：总是显示完整年份 */}
         {open && (
           <ul className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
             <li className="px-3 py-2 text-gray-500 cursor-default border-b select-none">
@@ -112,9 +108,9 @@ export default function BuildYearSelector({
                 className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                 onMouseDown={(e) => {
                   e.preventDefault(); // 避免 input 失焦
-                  setInputValue(y);   // 显示选中的年份
+                  setInputValue(y);
                   onChange && onChange(y);
-                  setOpen(false);     // 选中后先收起，下次再点又展开完整列表
+                  setOpen(false); // 选中后收起，下次再点又展开完整列表
                 }}
               >
                 {y}
@@ -135,8 +131,8 @@ export default function BuildYearSelector({
             value={localQuarter}
             onChange={(e) => {
               const q = e.target.value;
-              setLocalQuarter(q);               // ✅ 本地立刻更新
-              onQuarterChange && onQuarterChange(q); // 同步给父组件
+              setLocalQuarter(q);                 // ✅ 本地记住
+              onQuarterChange && onQuarterChange(q); // ✅ 同步给父组件
             }}
           >
             <option value="">请选择季度</option>
