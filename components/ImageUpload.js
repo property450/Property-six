@@ -1,7 +1,8 @@
 // components/ImageUpload.js
 "use client";
 
-import { useMemo } from "react";
+import { useState, useEffect } from "react";
+import { ReactSortable } from "react-sortablejs";
 
 // 只接受「对象」作为图片结构，其它一律当成空对象
 function normalizeImages(images) {
@@ -19,158 +20,224 @@ function toCount(value) {
   return Math.floor(num);
 }
 
+const toArray = (val) => {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  return [val];
+};
+
+const getName = (item) => {
+  if (!item) return "";
+  if (typeof item === "string") return item;
+  return item.label || item.value || item.name || "";
+};
+
+// ✅ 跟 UnitLayoutForm 同步的 label 生成逻辑
+function getPhotoLabelsFromConfig(config) {
+  const safe = config || {};
+  let labels = [];
+
+  // 卧室
+  if (safe.bedrooms) {
+    const raw = String(safe.bedrooms).trim().toLowerCase();
+    if (raw === "studio") {
+      labels.push("Studio");
+    } else {
+      const num = toCount(safe.bedrooms);
+      for (let i = 1; i <= num; i++) labels.push(`卧室${i}`);
+    }
+  }
+
+  // 浴室
+  {
+    const num = toCount(safe.bathrooms);
+    for (let i = 1; i <= num; i++) labels.push(`浴室${i}`);
+  }
+
+  // 厨房
+  {
+    const num = toCount(safe.kitchens);
+    for (let i = 1; i <= num; i++) labels.push(`厨房${i}`);
+  }
+
+  // 客厅
+  {
+    const num = toCount(safe.livingRooms);
+    for (let i = 1; i <= num; i++) labels.push(`客厅${i}`);
+  }
+
+  // 停车位
+  {
+    const v = safe.carpark;
+    if (v) {
+      if (typeof v === "number" || typeof v === "string") {
+        const num = toCount(v);
+        if (num > 0) labels.push("停车位");
+      }
+      if (typeof v === "object" && !Array.isArray(v)) {
+        const min = toCount(v.min);
+        const max = toCount(v.max);
+        if (min > 0 || max > 0) labels.push("停车位");
+      }
+    }
+  }
+
+  // 储藏室
+  {
+    const num = toCount(safe.store);
+    for (let i = 1; i <= num; i++) labels.push(`储藏室${i}`);
+  }
+
+  // 朝向：前缀「朝向：」
+  {
+    const arr = toArray(safe.orientation);
+    arr.forEach((item) => {
+      const n = getName(item);
+      if (!n) return;
+      labels.push(`朝向：${n}`);
+    });
+  }
+
+  // 设施：前缀「设施：」
+  {
+    const arr = toArray(safe.facilities);
+    arr.forEach((item) => {
+      const n = getName(item);
+      if (!n) return;
+      labels.push(`设施：${n}`);
+    });
+  }
+
+  // 额外空间：前缀「额外空间：」，按 count 生成多个
+  {
+    const arr = toArray(safe.extraSpaces);
+    arr.forEach((extra) => {
+      if (!extra) return;
+      const name = getName(extra);
+      if (!name) return;
+
+      const count = toCount(extra.count || 1) || 1;
+      if (count <= 1) {
+        labels.push(`额外空间：${name}`);
+      } else {
+        for (let i = 1; i <= count; i++) {
+          labels.push(`额外空间：${name}${i}`);
+        }
+      }
+    });
+  }
+
+  // 家私：前缀「家私：」，按 count 生成多个
+  {
+    const arr = toArray(safe.furniture);
+    arr.forEach((item) => {
+      if (!item) return;
+      const name = getName(item);
+      if (!name) return;
+
+      const count = toCount(item.count || 1) || 1;
+      if (count <= 1) {
+        labels.push(`家私：${name}`);
+      } else {
+        for (let i = 1; i <= count; i++) {
+          labels.push(`家私：${name}${i}`);
+        }
+      }
+    });
+  }
+
+  // 去重
+  labels = [...new Set(labels)];
+  if (!labels.length) labels.push("房源照片");
+
+  return labels;
+}
+
 export default function ImageUpload({ config, images, setImages }) {
   const safeConfig = config || {};
-  const safeImages = normalizeImages(images);
+  const [localImages, setLocalImages] = useState(normalizeImages(images));
 
-  const sections = useMemo(() => {
-    const list = [];
+  // 外部 images 更新时同步
+  useEffect(() => {
+    setLocalImages(normalizeImages(images));
+  }, [images]);
 
-    // 卧室
-    const bedroomCount = toCount(safeConfig.bedrooms);
-    for (let i = 1; i <= bedroomCount; i++) {
-      list.push({
-        key: `bedroom_${i}`,
-        label: bedroomCount === 1 ? "卧室" : `卧室${i}`,
-        kind: "bedroom",
-      });
-    }
+  const labels = getPhotoLabelsFromConfig(safeConfig);
 
-    // 浴室
-    const bathroomCount = toCount(safeConfig.bathrooms);
-    for (let i = 1; i <= bathroomCount; i++) {
-      list.push({
-        key: `bathroom_${i}`,
-        label: bathroomCount === 1 ? "浴室" : `浴室${i}`,
-        kind: "bathroom",
-      });
-    }
+  const handleFilesChange = (label, fileList) => {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
 
-    // 厨房
-    const kitchenCount = toCount(safeConfig.kitchens);
-    for (let i = 1; i <= kitchenCount; i++) {
-      list.push({
-        key: `kitchen_${i}`,
-        label: kitchenCount === 1 ? "厨房" : `厨房${i}`,
-        kind: "kitchen",
-      });
-    }
+    const newItems = files.map((file, idx) => ({
+      id: `${label}-${Date.now()}-${idx}`,
+      file,
+      url: URL.createObjectURL(file),
+    }));
 
-    // 客厅
-    const livingCount = toCount(safeConfig.livingRooms);
-    for (let i = 1; i <= livingCount; i++) {
-      list.push({
-        key: `living_${i}`,
-        label: livingCount === 1 ? "客厅" : `客厅${i}`,
-        kind: "living",
-      });
-    }
-
-    // 车位（整体）
-    if (toCount(safeConfig.carpark) > 0) {
-      list.push({
-        key: "carpark",
-        label: "停车位",
-        kind: "carpark",
-      });
-    }
-
-    // -------- 朝向（兼容 facing 和 orientation）--------
-    let facingLabel = safeConfig.facing ?? safeConfig.orientation;
-    if (Array.isArray(facingLabel)) {
-      // 如果是数组（例如多选朝向），就用逗号连接
-      facingLabel = facingLabel.join(" / ");
-    }
-    if (facingLabel) {
-      list.push({
-        key: `facing_${facingLabel}`,
-        label: facingLabel,
-        kind: "facing",
-      });
-    }
-
-    // 设施
-    if (Array.isArray(safeConfig.facilities)) {
-      safeConfig.facilities.forEach((item, idx) => {
-        const name = typeof item === "string" ? item : item?.label;
-        if (!name) return;
-        list.push({
-          key: `facility_${idx}`,
-          label: name,
-          kind: "facility",
-        });
-      });
-    }
-
-    // 额外空间
-    if (Array.isArray(safeConfig.extraSpaces)) {
-      safeConfig.extraSpaces.forEach((item, idx) => {
-        const name = typeof item === "string" ? item : item?.label;
-        if (!name) return;
-        list.push({
-          key: `extra_${idx}`,
-          label: name,
-          kind: "extraSpace",
-        });
-      });
-    }
-
-    // 家私
-    if (Array.isArray(safeConfig.furniture)) {
-      safeConfig.furniture.forEach((item, idx) => {
-        const name = typeof item === "string" ? item : item?.label;
-        if (!name) return;
-        list.push({
-          key: `furniture_${idx}`,
-          label: name,
-          kind: "furniture",
-        });
-      });
-    }
-
-    return list;
-  }, [safeConfig]);
-
-  const handleFilesChange = (sectionKey, files) => {
-    const fileArr = Array.from(files || []);
-    const next = {
-      ...safeImages,
-      [sectionKey]: fileArr,
+    const current = localImages[label] || [];
+    const updated = {
+      ...localImages,
+      [label]: [...current, ...newItems],
     };
-    setImages && setImages(next);
+
+    setLocalImages(updated);
+    setImages && setImages(updated);
   };
 
-  if (!sections.length) return null;
+  const handleSort = (label, newList) => {
+    const updated = { ...localImages, [label]: newList };
+    setLocalImages(updated);
+    setImages && setImages(updated);
+  };
+
+  const handleRemove = (label, id) => {
+    const current = localImages[label] || [];
+    const updated = {
+      ...localImages,
+      [label]: current.filter((img) => img.id !== id),
+    };
+    setLocalImages(updated);
+    setImages && setImages(updated);
+  };
 
   return (
-    <div className="mt-6 space-y-4">
-      {sections.map((sec) => {
-        const files = safeImages[sec.key] || [];
-
-        // 根据 kind 加前缀
-        let displayLabel = sec.label;
-        if (sec.kind === "facing") {
-          displayLabel = `朝向：${sec.label}`;
-        } else if (sec.kind === "facility") {
-          displayLabel = `设施：${sec.label}`;
-        } else if (sec.kind === "extraSpace") {
-          displayLabel = `额外空间：${sec.label}`;
-        } else if (sec.kind === "furniture") {
-          displayLabel = `家私：${sec.label}`;
-        }
-
+    <div className="space-y-4 mt-4">
+      {labels.map((label) => {
+        const list = localImages[label] || [];
         return (
-          <div key={sec.key} className="border rounded-md p-3">
-            <p className="font-medium mb-1">{displayLabel}</p>
+          <div key={label} className="border rounded p-3 space-y-2">
+            <p className="font-semibold">{label}</p>
+
             <input
               type="file"
               multiple
-              onChange={(e) => handleFilesChange(sec.key, e.target.files)}
+              accept="image/*"
+              onChange={(e) => handleFilesChange(label, e.target.files)}
             />
-            {files.length > 0 && (
-              <p className="mt-1 text-xs text-gray-500">
-                已选择 {files.length} 张图片
-              </p>
+
+            {list.length > 0 && (
+              <ReactSortable
+                list={list}
+                setList={(newList) => handleSort(label, newList)}
+                className="grid grid-cols-3 gap-2 mt-2"
+              >
+                {list.map((img) => (
+                  <div key={img.id} className="relative">
+                    <img
+                      src={img.url}
+                      alt=""
+                      className="w-full h-24 object-cover rounded"
+                    />
+                    <button
+                      type="button"
+                      className="absolute top-1 right-1 bg-red-500 text-white text-xs px-1 rounded"
+                      onClick={() => handleRemove(label, img.id)}
+                    >
+                      X
+                    </button>
+                  </div>
+                ))}
+              </ReactSortable>
             )}
           </div>
         );
