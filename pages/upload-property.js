@@ -24,7 +24,7 @@ import BuildYearSelector from "@/components/BuildYearSelector";
 import ImageUpload from "@/components/ImageUpload";
 import TransitSelector from "@/components/TransitSelector";
 import AdvancedAvailabilityCalendar from "@/components/AdvancedAvailabilityCalendar";
-import FloorCountSelector from "@/components/FloorCountSelector"; // 有多少层
+import FloorCountSelector from "@/components/FloorCountSelector";
 import HomestayUploadForm from "@/components/HomestayUploadForm";
 import HotelUploadForm from "@/components/HotelUploadForm";
 
@@ -35,7 +35,7 @@ const AddressSearchInput = dynamic(
   { ssr: false }
 );
 
-// Rent + landed / business / industrial + 单一房源时，显示「有多少层」
+// ✅ Rent + landed / business / industrial + 单一房源时，显示「有多少层」
 function shouldShowFloorSelector(type, saleType, rentBatchMode) {
   if (!type) return false;
   if (saleType !== "Rent") return false;
@@ -160,6 +160,10 @@ export default function UploadProperty() {
     computedStatus?.includes("Completed Unit") ||
     computedStatus?.includes("Developer Unit");
 
+  // ✅ Homestay / Hotel 标记
+  const isHomestay = saleType === "Homestay";
+  const isHotel = saleType === "Hotel / Resort";
+
   // 当不再是项目类时，清空 layouts
   useEffect(() => {
     if (!isProject) {
@@ -181,13 +185,15 @@ export default function UploadProperty() {
     transit: transitInfo || null,
   };
 
-  // ---------- 提交（普通 Sale / Rent 流程用） ----------
+  // ---------- 提交 ----------
   const handleSubmit = async () => {
     if (!title || !address || !latitude || !longitude) {
       toast.error("请填写完整信息");
       return;
     }
 
+    // ⚠️ 目前 handleSubmit 还是保存 singleFormData，
+    // Homestay / Hotel 的高级表单还没接到数据库，这个可以之后再一起设计。
     setLoading(true);
     try {
       const { data: propertyData, error } = await supabase
@@ -237,12 +243,6 @@ export default function UploadProperty() {
     }
   };
 
-  // ---------- Homestay / Hotel 判断（更稳：用小写 + includes） ----------
-  const saleTypeLower = (saleType || "").toLowerCase();
-  const isHomestay = saleTypeLower.includes("homestay");
-  const isHotel =
-    saleTypeLower.includes("hotel") || saleTypeLower.includes("resort");
-
   // ---------- JSX ----------
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-4">
@@ -278,12 +278,17 @@ export default function UploadProperty() {
         }}
       />
 
-      {/* ===== 根据 SaleType 切换：Homestay / Hotel 用专门表单，其它走原来流程 ===== */}
-      {isHomestay ? (
+      {/* ==================== Homestay / Hotel 专用表单（非项目类） ==================== */}
+      {!isProject && isHomestay && (
         <HomestayUploadForm />
-      ) : isHotel ? (
+      )}
+
+      {!isProject && isHotel && (
         <HotelUploadForm />
-      ) : (
+      )}
+
+      {/* ==================== 其它类型（Sale / Rent / Subsale / New Project） ==================== */}
+      {!isHomestay && !isHotel && (
         <>
           {/* ------------ 项目类房源 (New Project / Completed Unit / 批量 Rent 项目) ------------ */}
           {isProject ? (
@@ -294,9 +299,7 @@ export default function UploadProperty() {
                 onChange={(newLayouts) => {
                   setUnitLayouts((prev) => {
                     const oldList = Array.isArray(prev) ? prev : [];
-                    const nextList = Array.isArray(newLayouts)
-                      ? newLayouts
-                      : [];
+                    const nextList = Array.isArray(newLayouts) ? newLayouts : [];
 
                     const maxLen = Math.max(oldList.length, nextList.length);
                     const merged = [];
@@ -337,12 +340,9 @@ export default function UploadProperty() {
               )}
             </>
           ) : (
-            /* ------------ 普通非项目房源（单一房源，含 Rent 单一） ------------ */
+            /* ------------ 普通非项目房源（单一房源，Sale / Rent） ------------ */
             <div className="space-y-4 mt-6">
-              <AreaSelector
-                onChange={handleAreaChange}
-                initialValue={areaData}
-              />
+              <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
 
               <PriceInput
                 value={singleFormData.price}
@@ -474,7 +474,7 @@ export default function UploadProperty() {
 
               <TransitSelector onChange={setTransitInfo} />
 
-              {/* 建成年份 / 预计完成年份：统一放在交通信息下面，只在 Sale 时显示 */}
+              {/* ====== 建成年份 / 预计完成年份：统一放在交通信息下面，只在 Sale 时显示 ====== */}
               {saleType === "Sale" &&
                 computedStatus === "New Project / Under Construction" && (
                   <BuildYearSelector
@@ -487,7 +487,10 @@ export default function UploadProperty() {
                     }
                     quarter={singleFormData.quarter}
                     onQuarterChange={(val) =>
-                      setSingleFormData((prev) => ({ ...prev, quarter: val }))
+                      setSingleFormData((prev) => ({
+                        ...prev,
+                        quarter: val,
+                      }))
                     }
                     showQuarter={true}
                     label="预计交付时间"
@@ -535,35 +538,27 @@ export default function UploadProperty() {
               </div>
             </div>
           )}
-
-          {/* Homestay / Hotel 的可租期（这里保留给旧逻辑，如果 type 里包含字眼但不是专门表单） */}
-          {(type?.includes("Homestay") || type?.includes("Hotel")) && (
-            <AdvancedAvailabilityCalendar
-              value={availability}
-              onChange={setAvailability}
-            />
-          )}
-
-          {/* 非项目类时的图片上传 */}
-          {!isProject && (
-            <ImageUpload
-              config={photoConfig}
-              images={singleFormData.photos}
-              setImages={(updated) =>
-                setSingleFormData((prev) => ({ ...prev, photos: updated }))
-              }
-            />
-          )}
-
-          <Button
-            onClick={handleSubmit}
-            disabled={loading}
-            className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full"
-          >
-            {loading ? "上传中..." : "提交房源"}
-          </Button>
         </>
       )}
+
+      {/* 非项目类时的图片上传（Homestay / Hotel 以外） */}
+      {!isProject && !isHomestay && !isHotel && (
+        <ImageUpload
+          config={photoConfig}
+          images={singleFormData.photos}
+          setImages={(updated) =>
+            setSingleFormData((prev) => ({ ...prev, photos: updated }))
+          }
+        />
+      )}
+
+      <Button
+        onClick={handleSubmit}
+        disabled={loading}
+        className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full"
+      >
+        {loading ? "上传中..." : "提交房源"}
+      </Button>
     </div>
   );
 }
