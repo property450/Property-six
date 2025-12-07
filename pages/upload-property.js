@@ -237,9 +237,11 @@ export default function UploadProperty() {
     }
   };
 
-  // ---------- Homestay / Hotel 判断 ----------
-  const isHomestay = saleType === "Homestay";
-  const isHotel = saleType === "Hotel / Resort";
+  // ---------- Homestay / Hotel 判断（更稳：用小写 + includes） ----------
+  const saleTypeLower = (saleType || "").toLowerCase();
+  const isHomestay = saleTypeLower.includes("homestay");
+  const isHotel =
+    saleTypeLower.includes("hotel") || saleTypeLower.includes("resort");
 
   // ---------- JSX ----------
   return (
