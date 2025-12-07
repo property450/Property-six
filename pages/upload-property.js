@@ -25,6 +25,7 @@ import ImageUpload from "@/components/ImageUpload";
 import TransitSelector from "@/components/TransitSelector";
 import AdvancedAvailabilityCalendar from "@/components/AdvancedAvailabilityCalendar";
 import FloorCountSelector from "@/components/FloorCountSelector";
+
 import HomestayUploadForm from "@/components/HomestayUploadForm";
 import HotelUploadForm from "@/components/HotelUploadForm";
 
@@ -35,7 +36,7 @@ const AddressSearchInput = dynamic(
   { ssr: false }
 );
 
-// ✅ Rent + landed / business / industrial + 单一房源时，显示「有多少层」
+// Rent + landed / business / industrial + 单一房源 时，显示「有多少层」
 function shouldShowFloorSelector(type, saleType, rentBatchMode) {
   if (!type) return false;
   if (saleType !== "Rent") return false;
@@ -69,8 +70,8 @@ export default function UploadProperty() {
   const [latitude, setLatitude] = useState(null);
   const [longitude, setLongitude] = useState(null);
 
-  const [type, setType] = useState(""); // 最终类型（含 Sub Type）
-  const [saleType, setSaleType] = useState(""); // Sale / Rent / Homestay / Hotel
+  const [type, setType] = useState("");             // 最终类型（含 Sub Type）
+  const [saleType, setSaleType] = useState("");     // Sale / Rent / Homestay / Hotel
   const [propertyStatus, setPropertyStatus] = useState(""); // New Project / Completed Unit / ...
   const [rentBatchMode, setRentBatchMode] = useState("no"); // "no" | "yes"
 
@@ -160,10 +161,6 @@ export default function UploadProperty() {
     computedStatus?.includes("Completed Unit") ||
     computedStatus?.includes("Developer Unit");
 
-  // ✅ Homestay / Hotel 标记
-  const isHomestay = saleType === "Homestay";
-  const isHotel = saleType === "Hotel / Resort";
-
   // 当不再是项目类时，清空 layouts
   useEffect(() => {
     if (!isProject) {
@@ -192,8 +189,6 @@ export default function UploadProperty() {
       return;
     }
 
-    // ⚠️ 目前 handleSubmit 还是保存 singleFormData，
-    // Homestay / Hotel 的高级表单还没接到数据库，这个可以之后再一起设计。
     setLoading(true);
     try {
       const { data: propertyData, error } = await supabase
@@ -243,6 +238,11 @@ export default function UploadProperty() {
     }
   };
 
+  // ---------- Homestay / Hotel 识别 ----------
+  const saleTypeNorm = (saleType || "").toLowerCase();
+  const isHomestay = saleTypeNorm.includes("homestay");
+  const isHotel = saleTypeNorm.includes("hotel"); // 能覆盖 "Hotel / Resort" / "Hotel/Resort"
+
   // ---------- JSX ----------
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-4">
@@ -278,17 +278,12 @@ export default function UploadProperty() {
         }}
       />
 
-      {/* ==================== Homestay / Hotel 专用表单（非项目类） ==================== */}
-      {!isProject && isHomestay && (
+      {/* ====== Homestay / Hotel 特殊表单 ====== */}
+      {isHomestay ? (
         <HomestayUploadForm />
-      )}
-
-      {!isProject && isHotel && (
+      ) : isHotel ? (
         <HotelUploadForm />
-      )}
-
-      {/* ==================== 其它类型（Sale / Rent / Subsale / New Project） ==================== */}
-      {!isHomestay && !isHotel && (
+      ) : (
         <>
           {/* ------------ 项目类房源 (New Project / Completed Unit / 批量 Rent 项目) ------------ */}
           {isProject ? (
@@ -340,9 +335,12 @@ export default function UploadProperty() {
               )}
             </>
           ) : (
-            /* ------------ 普通非项目房源（单一房源，Sale / Rent） ------------ */
+            /* ------------ 普通非项目房源（单一房源，含 Rent 单一） ------------ */
             <div className="space-y-4 mt-6">
-              <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
+              <AreaSelector
+                onChange={handleAreaChange}
+                initialValue={areaData}
+              />
 
               <PriceInput
                 value={singleFormData.price}
@@ -433,7 +431,10 @@ export default function UploadProperty() {
               <ExtraSpacesSelector
                 value={singleFormData.extraSpaces || []}
                 onChange={(val) =>
-                  setSingleFormData((prev) => ({ ...prev, extraSpaces: val }))
+                  setSingleFormData((prev) => ({
+                    ...prev,
+                    extraSpaces: val,
+                  }))
                 }
               />
 
@@ -468,13 +469,16 @@ export default function UploadProperty() {
               <FacilitiesSelector
                 value={singleFormData.facilities}
                 onChange={(val) =>
-                  setSingleFormData((prev) => ({ ...prev, facilities: val }))
+                  setSingleFormData((prev) => ({
+                    ...prev,
+                    facilities: val,
+                  }))
                 }
               />
 
               <TransitSelector onChange={setTransitInfo} />
 
-              {/* ====== 建成年份 / 预计完成年份：统一放在交通信息下面，只在 Sale 时显示 ====== */}
+              {/* 建成年份 / 预计完成年份：统一放在交通信息下面，只在 Sale 时显示 */}
               {saleType === "Sale" &&
                 computedStatus === "New Project / Under Construction" && (
                   <BuildYearSelector
@@ -538,18 +542,27 @@ export default function UploadProperty() {
               </div>
             </div>
           )}
-        </>
-      )}
 
-      {/* 非项目类时的图片上传（Homestay / Hotel 以外） */}
-      {!isProject && !isHomestay && !isHotel && (
-        <ImageUpload
-          config={photoConfig}
-          images={singleFormData.photos}
-          setImages={(updated) =>
-            setSingleFormData((prev) => ({ ...prev, photos: updated }))
-          }
-        />
+          {/* 原来旧逻辑里 Homestay / Hotel 的日历，这里只给 Sale / Rent 用。
+              现在 Homestay / Hotel 已经用自己的表单，所以不需要在上面 if 分支里了 */}
+          {(type?.includes("Homestay") || type?.includes("Hotel")) && (
+            <AdvancedAvailabilityCalendar
+              value={availability}
+              onChange={setAvailability}
+            />
+          )}
+
+          {/* 非项目类时的图片上传 */}
+          {!isProject && (
+            <ImageUpload
+              config={photoConfig}
+              images={singleFormData.photos}
+              setImages={(updated) =>
+                setSingleFormData((prev) => ({ ...prev, photos: updated }))
+              }
+            />
+          )}
+        </>
       )}
 
       <Button
