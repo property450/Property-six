@@ -18,6 +18,7 @@ import BathroomFacilitiesSelector from "./BathroomFacilitiesSelector";
 import KitchenFacilitiesSelector from "./KitchenFacilitiesSelector";
 import OtherFacilitiesSelector from "./OtherFacilitiesSelector";
 import ViewSelector from "./ViewSelector";
+import OtherServicesSelector from "@/components/hotel/OtherServicesSelector";
 
 import ServiceFeeInput from "./ServiceFeeInput";
 import CleaningFeeInput from "./CleaningFeeInput";
@@ -187,17 +188,10 @@ export default function HotelRoomTypeForm({ index, room, onChange }) {
       />
 
       {/* 其它服务（同样是标签+备注形式，可以暂时复用 OtherFacilitiesSelector 逻辑） */}
-      <OtherFacilitiesSelector
-        label="其它服务"
-        placeholder="选择或输入其它服务..."
-        options={[
-          "机场接送",
-          "允许携带宠物",
-          "室外监控摄像头",
-        ]}
-        value={safeRoom.otherServices || []}
-        onChange={(val) => updateRoom({ otherServices: val })}
-      />
+      <OtherServicesSelector
+  value={room.otherServices}
+  onChange={(val) => updateRoom({ otherServices: val })}
+/>
 
       {/* ======= 费用输入：服务费 / 清洁费 / 押金 / 其它费用 ======= */}
       <div className="mt-4 space-y-3">
