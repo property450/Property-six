@@ -26,7 +26,7 @@ import TransitSelector from "@/components/TransitSelector";
 import AdvancedAvailabilityCalendar from "@/components/AdvancedAvailabilityCalendar";
 import FloorCountSelector from "@/components/FloorCountSelector";
 
-import HomestayUploadForm from "@/components/HomestayUploadForm";
+import HotelUploadForm from "@/components/hotel/HotelUploadForm";
 import HotelUploadForm from "@/components/HotelUploadForm";
 
 import { useUser } from "@supabase/auth-helpers-react";
