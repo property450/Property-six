@@ -2,15 +2,13 @@
 "use client";
 
 const formatNumber = (val) => {
-  if (val === "" || val == null) return "";
+  if (!val) return "";
   const num = Number(String(val).replace(/,/g, ""));
-  if (!Number.isFinite(num)) return "";
-  return num.toLocaleString();
+  return Number.isFinite(num) ? num.toLocaleString() : "";
 };
 
 const parseNumber = (str) => String(str || "").replace(/,/g, "");
 
-// 建议金额：RM 10 ~ RM 200
 const SUGGESTIONS = Array.from({ length: 20 }, (_, i) => (i + 1) * 10);
 
 export default function CleaningFeeInput({ value, onChange }) {
@@ -22,8 +20,7 @@ export default function CleaningFeeInput({ value, onChange }) {
 
   const handleInput = (raw) => {
     const cleaned = parseNumber(raw);
-    if (!/^\d*$/.test(cleaned)) return;
-    update({ value: cleaned });
+    if (/^\d*$/.test(cleaned)) update({ value: cleaned });
   };
 
   const isPaid = v.mode === "paid";
@@ -33,10 +30,11 @@ export default function CleaningFeeInput({ value, onChange }) {
       <label className="block text-sm font-medium mb-1">
         这个房型的清洁费
       </label>
+
       <div className="flex flex-wrap gap-2 items-center">
         <select
-          className="border rounded p-2 w-28"
-          value={v.mode || "free"}
+          className="border rounded p-2 w-28 bg-white text-black"
+          value={v.mode}
           onChange={(e) => update({ mode: e.target.value })}
         >
           <option value="free">免费</option>
@@ -44,21 +42,20 @@ export default function CleaningFeeInput({ value, onChange }) {
         </select>
 
         {isPaid && (
-          <div className="flex items-center border rounded px-2 py-1">
+          <div className="flex items-center border rounded px-2 py-1 bg-white">
             <span className="mr-1">RM</span>
             <input
               type="text"
               list="cleaning_fee_suggestions"
-              className="outline-none w-28 text-right"
+              className="outline-none w-28 text-right bg-white text-black"
               placeholder="例如 80"
               value={formatNumber(v.value)}
               onChange={(e) => handleInput(e.target.value)}
             />
-            {/* 下拉建议金额 */}
             <datalist id="cleaning_fee_suggestions">
               {SUGGESTIONS.map((amt) => (
                 <option key={amt} value={amt}>
-                  {`RM ${amt}`}
+                  RM {amt}
                 </option>
               ))}
             </datalist>
