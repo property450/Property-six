@@ -1,222 +1,187 @@
 // components/hotel/HotelUploadForm.js
 "use client";
 
-import { useState, useEffect } from "react";
-import AdvancedAvailabilityCalendar from "@/components/AdvancedAvailabilityCalendar";
+import { useState } from "react";
 import HotelRoomTypeForm from "./HotelRoomTypeForm";
+import ImageUpload from "@/components/ImageUpload";
+import { Button } from "@/components/ui/button";
 
-const HOTEL_TYPES = [
-  "Budget Hotel",
-  "2-Star Hotel",
-  "3-Star Hotel",
-  "4-Star Hotel",
-  "5-Star / Luxury Hotel",
-  "Business Hotel",
-  "Boutique Hotel",
-  "Resort",
-  "Serviced Apartment Hotel",
-  "Convention Hotel",
-  "Spa / Hot Spring Hotel",
-  "Casino Hotel",
-  "Extended Stay Hotel",
-  "Capsule Hotel",
-  "Hostel / Backpacker Hotel",
-  "Airport Hotel",
-];
-
-const makeEmptyRoom = () => ({
+// 根据你自己的默认结构改
+const createEmptyRoomLayout = () => ({
   name: "",
-  code: "",
-  roomRange: "",
-  roomCounts: {
-    bedrooms: "",
-    bathrooms: "",
-    kitchens: "",
-    livingRooms: "",
-  },
-  beds: [], // 床型+数量
-  guests: {
-    adults: "",
-    children: "",
-  },
-  smoking: "",
-  checkinService: {
-    type: "",
-    timeRange: {
-      startHour: "",
-      startMinute: "",
-      startPeriod: "AM",
-      endHour: "",
-      endMinute: "",
-      endPeriod: "PM",
-    },
-  },
-  breakfast: "",
-  cancellationPolicy: {
-    type: "",
-    condition: "",
-  },
+  // 卧室 / 房间
+  bedrooms: 0,
+  // 浴室 / 卫生间
+  bathrooms: 0,
+  // 厨房 / 客厅 / 额外空间（如果你是用 selector 或 number，照你的字段名改）
+  kitchens: 0,
+  livingRooms: 0,
   extraSpaces: [],
+
+  // 设施类
   indoorFacilities: [],
   bathroomFacilities: [],
   kitchenFacilities: [],
   otherFacilities: [],
-  views: [],
-  otherServices: [],
-  fees: {
-    serviceFee: { mode: "free", value: "" },
-    cleaningFee: { mode: "free", value: "" },
-    deposit: { mode: "free", value: "" },
-    otherFee: { mode: "free", value: "" },
+  view: [],
+  otherServices: {
+    tags: [],
+    note: "",
   },
-  availability: {}, // 日历
-  photos: [], // 此房型照片
+
+  // 费用类
+  serviceFee: "",
+  cleaningFee: "",
+  deposit: "",
+  otherFee: {
+    amount: "",
+    note: "",
+  },
 });
 
+// 这些字段会从第一个表单复制到其它表单
+const SHARED_KEYS = [
+  "bedrooms",
+  "bathrooms",
+  "kitchens",
+  "livingRooms",
+  "extraSpaces",
+  "indoorFacilities",
+  "bathroomFacilities",
+  "kitchenFacilities",
+  "otherFacilities",
+  "view",
+  "otherServices",
+  "serviceFee",
+  "cleaningFee",
+  "deposit",
+  "otherFee",
+];
+
 export default function HotelUploadForm() {
-  const [hotelType, setHotelType] = useState("");
-  const [hasMultipleTypes, setHasMultipleTypes] = useState("no"); // "yes" | "no"
-  const [roomTypeCount, setRoomTypeCount] = useState(1);
-  const [roomTypes, setRoomTypes] = useState([makeEmptyRoom()]);
-  const [hotelAvailability, setHotelAvailability] = useState({}); // 整体日历（可选）
+  const [roomCount, setRoomCount] = useState(1);
+  const [roomLayouts, setRoomLayouts] = useState([createEmptyRoomLayout()]);
 
-  // 当「是否多个房型」切换成否时，只保留 1 个房型
-  useEffect(() => {
-    if (hasMultipleTypes === "no") {
-      setRoomTypeCount(1);
-      setRoomTypes((prev) => (prev.length ? [prev[0]] : [makeEmptyRoom()]));
-    }
-  }, [hasMultipleTypes]);
+  // 酒店/度假屋公共设施或卖点图片（所有房型共用）
+  const [facilityImages, setFacilityImages] = useState({});
 
-  // 调整房型数量
-  const handleRoomTypeCountChange = (value) => {
-    let n = parseInt(String(value || "1").replace(/\D/g, ""), 10);
-    if (!Number.isFinite(n) || n <= 0) n = 1;
-    if (n > 20) n = 20; // 最多 20 种房型
+  // 改变房型数量
+  const handleRoomCountChange = (count) => {
+    const n = Number(count) || 1;
+    setRoomCount(n);
 
-    setRoomTypeCount(n);
-
-    setRoomTypes((prev) => {
-      if (prev.length === n) return prev;
-
-      const cloneBase = prev[0] || makeEmptyRoom();
-
-      // 先保证至少 1 个
-      let next = prev.length ? [...prev] : [makeEmptyRoom()];
-
-      if (n > next.length) {
-        // 新增房型：复制第一个房型的配置（深拷贝简易版）
-        const base = JSON.parse(JSON.stringify(cloneBase));
-        for (let i = next.length; i < n; i++) {
-          // 名称/代码/房号范围给空，让你自己填
-          next.push({
-            ...base,
-            name: "",
-            code: "",
-            roomRange: "",
-          });
+    setRoomLayouts((prev) => {
+      const arr = [...prev];
+      if (arr.length < n) {
+        // 不够就补空表单
+        while (arr.length < n) {
+          arr.push(createEmptyRoomLayout());
         }
-      } else {
-        // 减少房型
-        next = next.slice(0, n);
+      } else if (arr.length > n) {
+        // 多了就裁掉后面
+        arr.length = n;
+      }
+      return arr;
+    });
+  };
+
+  // 单个房型表单更新
+  const handleRoomLayoutChange = (index, patch) => {
+    setRoomLayouts((prev) => {
+      const next = [...prev];
+      const updated = { ...next[index], ...patch };
+      next[index] = updated;
+
+      // 🟡 如果是第一个房型被修改，就把共享字段复制到其它房型
+      if (index === 0 && next.length > 1) {
+        const shared = {};
+        SHARED_KEYS.forEach((key) => {
+          shared[key] = updated[key];
+        });
+
+        for (let i = 1; i < next.length; i++) {
+          next[i] = {
+            ...next[i],
+            ...shared,
+          };
+        }
       }
 
       return next;
     });
   };
 
-  // 更新单个房型
-  const updateRoomType = (index, updated) => {
-    setRoomTypes((prev) => {
-      const next = [...prev];
-      next[index] = updated;
-      return next;
-    });
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    const payload = {
+      roomLayouts,
+      facilityImages,
+    };
+
+    console.log("提交数据", payload);
+    // 这里按你原本的逻辑 insert 到 supabase 即可
   };
 
   return (
-    <div className="space-y-6 mt-6">
-      {/* 酒店大类 */}
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {/* 房型数量选择框 - 你可以换成自己的 UI */}
       <div>
-        <label className="block text-sm font-medium mb-1">
-          Hotel / Resort Type
+        <label className="block font-medium mb-1">
+          这个 Homestay / Hotel 有多少个房型 / layout？
         </label>
-        <select
-          className="w-full border rounded p-2"
-          value={hotelType}
-          onChange={(e) => setHotelType(e.target.value)}
+        <input
+          type="number"
+          min={1}
+          value={roomCount}
+          onChange={(e) => handleRoomCountChange(e.target.value)}
+          className="border rounded px-3 py-2 w-32"
+        />
+      </div>
+
+      {/* 每个房型的表单 */}
+      {roomLayouts.map((layout, index) => (
+        <div
+          key={index}
+          className="border rounded-xl p-4 space-y-4 bg-white shadow-sm"
         >
-          <option value="">请选择 Hotel/Resort 类型</option>
-          {HOTEL_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
-      </div>
+          <h3 className="font-semibold text-lg mb-2">
+            房型 {index + 1} / {roomLayouts.length}
+          </h3>
 
-      {/* 是否有多个房型？ */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            是否有多个房型？
-          </label>
-          <select
-            className="w-full border rounded p-2"
-            value={hasMultipleTypes}
-            onChange={(e) => setHasMultipleTypes(e.target.value)}
-          >
-            <option value="no">否，只需要 1 个房型</option>
-            <option value="yes">是，有多个房型</option>
-          </select>
+          <HotelRoomTypeForm
+            index={index}
+            total={roomLayouts.length}
+            data={layout}
+            onChange={(patch) => handleRoomLayoutChange(index, patch)}
+          />
         </div>
-
-        {hasMultipleTypes === "yes" && (
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              有多少个房型？
-            </label>
-            <input
-              type="number"
-              min={1}
-              max={20}
-              className="w-full border rounded p-2"
-              value={roomTypeCount}
-              onChange={(e) => handleRoomTypeCountChange(e.target.value)}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* 整体酒店的可租日期 / 价格（日历）——专业版保留一份 */}
-      <div>
-        <label className="block text-sm font-medium mb-1">
-          整体酒店 / 度假村的可租日期 & 价格（日历）
-        </label>
-        <AdvancedAvailabilityCalendar
-          value={hotelAvailability}
-          onChange={setHotelAvailability}
-        />
-      </div>
-
-      {/* 房型列表 */}
-      <div className="flex justify-between items-center mt-4">
-        <h2 className="font-semibold">房型设置</h2>
-        {hasMultipleTypes === "no" && (
-          <span className="text-xs text-gray-500">
-            当前为单一房型模式，如需多个房型请上面选择 “是”
-          </span>
-        )}
-      </div>
-
-      {roomTypes.map((room, idx) => (
-        <HotelRoomTypeForm
-          key={idx}
-          index={idx}
-          room={room}
-          onChange={(updated) => updateRoomType(idx, updated)}
-        />
       ))}
-    </div>
+
+      {/* 4️⃣ 这个酒店/度假屋的公共设施 / 卖点照片（所有房型共用） */}
+      <div className="border rounded-xl p-4 space-y-3 bg-white shadow-sm">
+        <h3 className="font-semibold text-lg">
+          这个酒店/度假屋的设施或卖点照片
+        </h3>
+        <p className="text-sm text-gray-500">
+          例如：游泳池、Lobby、大堂、外观、餐厅、BBQ 区等等。
+          这些照片是所有房型共用的，所以放在最后统一上传。
+        </p>
+
+        <ImageUpload
+          config={{
+            id: "hotel_facility_images",
+            label: "上传酒店 / 度假屋设施或卖点照片",
+            multiple: true, // ✅ 支持多选照片
+          }}
+          images={facilityImages}
+          setImages={setFacilityImages}
+        />
+      </div>
+
+      <Button type="submit" className="mt-4">
+        提交酒店 / 度假屋房源
+      </Button>
+    </form>
   );
 }
