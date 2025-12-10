@@ -1,8 +1,6 @@
 // components/hotel/DepositInput.js
 "use client";
 
-const PRESET_AMOUNTS = Array.from({ length: 20 }, (_, i) => (i + 1) * 10); // 10 ~ 200
-
 const formatNumber = (val) => {
   if (val === "" || val == null) return "";
   const num = Number(String(val).replace(/,/g, ""));
@@ -11,6 +9,9 @@ const formatNumber = (val) => {
 };
 
 const parseNumber = (str) => String(str || "").replace(/,/g, "");
+
+// 建议金额：RM 10 ~ RM 200
+const SUGGESTIONS = Array.from({ length: 20 }, (_, i) => (i + 1) * 10);
 
 export default function DepositInput({ value, onChange }) {
   const v = value || { mode: "free", value: "" };
@@ -25,11 +26,6 @@ export default function DepositInput({ value, onChange }) {
     update({ value: cleaned });
   };
 
-  const handlePresetChange = (raw) => {
-    if (!raw) return;
-    update({ value: String(raw) });
-  };
-
   const isPaid = v.mode === "paid";
 
   return (
@@ -37,7 +33,6 @@ export default function DepositInput({ value, onChange }) {
       <label className="block text-sm font-medium mb-1">
         这个房型的押金（Refundable）
       </label>
-
       <div className="flex flex-wrap gap-2 items-center">
         <select
           className="border rounded p-2 w-28"
@@ -49,33 +44,25 @@ export default function DepositInput({ value, onChange }) {
         </select>
 
         {isPaid && (
-          <>
-            {/* 金额输入（带 RM 前缀 + 千分位） */}
-            <div className="flex items-center border rounded px-2 py-1">
-              <span className="mr-1">RM</span>
-              <input
-                type="text"
-                className="outline-none w-28 text-right"
-                placeholder="例如 50"
-                value={formatNumber(v.value)}
-                onChange={(e) => handleInput(e.target.value)}
-              />
-            </div>
-
-            {/* 常用金额下拉 */}
-            <select
-              className="border rounded p-2 w-40 text-sm"
-              value=""
-              onChange={(e) => handlePresetChange(e.target.value)}
-            >
-              <option value="">选择常用金额</option>
-              {PRESET_AMOUNTS.map((amt) => (
+          <div className="flex items-center border rounded px-2 py-1">
+            <span className="mr-1">RM</span>
+            <input
+              type="text"
+              list="deposit_fee_suggestions"
+              className="outline-none w-28 text-right"
+              placeholder="例如 50"
+              value={formatNumber(v.value)}
+              onChange={(e) => handleInput(e.target.value)}
+            />
+            {/* 下拉建议金额 */}
+            <datalist id="deposit_fee_suggestions">
+              {SUGGESTIONS.map((amt) => (
                 <option key={amt} value={amt}>
-                  {`RM ${amt.toLocaleString()}`}
+                  {`RM ${amt}`}
                 </option>
               ))}
-            </select>
-          </>
+            </datalist>
+          </div>
         )}
       </div>
     </div>
