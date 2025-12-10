@@ -189,8 +189,8 @@ export default function HotelRoomTypeForm({ index, room, onChange }) {
 
       {/* 其它服务（同样是标签+备注形式，可以暂时复用 OtherFacilitiesSelector 逻辑） */}
       <OtherServicesSelector
-  value={room.otherServices}
-  onChange={(val) => updateRoom({ otherServices: val })}
+  value={layout.otherServices}
+  onChange={(val) => updateLayout({ otherServices: val })}
 />
 
       {/* ======= 费用输入：服务费 / 清洁费 / 押金 / 其它费用 ======= */}
@@ -214,12 +214,10 @@ export default function HotelRoomTypeForm({ index, room, onChange }) {
           }
         />
         <OtherFeeInput
-          value={fees.otherFee}
-          onChange={(val) =>
-            updateRoom({ fees: { ...fees, otherFee: val } })
-          }
-        />
-      </div>
+  value={layout.otherFee}
+  onChange={(val) => updateLayout({ otherFee: val })}
+  label="这个房型的其它费用"
+/>
 
       {/* ======= 日历：这个房型的可租日期 & 价格 ======= */}
       <div className="mt-4">
