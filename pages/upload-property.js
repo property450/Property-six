@@ -26,9 +26,8 @@ import TransitSelector from "@/components/TransitSelector";
 import AdvancedAvailabilityCalendar from "@/components/AdvancedAvailabilityCalendar";
 import FloorCountSelector from "@/components/FloorCountSelector";
 
-// 🔴 新增：导入你专业版的 Homestay / Hotel 表单
+// ✅ 现在只保留一个：Homestay / Hotel 都用这个表单
 import HotelUploadForm from "@/components/hotel/HotelUploadForm";
-import HomestayUploadForm from "@/components/homestay/HomestayUploadForm";
 
 import { useUser } from "@supabase/auth-helpers-react";
 
@@ -239,7 +238,7 @@ export default function UploadProperty() {
     }
   };
 
-  // ---------- Homestay / Hotel 识别（关键） ----------
+  // ---------- Homestay / Hotel 识别 ----------
   const saleTypeNorm = (saleType || "").toLowerCase();
   const isHomestay = saleTypeNorm.includes("homestay");
   const isHotel = saleTypeNorm.includes("hotel"); // 能覆盖 "Hotel / Resort"
@@ -279,10 +278,8 @@ export default function UploadProperty() {
         }}
       />
 
-      {/* ========= Homestay / Hotel 使用专用表单 ========= */}
-      {isHomestay ? (
-        <HomestayUploadForm />
-      ) : isHotel ? (
+      {/* ========= Homestay / Hotel 统一用 HotelUploadForm ========= */}
+      {isHomestay || isHotel ? (
         <HotelUploadForm />
       ) : (
         /* ========= 下面是原来 Sale / Rent 正常房源的表单 ========= */
