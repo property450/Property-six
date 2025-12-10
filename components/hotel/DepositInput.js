@@ -1,42 +1,35 @@
 // components/hotel/DepositInput.js
 "use client";
 
+import { useState } from "react";
+
 const formatNumber = (val) => {
-  if (val === "" || val == null) return "";
+  if (!val) return "";
   const num = Number(String(val).replace(/,/g, ""));
-  if (!Number.isFinite(num)) return "";
-  return num.toLocaleString();
+  return Number.isFinite(num) ? num.toLocaleString() : "";
 };
 
 const parseNumber = (str) => String(str || "").replace(/,/g, "");
 
-// 建议金额：RM 10 ~ RM 200
 const SUGGESTIONS = Array.from({ length: 20 }, (_, i) => (i + 1) * 10);
 
 export default function DepositInput({ value, onChange }) {
   const v = value || { mode: "free", value: "" };
+  const [show, setShow] = useState(false);
 
-  const update = (patch) => {
-    onChange?.({ ...v, ...patch });
-  };
-
-  const handleInput = (raw) => {
-    const cleaned = parseNumber(raw);
-    if (!/^\d*$/.test(cleaned)) return;
-    update({ value: cleaned });
-  };
-
+  const update = (patch) => onChange?.({ ...v, ...patch });
   const isPaid = v.mode === "paid";
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-1 relative">
       <label className="block text-sm font-medium mb-1">
         这个房型的押金（Refundable）
       </label>
+
       <div className="flex flex-wrap gap-2 items-center">
         <select
           className="border rounded p-2 w-28"
-          value={v.mode || "free"}
+          value={v.mode}
           onChange={(e) => update({ mode: e.target.value })}
         >
           <option value="free">免费</option>
@@ -44,24 +37,36 @@ export default function DepositInput({ value, onChange }) {
         </select>
 
         {isPaid && (
-          <div className="flex items-center border rounded px-2 py-1">
+          <div
+            className="flex items-center border rounded px-2 py-1 bg-white cursor-text relative"
+            onClick={() => setShow(true)}
+          >
             <span className="mr-1">RM</span>
             <input
               type="text"
-              list="deposit_fee_suggestions"
-              className="outline-none w-28 text-right"
-              placeholder="例如 50"
+              className="outline-none w-28 text-right bg-white"
+              placeholder="输入价格"
               value={formatNumber(v.value)}
-              onChange={(e) => handleInput(e.target.value)}
+              onChange={(e) => update({ value: parseNumber(e.target.value) })}
+              onFocus={() => setShow(true)}
             />
-            {/* 下拉建议金额 */}
-            <datalist id="deposit_fee_suggestions">
-              {SUGGESTIONS.map((amt) => (
-                <option key={amt} value={amt}>
-                  {`RM ${amt}`}
-                </option>
-              ))}
-            </datalist>
+
+            {show && (
+              <div className="absolute top-full left-0 mt-1 w-full bg-white border rounded shadow z-50">
+                {SUGGESTIONS.map((amt) => (
+                  <div
+                    key={amt}
+                    className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-sm"
+                    onMouseDown={() => {
+                      update({ value: String(amt) });
+                      setShow(false);
+                    }}
+                  >
+                    RM {amt}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
