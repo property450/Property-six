@@ -1,129 +1,127 @@
 // components/hotel/OtherServicesSelector.js
 "use client";
 
-import { useState, useEffect } from "react";
-
-function normalizeValue(value) {
-  if (!value) return { tags: [], note: "" };
-  if (Array.isArray(value)) {
-    // 兼容旧版本只传数组的情况
-    return { tags: value, note: "" };
-  }
-  return {
-    tags: Array.isArray(value.tags) ? value.tags : [],
-    note: value.note || "",
-  };
-}
+const PRESET_SERVICES = [
+  "机场接送",
+  "允许携带宠物",
+  "室外监控摄像头",
+  "行李寄存",
+  "24小时前台",
+  "叫车服务",
+  "洗衣/干洗服务",
+];
 
 export default function OtherServicesSelector({ value, onChange }) {
-  const [state, setState] = useState(() => normalizeValue(value));
-  const [input, setInput] = useState("");
+  const services = Array.isArray(value) ? value : [];
 
-  useEffect(() => {
-    setState(normalizeValue(value));
-  }, [value]);
-
-  const emitChange = (next) => {
-    setState(next);
-    onChange && onChange(next);
+  const triggerChange = (next) => {
+    onChange?.(next);
   };
 
-  const addTagsFromInput = () => {
-    const text = input.trim();
-    if (!text) return;
-    const newTags = text
-      .split(/[，,\n]/)
-      .map((t) => t.trim())
-      .filter(Boolean);
-
-    if (newTags.length === 0) return;
-
-    const next = {
-      ...state,
-      tags: Array.from(new Set([...state.tags, ...newTags])),
-    };
-    setInput("");
-    emitChange(next);
+  const togglePreset = (tag) => {
+    const idx = services.findIndex((s) => s.tag === tag);
+    if (idx === -1) {
+      triggerChange([...services, { tag, note: "" }]);
+    } else {
+      const next = services.slice();
+      next.splice(idx, 1);
+      triggerChange(next);
+    }
   };
 
-  const removeTag = (tag) => {
-    const next = {
-      ...state,
-      tags: state.tags.filter((t) => t !== tag),
-    };
-    emitChange(next);
+  const handleAddCustom = (e) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const input = form.elements.namedItem("customService");
+    const raw = input.value.trim();
+    if (!raw) return;
+    if (!services.some((s) => s.tag === raw)) {
+      triggerChange([...services, { tag: raw, note: "" }]);
+    }
+    input.value = "";
   };
 
-  const handleNoteChange = (e) => {
-    const next = { ...state, note: e.target.value };
-    emitChange(next);
+  const updateNote = (index, note) => {
+    const next = services.map((item, i) =>
+      i === index ? { ...item, note } : item
+    );
+    triggerChange(next);
   };
 
   return (
-    <div className="space-y-2">
-      <label className="block font-medium">
-        其它服务（机场接送 / 宠物 / 监控等）
-      </label>
+    <div className="mt-4 space-y-2">
+      <p className="font-semibold text-sm">其它服务（标签 + 备注）</p>
 
-      {/* 标签输入 */}
-      <div className="flex gap-2">
+      {/* 预设标签多选 */}
+      <div className="flex flex-wrap gap-2">
+        {PRESET_SERVICES.map((tag) => {
+          const active = services.some((s) => s.tag === tag);
+          return (
+            <button
+              type="button"
+              key={tag}
+              className={`px-3 py-1 rounded-full border text-xs ${
+                active
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : "bg-white text-gray-700 border-gray-300"
+              }`}
+              onClick={() => togglePreset(tag)}
+            >
+              {tag}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 自定义服务标签输入 */}
+      <form onSubmit={handleAddCustom} className="flex gap-2 mt-2">
         <input
+          name="customService"
           type="text"
-          className="flex-1 border rounded px-3 py-2"
-          placeholder="例如：机场接送、允许携带宠物、室外监控摄像头..."
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              addTagsFromInput();
-            }
-          }}
+          className="flex-1 border rounded p-2 text-sm"
+          placeholder="输入其它服务，例如：接驳到商场、生日布置… 按回车新增标签"
         />
         <button
-          type="button"
-          className="border rounded px-3 py-2 text-sm"
-          onClick={addTagsFromInput}
+          type="submit"
+          className="px-3 py-1 text-sm rounded border bg-gray-100"
         >
           添加
         </button>
-      </div>
+      </form>
 
-      {/* 已选择的标签 */}
-      <div className="flex flex-wrap gap-2">
-        {state.tags.map((tag) => (
-          <span
-            key={tag}
-            className="inline-flex items-center px-2 py-1 text-sm bg-blue-50 border border-blue-200 rounded-full"
-          >
-            {tag}
-            <button
-              type="button"
-              className="ml-1 text-xs text-gray-500"
-              onClick={() => removeTag(tag)}
+      {/* 已选择服务 + 备注 */}
+      {services.length > 0 && (
+        <div className="mt-2 space-y-2">
+          {services.map((item, index) => (
+            <div
+              key={`${item.tag}-${index}`}
+              className="border rounded p-2 flex flex-col gap-1"
             >
-              ✕
-            </button>
-          </span>
-        ))}
-        {state.tags.length === 0 && (
-          <span className="text-xs text-gray-400">
-            暂无服务，可在上方输入后按回车添加
-          </span>
-        )}
-      </div>
-
-      {/* 备注输入 */}
-      <div>
-        <label className="block text-sm text-gray-600 mb-1">其它服务备注</label>
-        <textarea
-          className="w-full border rounded px-3 py-2 text-sm"
-          rows={2}
-          placeholder="例如：机场接送需提前 2 天预约；宠物需加收清洁费等"
-          value={state.note}
-          onChange={handleNoteChange}
-        />
-      </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">{item.tag}</span>
+                <button
+                  type="button"
+                  className="text-xs text-red-500"
+                  onClick={() => {
+                    const next = services.slice();
+                    next.splice(index, 1);
+                    triggerChange(next);
+                  }}
+                >
+                  删除
+                </button>
+              </div>
+              <textarea
+                className="w-full border rounded p-1 text-xs"
+                rows={2}
+                placeholder="备注说明（可选），例如：需提前一天预约，或可能需要额外收费…"
+                value={item.note || ""}
+                onChange={(e) => updateNote(index, e.target.value)}
+              />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
