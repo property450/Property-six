@@ -1,57 +1,48 @@
 // components/hotel/OtherFeeInput.js
 "use client";
 
-function normalizeValue(value) {
-  if (!value) return { amount: "", note: "" };
-  if (typeof value === "string" || typeof value === "number") {
-    // 兼容旧版本只保存金额
-    return { amount: String(value), note: "" };
-  }
-  return {
-    amount: value.amount ? String(value.amount) : "",
-    note: value.note || "",
-  };
-}
-
 export default function OtherFeeInput({ value, onChange, label }) {
-  const val = normalizeValue(value);
+  const v = value || { mode: "free", value: "", note: "" };
+  const title = label || "这个房型的其它费用";
 
-  const emitChange = (patch) => {
-    const next = { ...val, ...patch };
-    onChange && onChange(next);
+  const update = (patch) => {
+    onChange?.({ ...v, ...patch });
   };
 
   return (
-    <div className="space-y-2">
-      <label className="block font-medium">
-        {label || "这个房型的其它费用"}
-      </label>
+    <div className="space-y-1">
+      <label className="block text-sm font-medium mb-1">{title}</label>
+      <div className="flex flex-wrap gap-2 items-center">
+        <select
+          className="border rounded p-1 text-sm"
+          value={v.mode || "free"}
+          onChange={(e) => update({ mode: e.target.value })}
+        >
+          <option value="free">没有其它费用</option>
+          <option value="fixed">固定金额</option>
+        </select>
 
-      <div className="flex gap-2">
-        <div className="flex-1">
+        {v.mode !== "free" && (
           <input
             type="number"
-            min="0"
-            step="1"
-            className="w-full border rounded px-3 py-2"
-            placeholder="例如：50 或 100"
-            value={val.amount}
-            onChange={(e) => emitChange({ amount: e.target.value })}
+            className="border rounded p-1 text-sm w-36"
+            placeholder="金额（RM）"
+            value={v.value || ""}
+            onChange={(e) => update({ value: e.target.value })}
           />
-        </div>
-        <div className="flex items-center text-sm text-gray-600">RM</div>
+        )}
       </div>
 
-      <div>
-        <label className="block text-sm text-gray-600 mb-1">其它费用备注</label>
+      {/* 备注输入框 */}
+      {v.mode !== "free" && (
         <textarea
-          className="w-full border rounded px-3 py-2 text-sm"
+          className="w-full border rounded p-2 text-xs mt-1"
           rows={2}
-          placeholder="例如：节日附加费、加床费、宠物清洁费等说明"
-          value={val.note}
-          onChange={(e) => emitChange({ note: e.target.value })}
+          placeholder="备注说明，例如：节庆假期附加费、加床费、宠物附加清洁费等…"
+          value={v.note || ""}
+          onChange={(e) => update({ note: e.target.value })}
         />
-      </div>
+      )}
     </div>
   );
 }
