@@ -7,22 +7,42 @@ const TYPES = [
   { value: "limited", label: "入住时间限制" },
 ];
 
+// 默认结构：保证无论父组件传什么进来，这个结构都是完整的
+const DEFAULT_VALUE = {
+  type: "",
+  timeRange: {
+    startHour: "",
+    startMinute: "",
+    startPeriod: "AM",
+    endHour: "",
+    endMinute: "",
+    endPeriod: "PM",
+  },
+};
+
+// 把父组件传进来的 value 和默认值合并，防止 timeRange 为 undefined
+function normalizeValue(raw) {
+  const v = raw || {};
+  const tr = v.timeRange || {};
+  return {
+    ...DEFAULT_VALUE,
+    ...v,
+    timeRange: {
+      ...DEFAULT_VALUE.timeRange,
+      ...tr,
+    },
+  };
+}
+
 export default function CheckinServiceSelector({ value, onChange }) {
-  const v =
-    value || {
-      type: "",
-      timeRange: {
-        startHour: "",
-        startMinute: "",
-        startPeriod: "AM",
-        endHour: "",
-        endMinute: "",
-        endPeriod: "PM",
-      },
-    };
+  const v = normalizeValue(value);
 
   const update = (patch) => {
-    onChange?.({ ...v, ...patch });
+    const next = normalizeValue({
+      ...v,
+      ...patch,
+    });
+    onChange?.(next);
   };
 
   const updateTime = (patch) => {
@@ -56,6 +76,7 @@ export default function CheckinServiceSelector({ value, onChange }) {
         <div className="space-y-1 text-sm">
           <span className="text-gray-700">入住时间限制（每天）</span>
           <div className="flex flex-wrap gap-2 items-center">
+            {/* 开始时间：小时 */}
             <select
               className="border rounded p-1 w-16"
               value={v.timeRange.startHour || ""}
@@ -69,6 +90,7 @@ export default function CheckinServiceSelector({ value, onChange }) {
               ))}
             </select>
             :
+            {/* 开始时间：分钟 */}
             <select
               className="border rounded p-1 w-16"
               value={v.timeRange.startMinute || ""}
@@ -81,6 +103,7 @@ export default function CheckinServiceSelector({ value, onChange }) {
                 </option>
               ))}
             </select>
+            {/* 开始时间：AM / PM */}
             <select
               className="border rounded p-1 w-16"
               value={v.timeRange.startPeriod || "AM"}
@@ -90,6 +113,7 @@ export default function CheckinServiceSelector({ value, onChange }) {
               <option value="PM">PM</option>
             </select>
             <span>到</span>
+            {/* 结束时间：小时 */}
             <select
               className="border rounded p-1 w-16"
               value={v.timeRange.endHour || ""}
@@ -103,6 +127,7 @@ export default function CheckinServiceSelector({ value, onChange }) {
               ))}
             </select>
             :
+            {/* 结束时间：分钟 */}
             <select
               className="border rounded p-1 w-16"
               value={v.timeRange.endMinute || ""}
@@ -115,6 +140,7 @@ export default function CheckinServiceSelector({ value, onChange }) {
                 </option>
               ))}
             </select>
+            {/* 结束时间：AM / PM */}
             <select
               className="border rounded p-1 w-16"
               value={v.timeRange.endPeriod || "PM"}
