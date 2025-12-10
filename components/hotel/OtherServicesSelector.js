@@ -1,8 +1,6 @@
 // components/hotel/OtherServicesSelector.js
 "use client";
 
-import { useState } from "react";
-
 const PRESET_SERVICES = [
   "机场接送",
   "允许携带宠物",
@@ -10,136 +8,98 @@ const PRESET_SERVICES = [
   "行李寄存",
 ];
 
-function normalizeValue(value) {
-  if (!Array.isArray(value)) return [];
-  return value.map((item, index) => {
-    if (typeof item === "string") {
-      return {
-        key: item,
-        label: item,
-        note: "",
-      };
-    }
-    return {
-      key: item.key || item.label || `service_${index}`,
-      label: item.label || "",
-      note: item.note || "",
-    };
-  });
-}
-
 export default function OtherServicesSelector({ value, onChange }) {
-  const [customInput, setCustomInput] = useState("");
-  const services = normalizeValue(value);
+  const services = Array.isArray(value) ? value : [];
 
   const triggerChange = (next) => {
     onChange?.(next);
   };
 
-  const toggleService = (label) => {
-    const existing = services.find((s) => s.label === label);
-    if (existing) {
-      // 取消选择
-      triggerChange(services.filter((s) => s.label !== label));
-    } else {
-      // 新增
-      triggerChange([
-        ...services,
-        { key: label, label, note: "" },
-      ]);
-    }
-  };
-
-  const handleNoteChange = (key, note) => {
-    const next = services.map((s) =>
-      s.key === key ? { ...s, note } : s
-    );
-    triggerChange(next);
-  };
-
-  const handleAddCustom = () => {
-    const label = customInput.trim();
+  const handleAddService = (label) => {
     if (!label) return;
+    // 已存在就不重复添加
+    if (services.some((s) => s.label === label)) return;
+    triggerChange([...services, { label, note: "" }]);
+  };
 
-    if (!services.find((s) => s.label === label)) {
-      triggerChange([
-        ...services,
-        { key: label, label, note: "" },
-      ]);
-    }
-    setCustomInput("");
+  const handleRemoveService = (label) => {
+    triggerChange(services.filter((s) => s.label !== label));
+  };
+
+  const handleNoteChange = (label, note) => {
+    triggerChange(
+      services.map((s) =>
+        s.label === label ? { ...s, note } : s
+      )
+    );
   };
 
   const handleCustomKeyDown = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      handleAddCustom();
+      const val = e.target.value.trim();
+      if (val) {
+        handleAddService(val);
+        e.target.value = "";
+      }
     }
   };
 
-  // 把自定义的标签也显示在上面的“可点的标签”里
-  const allTagLabels = Array.from(
-    new Set([...PRESET_SERVICES, ...services.map((s) => s.label)])
-  );
-
   return (
     <div className="mt-4 space-y-2">
-      <p className="font-semibold text-sm">
-        其它服务（可加备注）
-      </p>
+      <p className="font-semibold text-sm">其它服务（可加备注）</p>
 
-      {/* 标签选择 + 自定义输入 */}
-      <div className="flex flex-wrap gap-2">
-        {allTagLabels.map((label) => {
-          const active = !!services.find((s) => s.label === label);
-          return (
+      {/* 已选择标签展示 + 预设标签按钮 */}
+      <div className="flex flex-wrap gap-2 mb-2">
+        {services.map((s) => (
+          <span
+            key={s.label}
+            className="inline-flex items-center px-3 py-1 rounded-full border text-sm bg-gray-100"
+          >
+            {s.label}
             <button
-              key={label}
               type="button"
-              onClick={() => toggleService(label)}
-              className={`px-3 py-1 rounded-full border text-sm ${
-                active
-                  ? "bg-blue-500 text-white border-blue-500"
-                  : "bg-gray-100 text-gray-700 border-gray-300"
-              }`}
+              className="ml-1 text-xs text-gray-500 hover:text-red-500"
+              onClick={() => handleRemoveService(s.label)}
             >
-              {label}
+              ×
             </button>
-          );
-        })}
+          </span>
+        ))}
+
+        {PRESET_SERVICES.map((label) => (
+          <button
+            key={label}
+            type="button"
+            className="px-3 py-1 rounded-full border text-xs bg-white hover:bg-gray-50"
+            onClick={() => handleAddService(label)}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
-      <div className="flex gap-2 mt-2">
-        <input
-          type="text"
-          className="flex-1 border rounded px-3 py-1 text-sm"
-          placeholder="输入其它服务后回车添加，例如：行程规划、租车服务..."
-          value={customInput}
-          onChange={(e) => setCustomInput(e.target.value)}
-          onKeyDown={handleCustomKeyDown}
-        />
-        <button
-          type="button"
-          onClick={handleAddCustom}
-          className="px-3 py-1 text-sm border rounded bg-white"
-        >
-          添加
-        </button>
-      </div>
+      {/* 自定义其它服务输入框 */}
+      <input
+        type="text"
+        className="w-full border rounded px-3 py-2 text-sm"
+        placeholder="输入其它服务后回车添加，例如：接驳车服务、租车服务..."
+        onKeyDown={handleCustomKeyDown}
+      />
 
-      {/* 每个服务的备注 */}
+      {/* 每个服务的备注输入 */}
       {services.length > 0 && (
-        <div className="space-y-2 mt-3">
+        <div className="space-y-3 mt-3">
           {services.map((s) => (
-            <div key={s.key} className="space-y-1">
-              <div className="text-sm font-medium">{s.label}</div>
+            <div key={s.label}>
+              <p className="text-sm font-medium mb-1">{s.label}</p>
               <input
                 type="text"
-                className="w-full border rounded px-3 py-1 text-sm"
-                placeholder="备注（可留空）"
-                value={s.note}
+                className="w-full border rounded px-3 py-2 text-sm"
+                placeholder="备注（可留空），例如：收费标准、时间、特别说明..."
+                value={s.note || ""}
                 onChange={(e) =>
-                  handleNoteChange(s.key, e.target.value)
+                  handleNoteChange(s.label, e.target.value)
                 }
               />
             </div>
