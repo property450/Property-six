@@ -218,6 +218,7 @@ export default function HotelRoomTypeForm({ index, room, onChange }) {
   onChange={(val) => updateLayout({ otherFee: val })}
   label="这个房型的其它费用"
 />
+    </div>
 
       {/* ======= 日历：这个房型的可租日期 & 价格 ======= */}
       <div className="mt-4">
