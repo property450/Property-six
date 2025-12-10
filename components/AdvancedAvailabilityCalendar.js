@@ -88,7 +88,7 @@ export default function AdvancedAvailabilityCalendar() {
     };
 
     // 用捕获阶段监听，避免输入框冒泡时触发
-    document.addEventListener("pointerdown", handleOutside, true);
+    document.addEventListener("mousedown", handleOutside);
     return () => document.removeEventListener("pointerdown", handleOutside, true);
   }, []);
 
@@ -245,10 +245,12 @@ export default function AdvancedAvailabilityCalendar() {
                 setTempPriceRaw(digitsOnly(e.target.value));
                 setShowDropdown(false);
               }}
-              onFocus={(e) => {
-                e.stopPropagation(); // 👈 阻止冒泡
-                setShowDropdown(true);
-              }}
+              onFocus={() => {
+  setShowDropdown(true);
+}}
+onClick={() => {
+  setShowDropdown(true);
+}}
               className="pl-10 border p-2 w-full rounded"
             />
             {showDropdown && (
