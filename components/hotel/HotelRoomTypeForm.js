@@ -18,7 +18,7 @@ import BathroomFacilitiesSelector from "./BathroomFacilitiesSelector";
 import KitchenFacilitiesSelector from "./KitchenFacilitiesSelector";
 import OtherFacilitiesSelector from "./OtherFacilitiesSelector";
 import ViewSelector from "./ViewSelector";
-import OtherServicesSelector from "@/components/hotel/OtherServicesSelector";
+import OtherServicesSelector from "./OtherServicesSelector";
 
 import ServiceFeeInput from "./ServiceFeeInput";
 import CleaningFeeInput from "./CleaningFeeInput";
@@ -26,11 +26,25 @@ import DepositInput from "./DepositInput";
 import OtherFeeInput from "./OtherFeeInput";
 
 export default function HotelRoomTypeForm({ index, room, onChange }) {
+  // 防止 room 为 null / undefined
   const safeRoom = room || {};
 
   const roomCounts = safeRoom.roomCounts || {};
   const extraSpaces = safeRoom.extraSpaces || [];
 
+  // 费用对象，统一一个结构
+  const fees = safeRoom.fees || {
+    serviceFee: { mode: "free", value: "" },
+    cleaningFee: { mode: "free", value: "" },
+    deposit: { mode: "free", value: "" },
+    otherFee: { mode: "free", value: "", note: "" }, // 其它费用支持备注
+  };
+
+  const availability = safeRoom.availability || {};
+  const photos = safeRoom.photos || {}; // ImageUpload 习惯用对象
+  const otherServices = safeRoom.otherServices || [];
+
+  // 统一更新这个房型
   const updateRoom = (patch) => {
     onChange?.({ ...safeRoom, ...patch });
   };
@@ -43,18 +57,6 @@ export default function HotelRoomTypeForm({ index, room, onChange }) {
       },
     });
   };
-
-  // 费用对象里现在可以包含备注：{ mode, value, note }
-  const fees =
-    safeRoom.fees || {
-      serviceFee: { mode: "free", value: "", note: "" },
-      cleaningFee: { mode: "free", value: "", note: "" },
-      deposit: { mode: "free", value: "", note: "" },
-      otherFee: { mode: "free", value: "", note: "" },
-    };
-
-  const availability = safeRoom.availability || {};
-  const photos = safeRoom.photos || [];
 
   return (
     <div className="border rounded-lg p-4 shadow-sm bg-white space-y-4 mt-6">
@@ -136,7 +138,7 @@ export default function HotelRoomTypeForm({ index, room, onChange }) {
         onChange={(val) => updateRoom({ cancellationPolicy: val })}
       />
 
-      {/* ======= 这个房型的卧室/浴室/厨房/客厅/车位/额外空间数量 ======= */}
+      {/* ======= 这个房型的卧室/浴室/厨房/客厅/车位数量 ======= */}
       <div className="mt-4 space-y-2">
         <p className="font-semibold text-sm">
           这个房型的卧室 / 房间、浴室 / 卫生间、厨房、客厅、停车位数量
@@ -147,7 +149,6 @@ export default function HotelRoomTypeForm({ index, room, onChange }) {
             bathrooms: roomCounts.bathrooms || "",
             kitchens: roomCounts.kitchens || "",
             livingRooms: roomCounts.livingRooms || "",
-            carparks: roomCounts.carparks || "",
           }}
           onChange={updateRoomCounts}
         />
@@ -192,11 +193,11 @@ export default function HotelRoomTypeForm({ index, room, onChange }) {
 
       {/* 其它服务：标签 + 备注 */}
       <OtherServicesSelector
-        value={safeRoom.otherServices || []}
+        value={otherServices}
         onChange={(val) => updateRoom({ otherServices: val })}
       />
 
-      {/* ======= 费用输入：服务费 / 清洁费 / 押金 / 其它费用（带备注） ======= */}
+      {/* ======= 费用输入：服务费 / 清洁费 / 押金 / 其它费用 ======= */}
       <div className="mt-4 space-y-3">
         <ServiceFeeInput
           value={fees.serviceFee}
@@ -236,9 +237,11 @@ export default function HotelRoomTypeForm({ index, room, onChange }) {
         />
       </div>
 
-      {/* ======= 房型照片上传：只需要一个通用上传框，多选 ======= */}
+      {/* ======= 房型照片上传（这个是“房型自己的照片”，不是酒店共用照片） ======= */}
       <div className="mt-4">
-        <label className="block text-sm font-medium mb-1">上传这个房型的照片</label>
+        <label className="block text-sm font-medium mb-1">
+          上传这个房型自己的照片
+        </label>
         <ImageUpload
           config={{}} // 不按卧室/浴室生成，只要一个通用上传
           images={photos}
