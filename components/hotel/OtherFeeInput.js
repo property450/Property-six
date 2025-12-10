@@ -1,49 +1,39 @@
 // components/hotel/OtherFeeInput.js
 "use client";
 
+import { useState } from "react";
+
 const formatNumber = (val) => {
-  if (val === "" || val == null) return "";
+  if (!val) return "";
   const num = Number(String(val).replace(/,/g, ""));
-  if (!Number.isFinite(num)) return "";
-  return num.toLocaleString();
+  return Number.isFinite(num) ? num.toLocaleString() : "";
 };
 
 const parseNumber = (str) => String(str || "").replace(/,/g, "");
 
-// 建议金额：RM 10 ~ RM 200
 const SUGGESTIONS = Array.from({ length: 20 }, (_, i) => (i + 1) * 10);
 
 export default function OtherFeeInput({ value, onChange, label }) {
-  // 安全默认值
   const v = {
-    mode: value?.mode || "free", // free = 没有其它费用；fixed = 有其它费用
+    mode: value?.mode || "free",
     value: value?.value || "",
     note: value?.note || "",
   };
 
-  const title = label || "这个房型的其它费用（含备注）";
+  const [show, setShow] = useState(false);
+  const hasFee = v.mode === "fixed";
 
-  const update = (patch) => {
-    const next = { ...v, ...patch };
-    onChange?.(next);
-  };
-
-  const handleInput = (raw) => {
-    const cleaned = parseNumber(raw);
-    if (!/^\d*$/.test(cleaned)) return;
-    update({ value: cleaned });
-  };
-
-  const hasOtherFee = v.mode === "fixed";
+  const update = (patch) => onChange?.({ ...v, ...patch });
 
   return (
-    <div className="space-y-1">
-      <label className="block text-sm font-medium mb-1">{title}</label>
+    <div className="space-y-1 relative">
+      <label className="block text-sm font-medium mb-1">
+        {label || "这个房型的其它费用（含备注）"}
+      </label>
 
       <div className="flex flex-wrap gap-2 items-center">
-        {/* 下拉：没有其它费用 / 有其它费用 */}
         <select
-          className="border rounded p-2 w-32 text-sm"
+          className="border rounded p-2 w-32"
           value={v.mode}
           onChange={(e) => update({ mode: e.target.value })}
         >
@@ -51,35 +41,45 @@ export default function OtherFeeInput({ value, onChange, label }) {
           <option value="fixed">有其它费用</option>
         </select>
 
-        {/* 有其它费用时，显示金额输入 + 下拉建议 */}
-        {hasOtherFee && (
-          <div className="flex items-center border rounded px-2 py-1">
+        {hasFee && (
+          <div
+            className="flex items-center border rounded px-2 py-1 bg-white cursor-text relative"
+            onClick={() => setShow(true)}
+          >
             <span className="mr-1">RM</span>
             <input
-              type="text"
-              list="other_fee_suggestions"
-              className="outline-none w-28 text-right text-sm"
-              placeholder="例如 50"
+              className="outline-none w-28 text-right bg-white"
+              placeholder="输入价格"
               value={formatNumber(v.value)}
-              onChange={(e) => handleInput(e.target.value)}
+              onChange={(e) => update({ value: parseNumber(e.target.value) })}
+              onFocus={() => setShow(true)}
             />
-            <datalist id="other_fee_suggestions">
-              {SUGGESTIONS.map((amt) => (
-                <option key={amt} value={amt}>
-                  {`RM ${amt}`}
-                </option>
-              ))}
-            </datalist>
+
+            {show && (
+              <div className="absolute top-full left-0 mt-1 w-full bg-white border rounded shadow z-50">
+                {SUGGESTIONS.map((amt) => (
+                  <div
+                    key={amt}
+                    className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-sm"
+                    onMouseDown={() => {
+                      update({ value: String(amt) });
+                      setShow(false);
+                    }}
+                  >
+                    RM {amt}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* 有其它费用时，显示备注说明 */}
-      {hasOtherFee && (
+      {hasFee && (
         <textarea
           className="w-full border rounded p-2 text-xs mt-1"
           rows={2}
-          placeholder="备注说明，例如：节庆假期附加费、加床费、宠物附加清洁费等…"
+          placeholder="备注说明，例如节庆附加费等…"
           value={v.note}
           onChange={(e) => update({ note: e.target.value })}
         />
