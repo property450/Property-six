@@ -70,45 +70,47 @@ export default function HotelRoomTypeForm({ index, total, data, onChange }) {
         房型 {index + 1} / {total}
       </h3>
 
-      {/* 房型名称 */}
-      <div>
-        <label className="block text-sm font-medium mb-1">房型名称</label>
-        <input
-          type="text"
-          className="w-full border rounded p-2"
-          placeholder="例如：Deluxe King, Sea View Suite..."
-          value={safeRoom.name || ""}
-          onChange={(e) => updateRoom({ name: e.target.value })}
-        />
-      </div>
+     {/* 房型名称 + 房型代码（两栏排） + 房号范围（单行） */}
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-      {/* 房型代码 & 房号范围（运营端用，先保留） */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            房型代码（可选）
-          </label>
-          <input
-            type="text"
-            className="w-full border rounded p-2"
-            placeholder="例如：DLX-KING"
-            value={safeRoom.code || ""}
-            onChange={(e) => updateRoom({ code: e.target.value })}
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            房号范围（可选）
-          </label>
-          <input
-            type="text"
-            className="w-full border rounded p-2"
-            placeholder="例如：101–110"
-            value={safeRoom.roomRange || ""}
-            onChange={(e) => updateRoom({ roomRange: e.target.value })}
-          />
-        </div>
-      </div>
+  {/* 房型名称 */}
+  <div>
+    <label className="block text-sm font-medium mb-1">房型名称</label>
+    <input
+      type="text"
+      className="w-full border rounded p-2"
+      placeholder="例如：Deluxe King, Sea View Suite..."
+      value={safeRoom.name || ""}
+      onChange={(e) => updateRoom({ name: e.target.value })}
+    />
+  </div>
+
+  {/* 房型代码 */}
+  <div>
+    <label className="block text-sm font-medium mb-1">房型代码（可选）</label>
+    <input
+      type="text"
+      className="w-full border rounded p-2"
+      placeholder="例如：DLX-KING"
+      value={safeRoom.code || ""}
+      onChange={(e) => updateRoom({ code: e.target.value })}
+    />
+  </div>
+
+  {/* 房号范围 —— 独占下一行 */}
+  <div className="col-span-1 md:col-span-2">
+    <label className="block text-sm font-medium mb-1">房号范围（可选）</label>
+    <input
+      type="text"
+      className="w-full border rounded p-2"
+      placeholder="例如：101–110"
+      value={safeRoom.roomRange || ""}
+      onChange={(e) => updateRoom({ roomRange: e.target.value })}
+    />
+  </div>
+
+</div>
+
 
       {/* 这个房型的床是什么床？ */}
       <BedSelector
