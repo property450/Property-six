@@ -1,8 +1,6 @@
 // components/hotel/OtherFeeInput.js
 "use client";
 
-const PRESET_AMOUNTS = Array.from({ length: 20 }, (_, i) => (i + 1) * 10); // 10 ~ 200
-
 const formatNumber = (val) => {
   if (val === "" || val == null) return "";
   const num = Number(String(val).replace(/,/g, ""));
@@ -12,10 +10,13 @@ const formatNumber = (val) => {
 
 const parseNumber = (str) => String(str || "").replace(/,/g, "");
 
+// 建议金额：RM 10 ~ RM 200
+const SUGGESTIONS = Array.from({ length: 20 }, (_, i) => (i + 1) * 10);
+
 export default function OtherFeeInput({ value, onChange, label }) {
-  // 统一一个安全的默认值
+  // 安全默认值
   const v = {
-    mode: value?.mode || "free", // free = 没有其它费用，fixed = 有其它费用
+    mode: value?.mode || "free", // free = 没有其它费用；fixed = 有其它费用
     value: value?.value || "",
     note: value?.note || "",
   };
@@ -33,11 +34,6 @@ export default function OtherFeeInput({ value, onChange, label }) {
     update({ value: cleaned });
   };
 
-  const handlePresetChange = (raw) => {
-    if (!raw) return;
-    update({ value: String(raw) });
-  };
-
   const hasOtherFee = v.mode === "fixed";
 
   return (
@@ -47,7 +43,7 @@ export default function OtherFeeInput({ value, onChange, label }) {
       <div className="flex flex-wrap gap-2 items-center">
         {/* 下拉：没有其它费用 / 有其它费用 */}
         <select
-          className="border rounded p-2 w-36 text-sm"
+          className="border rounded p-2 w-32 text-sm"
           value={v.mode}
           onChange={(e) => update({ mode: e.target.value })}
         >
@@ -55,38 +51,30 @@ export default function OtherFeeInput({ value, onChange, label }) {
           <option value="fixed">有其它费用</option>
         </select>
 
+        {/* 有其它费用时，显示金额输入 + 下拉建议 */}
         {hasOtherFee && (
-          <>
-            {/* 金额输入（带 RM 前缀 + 千分位） */}
-            <div className="flex items-center border rounded px-2 py-1">
-              <span className="mr-1">RM</span>
-              <input
-                type="text"
-                className="outline-none w-28 text-right text-sm"
-                placeholder="例如 50"
-                value={formatNumber(v.value)}
-                onChange={(e) => handleInput(e.target.value)}
-              />
-            </div>
-
-            {/* 常用金额下拉 */}
-            <select
-              className="border rounded p-2 w-40 text-sm"
-              value=""
-              onChange={(e) => handlePresetChange(e.target.value)}
-            >
-              <option value="">选择常用金额</option>
-              {PRESET_AMOUNTS.map((amt) => (
+          <div className="flex items-center border rounded px-2 py-1">
+            <span className="mr-1">RM</span>
+            <input
+              type="text"
+              list="other_fee_suggestions"
+              className="outline-none w-28 text-right text-sm"
+              placeholder="例如 50"
+              value={formatNumber(v.value)}
+              onChange={(e) => handleInput(e.target.value)}
+            />
+            <datalist id="other_fee_suggestions">
+              {SUGGESTIONS.map((amt) => (
                 <option key={amt} value={amt}>
-                  {`RM ${amt.toLocaleString()}`}
+                  {`RM ${amt}`}
                 </option>
               ))}
-            </select>
-          </>
+            </datalist>
+          </div>
         )}
       </div>
 
-      {/* 备注说明：只有有其它费用时才显示 */}
+      {/* 有其它费用时，显示备注说明 */}
       {hasOtherFee && (
         <textarea
           className="w-full border rounded p-2 text-xs mt-1"
