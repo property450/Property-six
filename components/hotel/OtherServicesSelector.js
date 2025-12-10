@@ -1,128 +1,151 @@
 // components/hotel/OtherServicesSelector.js
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
-const PRESET_TAGS = [
+const PRESET_SERVICES = [
   "机场接送",
   "允许携带宠物",
   "室外监控摄像头",
   "行李寄存",
-  "自助入住",
-  "24小时前台",
 ];
 
+function normalizeValue(value) {
+  if (!Array.isArray(value)) return [];
+  return value.map((item, index) => {
+    if (typeof item === "string") {
+      return {
+        key: item,
+        label: item,
+        note: "",
+      };
+    }
+    return {
+      key: item.key || item.label || `service_${index}`,
+      label: item.label || "",
+      note: item.note || "",
+    };
+  });
+}
+
 export default function OtherServicesSelector({ value, onChange }) {
-  // 统一成 { tags: [], note: "" } 结构
-  const safeValue = value || { tags: [], note: "" };
-  const [tags, setTags] = useState(safeValue.tags || []);
-  const [note, setNote] = useState(safeValue.note || "");
-  const [input, setInput] = useState("");
+  const [customInput, setCustomInput] = useState("");
+  const services = normalizeValue(value);
 
-  // 父组件更新时，同步本地 state
-  useEffect(() => {
-    setTags(safeValue.tags || []);
-    setNote(safeValue.note || "");
-  }, [safeValue.tags, safeValue.note]);
-
-  // 把当前 tags + note 回传给父组件
-  const emitChange = (nextTags, nextNote) => {
-    onChange?.({
-      tags: nextTags ?? tags,
-      note: nextNote ?? note,
-    });
+  const triggerChange = (next) => {
+    onChange?.(next);
   };
 
-  const toggleTag = (tag) => {
-    let next;
-    if (tags.includes(tag)) {
-      next = tags.filter((t) => t !== tag);
+  const toggleService = (label) => {
+    const existing = services.find((s) => s.label === label);
+    if (existing) {
+      // 取消选择
+      triggerChange(services.filter((s) => s.label !== label));
     } else {
-      next = [...tags, tag];
+      // 新增
+      triggerChange([
+        ...services,
+        { key: label, label, note: "" },
+      ]);
     }
-    setTags(next);
-    emitChange(next, undefined);
   };
 
-  const handleAddCustomTag = () => {
-    const trimmed = input.trim();
-    if (!trimmed) return;
-    if (!tags.includes(trimmed)) {
-      const next = [...tags, trimmed];
-      setTags(next);
-      emitChange(next, undefined);
-    }
-    setInput("");
+  const handleNoteChange = (key, note) => {
+    const next = services.map((s) =>
+      s.key === key ? { ...s, note } : s
+    );
+    triggerChange(next);
   };
 
-  const handleKeyDown = (e) => {
+  const handleAddCustom = () => {
+    const label = customInput.trim();
+    if (!label) return;
+
+    if (!services.find((s) => s.label === label)) {
+      triggerChange([
+        ...services,
+        { key: label, label, note: "" },
+      ]);
+    }
+    setCustomInput("");
+  };
+
+  const handleCustomKeyDown = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      handleAddCustomTag();
+      handleAddCustom();
     }
   };
 
-  const handleNoteChange = (e) => {
-    const nextNote = e.target.value;
-    setNote(nextNote);
-    emitChange(undefined, nextNote);
-  };
+  // 把自定义的标签也显示在上面的“可点的标签”里
+  const allTagLabels = Array.from(
+    new Set([...PRESET_SERVICES, ...services.map((s) => s.label)])
+  );
 
   return (
     <div className="mt-4 space-y-2">
-      <p className="font-semibold text-sm">其它服务（标签 + 备注）</p>
+      <p className="font-semibold text-sm">
+        其它服务（可加备注）
+      </p>
 
-      {/* 预设标签 */}
+      {/* 标签选择 + 自定义输入 */}
       <div className="flex flex-wrap gap-2">
-        {PRESET_TAGS.map((tag) => {
-          const active = tags.includes(tag);
+        {allTagLabels.map((label) => {
+          const active = !!services.find((s) => s.label === label);
           return (
             <button
-              key={tag}
+              key={label}
               type="button"
-              onClick={() => toggleTag(tag)}
-              className={`px-3 py-1 rounded-full text-sm border ${
-                active ? "bg-blue-600 text-white border-blue-600" : "bg-white"
+              onClick={() => toggleService(label)}
+              className={`px-3 py-1 rounded-full border text-sm ${
+                active
+                  ? "bg-blue-500 text-white border-blue-500"
+                  : "bg-gray-100 text-gray-700 border-gray-300"
               }`}
             >
-              {tag}
+              {label}
             </button>
           );
         })}
       </div>
 
-      {/* 自定义标签输入 */}
       <div className="flex gap-2 mt-2">
         <input
           type="text"
-          className="flex-1 border rounded px-2 py-1 text-sm"
-          placeholder="输入自定义服务名称后按 Enter 或点添加，例如：代订门票"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
+          className="flex-1 border rounded px-3 py-1 text-sm"
+          placeholder="输入其它服务后回车添加，例如：行程规划、租车服务..."
+          value={customInput}
+          onChange={(e) => setCustomInput(e.target.value)}
+          onKeyDown={handleCustomKeyDown}
         />
         <button
           type="button"
-          onClick={handleAddCustomTag}
-          className="px-3 py-1 border rounded text-sm"
+          onClick={handleAddCustom}
+          className="px-3 py-1 text-sm border rounded bg-white"
         >
           添加
         </button>
       </div>
 
-      {/* 备注框 */}
-      <div className="mt-2">
-        <label className="block text-xs text-gray-600 mb-1">
-          其它服务备注（可选）
-        </label>
-        <textarea
-          className="w-full border rounded px-2 py-1 text-sm"
-          rows={2}
-          placeholder="例如：机场接送需提前 24 小时预约；允许携带小型宠物，需额外清洁费等"
-          value={note}
-          onChange={handleNoteChange}
-        />
-      </div>
+      {/* 每个服务的备注 */}
+      {services.length > 0 && (
+        <div className="space-y-2 mt-3">
+          {services.map((s) => (
+            <div key={s.key} className="space-y-1">
+              <div className="text-sm font-medium">{s.label}</div>
+              <input
+                type="text"
+                className="w-full border rounded px-3 py-1 text-sm"
+                placeholder="备注（可留空）"
+                value={s.note}
+                onChange={(e) =>
+                  handleNoteChange(s.key, e.target.value)
+                }
+              />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
