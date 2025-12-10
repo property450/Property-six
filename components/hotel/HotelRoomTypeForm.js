@@ -44,12 +44,14 @@ export default function HotelRoomTypeForm({ index, room, onChange }) {
     });
   };
 
-  const fees = safeRoom.fees || {
-    serviceFee: { mode: "free", value: "" },
-    cleaningFee: { mode: "free", value: "" },
-    deposit: { mode: "free", value: "" },
-    otherFee: { mode: "free", value: "" },
-  };
+  // 费用对象里现在可以包含备注：{ mode, value, note }
+  const fees =
+    safeRoom.fees || {
+      serviceFee: { mode: "free", value: "", note: "" },
+      cleaningFee: { mode: "free", value: "", note: "" },
+      deposit: { mode: "free", value: "", note: "" },
+      otherFee: { mode: "free", value: "", note: "" },
+    };
 
   const availability = safeRoom.availability || {};
   const photos = safeRoom.photos || [];
@@ -145,6 +147,7 @@ export default function HotelRoomTypeForm({ index, room, onChange }) {
             bathrooms: roomCounts.bathrooms || "",
             kitchens: roomCounts.kitchens || "",
             livingRooms: roomCounts.livingRooms || "",
+            carparks: roomCounts.carparks || "",
           }}
           onChange={updateRoomCounts}
         />
@@ -187,13 +190,13 @@ export default function HotelRoomTypeForm({ index, room, onChange }) {
         onChange={(val) => updateRoom({ views: val })}
       />
 
-      {/* 其它服务（同样是标签+备注形式，可以暂时复用 OtherFacilitiesSelector 逻辑） */}
+      {/* 其它服务：标签 + 备注 */}
       <OtherServicesSelector
-  value={layout.otherServices}
-  onChange={(val) => updateLayout({ otherServices: val })}
-/>
+        value={safeRoom.otherServices || []}
+        onChange={(val) => updateRoom({ otherServices: val })}
+      />
 
-      {/* ======= 费用输入：服务费 / 清洁费 / 押金 / 其它费用 ======= */}
+      {/* ======= 费用输入：服务费 / 清洁费 / 押金 / 其它费用（带备注） ======= */}
       <div className="mt-4 space-y-3">
         <ServiceFeeInput
           value={fees.serviceFee}
@@ -214,11 +217,13 @@ export default function HotelRoomTypeForm({ index, room, onChange }) {
           }
         />
         <OtherFeeInput
-  value={layout.otherFee}
-  onChange={(val) => updateLayout({ otherFee: val })}
-  label="这个房型的其它费用"
-/>
-    </div>
+          value={fees.otherFee}
+          onChange={(val) =>
+            updateRoom({ fees: { ...fees, otherFee: val } })
+          }
+          label="这个房型的其它费用"
+        />
+      </div>
 
       {/* ======= 日历：这个房型的可租日期 & 价格 ======= */}
       <div className="mt-4">
@@ -233,7 +238,7 @@ export default function HotelRoomTypeForm({ index, room, onChange }) {
 
       {/* ======= 房型照片上传：只需要一个通用上传框，多选 ======= */}
       <div className="mt-4">
-        <label className="block text-sm font-medium mb-1">上传房型照片</label>
+        <label className="block text-sm font-medium mb-1">上传这个房型的照片</label>
         <ImageUpload
           config={{}} // 不按卧室/浴室生成，只要一个通用上传
           images={photos}
