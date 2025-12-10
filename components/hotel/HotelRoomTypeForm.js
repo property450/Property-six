@@ -171,15 +171,15 @@ export default function HotelRoomTypeForm({ index, total, data, onChange }) {
       </div>
 
       {/* 这个房型的额外空间 */}
-      <div className="mt-2">
-        <label className="block text-sm font-medium mb-1">
-          这个房型的额外空间
-        </label>
-        <ExtraSpacesSelector
-          value={extraSpaces}
-          onChange={(val) => updateRoom({ extraSpaces: val })}
-        />
-      </div>
+<div className="space-y-2">
+  <label className="block text-sm font-medium">
+    这个房型的额外空间
+  </label>
+  <ExtraSpacesSelector
+    value={extraSpaces}
+    onChange={(val) => updateRoom({ extraSpaces: val })}
+  />
+</div>
 
       {/* ======= 六组带备注的设施选择 ======= */}
       <IndoorFacilitiesSelector
