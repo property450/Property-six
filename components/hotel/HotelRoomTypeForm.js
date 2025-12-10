@@ -24,6 +24,7 @@ import ServiceFeeInput from "./ServiceFeeInput";
 import CleaningFeeInput from "./CleaningFeeInput";
 import DepositInput from "./DepositInput";
 import OtherFeeInput from "./OtherFeeInput";
+import PetPolicySelector from "./PetPolicySelector";
 
 export default function HotelRoomTypeForm({ index, total, data, onChange }) {
   const safeRoom = data || {};
@@ -137,6 +138,12 @@ export default function HotelRoomTypeForm({ index, total, data, onChange }) {
       <BreakfastSelector
         value={safeRoom.breakfast || ""}
         onChange={(val) => updateRoom({ breakfast: val })}
+      />
+
+      {/* 房型是否允许宠物入住？（新增） */}
+      <PetPolicySelector
+        value={safeRoom.petPolicy || { type: "", note: "" }}
+        onChange={(val) => updateRoom({ petPolicy: val })}
       />
 
       {/* 是否能免费取消 */}
