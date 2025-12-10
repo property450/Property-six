@@ -1,7 +1,7 @@
 // components/hotel/CleaningFeeInput.js
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 const formatNumber = (val) => {
   if (!val) return "";
@@ -17,6 +17,8 @@ export default function CleaningFeeInput({ value, onChange }) {
   const v = value || { mode: "free", value: "" };
   const [show, setShow] = useState(false);
 
+  const dropdownRef = useRef(null);
+
   const update = (patch) => onChange?.({ ...v, ...patch });
 
   const handleType = (raw) => {
@@ -26,9 +28,22 @@ export default function CleaningFeeInput({ value, onChange }) {
 
   const isPaid = v.mode === "paid";
 
+  // ⭐ 点击空白处自动关闭 dropdown
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setShow(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   return (
-    <div className="space-y-1 relative">
-      <label className="block text-sm font-medium mb-1">这个房型的清洁费</label>
+    <div className="space-y-1 relative" ref={dropdownRef}>
+      <label className="block text-sm font-medium mb-1">
+        这个房型的清洁费
+      </label>
 
       <div className="flex flex-wrap gap-2 items-center">
         <select
@@ -41,11 +56,9 @@ export default function CleaningFeeInput({ value, onChange }) {
         </select>
 
         {isPaid && (
-          <div
-            className="flex items-center border rounded px-2 py-1 bg-white cursor-text relative"
-            onClick={() => setShow(true)}
-          >
+          <div className="flex items-center border rounded px-2 py-1 bg-white cursor-text relative">
             <span className="mr-1">RM</span>
+
             <input
               type="text"
               className="outline-none w-28 text-right bg-white"
@@ -64,7 +77,7 @@ export default function CleaningFeeInput({ value, onChange }) {
                     className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-sm"
                     onMouseDown={() => {
                       update({ value: String(amt) });
-                      setShow(false);
+                      setShow(false); // ⭐ 选中后收起
                     }}
                   >
                     RM {amt}
