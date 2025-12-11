@@ -161,6 +161,15 @@ export default function UploadProperty() {
     computedStatus?.includes("Completed Unit") ||
     computedStatus?.includes("Developer Unit");
 
+  // Rent + Business Property + 「整间/整栋出租（原本的 no）」 模式
+  const isRent = saleType === "Rent";
+  const typeStr = type || "";
+  const isBusinessCategoryRent =
+    isRent && typeStr.startsWith("Business Property");
+  // ✅ 这里对应你说的：Rent 👉 Business Property 👉 「是的，整间/整栋出租」
+  // 功能上还是用 rentBatchMode === "no"
+  const isBusinessRentWhole = isBusinessCategoryRent && rentBatchMode === "no";
+
   // 当不再是项目类时，清空 layouts
   useEffect(() => {
     if (!isProject) {
@@ -169,7 +178,7 @@ export default function UploadProperty() {
   }, [isProject]);
 
   // 根据单一房源的配置生成图片上传配置
-  const photoConfig = {
+  const basePhotoConfig = {
     bedrooms: singleFormData.bedrooms || "",
     bathrooms: singleFormData.bathrooms || "",
     kitchens: singleFormData.kitchens || "",
@@ -181,6 +190,26 @@ export default function UploadProperty() {
     orientation: singleFormData.facing || "",
     transit: transitInfo || null,
   };
+
+  // ✅ 整栋出租：只要每个类别一个上传框，不按数量拆很多
+  const photoConfig = isBusinessRentWhole
+    ? {
+        ...basePhotoConfig,
+        bedrooms: basePhotoConfig.bedrooms ? 1 : "",
+        bathrooms: basePhotoConfig.bathrooms ? 1 : "",
+        kitchens: basePhotoConfig.kitchens ? 1 : "",
+        livingRooms: basePhotoConfig.livingRooms ? 1 : "",
+        carpark: basePhotoConfig.carpark ? 1 : "",
+        extraSpaces: (basePhotoConfig.extraSpaces || []).map((extra) => ({
+          ...extra,
+          count: 1,
+        })),
+        furniture: (basePhotoConfig.furniture || []).map((item) => ({
+          ...item,
+          count: 1,
+        })),
+      }
+    : basePhotoConfig;
 
   // ---------- 提交 ----------
   const handleSubmit = async () => {
@@ -417,7 +446,7 @@ export default function UploadProperty() {
                 mode="single"
               />
 
-              {/* 车位位置 */}
+              {/* 车位位置：整栋出租时改成「范围」模式 */}
               <CarparkLevelSelector
                 value={singleFormData.carparkPosition}
                 onChange={(val) =>
@@ -426,7 +455,7 @@ export default function UploadProperty() {
                     carparkPosition: val,
                   }))
                 }
-                mode="single"
+                mode={isBusinessRentWhole ? "range" : "single"}
               />
 
               <ExtraSpacesSelector
@@ -460,6 +489,12 @@ export default function UploadProperty() {
                         ...prev,
                         storeys: v,
                       }))
+                    }
+                    // ✅ Rent 👉 Business Property 👉 整栋出租：文案改成「这个property总共有多少层」
+                    label={
+                      isBusinessRentWhole
+                        ? "这个property总共有多少层"
+                        : undefined
                     }
                   />
                 )}
@@ -558,6 +593,3 @@ export default function UploadProperty() {
       >
         {loading ? "上传中..." : "提交房源"}
       </Button>
-    </div>
-  );
-}
