@@ -10,7 +10,6 @@ const subtypeOptions = [
   "Duplex",
   "Triplex",
   "Dual Key",
-  "None / Not Applicable",
 ];
 
 const homestayOptions = [
@@ -171,10 +170,13 @@ export default function TypeSelector({
   const [tenure, setTenure] = useState("");
   const [category, setCategory] = useState("");
   const [finalType, setFinalType] = useState("");
-  const [subtype, setSubtype] = useState("");
+  // ⭐ subtype 变成数组（多选）
+  const [subtype, setSubtype] = useState([]);
   const [auctionDate, setAuctionDate] = useState("");
   const [showSubtype, setShowSubtype] = useState(false);
   const [storeys, setStoreys] = useState("");
+  // ⭐ 控制 Property Subtype 下拉开关
+  const [subtypeOpen, setSubtypeOpen] = useState(false);
 
   // ---------- 外部 value（最终 type） ----------
   useEffect(() => {
@@ -202,6 +204,7 @@ export default function TypeSelector({
       tenure,
       category,
       finalType,
+      // ⭐ 这里 subtype 已经是数组
       subtype,
       auctionDate,
       storeys,
@@ -224,11 +227,12 @@ export default function TypeSelector({
     onFormChange,
   ]);
 
-  // Apartment / Business 时显示 subtype 下拉
+  // Apartment / Business / Industrial 时显示 subtype 下拉
   useEffect(() => {
     const shouldShow =
       category === "Apartment / Condo / Service Residence" ||
-      category === "Business Property";
+      category === "Business Property" ||
+      category === "Industrial Property";
     setShowSubtype(shouldShow);
   }, [category]);
 
@@ -254,11 +258,25 @@ export default function TypeSelector({
 
   const showStoreys = needStoreysForSale || needStoreysForRent;
 
-  // ⭐ 切换「需要批量操作吗？」
+  // ⭐ Rent 批量开关：只要是 Rent，就一直显示
   const handleBatchChange = (mode) => {
     onChangeRentBatchMode && onChangeRentBatchMode(mode);
-    // 其它逻辑交给 upload-property.js 通过 rentBatchMode 判断
   };
+
+  // ⭐ 切换 Property Subtype 多选
+  const toggleSubtype = (item) => {
+    setSubtype((prev) => {
+      if (prev.includes(item)) {
+        return prev.filter((v) => v !== item);
+      }
+      return [...prev, item];
+    });
+  };
+
+  const subtypeDisplayText =
+    subtype.length === 0
+      ? "请选择 subtype（可多选）"
+      : subtype.map((v) => `${v} ✅`).join("，");
 
   return (
     <div className="space-y-4">
@@ -282,10 +300,11 @@ export default function TypeSelector({
             setTenure("");
             setCategory("");
             setFinalType("");
-            setSubtype("");
+            setSubtype([]);
             setAuctionDate("");
             setStoreys("");
             setShowSubtype(false);
+            setSubtypeOpen(false);
             onChangeRentBatchMode && onChangeRentBatchMode("no");
           }}
         >
@@ -398,7 +417,9 @@ export default function TypeSelector({
               value={affordable}
               onChange={(e) => setAffordable(e.target.value)}
             >
-              <option value="">是否属于政府可负担房屋计划？</option>
+              <option value="">
+                是否属于政府可负担房屋计划？
+              </option>
               <option value="Yes">是</option>
               <option value="No">否</option>
             </select>
@@ -443,7 +464,7 @@ export default function TypeSelector({
         </>
       )}
 
-      {/* ---------- Category + Sub Type + Storeys ---------- */}
+      {/* ---------- Category + Sub Type + Storeys + Property Subtype ---------- */}
       {showCategoryBlock &&
         saleType !== "Homestay" &&
         saleType !== "Hotel/Resort" && (
@@ -458,8 +479,9 @@ export default function TypeSelector({
                   const cat = e.target.value;
                   setCategory(cat);
                   setFinalType("");
-                  setSubtype("");
+                  setSubtype([]);
                   setStoreys("");
+                  setSubtypeOpen(false);
                 }}
               >
                 <option value="">请选择类别</option>
@@ -490,7 +512,7 @@ export default function TypeSelector({
               </div>
             )}
 
-            {/* ✅ 在 Sub Type 下面显示「有多少层」 */}
+            {/* 有多少层 */}
             {showStoreys && (
               <FloorCountSelector
                 value={storeys}
@@ -498,28 +520,55 @@ export default function TypeSelector({
               />
             )}
 
-            {/* Property Subtype（Penthouse / Duplex 等） */}
+            {/* ⭐ Property Subtype 多选（Apartment / Business / Industrial） */}
             {showSubtype && (
-              <div>
+              <div className="relative">
                 <label className="block font-medium">Property Subtype</label>
-                <select
-                  className="w-full border rounded p-2"
-                  value={subtype}
-                  onChange={(e) => setSubtype(e.target.value)}
+                <div
+                  className="w-full border rounded p-2 bg-white cursor-pointer"
+                  onClick={() => setSubtypeOpen((prev) => !prev)}
                 >
-                  <option value="">请选择 subtype（如有）</option>
-                  {subtypeOptions.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
-                    </option>
-                  ))}
-                </select>
+                  {subtype.length === 0 ? (
+                    <span className="text-gray-400">
+                      请选择 subtype（可多选）
+                    </span>
+                  ) : (
+                    <span className="font-medium">
+                      {subtypeDisplayText}
+                    </span>
+                  )}
+                </div>
+
+                {subtypeOpen && (
+                  <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+                    {subtypeOptions.map((opt) => {
+                      const selected = subtype.includes(opt);
+                      return (
+                        <div
+                          key={opt}
+                          className={`px-3 py-2 flex justify-between items-center cursor-pointer hover:bg-gray-100 ${
+                            selected ? "bg-gray-50 font-semibold" : ""
+                          }`}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            toggleSubtype(opt);
+                          }}
+                        >
+                          <span>{opt}</span>
+                          {selected && (
+                            <span className="text-green-600">✅</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </>
         )}
 
-      {/* ⭐ Rent 批量开关：只要是 Rent，就一直显示 */}
+      {/* ⭐ Rent 批量开关：不管单一 / 多房型，只要是 Rent 就显示 */}
       {saleType === "Rent" && (
         <div className="mt-2">
           <label className="block text-sm font-medium text-gray-700">
