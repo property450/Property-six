@@ -291,25 +291,6 @@ export default function TypeSelector({
         </select>
       </div>
 
-      {/* Rent 批量开关 */}
-      {saleType === "Rent" && (
-        <div className="mt-2">
-          <label className="block text-sm font-medium text-gray-700">
-            需要批量操作吗？
-          </label>
-          <select
-            className="border rounded w-full p-2"
-            value={rentBatchMode}
-            onChange={(e) =>
-              onChangeRentBatchMode && onChangeRentBatchMode(e.target.value)
-            }
-          >
-            <option value="no">否，只是单一房源</option>
-            <option value="yes">是，这个项目有多个房型</option>
-          </select>
-        </div>
-      )}
-
       {/* Homestay 分类 */}
       {saleType === "Homestay" && (
         <div>
@@ -502,6 +483,26 @@ export default function TypeSelector({
                 </select>
               </div>
             )}
+
+       {/* Rent 批量开关 */}
+      {saleType === "Rent" && (
+        <div className="mt-2">
+          <label className="block text-sm font-medium text-gray-700">
+            需要批量操作吗？
+          </label>
+          <select
+            className="border rounded w-full p-2"
+            value={rentBatchMode}
+            onChange={(e) =>
+              onChangeRentBatchMode && onChangeRentBatchMode(e.target.value)
+            }
+          >
+            <option value="no">否，只是单一房源</option>
+            <option value="yes">是，这个项目有多个房型</option>
+          </select>
+        </div>
+      )}
+
 
             {/* ✅ 在 Sub Type 下面显示「有多少层」 */}
             {showStoreys && (
