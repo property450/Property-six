@@ -172,8 +172,14 @@ const CATEGORY_OPTIONS = {
   ],
 };
 
-// ⭐ 布局里的 Property Subtype（多选，去掉 None / Not Applicable）
-const SUBTYPE_OPTIONS = ["Penthouse", "Duplex", "Triplex", "Dual Key"];
+// 布局里的 Property Subtype（跟 TypeSelector 一样）
+const SUBTYPE_OPTIONS = [
+  "Penthouse",
+  "Duplex",
+  "Triplex",
+  "Dual Key",
+  "None / Not Applicable",
+];
 
 // 哪些 Category 需要显示「有多少层」
 const NEED_STOREYS_CATEGORY = new Set([
@@ -184,7 +190,7 @@ const NEED_STOREYS_CATEGORY = new Set([
   "Terrace / Link House",
 ]);
 
-// ---------- 工具 ----------
+// ---------- 千分位 & 工具 ----------
 const formatNumber = (num) => {
   if (num === "" || num === undefined || num === null) return "";
   const str = String(num).replace(/,/g, "");
@@ -211,13 +217,6 @@ const getName = (item) => {
   if (!item) return "";
   if (typeof item === "string") return item;
   return item.label || item.value || item.name || "";
-};
-
-// 把 propertySubtype 转成「数组」，兼容以前是字符串的情况
-const parseSubtypeToArray = (val) => {
-  if (!val) return [];
-  if (Array.isArray(val)) return val;
-  return [String(val)];
 };
 
 // 根据 photoConfig 生成所有上传框的 label
@@ -341,10 +340,11 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   const layout = data || {};
   const fileInputRef = useRef(null);
 
-  const projectType = layout.projectType; // UploadProperty 里已经传进来了
-  const rentMode = layout.rentMode; // "Sale" / "Rent" 之类
+    const projectType = layout.projectType;   // UploadProperty 里已经传进来了
+  const rentMode = layout.rentMode;        // "Sale" / "Rent" 之类
 
-  const isNewProject = projectType === "New Project / Under Construction";
+  const isNewProject =
+    projectType === "New Project / Under Construction";
   const isCompletedProject =
     projectType === "Completed Unit / Developer Unit";
 
@@ -358,18 +358,11 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   // Category / SubType / SubtypeExtra / 层数
   const [category, setCategory] = useState(layout.propertyCategory || "");
   const [subType, setSubType] = useState(layout.subType || "");
-
-  // ⭐ propertySubtype 现在是数组
   const [propertySubtype, setPropertySubtype] = useState(
-    parseSubtypeToArray(layout.propertySubtype)
+    layout.propertySubtype || ""
   );
-
   const [showSubtype, setShowSubtype] = useState(false);
   const [storeys, setStoreys] = useState(layout.storeys || "");
-
-  // ⭐ 控制 subtype 下拉开关
-  const [subtypeOpen, setSubtypeOpen] = useState(false);
-  const subtypeRef = useRef(null);
 
   // 房型单位数量
   const [unitCountLocal, setUnitCountLocal] = useState(
@@ -405,7 +398,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   useEffect(() => {
     setCategory(layout.propertyCategory || "");
     setSubType(layout.subType || "");
-    setPropertySubtype(parseSubtypeToArray(layout.propertySubtype));
+    setPropertySubtype(layout.propertySubtype || "");
     setStoreys(layout.storeys || "");
     setUnitCountLocal(layout.unitCount ? String(layout.unitCount) : "");
   }, [
@@ -424,19 +417,15 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     setShowSubtype(shouldShow);
   }, [category]);
 
-  // 点击外面关闭两个下拉：单位数量 & Property Subtype
+  // 点击外面关闭 “这个房型有多少个单位？” 下拉
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (unitCountRef.current && !unitCountRef.current.contains(e.target)) {
         setUnitDropdownOpen(false);
       }
-      if (subtypeRef.current && !subtypeRef.current.contains(e.target)) {
-        setSubtypeOpen(false);
-      }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    return () =>
-      document.removeEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   // 更新 layout
@@ -501,24 +490,6 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   // 生成所有上传框 label
   const uploadLabels = getPhotoLabelsFromConfig(photoConfig);
 
-  // ⭐ 切换 Property Subtype 多选
-  const toggleSubtype = (item) => {
-    let next = [];
-    if (propertySubtype.includes(item)) {
-      next = propertySubtype.filter((v) => v !== item);
-    } else {
-      next = [...propertySubtype, item];
-    }
-    setPropertySubtype(next);
-    handleFieldChange("propertySubtype", next);
-  };
-
-  // 显示在「输入框」里的文字
-  const subtypeDisplayText =
-    propertySubtype.length === 0
-      ? "请选择 subtype（可多选）"
-      : propertySubtype.map((v) => `${v} ✅`).join("，");
-
   return (
     <div className="border rounded-lg p-4 shadow-sm bg-white">
       <h3 className="font-semibold mb-3">Layout {index + 1}</h3>
@@ -560,12 +531,12 @@ export default function UnitLayoutForm({ index, data, onChange }) {
             const cat = e.target.value;
             setCategory(cat);
             setSubType("");
-            setPropertySubtype([]);
+            setPropertySubtype("");
             setStoreys("");
             updateLayout({
               propertyCategory: cat,
               subType: "",
-              propertySubtype: [],
+              propertySubtype: "",
               storeys: "",
             });
           }}
@@ -616,50 +587,24 @@ export default function UnitLayoutForm({ index, data, onChange }) {
           )}
 
           {showSubtype && (
-            <div className="mb-3 relative" ref={subtypeRef}>
-              <label className="block font-medium mb-1">
-                Property Subtype
-              </label>
-
-              {/* 显示区域（点击打开下拉） */}
-              <div
-                className="border p-2 rounded w-full bg-white cursor-pointer"
-                onClick={() => setSubtypeOpen((prev) => !prev)}
+            <div className="mb-3">
+              <label className="block font-medium mb-1">Property Subtype</label>
+              <select
+                className="border p-2 rounded w-full"
+                value={propertySubtype}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setPropertySubtype(val);
+                  handleFieldChange("propertySubtype", val);
+                }}
               >
-                {propertySubtype.length === 0 ? (
-                  <span className="text-gray-400">
-                    请选择 subtype（可多选）
-                  </span>
-                ) : (
-                  <span className="font-medium">{subtypeDisplayText}</span>
-                )}
-              </div>
-
-              {/* 下拉多选菜单 */}
-              {subtypeOpen && (
-                <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
-                  {SUBTYPE_OPTIONS.map((opt) => {
-                    const selected = propertySubtype.includes(opt);
-                    return (
-                      <div
-                        key={opt}
-                        className={`px-3 py-2 flex justify-between items-center cursor-pointer hover:bg-gray-100 ${
-                          selected ? "bg-gray-50 font-semibold" : ""
-                        }`}
-                        onMouseDown={(e) => {
-                          e.preventDefault(); // 防止失焦导致闪烁
-                          toggleSubtype(opt);
-                        }}
-                      >
-                        <span>{opt}</span>
-                        {selected && (
-                          <span className="text-green-600">✅</span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+                <option value="">请选择 subtype（如有）</option>
+                {SUBTYPE_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
         </>
@@ -713,19 +658,21 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       <AreaSelector
         initialValue={areaForPsf || {}}
         onChange={(val) => {
-        setAreaForPsf(val);
+          setAreaForPsf(val);
           handleFieldChange("buildUp", val);
         }}
       />
 
-      {/* 价格 */}
+            {/* 价格 */}
       <PriceInput
         value={priceForPsf}
         onChange={(val) => {
           setPriceForPsf(val);
           handleFieldChange("price", val);
         }}
+        // ⭐ 批量 Rent 的 Layout 使用 Rent 的价格模式（500~1,000,000，单一价格）
         listingMode={isBulkRent ? "Rent" : undefined}
+        // ⭐ 不把 projectType 传给 PriceInput，让它不要走 New Project 的「价格范围」逻辑
         type={isBulkRent ? undefined : layout.projectType}
       />
 
@@ -734,7 +681,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 
       {/* 房间数量 */}
       <RoomCountSelector
-       value={{
+        value={{
           bedrooms: photoConfig.bedrooms,
           bathrooms: photoConfig.bathrooms,
           kitchens: photoConfig.kitchens,
@@ -795,7 +742,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         }}
       />
 
-          <FacilitiesSelector
+      <FacilitiesSelector
         value={photoConfig.facilities}
         onChange={(val) => {
           setPhotoConfig((prev) => ({ ...prev, facilities: val }));
@@ -813,17 +760,17 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         />
       </div>
 
-      {/* 建成年份 + 季度 */}
+{/* 建成年份 + 季度 */}
       {showBuildYear && (
-        <BuildYearSelector
-       value={layout.buildYear}
-          onChange={(val) => updateLayout({ buildYear: val })}
-          quarter={layout.quarter}
-          onQuarterChange={(val) => updateLayout({ quarter: val })}
-          showQuarter={isNewProject} // 新项目才显示季度
-          label={isNewProject ? "预计交付时间" : "完成年份"}
-        />
-      )}
+  <BuildYearSelector
+    value={layout.buildYear}
+    onChange={(val) => updateLayout({ buildYear: val })}
+    quarter={layout.quarter}
+    onQuarterChange={(val) => updateLayout({ quarter: val })}
+    showQuarter={isNewProject} // 新项目才显示季度
+    label={isNewProject ? "预计交付时间" : "完成年份"}
+  />
+)}
 
       {/* 每个 Layout 自己的房源描述 */}
       <div className="mt-3 mb-3">
@@ -837,7 +784,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         />
       </div>
 
-      {/* 上传此 Layout 的照片 */}
+{/* 上传此 Layout 的照片 */}
       <div className="mb-3">
         <label className="block mb-1 font-medium">上传此 Layout 的照片</label>
         <div className="space-y-4">
@@ -851,18 +798,16 @@ export default function UnitLayoutForm({ index, data, onChange }) {
                 accept="image/*"
                 onChange={(e) => handlePhotoChange(e, label)}
               />
-
-              <div className="grid grid-cols-3 gap-2">
+<div className="grid grid-cols-3 gap-2">
                 {(photosByLabel[label] || []).map((img, index) => (
                   <div key={img.url || index} className="relative">
                     <img
-                   src={img.url}
+                      src={img.url}
                       alt={`preview-${index}`}
                       className={`w-full h-32 object-cover rounded ${
                         img.isCover ? "border-4 border-green-500" : ""
                       }`}
                     />
-
                     <button
                       type="button"
                       className="absolute top-1 right-1 bg-red-500 text-white text-xs px-1 rounded"
@@ -870,7 +815,6 @@ export default function UnitLayoutForm({ index, data, onChange }) {
                     >
                       X
                     </button>
-
                     <button
                       type="button"
                       className="absolute bottom-1 left-1 bg-black text-white text-xs px-1 rounded"
@@ -888,3 +832,4 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     </div>
   );
 }
+                  
