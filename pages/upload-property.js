@@ -118,7 +118,6 @@ const LAYOUT_CATEGORY_OPTIONS = {
   ],
 };
 
-
 export default function UploadProperty() {
   const router = useRouter();
   const user = useUser();
@@ -140,7 +139,8 @@ export default function UploadProperty() {
   const [saleType, setSaleType] = useState(""); // Sale / Rent / Homestay / Hotel
   const [propertyStatus, setPropertyStatus] = useState(""); // New Project / Completed Unit / ...
   const [rentBatchMode, setRentBatchMode] = useState("no"); // "no" | "yes"
-    // 批量 Rent 项目：统一的 Property Category / Sub Type
+
+  // 批量 Rent 项目：统一的 Property Category / Sub Type
   const [projectCategory, setProjectCategory] = useState("");
   const [projectSubType, setProjectSubType] = useState("");
 
@@ -348,141 +348,153 @@ export default function UploadProperty() {
       />
 
       {/* ========= Homestay / Hotel 统一用 HotelUploadForm ========= */}
-                              {isProject ? (
-  <>
-    {/* ⭐ 批量 Rent 项目：先统一选一次 Category / Sub Type，
-        放在「这个项目有多少个房型/layout？」输入框上面 */}
-    {isBulkRentProject && (
-      <div className="space-y-3 mt-4">
-        {/* 整个项目的 Property Category */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Property Category（整个项目）
-          </label>
-          <select
-            value={projectCategory}
-            onChange={(e) => {
-              const cat = e.target.value;
-              setProjectCategory(cat);
-              setProjectSubType("");
+      {isHomestay || isHotel ? (
+        <HotelUploadForm />
+      ) : (
+        <>
+          {isProject ? (
+            <>
+              {/* ⭐ 批量 Rent 项目：先统一选一次 Category / Sub Type，
+                  放在「这个项目有多少个房型/layout？」输入框上面 */}
+              {isBulkRentProject && (
+                <div className="space-y-3 mt-4">
+                  {/* 整个项目的 Property Category */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Property Category（整个项目）
+                    </label>
+                    <select
+                      value={projectCategory}
+                      onChange={(e) => {
+                        const cat = e.target.value;
+                        setProjectCategory(cat);
+                        setProjectSubType("");
 
-              // 把 Category 同步到所有 layout
-              setUnitLayouts((prev) =>
-                (Array.isArray(prev) ? prev : []).map((layout) => ({
-                  ...layout,
-                  propertyCategory: cat,
-                  subType: "",
-                }))
-              );
-            }}
-            className="mt-1 block w-full border rounded-lg p-2"
-          >
-            <option value="">请选择类别</option>
-            {Object.keys(LAYOUT_CATEGORY_OPTIONS).map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
-        </div>
+                        // 把 Category 同步到所有 layout
+                        setUnitLayouts((prev) =>
+                          (Array.isArray(prev) ? prev : []).map((layout) => ({
+                            ...layout,
+                            propertyCategory: cat,
+                            subType: "",
+                          }))
+                        );
+                      }}
+                      className="mt-1 block w-full border rounded-lg p-2"
+                    >
+                      <option value="">请选择类别</option>
+                      {Object.keys(LAYOUT_CATEGORY_OPTIONS).map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-        {/* 整个项目的 Sub Type（依赖 Category） */}
-        {projectCategory && LAYOUT_CATEGORY_OPTIONS[projectCategory] && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Sub Type（整个项目）
-            </label>
-            <select
-              value={projectSubType}
-              onChange={(e) => {
-                const val = e.target.value;
-                setProjectSubType(val);
+                  {/* 整个项目的 Sub Type（依赖 Category） */}
+                  {projectCategory &&
+                    LAYOUT_CATEGORY_OPTIONS[projectCategory] && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">
+                          Sub Type（整个项目）
+                        </label>
+                        <select
+                          value={projectSubType}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setProjectSubType(val);
 
-                // 把 Sub Type 同步到所有 layout
-                setUnitLayouts((prev) =>
-                  (Array.isArray(prev) ? prev : []).map((layout) => ({
-                    ...layout,
-                    subType: val,
-                  }))
-                );
-              }}
-              className="mt-1 block w-full border rounded-lg p-2"
-            >
-              <option value="">请选择具体类型</option>
-              {LAYOUT_CATEGORY_OPTIONS[projectCategory].map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-      </div>
-    )}
+                            // 把 Sub Type 同步到所有 layout
+                            setUnitLayouts((prev) =>
+                              (Array.isArray(prev) ? prev : []).map(
+                                (layout) => ({
+                                  ...layout,
+                                  subType: val,
+                                })
+                              )
+                            );
+                          }}
+                          className="mt-1 block w-full border rounded-lg p-2"
+                        >
+                          <option value="">请选择具体类型</option>
+                          {LAYOUT_CATEGORY_OPTIONS[projectCategory].map(
+                            (item) => (
+                              <option key={item} value={item}>
+                                {item}
+                              </option>
+                            )
+                          )}
+                        </select>
+                      </div>
+                    )}
+                </div>
+              )}
 
-    {/* 这里还是原来的：这个项目有多少个房型/layout？ */}
-    <UnitTypeSelector
-      propertyStatus={computedStatus}
-      layouts={unitLayouts}
-      onChange={(newLayouts) => {
-        setUnitLayouts((prev) => {
-          const oldList = Array.isArray(prev) ? prev : [];
-          const nextList = Array.isArray(newLayouts) ? newLayouts : [];
+              {/* 这里还是原来的：这个项目有多少个房型/layout？ */}
+              <UnitTypeSelector
+                propertyStatus={computedStatus}
+                layouts={unitLayouts}
+                onChange={(newLayouts) => {
+                  setUnitLayouts((prev) => {
+                    const oldList = Array.isArray(prev) ? prev : [];
+                    const nextList = Array.isArray(newLayouts)
+                      ? newLayouts
+                      : [];
 
-          const maxLen = Math.max(oldList.length, nextList.length);
-          const merged = [];
+                    const maxLen = Math.max(oldList.length, nextList.length);
+                    const merged = [];
 
-          for (let i = 0; i < maxLen; i++) {
-            const oldItem = oldList[i] || {};
-            const newItem = nextList[i] || {};
+                    for (let i = 0; i < maxLen; i++) {
+                      const oldItem = oldList[i] || {};
+                      const newItem = nextList[i] || {};
 
-            // 如果是批量 Rent 项目，默认把统一的 Category / Sub Type 贴进去
-            const withProjectType =
-              isBulkRentProject && projectCategory
-                ? {
-                    propertyCategory: projectCategory,
-                    subType: projectSubType || oldItem.subType || "",
-                  }
-                : {};
+                      // 如果是批量 Rent 项目，默认把统一的 Category / Sub Type 贴进去
+                      const withProjectType =
+                        isBulkRentProject && projectCategory
+                          ? {
+                              propertyCategory: projectCategory,
+                              subType:
+                                projectSubType || oldItem.subType || "",
+                            }
+                          : {};
 
-            merged[i] = { ...oldItem, ...newItem, ...withProjectType };
-          }
+                      merged[i] = { ...oldItem, ...newItem, ...withProjectType };
+                    }
 
-          return merged;
-        });
-      }}
-    />
+                    return merged;
+                  });
+                }}
+              />
 
-    {unitLayouts.length > 0 && (
-      <div className="space-y-4 mt-4">
-        {unitLayouts.map((layout, index) => (
-          <UnitLayoutForm
-            key={index}
-            index={index}
-            data={{
-              ...layout,
-              projectType: computedStatus,
-              rentMode: isBulkRentProject ? "Rent" : saleType,
-            }}
-            // ⭐ 批量 Rent 项目：把统一的 Category/SubType 传进 layout 表单，
-            // 并通过 lockCategory 告诉它「不要在里面再显示选择框」
-            projectCategory={projectCategory}
-            projectSubType={projectSubType}
-            lockCategory={isBulkRentProject}
-            onChange={(updated) => {
-              setUnitLayouts((prev) => {
-                const base = Array.isArray(prev) ? prev : [];
-                const next = [...base];
-                next[index] = updated;
-                return next;
-              });
-            }}
-          />
-        ))}
-      </div>
-    )}
-  </>
-) : (
+              {unitLayouts.length > 0 && (
+                <div className="space-y-4 mt-4">
+                  {unitLayouts.map((layout, index) => (
+                    <UnitLayoutForm
+                      key={index}
+                      index={index}
+                      data={{
+                        ...layout,
+                        projectType: computedStatus,
+                        rentMode: isBulkRentProject ? "Rent" : saleType,
+                      }}
+                      // ⭐ 批量 Rent 项目：把统一的 Category/SubType 传进 layout 表单，
+                      // 并通过 lockCategory 告诉它「不要在里面再显示选择框」
+                      projectCategory={projectCategory}
+                      projectSubType={projectSubType}
+                      lockCategory={isBulkRentProject}
+                      onChange={(updated) => {
+                        setUnitLayouts((prev) => {
+                          const base = Array.isArray(prev) ? prev : [];
+                          const next = [...base];
+                          next[index] = updated;
+                          return next;
+                        });
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
             /* ------------ 普通非项目房源（单一房源，含 Rent 单一） ------------ */
             <div className="space-y-4 mt-6">
               <AreaSelector
@@ -626,7 +638,7 @@ export default function UploadProperty() {
                   <BuildYearSelector
                     value={singleFormData.buildYear}
                     onChange={(val) =>
-                      setSingleFormData((prev) => ({
+setSingleFormData((prev) => ({
                         ...prev,
                         buildYear: val,
                       }))
@@ -665,7 +677,7 @@ export default function UploadProperty() {
                   />
                 )}
 
-              {/* 房源描述 */}
+{/* 房源描述 */}
               <div className="space-y-2">
                 <label
                   htmlFor="description"
@@ -685,7 +697,7 @@ export default function UploadProperty() {
             </div>
           )}
 
-          {/* 非项目类时的图片上传 */}
+{/* 非项目类时的图片上传 */}
           {!isProject && (
             <ImageUpload
               config={photoConfig}
@@ -707,4 +719,4 @@ export default function UploadProperty() {
       </Button>
     </div>
   );
-              }
+}
