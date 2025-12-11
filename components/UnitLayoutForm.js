@@ -859,41 +859,38 @@ const subtypeRef = useRef(null);
               <p className="font-semibold">{label}</p>
 
               <input
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={(e) => handlePhotoChange(e, label)}
-              />
-              <div className="grid grid-cols-3 gap-2">
-                {(photosByLabel[label] || []).map((img, index) => (
-                  <div key={img.url || index} className="relative">
-                    <img
-                      src={img.url}
-                      alt={`preview-${index}`}
-                      className={`w-full h-32 object-cover rounded ${
-                        img.isCover ? "border-4 border-green-500" : ""
-                      }`}
-                    />
-                    <button
-                      type="button"
-                      className="absolute top-1 right-1 bg-red-500 text-white text-xs px-1 rounded"
-                      onClick={() => removePhoto(label, index)}
-                    >
-                      X
-                    </button>
-                    <button
-                      type="button"
-                      className="absolute bottom-1 left-1 bg-black text-white text-xs px-1 rounded"
-                      onClick={() => setCover(label, index)}
-                    >
-                      {img.isCover ? "封面" : "设为封面"}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-  );
-}
+  type="file"
+  multiple
+  accept="image/*"
+  onChange={(e) => handlePhotoChange(e, label)}
+/>
+
+<div className="grid grid-cols-3 gap-2">
+  {(photosByLabel[label] || []).map((img, index) => (
+    <div key={img.url || index} className="relative">
+      <img
+        src={img.url}
+        alt={`preview-${index}`}
+        className={`w-full h-32 object-cover rounded ${
+          img.isCover ? "border-4 border-green-500" : ""
+        }`}
+      />
+
+      <button
+        type="button"
+        className="absolute top-1 right-1 bg-red-500 text-white text-xs px-1 rounded"
+        onClick={() => removePhoto(label, index)}
+      >
+        X
+      </button>
+
+      <button
+        type="button"
+        className="absolute bottom-1 left-1 bg-black text-white text-xs px-1 rounded"
+        onClick={() => setCover(label, index)}
+      >
+        {img.isCover ? "封面" : "设为封面"}
+      </button>
+    </div>
+  ))}
+</div>
