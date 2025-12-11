@@ -1,7 +1,7 @@
 // components/TypeSelector.js
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import FloorCountSelector from "./FloorCountSelector";
 
 // ================== 选项常量 ==================
@@ -226,6 +226,24 @@ export default function TypeSelector({
     rentBatchMode,
     onFormChange,
   ]);
+
+  // ⭐ 下拉菜单的 reference，用来判断点击是否发生在组件外
+const subtypeRef = useRef(null);
+
+// ⭐ 点击空白自动关闭
+useEffect(() => {
+  function handleClickOutside(event) {
+    if (subtypeRef.current && !subtypeRef.current.contains(event.target)) {
+      setSubtypeOpen(false);
+    }
+  }
+
+  document.addEventListener("mousedown", handleClickOutside);
+  return () => {
+    document.removeEventListener("mousedown", handleClickOutside);
+  };
+}, []);
+
 
   // Apartment / Business / Industrial 时显示 subtype 下拉
   useEffect(() => {
@@ -521,52 +539,51 @@ export default function TypeSelector({
             )}
 
             {/* ⭐ Property Subtype 多选（Apartment / Business / Industrial） */}
-            {showSubtype && (
-              <div className="relative">
-                <label className="block font-medium">Property Subtype</label>
-                <div
-                  className="w-full border rounded p-2 bg-white cursor-pointer"
-                  onClick={() => setSubtypeOpen((prev) => !prev)}
-                >
-                  {subtype.length === 0 ? (
-                    <span className="text-gray-400">
-                      请选择 subtype（可多选）
-                    </span>
-                  ) : (
-                    <span className="font-medium">
-                      {subtypeDisplayText}
-                    </span>
-                  )}
-                </div>
+            {/* ⭐ Property Subtype 多选（点击空白会自动收起） */}
+{showSubtype && (
+  <div className="relative" ref={subtypeRef}>
+    <label className="block font-medium">Property Subtype</label>
 
-                {subtypeOpen && (
-                  <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
-                    {subtypeOptions.map((opt) => {
-                      const selected = subtype.includes(opt);
-                      return (
-                        <div
-                          key={opt}
-                          className={`px-3 py-2 flex justify-between items-center cursor-pointer hover:bg-gray-100 ${
-                            selected ? "bg-gray-50 font-semibold" : ""
-                          }`}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            toggleSubtype(opt);
-                          }}
-                        >
-                          <span>{opt}</span>
-                          {selected && (
-                            <span className="text-green-600">✅</span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-          </>
-        )}
+    {/* 显示框 */}
+    <div
+      className="w-full border rounded p-2 bg-white cursor-pointer"
+      onClick={() => setSubtypeOpen((prev) => !prev)}
+    >
+      {subtype.length === 0 ? (
+        <span className="text-gray-400">请选择 subtype（可多选）</span>
+      ) : (
+        <span className="font-medium">
+          {subtype.map((v) => `${v} ✅`).join("，")}
+        </span>
+      )}
+    </div>
+
+    {/* 下拉菜单 */}
+    {subtypeOpen && (
+      <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+        {subtypeOptions.map((opt) => {
+          const selected = subtype.includes(opt);
+          return (
+            <div
+              key={opt}
+              className={`px-3 py-2 flex justify-between items-center cursor-pointer hover:bg-gray-100 ${
+                selected ? "bg-gray-50 font-semibold" : ""
+              }`}
+              onMouseDown={(e) => {
+                e.preventDefault(); // 防止失去焦点导致闪动
+                toggleSubtype(opt);
+              }}
+            >
+              <span>{opt}</span>
+              {selected && <span className="text-green-600">✅</span>}
+            </div>
+          );
+        })}
+      </div>
+    )}
+  </div>
+)}
+
 
       {/* ⭐ Rent 批量开关：不管单一 / 多房型，只要是 Rent 就显示 */}
       {saleType === "Rent" && (
