@@ -336,7 +336,14 @@ function getPhotoLabelsFromConfig(config) {
 // ================================
 // 组件主体
 // ================================
-export default function UnitLayoutForm({ index, data, onChange }) {
+export default function UnitLayoutForm({
+  index,
+  data,
+  onChange,
+  // 新增：两种 Business Rent 模式
+  isRentBusinessWhole = false,
+  isRentBusinessSplit = false,
+}) {
   const layout = data || {};
   const fileInputRef = useRef(null);
 
@@ -346,12 +353,9 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   const isNewProject = projectType === "New Project / Under Construction";
   const isCompletedProject = projectType === "Completed Unit / Developer Unit";
 
-  // 只有 Sale 的项目，需要显示年份；Rent / Homestay / Hotel 都不要
-  const showBuildYear =
-    rentMode === "Sale" && (isNewProject || isCompletedProject);
-
-  // ⭐ 批量 Rent 的 Layout（这里指的是「Rent 的项目 Layout」，价格走 Rent 的逻辑）
   const isBulkRent = layout.rentMode === "Rent";
+
+  const isRentBusiness = isRentBusinessWhole || isRentBusinessSplit;
 
   // Category / SubType / SubtypeExtra / 层数
   const [category, setCategory] = useState(layout.propertyCategory || "");
@@ -395,7 +399,6 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     orientation: layout.facing || [],
   });
 
-  // layout.photos 里按 label 存图片
   const photosByLabel = layout.photos || {};
 
   // 同步外部传入的变化
@@ -445,7 +448,6 @@ export default function UnitLayoutForm({ index, data, onChange }) {
       document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // 更新 layout
   const updateLayout = (patch) => {
     const updated = { ...layout, ...patch };
     onChange && onChange(updated);
@@ -462,7 +464,6 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     handleFieldChange("layoutPhotos", newPhotos);
   };
 
-  // 照片上传
   const handlePhotoChange = (e, label) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
@@ -504,16 +505,37 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 
   const psfText = getPsfText(areaForPsf, priceForPsf);
 
-  // ✅ Rent 👉 Business Property 👉 不是，要分开出租（批量租模式）
-  const isRentBusinessSplit =
-    rentMode === "Rent" && category === "Business Property";
-
-  // ✅ 在这个模式下，Layout 里不显示 Property Category / SubType
+  // ✅ Rent 👉 Business Property 👉 不是，要分开出租（由 props 控制）
   const hideCategoryAndSubtypeInLayout = isRentBusinessSplit;
 
-  // ✅ 分开出租时，每一个类别只生成1个图片上传框，不按数量拆多组
+  // ✅ 楼层 label
+  const floorLabel = isRentBusinessWhole
+    ? "这个property总共有多少层"
+    : isRentBusinessSplit
+    ? "这个单位在第几层？"
+    : undefined;
+
+  // ✅ 房间数量 label（整栋出租）
+  const bedroomsLabel = isRentBusinessWhole
+    ? "这个property总共有多少间卧室/房间"
+    : undefined;
+  const bathroomsLabel = isRentBusinessWhole
+    ? "这个property总共有多少间浴室/卫生间"
+    : undefined;
+  const kitchensLabel = isRentBusinessWhole
+    ? "这个property总共有多少间厨房"
+    : undefined;
+  const livingRoomsLabel = isRentBusinessWhole
+    ? "这个property总共有多少间客厅"
+    : undefined;
+
+  const carparkLabel = isRentBusinessWhole
+    ? "这个property总共有多少个停车位"
+    : undefined;
+
+  // ✅ whole / split 模式下，每个类别只生成一组图片上传框
   const uploadLabels = (() => {
-    if (isRentBusinessSplit) {
+    if (isRentBusiness) {
       const simplifiedConfig = {
         ...photoConfig,
         bedrooms: photoConfig.bedrooms ? 1 : "",
@@ -535,6 +557,10 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     }
     return getPhotoLabelsFromConfig(photoConfig);
   })();
+
+  // 只有 Sale 的项目，需要显示年份；Rent / Homestay / Hotel 都不要
+  const showBuildYear =
+    rentMode === "Sale" && (isNewProject || isCompletedProject);
 
   return (
     <div className="border rounded-lg p-4 shadow-sm bg-white">
@@ -625,7 +651,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
             </div>
           )}
 
-          {/* 层数：Rent 👉 Business Property 👉 分开出租 时，label 改成「这个单位在第几层？」 */}
+          {/* 层数：whole/split 模式下换 label */}
           {NEED_STOREYS_CATEGORY.has(category) && (
             <div className="mb-3">
               <FloorCountSelector
@@ -634,7 +660,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
                   setStoreys(val);
                   handleFieldChange("storeys", val);
                 }}
-                label={isRentBusinessSplit ? "这个单位在第几层？" : undefined}
+                label={floorLabel}
               />
             </div>
           )}
@@ -682,7 +708,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         </>
       )}
 
-      {/* 这个房型有多少个单位？ */}
+     {/* 这个房型有多少个单位？ */}
       <div className="mb-3" ref={unitCountRef}>
         <label className="block font-medium mb-1">
           这个房型有多少个单位？
@@ -737,7 +763,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         }}
       />
 
-     {/* 价格 */}
+      {/* 价格 */}
       <PriceInput
         value={priceForPsf}
         onChange={(val) => {
@@ -753,6 +779,10 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 
       {/* 房间数量 */}
       <RoomCountSelector
+        bedroomsLabel={bedroomsLabel}
+        bathroomsLabel={bathroomsLabel}
+        kitchensLabel={kitchensLabel}
+        livingRoomsLabel={livingRoomsLabel}
         value={{
           bedrooms: photoConfig.bedrooms,
           bathrooms: photoConfig.bathrooms,
@@ -767,6 +797,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 
           {/* 停车位数量 */}
       <CarparkCountSelector
+        label={carparkLabel}
         value={photoConfig.carpark}
         onChange={(val) => {
           setPhotoConfig((prev) => ({ ...prev, carpark: val }));
@@ -798,7 +829,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         }}
       />
 
-          {/* 车位楼层 / 范围（项目默认还是范围模式） */}
+          {/* 车位楼层 / 范围 */}
       <CarparkLevelSelector
         value={layout.carparkPosition}
         onChange={(val) => handleFieldChange("carparkPosition", val)}
@@ -822,7 +853,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         }}
       />
 
-      {/* 交通信息（每个 layout 自己的） */}
+      {/* 交通信息 */}
       <div className="mb-4">
         <label className="font-medium">交通信息</label>
         <TransitSelector
@@ -839,12 +870,12 @@ export default function UnitLayoutForm({ index, data, onChange }) {
           onChange={(val) => updateLayout({ buildYear: val })}
           quarter={layout.quarter}
           onQuarterChange={(val) => updateLayout({ quarter: val })}
-          showQuarter={isNewProject} // 新项目才显示季度
+          showQuarter={isNewProject}
           label={isNewProject ? "预计交付时间" : "完成年份"}
         />
       )}
 
-      {/* 每个 Layout 自己的房源描述 */}
+      {/* Layout 描述 */}
       <div className="mt-3 mb-3">
         <label className="block font-medium mb-1">房源描述</label>
         <textarea
@@ -870,7 +901,6 @@ export default function UnitLayoutForm({ index, data, onChange }) {
                 accept="image/*"
                 onChange={(e) => handlePhotoChange(e, label)}
               />
-
                   <div className="grid grid-cols-3 gap-2">
                 {(photosByLabel[label] || []).map((img, index) => (
                   <div key={img.url || index} className="relative">
@@ -886,10 +916,10 @@ export default function UnitLayoutForm({ index, data, onChange }) {
                       className="absolute top-1 right-1 bg-red-500 text-white text-xs px-1 rounded"
                       onClick={() => removePhoto(label, index)}
                     >
-                        X
+                      X
                     </button>
                     <button
-                      type="button"
+                       type="button"
                       className="absolute bottom-1 left-1 bg-black text-white text-xs px-1 rounded"
                       onClick={() => setCover(label, index)}
                     >
