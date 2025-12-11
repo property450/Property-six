@@ -26,7 +26,7 @@ import TransitSelector from "@/components/TransitSelector";
 import AdvancedAvailabilityCalendar from "@/components/AdvancedAvailabilityCalendar";
 import FloorCountSelector from "@/components/FloorCountSelector";
 
-// ✅ 现在只保留一个：Homestay / Hotel 都用这个表单
+// Homestay / Hotel 统一表单
 import HotelUploadForm from "@/components/hotel/HotelUploadForm";
 
 import { useUser } from "@supabase/auth-helpers-react";
@@ -146,8 +146,17 @@ export default function UploadProperty() {
     setSingleFormData((prev) => ({ ...prev, layoutPhotos: newPhotos }));
   };
 
-  // ---------- Rent 批量项目的判定 ----------
-  const isBulkRentProject = saleType === "Rent" && rentBatchMode === "yes";
+  // ---------- Rent 批量项目 / 整栋出租 判定 ----------
+  const isRent = saleType === "Rent";
+  const typeStr = type || "";
+  const isBusinessCategory = typeStr.startsWith("Business Property");
+  const isBusinessCategoryRent = isRent && isBusinessCategory;
+
+  // 「不是，要分开出租」 = yes = 批量项目
+  const isBulkRentProject = isRent && rentBatchMode === "yes";
+
+  // 「是的，整间/整栋出租」 = no = 单一房源
+  const isBusinessRentWhole = isBusinessCategoryRent && rentBatchMode === "no";
 
   // 批量 Rent 时，强制当成 Completed Unit / Developer Unit 来走项目流程
   const computedStatus = isBulkRentProject
@@ -161,15 +170,6 @@ export default function UploadProperty() {
     computedStatus?.includes("Completed Unit") ||
     computedStatus?.includes("Developer Unit");
 
-  // Rent + Business Property + 「整间/整栋出租（原本的 no）」 模式
-  const isRent = saleType === "Rent";
-  const typeStr = type || "";
-  const isBusinessCategoryRent =
-    isRent && typeStr.startsWith("Business Property");
-  // ✅ 这里对应你说的：Rent 👉 Business Property 👉 「是的，整间/整栋出租」
-  // 功能上还是用 rentBatchMode === "no"
-  const isBusinessRentWhole = isBusinessCategoryRent && rentBatchMode === "no";
-
   // 当不再是项目类时，清空 layouts
   useEffect(() => {
     if (!isProject) {
@@ -177,7 +177,7 @@ export default function UploadProperty() {
     }
   }, [isProject]);
 
-  // 根据单一房源的配置生成图片上传配置
+  // 单一房源的图片上传配置
   const basePhotoConfig = {
     bedrooms: singleFormData.bedrooms || "",
     bathrooms: singleFormData.bathrooms || "",
@@ -280,12 +280,11 @@ export default function UploadProperty() {
       {/* 地址搜索 */}
       <AddressSearchInput onLocationSelect={handleLocationSelect} />
 
-      {/* Sale / Rent / Homestay / Hotel / Category 等 */}
+      {/* Sale / Rent / Category / Status */}
       <TypeSelector
         value={type}
         onChange={setType}
-        rentBatchMode={rentBatchMode}
-        onChangeRentBatchMode={setRentBatchMode}
+        // ✅ 不再把 rentBatchMode 交给 TypeSelector 控制
         onFormChange={(formData) => {
           const newStatus = formData?.propertyStatus || "";
           const newSaleType = formData?.saleType || "";
@@ -307,11 +306,33 @@ export default function UploadProperty() {
         }}
       />
 
-      {/* ========= Homestay / Hotel 统一用 HotelUploadForm ========= */}
+      {/* ========= Rent 模式下的「是否整间/整栋出租 / 需要批量操作吗？」 ========= */}
+      {saleType === "Rent" && (
+        <div className="space-y-1">
+          <label className="block text-sm font-medium mt-2">
+            {isBusinessCategory
+              ? "是否整间/整栋出租？"
+              : "需要批量操作吗？"}
+          </label>
+          <select
+            className="w-full border rounded-md p-2 text-sm"
+            value={rentBatchMode}
+            onChange={(e) => setRentBatchMode(e.target.value)}
+          >
+            <option value="no">
+              {isBusinessCategory ? "是的，整间/整栋出租" : "不需要"}
+            </option>
+            <option value="yes">
+              {isBusinessCategory ? "不是，要分开出租" : "需要"}
+            </option>
+          </select>
+        </div>
+      )}
+
+      {/* ========= Homestay / Hotel 用独立表单 ========= */}
       {isHomestay || isHotel ? (
         <HotelUploadForm />
       ) : (
-        /* ========= 下面是原来 Sale / Rent 正常房源的表单 ========= */
         <>
           {/* ------------ 项目类房源 (New Project / Completed Unit / 批量 Rent 项目) ------------ */}
           {isProject ? (
@@ -426,19 +447,46 @@ export default function UploadProperty() {
                 }
               })()}
 
-              <RoomCountSelector
-                value={{
-                  bedrooms: singleFormData.bedrooms,
-                  bathrooms: singleFormData.bathrooms,
-                  kitchens: singleFormData.kitchens,
-                  livingRooms: singleFormData.livingRooms,
-                }}
-                onChange={(patch) =>
-                  setSingleFormData((prev) => ({ ...prev, ...patch }))
-                }
-              />
+              {/* ✅ Rent 👉 Business Property 👉 整栋出租：文字改成「这个property总共有多少xxx」 */}
+              {(() => {
+                const bedroomLabel = isBusinessRentWhole
+                  ? "这个property总共有多少间卧室/房间"
+                  : undefined;
+                const bathroomLabel = isBusinessRentWhole
+                  ? "这个property总共有多少间浴室/卫生间"
+                  : undefined;
+                const kitchenLabel = isBusinessRentWhole
+                  ? "这个property总共有多少间厨房"
+                  : undefined;
+                const livingLabel = isBusinessRentWhole
+                  ? "这个property总共有多少间客厅"
+                  : undefined;
+
+                return (
+                  <RoomCountSelector
+                    bedroomsLabel={bedroomLabel}
+                    bathroomsLabel={bathroomLabel}
+                    kitchensLabel={kitchenLabel}
+                    livingRoomsLabel={livingLabel}
+                    value={{
+                      bedrooms: singleFormData.bedrooms,
+                      bathrooms: singleFormData.bathrooms,
+                      kitchens: singleFormData.kitchens,
+                      livingRooms: singleFormData.livingRooms,
+                    }}
+                    onChange={(patch) =>
+                      setSingleFormData((prev) => ({ ...prev, ...patch }))
+                    }
+                  />
+                );
+              })()}
 
               <CarparkCountSelector
+                label={
+                  isBusinessRentWhole
+                    ? "这个property总共有多少个停车位"
+                    : undefined
+                }
                 value={singleFormData.carpark}
                 onChange={(val) =>
                   setSingleFormData((prev) => ({ ...prev, carpark: val }))
@@ -508,7 +556,7 @@ export default function UploadProperty() {
 
               <TransitSelector onChange={setTransitInfo} />
 
-              {/* 建成年份 / 预计完成年份：统一放在交通信息下面，只在 Sale 时显示 */}
+              {/* 建成年份 / 预计完成年份 */}
               {saleType === "Sale" &&
                 computedStatus === "New Project / Under Construction" && (
                   <BuildYearSelector
@@ -553,7 +601,7 @@ export default function UploadProperty() {
                   />
                 )}
 
-              {/* 房源描述 */}
+           {/* 房源描述 */}
               <div className="space-y-2">
                 <label
                   htmlFor="description"
@@ -573,7 +621,7 @@ export default function UploadProperty() {
             </div>
           )}
 
-          {/* 非项目类时的图片上传 */}
+         {/* 非项目类时的图片上传 */}
           {!isProject && (
             <ImageUpload
               config={photoConfig}
