@@ -213,6 +213,13 @@ const getName = (item) => {
   return item.label || item.value || item.name || "";
 };
 
+// 把 propertySubtype 转成「数组」，兼容以前是字符串的情况
+const parseSubtypeToArray = (val) => {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  return [String(val)];
+};
+
 // 根据 photoConfig 生成所有上传框的 label
 function getPhotoLabelsFromConfig(config) {
   const safe = config || {};
@@ -358,11 +365,18 @@ export default function UnitLayoutForm({ index, data, onChange }) {
     : layout.propertySubtype
     ? [layout.propertySubtype]
     : [];
-  const [propertySubtype, setPropertySubtype] = useState(initialSubtype);
+  // ⭐ propertySubtype 现在是数组
+const [propertySubtype, setPropertySubtype] = useState(
+  parseSubtypeToArray(layout.propertySubtype)
+);
 
-  const [showSubtype, setShowSubtype] = useState(false);
-  const [storeys, setStoreys] = useState(layout.storeys || "");
+const [showSubtype, setShowSubtype] = useState(false);
+const [storeys, setStoreys] = useState(layout.storeys || "");
 
+// ⭐ 控制 subtype 下拉开关
+const [subtypeOpen, setSubtypeOpen] = useState(false);
+const subtypeRef = useRef(null);
+  
   // 房型单位数量
   const [unitCountLocal, setUnitCountLocal] = useState(
     layout.unitCount ? String(layout.unitCount) : ""
@@ -399,25 +413,21 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 
   // 同步外部传入的变化
   useEffect(() => {
-    setCategory(layout.propertyCategory || "");
-    setSubType(layout.subType || "");
+  setCategory(layout.propertyCategory || "");
+  setSubType(layout.subType || "");
 
-    const incomingSubtype = Array.isArray(layout.propertySubtype)
-      ? layout.propertySubtype
-      : layout.propertySubtype
-      ? [layout.propertySubtype]
-      : [];
-    setPropertySubtype(incomingSubtype);
+  // ⭐ 保证外面传进来的不管是字符串还是数组，都变成数组
+  setPropertySubtype(parseSubtypeToArray(layout.propertySubtype));
 
-    setStoreys(layout.storeys || "");
-    setUnitCountLocal(layout.unitCount ? String(layout.unitCount) : "");
-  }, [
-    layout.propertyCategory,
-    layout.subType,
-    layout.propertySubtype,
-    layout.storeys,
-    layout.unitCount,
-  ]);
+  setStoreys(layout.storeys || "");
+  setUnitCountLocal(layout.unitCount ? String(layout.unitCount) : "");
+}, [
+  layout.propertyCategory,
+  layout.subType,
+  layout.propertySubtype,
+  layout.storeys,
+  layout.unitCount,
+]);
 
   // Apartment / Business 时显示 propertySubtype
   useEffect(() => {
@@ -429,20 +439,17 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 
   // 点击外面关闭两个下拉：单位数量 & Property Subtype
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (unitCountRef.current && !unitCountRef.current.contains(e.target)) {
-        setUnitDropdownOpen(false);
-      }
-      if (
-        propertySubtypeRef.current &&
-        !propertySubtypeRef.current.contains(e.target)
-      ) {
-        setPropertySubtypeOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  const handleClickOutside = (e) => {
+    if (unitCountRef.current && !unitCountRef.current.contains(e.target)) {
+      setUnitDropdownOpen(false);
+    }
+    if (subtypeRef.current && !subtypeRef.current.contains(e.target)) {
+      setSubtypeOpen(false);
+    }
+  };
+  document.addEventListener("mousedown", handleClickOutside);
+  return () => document.removeEventListener("mousedown", handleClickOutside);
+}, []);
 
   // 更新 layout
   const updateLayout = (patch) => {
@@ -562,18 +569,18 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         <select
           value={category}
           onChange={(e) => {
-            const cat = e.target.value;
-            setCategory(cat);
-            setSubType("");
-            setPropertySubtype([]);
-            setStoreys("");
-            updateLayout({
-              propertyCategory: cat,
-              subType: "",
-              propertySubtype: [],
-              storeys: "",
-            });
-          }}
+  const cat = e.target.value;
+  setCategory(cat);
+  setSubType("");
+  setPropertySubtype([]);
+  setStoreys("");
+  updateLayout({
+    propertyCategory: cat,
+    subType: "",
+    propertySubtype: [],
+    storeys: "",
+  });
+}}
           className="border p-2 rounded w-full"
         >
           <option value="">请选择类别</option>
@@ -620,56 +627,56 @@ export default function UnitLayoutForm({ index, data, onChange }) {
             </div>
           )}
 
-          {showSubtype && (
-            <div className="mb-3" ref={propertySubtypeRef}>
-              <label className="block font-medium mb-1">Property Subtype</label>
-              <div className="relative">
-                {/* 显示区域（模拟 input） */}
-                <div
-                  className="border p-2 rounded w-full bg-white cursor-pointer"
-                  onClick={() =>
-                    setPropertySubtypeOpen((prevOpen) => !prevOpen)
-                  }
-                >
-                  {propertySubtype.length === 0 ? (
-                    <span className="text-gray-400">
-                      请选择 subtype（可多选）
-                    </span>
-                  ) : (
-                    <span className="font-medium">{subtypeDisplayText}</span>
-                  )}
-                </div>
+       {showSubtype && (
+  <div className="mb-3 relative" ref={subtypeRef}>
+    <label className="block font-medium mb-1">Property Subtype</label>
 
-                {/* 下拉多选菜单 */}
-                {propertySubtypeOpen && (
-                  <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
-                    {SUBTYPE_OPTIONS.map((opt) => {
-                      const selected = propertySubtype.includes(opt);
-                      return (
-                        <div
-                          key={opt}
-                          className={`px-3 py-2 flex justify-between items-center cursor-pointer hover:bg-gray-100 ${
-                            selected ? "bg-gray-50 font-semibold" : ""
-                          }`}
-                          onMouseDown={(e) => {
-                            e.preventDefault(); // 防止失焦
-                            toggleSubtype(opt);
-                          }}
-                        >
-                          <span>{opt}</span>
-                          {selected && (
-                            <span className="text-green-600">✅</span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </>
+    {/* 显示区域（点击打开下拉） */}
+    <div
+      className="border p-2 rounded w-full bg-white cursor-pointer"
+      onClick={() => setSubtypeOpen((prev) => !prev)}
+    >
+      {propertySubtype.length === 0 ? (
+        <span className="text-gray-400">请选择 subtype（可多选）</span>
+      ) : (
+        <span className="font-medium">
+          {propertySubtype.map((v) => `${v} ✅`).join("，")}
+        </span>
       )}
+    </div>
+
+    {/* 下拉多选菜单 */}
+    {subtypeOpen && (
+      <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+        {SUBTYPE_OPTIONS.map((opt) => {
+          const selected = propertySubtype.includes(opt);
+          return (
+            <div
+              key={opt}
+              className={`px-3 py-2 flex justify-between items-center cursor-pointer hover:bg-gray-100 ${
+                selected ? "bg-gray-50 font-semibold" : ""
+              }`}
+              onMouseDown={(e) => {
+                e.preventDefault(); // 防止 input 失焦导致闪烁
+                let next;
+                if (selected) {
+                  next = propertySubtype.filter((v) => v !== opt);
+                } else {
+                  next = [...propertySubtype, opt];
+                }
+                setPropertySubtype(next);
+                handleFieldChange("propertySubtype", next);
+              }}
+            >
+              <span>{opt}</span>
+              {selected && <span className="text-green-600">✅</span>}
+            </div>
+          );
+        })}
+      </div>
+    )}
+  </div>
+)}
 
       {/* 这个房型有多少个单位？ */}
       <div className="mb-3" ref={unitCountRef}>
