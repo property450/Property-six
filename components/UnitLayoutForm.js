@@ -895,6 +895,5 @@ const subtypeRef = useRef(null);
           ))}
         </div>
       </div>
-    </div>
   );
 }
