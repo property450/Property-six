@@ -172,8 +172,7 @@ const CATEGORY_OPTIONS = {
   ],
 };
 
-// 布局里的 Property Subtype（跟 TypeSelector 一样）
-// ✅ 按你的要求：只保留这四个，可多选
+// ✅ 只保留这四个，可多选
 const SUBTYPE_OPTIONS = ["Penthouse", "Duplex", "Triplex", "Dual Key"];
 
 // 哪些 Category 需要显示「有多少层」
@@ -270,7 +269,7 @@ function getPhotoLabelsFromConfig(config) {
     for (let i = 1; i <= num; i++) labels.push(`储藏室${i}`);
   }
 
-  // ✅ 朝向：统一加前缀「朝向：」
+  // 朝向
   {
     const arr = toArray(safe.orientation);
     arr.forEach((item) => {
@@ -280,7 +279,7 @@ function getPhotoLabelsFromConfig(config) {
     });
   }
 
-  // ✅ 设施：统一加前缀「设施：」
+  // 设施
   {
     const arr = toArray(safe.facilities);
     arr.forEach((item) => {
@@ -290,7 +289,7 @@ function getPhotoLabelsFromConfig(config) {
     });
   }
 
-  // ✅ 额外空间：统一加前缀「额外空间：」
+  // 额外空间
   {
     const arr = toArray(safe.extraSpaces);
     arr.forEach((extra) => {
@@ -309,7 +308,7 @@ function getPhotoLabelsFromConfig(config) {
     });
   }
 
-  // ✅ 家私：统一加前缀「家私：」
+  // 家私
   {
     const arr = toArray(safe.furniture);
     arr.forEach((item) => {
@@ -351,13 +350,12 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   const showBuildYear =
     rentMode === "Sale" && (isNewProject || isCompletedProject);
 
-  // ⭐ 批量 Rent 的 Layout
+  // ⭐ 批量 Rent 的 Layout（这里指的是「Rent 的项目 Layout」，价格走 Rent 的逻辑）
   const isBulkRent = layout.rentMode === "Rent";
 
   // Category / SubType / SubtypeExtra / 层数
   const [category, setCategory] = useState(layout.propertyCategory || "");
   const [subType, setSubType] = useState(layout.subType || "");
-  // ✅ propertySubtype 改成数组形式存状态，写回去时用逗号拼接
   const [propertySubtype, setPropertySubtype] = useState(() => {
     const raw = layout.propertySubtype;
     if (!raw) return [];
@@ -506,12 +504,14 @@ export default function UnitLayoutForm({ index, data, onChange }) {
 
   const psfText = getPsfText(areaForPsf, priceForPsf);
 
-  // ✅ Rent 👉 Business Property 👉 不是，要分开出租（批量租）
-  const isRentBusinessSplit = rentMode === "Rent" && category === "Business Property";
+  // ✅ Rent 👉 Business Property 👉 不是，要分开出租（批量租模式）
+  const isRentBusinessSplit =
+    rentMode === "Rent" && category === "Business Property";
+
+  // ✅ 在这个模式下，Layout 里不显示 Property Category / SubType
   const hideCategoryAndSubtypeInLayout = isRentBusinessSplit;
 
-  // ✅ 图片上传 label：在 Rent 👉 Business Property 👉 分开出租 时，
-  // 每个类别只要一个上传框，不根据数量拆很多
+  // ✅ 分开出租时，每一个类别只生成1个图片上传框，不按数量拆多组
   const uploadLabels = (() => {
     if (isRentBusinessSplit) {
       const simplifiedConfig = {
@@ -634,14 +634,12 @@ export default function UnitLayoutForm({ index, data, onChange }) {
                   setStoreys(val);
                   handleFieldChange("storeys", val);
                 }}
-                label={
-                  isRentBusinessSplit ? "这个单位在第几层？" : undefined
-                }
+                label={isRentBusinessSplit ? "这个单位在第几层？" : undefined}
               />
             </div>
           )}
 
-          {/* Property Subtype：改成可多选 tag */}
+          {/* Property Subtype：可多选（Penthouse / Duplex / Triplex / Dual Key） */}
           {showSubtype && (
             <div className="mb-3">
               <label className="block font-medium mb-1">
@@ -660,7 +658,10 @@ export default function UnitLayoutForm({ index, data, onChange }) {
                           const next = exists
                             ? prev.filter((item) => item !== opt)
                             : [...prev, opt];
-                          handleFieldChange("propertySubtype", next.join(","));
+                          handleFieldChange(
+                            "propertySubtype",
+                            next.join(",")
+                          );
                           return next;
                         });
                       }}
@@ -743,9 +744,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
           setPriceForPsf(val);
           handleFieldChange("price", val);
         }}
-        // ⭐ 批量 Rent 的 Layout 使用 Rent 的价格模式（500~1,000,000，单一价格）
         listingMode={isBulkRent ? "Rent" : undefined}
-        // ⭐ 不把 projectType 传给 PriceInput，让它不要走 New Project 的「价格范围」逻辑
         type={isBulkRent ? undefined : layout.projectType}
       />
 
@@ -799,7 +798,7 @@ export default function UnitLayoutForm({ index, data, onChange }) {
         }}
       />
 
-          {/* 车位楼层 */}
+          {/* 车位楼层 / 范围（项目默认还是范围模式） */}
       <CarparkLevelSelector
         value={layout.carparkPosition}
         onChange={(val) => handleFieldChange("carparkPosition", val)}
