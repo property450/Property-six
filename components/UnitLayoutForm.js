@@ -359,34 +359,24 @@ export default function UnitLayoutForm({ index, data, onChange }) {
   const [category, setCategory] = useState(layout.propertyCategory || "");
   const [subType, setSubType] = useState(layout.subType || "");
 
-  // ⭐ propertySubtype 改成「多选数组」
-  const initialSubtype = Array.isArray(layout.propertySubtype)
-    ? layout.propertySubtype
-    : layout.propertySubtype
-    ? [layout.propertySubtype]
-    : [];
   // ⭐ propertySubtype 现在是数组
-const [propertySubtype, setPropertySubtype] = useState(
-  parseSubtypeToArray(layout.propertySubtype)
-);
+  const [propertySubtype, setPropertySubtype] = useState(
+    parseSubtypeToArray(layout.propertySubtype)
+  );
 
-const [showSubtype, setShowSubtype] = useState(false);
-const [storeys, setStoreys] = useState(layout.storeys || "");
+  const [showSubtype, setShowSubtype] = useState(false);
+  const [storeys, setStoreys] = useState(layout.storeys || "");
 
-// ⭐ 控制 subtype 下拉开关
-const [subtypeOpen, setSubtypeOpen] = useState(false);
-const subtypeRef = useRef(null);
-  
+  // ⭐ 控制 subtype 下拉开关
+  const [subtypeOpen, setSubtypeOpen] = useState(false);
+  const subtypeRef = useRef(null);
+
   // 房型单位数量
   const [unitCountLocal, setUnitCountLocal] = useState(
     layout.unitCount ? String(layout.unitCount) : ""
   );
   const [unitDropdownOpen, setUnitDropdownOpen] = useState(false);
   const unitCountRef = useRef(null);
-
-  // ⭐ Property Subtype 下拉开关 + 外层 ref
-  const [propertySubtypeOpen, setPropertySubtypeOpen] = useState(false);
-  const propertySubtypeRef = useRef(null);
 
   // PSF 相关
   const [areaForPsf, setAreaForPsf] = useState(layout.buildUp || {});
@@ -413,21 +403,18 @@ const subtypeRef = useRef(null);
 
   // 同步外部传入的变化
   useEffect(() => {
-  setCategory(layout.propertyCategory || "");
-  setSubType(layout.subType || "");
-
-  // ⭐ 保证外面传进来的不管是字符串还是数组，都变成数组
-  setPropertySubtype(parseSubtypeToArray(layout.propertySubtype));
-
-  setStoreys(layout.storeys || "");
-  setUnitCountLocal(layout.unitCount ? String(layout.unitCount) : "");
-}, [
-  layout.propertyCategory,
-  layout.subType,
-  layout.propertySubtype,
-  layout.storeys,
-  layout.unitCount,
-]);
+    setCategory(layout.propertyCategory || "");
+    setSubType(layout.subType || "");
+    setPropertySubtype(parseSubtypeToArray(layout.propertySubtype));
+    setStoreys(layout.storeys || "");
+    setUnitCountLocal(layout.unitCount ? String(layout.unitCount) : "");
+  }, [
+    layout.propertyCategory,
+    layout.subType,
+    layout.propertySubtype,
+    layout.storeys,
+    layout.unitCount,
+  ]);
 
   // Apartment / Business 时显示 propertySubtype
   useEffect(() => {
@@ -439,17 +426,18 @@ const subtypeRef = useRef(null);
 
   // 点击外面关闭两个下拉：单位数量 & Property Subtype
   useEffect(() => {
-  const handleClickOutside = (e) => {
-    if (unitCountRef.current && !unitCountRef.current.contains(e.target)) {
-      setUnitDropdownOpen(false);
-    }
-    if (subtypeRef.current && !subtypeRef.current.contains(e.target)) {
-      setSubtypeOpen(false);
-    }
-  };
-  document.addEventListener("mousedown", handleClickOutside);
-  return () => document.removeEventListener("mousedown", handleClickOutside);
-}, []);
+    const handleClickOutside = (e) => {
+      if (unitCountRef.current && !unitCountRef.current.contains(e.target)) {
+        setUnitDropdownOpen(false);
+      }
+      if (subtypeRef.current && !subtypeRef.current.contains(e.target)) {
+        setSubtypeOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () =>
+      document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // 更新 layout
   const updateLayout = (patch) => {
@@ -569,18 +557,18 @@ const subtypeRef = useRef(null);
         <select
           value={category}
           onChange={(e) => {
-  const cat = e.target.value;
-  setCategory(cat);
-  setSubType("");
-  setPropertySubtype([]);
-  setStoreys("");
-  updateLayout({
-    propertyCategory: cat,
-    subType: "",
-    propertySubtype: [],
-    storeys: "",
-  });
-}}
+            const cat = e.target.value;
+            setCategory(cat);
+            setSubType("");
+            setPropertySubtype([]);
+            setStoreys("");
+            updateLayout({
+              propertyCategory: cat,
+              subType: "",
+              propertySubtype: [],
+              storeys: "",
+            });
+          }}
           className="border p-2 rounded w-full"
         >
           <option value="">请选择类别</option>
@@ -627,56 +615,55 @@ const subtypeRef = useRef(null);
             </div>
           )}
 
-       {showSubtype && (
-  <div className="mb-3 relative" ref={subtypeRef}>
-    <label className="block font-medium mb-1">Property Subtype</label>
+          {showSubtype && (
+            <div className="mb-3 relative" ref={subtypeRef}>
+              <label className="block font-medium mb-1">
+                Property Subtype
+              </label>
 
-    {/* 显示区域（点击打开下拉） */}
-    <div
-      className="border p-2 rounded w-full bg-white cursor-pointer"
-      onClick={() => setSubtypeOpen((prev) => !prev)}
-    >
-      {propertySubtype.length === 0 ? (
-        <span className="text-gray-400">请选择 subtype（可多选）</span>
-      ) : (
-        <span className="font-medium">
-          {propertySubtype.map((v) => `${v} ✅`).join("，")}
-        </span>
-      )}
-    </div>
+              {/* 显示区域（点击打开下拉） */}
+              <div
+                className="border p-2 rounded w-full bg-white cursor-pointer"
+                onClick={() => setSubtypeOpen((prev) => !prev)}
+              >
+                {propertySubtype.length === 0 ? (
+                  <span className="text-gray-400">
+                    请选择 subtype（可多选）
+                  </span>
+                ) : (
+                  <span className="font-medium">{subtypeDisplayText}</span>
+                )}
+              </div>
 
-    {/* 下拉多选菜单 */}
-    {subtypeOpen && (
-      <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
-        {SUBTYPE_OPTIONS.map((opt) => {
-          const selected = propertySubtype.includes(opt);
-          return (
-            <div
-              key={opt}
-              className={`px-3 py-2 flex justify-between items-center cursor-pointer hover:bg-gray-100 ${
-                selected ? "bg-gray-50 font-semibold" : ""
-              }`}
-              onMouseDown={(e) => {
-                e.preventDefault(); // 防止 input 失焦导致闪烁
-                let next;
-                if (selected) {
-                  next = propertySubtype.filter((v) => v !== opt);
-                } else {
-                  next = [...propertySubtype, opt];
-                }
-                setPropertySubtype(next);
-                handleFieldChange("propertySubtype", next);
-              }}
-            >
-              <span>{opt}</span>
-              {selected && <span className="text-green-600">✅</span>}
+              {/* 下拉多选菜单 */}
+              {subtypeOpen && (
+                <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+                  {SUBTYPE_OPTIONS.map((opt) => {
+                    const selected = propertySubtype.includes(opt);
+                    return (
+                      <div
+                        key={opt}
+                        className={`px-3 py-2 flex justify-between items-center cursor-pointer hover:bg-gray-100 ${
+                          selected ? "bg-gray-50 font-semibold" : ""
+                        }`}
+                        onMouseDown={(e) => {
+                          e.preventDefault(); // 防止失焦导致闪烁
+                          toggleSubtype(opt);
+                        }}
+                      >
+                        <span>{opt}</span>
+                        {selected && (
+                          <span className="text-green-600">✅</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          );
-        })}
-      </div>
-    )}
-  </div>
-)}
+          )}
+        </>
+      )}
 
       {/* 这个房型有多少个单位？ */}
       <div className="mb-3" ref={unitCountRef}>
@@ -714,7 +701,7 @@ const subtypeRef = useRef(null);
                     setUnitDropdownOpen(false);
                   }}
                 >
-                    {num.toLocaleString()}
+                  {num.toLocaleString()}
                 </li>
               ))}
             </ul>
@@ -726,7 +713,7 @@ const subtypeRef = useRef(null);
       <AreaSelector
         initialValue={areaForPsf || {}}
         onChange={(val) => {
-          setAreaForPsf(val);
+        setAreaForPsf(val);
           handleFieldChange("buildUp", val);
         }}
       />
@@ -747,7 +734,7 @@ const subtypeRef = useRef(null);
 
       {/* 房间数量 */}
       <RoomCountSelector
-        value={{
+       value={{
           bedrooms: photoConfig.bedrooms,
           bathrooms: photoConfig.bathrooms,
           kitchens: photoConfig.kitchens,
@@ -766,7 +753,7 @@ const subtypeRef = useRef(null);
           setPhotoConfig((prev) => ({ ...prev, carpark: val }));
           handleFieldChange("carpark", val);
         }}
-       mode={
+        mode={
           layout.projectType === "New Project / Under Construction" ||
           layout.projectType === "Completed Unit / Developer Unit"
             ? "range"
@@ -783,7 +770,7 @@ const subtypeRef = useRef(null);
         }}
       />
 
-          {/* 朝向 */}
+      {/* 朝向 */}
       <FacingSelector
         value={photoConfig.orientation}
         onChange={(val) => {
@@ -808,7 +795,7 @@ const subtypeRef = useRef(null);
         }}
       />
 
-      <FacilitiesSelector
+          <FacilitiesSelector
         value={photoConfig.facilities}
         onChange={(val) => {
           setPhotoConfig((prev) => ({ ...prev, facilities: val }));
@@ -829,7 +816,7 @@ const subtypeRef = useRef(null);
       {/* 建成年份 + 季度 */}
       {showBuildYear && (
         <BuildYearSelector
-          value={layout.buildYear}
+       value={layout.buildYear}
           onChange={(val) => updateLayout({ buildYear: val })}
           quarter={layout.quarter}
           onQuarterChange={(val) => updateLayout({ quarter: val })}
@@ -848,7 +835,7 @@ const subtypeRef = useRef(null);
           rows={3}
           className="w-full border rounded-lg p-2 resize-y"
         />
-            </div>
+      </div>
 
       {/* 上传此 Layout 的照片 */}
       <div className="mb-3">
@@ -859,38 +846,45 @@ const subtypeRef = useRef(null);
               <p className="font-semibold">{label}</p>
 
               <input
-  type="file"
-  multiple
-  accept="image/*"
-  onChange={(e) => handlePhotoChange(e, label)}
-/>
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={(e) => handlePhotoChange(e, label)}
+              />
 
-<div className="grid grid-cols-3 gap-2">
-  {(photosByLabel[label] || []).map((img, index) => (
-    <div key={img.url || index} className="relative">
-      <img
-        src={img.url}
-        alt={`preview-${index}`}
-        className={`w-full h-32 object-cover rounded ${
-          img.isCover ? "border-4 border-green-500" : ""
-        }`}
-      />
+              <div className="grid grid-cols-3 gap-2">
+                {(photosByLabel[label] || []).map((img, index) => (
+                  <div key={img.url || index} className="relative">
+                    <img
+                   src={img.url}
+                      alt={`preview-${index}`}
+                      className={`w-full h-32 object-cover rounded ${
+                        img.isCover ? "border-4 border-green-500" : ""
+                      }`}
+                    />
 
-      <button
-        type="button"
-        className="absolute top-1 right-1 bg-red-500 text-white text-xs px-1 rounded"
-        onClick={() => removePhoto(label, index)}
-      >
-        X
-      </button>
+                    <button
+                      type="button"
+                      className="absolute top-1 right-1 bg-red-500 text-white text-xs px-1 rounded"
+                      onClick={() => removePhoto(label, index)}
+                    >
+                      X
+                    </button>
 
-      <button
-        type="button"
-        className="absolute bottom-1 left-1 bg-black text-white text-xs px-1 rounded"
-        onClick={() => setCover(label, index)}
-      >
-        {img.isCover ? "封面" : "设为封面"}
-      </button>
+                    <button
+                      type="button"
+                      className="absolute bottom-1 left-1 bg-black text-white text-xs px-1 rounded"
+                      onClick={() => setCover(label, index)}
+                    >
+                        {img.isCover ? "封面" : "设为封面"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
-  ))}
-</div>
+  );
+}
