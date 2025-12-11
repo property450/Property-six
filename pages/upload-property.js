@@ -26,7 +26,6 @@ import TransitSelector from "@/components/TransitSelector";
 import AdvancedAvailabilityCalendar from "@/components/AdvancedAvailabilityCalendar";
 import FloorCountSelector from "@/components/FloorCountSelector";
 
-// Homestay / Hotel 统一表单
 import HotelUploadForm from "@/components/hotel/HotelUploadForm";
 
 import { useUser } from "@supabase/auth-helpers-react";
@@ -146,7 +145,7 @@ export default function UploadProperty() {
     setSingleFormData((prev) => ({ ...prev, layoutPhotos: newPhotos }));
   };
 
-  // ---------- Rent 批量项目 / 整栋出租 判定 ----------
+  // ---------- Rent 模式 + Business Property 逻辑 ----------
   const isRent = saleType === "Rent";
   const typeStr = type || "";
   const isBusinessCategory = typeStr.startsWith("Business Property");
@@ -154,9 +153,10 @@ export default function UploadProperty() {
 
   // 「不是，要分开出租」 = yes = 批量项目
   const isBulkRentProject = isRent && rentBatchMode === "yes";
-
-  // 「是的，整间/整栋出租」 = no = 单一房源
+  // 「是的，整间/整栋出租」 = no
   const isBusinessRentWhole = isBusinessCategoryRent && rentBatchMode === "no";
+  // 「Rent + Business Property + 不是，要分开出租」
+  const isRentBusinessSplit = isBusinessCategoryRent && rentBatchMode === "yes";
 
   // 批量 Rent 时，强制当成 Completed Unit / Developer Unit 来走项目流程
   const computedStatus = isBulkRentProject
@@ -380,6 +380,9 @@ export default function UploadProperty() {
                           return next;
                         });
                       }}
+                      // ✅ 把 Rent + Business Property + 不是，要分开出租 的状态传进去
+                      isRentBusinessWhole={isBusinessRentWhole && isProject}
+                      isRentBusinessSplit={isRentBusinessSplit}
                     />
                   ))}
                 </div>
@@ -601,7 +604,7 @@ export default function UploadProperty() {
                   />
                 )}
 
-           {/* 房源描述 */}
+                 {/* 房源描述 */}
               <div className="space-y-2">
                 <label
                   htmlFor="description"
@@ -621,7 +624,7 @@ export default function UploadProperty() {
             </div>
           )}
 
-         {/* 非项目类时的图片上传 */}
+           {/* 非项目类时的图片上传 */}
           {!isProject && (
             <ImageUpload
               config={photoConfig}
