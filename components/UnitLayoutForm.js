@@ -440,12 +440,14 @@ export default function UnitLayoutForm({
   ]);
 
   // Apartment / Business 时显示 propertySubtype
-  useEffect(() => {
-    const shouldShow =
-      category === "Apartment / Condo / Service Residence" ||
-      category === "Business Property";
-    setShowSubtype(shouldShow);
-  }, [category]);
+  // Apartment / Business / Industrial 时显示 propertySubtype
+useEffect(() => {
+  const shouldShow =
+    category === "Apartment / Condo / Service Residence" ||
+    category === "Business Property" ||
+    category === "Industrial Property";
+  setShowSubtype(shouldShow);
+}, [category]);
 
   // 点击外面关闭两个下拉：单位数量 & Property Subtype
   useEffect(() => {
