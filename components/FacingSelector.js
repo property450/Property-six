@@ -16,32 +16,59 @@ const facingOptions = [
   "西北",
 ].map((label) => ({ value: label, label }));
 
+// value 结构：可以是 string | string[] | [{label, remark}]
 export default function FacingSelector({ value, onChange }) {
-  const normalize = (v) =>
-    Array.isArray(v) ? v : v ? [v] : [];
+  const [items, setItems] = useState([]);
 
-  // ⭐ 内部 state 来记住选择
-  const [selectedValues, setSelectedValues] = useState(normalize(value));
+  const normalizeInput = (v) => {
+    const arr = Array.isArray(v) ? v : v ? [v] : [];
+    return arr
+      .map((item) => {
+        if (!item) return null;
+        if (typeof item === "string") {
+          return { label: item, remark: "" };
+        }
+        const label = item.label ?? item.value ?? "";
+        if (!label) return null;
+        return { label, remark: item.remark ?? "" };
+      })
+      .filter(Boolean);
+  };
 
   // 父组件 value 变化时同步
   useEffect(() => {
-    setSelectedValues(normalize(value));
+    setItems(normalizeInput(value));
   }, [value]);
 
-  const selectedOptions = selectedValues.map((v) => ({
-    value: v,
-    label: v,
-  }));
-
-  const handleChange = (selected) => {
-    const arr = (selected || []).map((opt) => opt.value);
-    setSelectedValues(arr);
-    onChange?.(arr); // 对外还是保持数组，不动你的其它逻辑
+  const emit = (next) => {
+    setItems(next);
+    onChange?.(next); // 回传对象数组，包含 remark
   };
 
+  const handleChange = (selected) => {
+    const labels = (selected || []).map((opt) => opt.value);
+    const updated = labels.map((label) => {
+      const existing = items.find((x) => x.label === label);
+      return existing || { label, remark: "" };
+    });
+    emit(updated);
+  };
+
+  const setRemark = (label, remark) => {
+    const updated = items.map((item) =>
+      item.label === label ? { ...item, remark } : item
+    );
+    emit(updated);
+  };
+
+  const selectedOptions = items.map((v) => ({
+    value: v.label,
+    label: v.label,
+  }));
+
   return (
-    <div className="mb-4">
-      <label className="block font-medium mb-1">朝向</label>
+    <div className="mb-4 space-y-3">
+      <label className="block font-medium mb-1">朝向（可加备注）</label>
       <CreatableSelect
         isMulti
         placeholder="选择或输入朝向..."
@@ -57,6 +84,23 @@ export default function FacingSelector({ value, onChange }) {
           }),
         }}
       />
+
+      {items.length > 0 && (
+        <div className="space-y-2 mt-2">
+          {items.map((item) => (
+            <div key={item.label} className="flex flex-col gap-1">
+              <span className="text-sm text-gray-700">{item.label}</span>
+              <input
+                type="text"
+                className="border rounded p-1 text-sm"
+                placeholder="备注（可留空）"
+                value={item.remark || ""}
+                onChange={(e) => setRemark(item.label, e.target.value)}
+              />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
