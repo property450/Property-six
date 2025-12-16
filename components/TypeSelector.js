@@ -211,7 +211,7 @@ export default function TypeSelector({
       tenure,
       category,
       finalType,
-      // ⭐ 这里 subtype 已经是数组
+      // ⭐ subtype 是数组
       subtype,
       auctionDate,
       storeys,
@@ -335,7 +335,7 @@ export default function TypeSelector({
             setStoreys("");
             setShowSubtype(false);
             setSubtypeOpen(false);
-            setRoomRentalMode("whole"); // 切换 saleType 时重置为整间出租
+            setRoomRentalMode("whole"); // 切换 saleType 时恢复为“整间出租”
             onChangeRentBatchMode && onChangeRentBatchMode("no");
           }}
         >
@@ -513,7 +513,7 @@ export default function TypeSelector({
                   setSubtype([]);
                   setStoreys("");
                   setSubtypeOpen(false);
-                  // 只要换 Category，就默认先回到“整间出租”
+                  // 换 Category 时，默认回到“整间出租”
                   setRoomRentalMode("whole");
                 }}
               >
@@ -553,7 +553,7 @@ export default function TypeSelector({
               />
             )}
 
-            {/* ⭐ Property Subtype 多选（Apartment / Business / Industrial） */}
+            {/* ⭐ Property Subtype 多选 */}
             {showSubtype && (
               <div className="relative" ref={subtypeRef}>
                 <label className="block font-medium">Property Subtype</label>
