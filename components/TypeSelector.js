@@ -5,12 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import FloorCountSelector from "./FloorCountSelector";
 
 // ================== 选项常量 ==================
-const subtypeOptions = [
-  "Penthouse",
-  "Duplex",
-  "Triplex",
-  "Dual Key",
-];
+const subtypeOptions = ["Penthouse", "Duplex", "Triplex", "Dual Key"];
 
 const homestayOptions = [
   "Entire Place",
@@ -117,6 +112,14 @@ const NEED_STOREYS_CATEGORY = new Set([
   "Industrial Property",
 ]);
 
+// 哪些 Category 可以用「是否只是出租房间？」
+const ROOM_RENTAL_ELIGIBLE_CATEGORIES = new Set([
+  "Bungalow / Villa",
+  "Apartment / Condo / Service Residence",
+  "Semi-Detached House",
+  "Terrace / Link House",
+]);
+
 const affordableOptions = [
   "Rumah Mampu Milik",
   "PPR",
@@ -175,6 +178,9 @@ export default function TypeSelector({
   const [auctionDate, setAuctionDate] = useState("");
   const [showSubtype, setShowSubtype] = useState(false);
   const [storeys, setStoreys] = useState("");
+  // ⭐ 房间出租模式：whole / room
+  const [roomRentalMode, setRoomRentalMode] = useState("whole");
+
   // ⭐ 控制 Property Subtype 下拉开关
   const [subtypeOpen, setSubtypeOpen] = useState(false);
   const subtypeRef = useRef(null);
@@ -210,6 +216,8 @@ export default function TypeSelector({
       auctionDate,
       storeys,
       rentBatchMode,
+      // ⭐ 告诉外面现在是不是只出租房间
+      roomRentalMode,
     };
     onFormChange && onFormChange(formData);
   }, [
@@ -225,6 +233,7 @@ export default function TypeSelector({
     auctionDate,
     storeys,
     rentBatchMode,
+    roomRentalMode,
     onFormChange,
   ]);
 
@@ -273,7 +282,13 @@ export default function TypeSelector({
 
   const showStoreys = needStoreysForSale || needStoreysForRent;
 
-  // ⭐ Rent 批量开关：只要是 Rent，就可以切换
+  // ⭐ 是否显示「是否只是出租房间？」
+  const showRoomRentalToggle =
+    saleType === "Rent" &&
+    ROOM_RENTAL_ELIGIBLE_CATEGORIES.has(category) &&
+    rentBatchMode !== "yes"; // 批量房型就不再问“只出租房间”了
+
+  // ⭐ Rent 批量开关
   const handleBatchChange = (mode) => {
     onChangeRentBatchMode && onChangeRentBatchMode(mode);
   };
@@ -320,6 +335,7 @@ export default function TypeSelector({
             setStoreys("");
             setShowSubtype(false);
             setSubtypeOpen(false);
+            setRoomRentalMode("whole"); // 切换 saleType 时重置为整间出租
             onChangeRentBatchMode && onChangeRentBatchMode("no");
           }}
         >
@@ -497,6 +513,8 @@ export default function TypeSelector({
                   setSubtype([]);
                   setStoreys("");
                   setSubtypeOpen(false);
+                  // 只要换 Category，就默认先回到“整间出租”
+                  setRoomRentalMode("whole");
                 }}
               >
                 <option value="">请选择类别</option>
@@ -583,10 +601,27 @@ export default function TypeSelector({
                 )}
               </div>
             )}
+
+            {/* ⭐ 是否只是出租房间？（Rent + 指定 Category + 非批量） */}
+            {showRoomRentalToggle && (
+              <div className="mt-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  是否只是出租房间？
+                </label>
+                <select
+                  className="border rounded w-full p-2"
+                  value={roomRentalMode}
+                  onChange={(e) => setRoomRentalMode(e.target.value)}
+                >
+                  <option value="whole">不是，要出租整间</option>
+                  <option value="room">是的，只出租房间</option>
+                </select>
+              </div>
+            )}
           </>
         )}
 
-      {/* ⭐ Rent 批量开关：不管单一 / 多房型，只要是 Rent 就显示 */}
+      {/* ⭐ Rent 批量开关：只要是 Rent 就显示 */}
       {saleType === "Rent" && (
         <div className="mt-2">
           <label className="block text-sm font-medium text-gray-700">
