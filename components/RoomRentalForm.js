@@ -1,23 +1,39 @@
 // components/RoomRentalForm.js
 "use client";
 
-import React from "react";
-import ExtraSpacesSelector from "./ExtraSpacesSelector";
-import FacingSelector from "./FacingSelector";
-import FurnitureSelector from "./FurnitureSelector";
-import FacilitiesSelector from "./FacilitiesSelector";
-import TransitSelector from "./TransitSelector";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-const bedTypeOptions = [
-  "King size",
-  "Queen size",
-  "Super Single size",
-  "Single size",
+// ----------------- 工具：数字格式化 -----------------
+const formatNumber = (num) => {
+  if (num === "" || num === undefined || num === null) return "";
+  const str = String(num).replace(/,/g, "");
+  if (str === "") return "";
+  const n = Number(str);
+  if (!Number.isFinite(n)) return "";
+  return n.toLocaleString();
+};
+const parseNumber = (str) => String(str || "").replace(/,/g, "");
+
+// ----------------- 选项 -----------------
+const ROOM_TYPE_OPTIONS = ["大房", "中房", "单人房"];
+const BATHROOM_OPTIONS = ["独立卫生间", "共用卫生间"];
+const ROOM_PRIVACY_OPTIONS = ["独立房间", "共用房间"];
+const GENDER_OPTIONS = ["男女混住", "只限女生", "只限男生"];
+const YESNO_OPTIONS = [
+  { value: "allow", label: "允许" },
+  { value: "deny", label: "不允许" },
+];
+
+const BED_TYPE_OPTIONS = [
+  "King Size",
+  "Queen Size",
+  "Super Single Size",
+  "Single Size",
   "上下床",
   "没有提供床",
 ];
 
-const rentIncludeOptions = [
+const RENT_INCLUDES_OPTIONS = [
   "包括电费",
   "包括水费",
   "包括沥水机",
@@ -25,7 +41,7 @@ const rentIncludeOptions = [
   "包括电费但冷气/空调费不包",
 ];
 
-const cleaningOptions = [
+const CLEANING_OPTIONS = [
   "每月一次",
   "每两星期一次",
   "每三星期一次",
@@ -33,276 +49,366 @@ const cleaningOptions = [
   "没有清洁服务",
 ];
 
-const parkingOptions = [
-  "1个车位",
-  "2个车位",
-  "3个车位",
-  "4个车位",
-  "5个车位",
-  "公共停车位",
-  "没有车位",
-  "车位另租",
-];
+const CARPARK_OPTIONS = ["1", "2", "3", "4", "5", "公共停车位", "没有车位", "车位另租"];
+const CARPARK_RENT_PRICE_PRESETS = ["50", "100", "150", "200"];
 
-const parkingRentOptions = [50, 100, 150, 200];
+const RACE_OPTIONS = ["马来人", "印度人", "华人", "外国人"];
+const TENANCY_OPTIONS = ["1个月", "3个月", "6个月", "一年以下", "一年以上"];
 
-const raceOptions = ["马来人", "印度人", "华人", "外国人"];
-
-const leaseTermOptions = [
-  "1个月",
-  "3个月",
-  "6个月",
-  "一年以下",
-  "一年以上",
-];
-
-const formatNumber = (num) => {
-  if (num === "" || num === undefined || num === null) return "";
-  const str = String(num).replace(/,/g, "");
-  if (str === "") return "";
-  return Number(str).toLocaleString();
+// ----------------- 默认值 -----------------
+const defaultValue = {
+  roomType: "",
+  bathroomType: "",
+  bedTypes: [
+    // { type: "Queen Size", count: "1" }
+  ],
+  roomPrivacy: "",
+  genderPolicy: "",
+  petAllowed: "deny",
+  cookingAllowed: "deny", // ✅ 你刚新增的
+  rentIncludes: [], // 多选✅
+  cleaningService: "",
+  carparkCount: "",
+  carparkRentPrice: "", // 当 carparkCount === "车位另租"
+  preferredRaces: [], // 多选✅
+  acceptedTenancy: [], // 多选✅
+  availableFrom: "", // yyyy-mm-dd
 };
 
-export default function RoomRentalForm({ data, onChange }) {
-  const value = data || {};
+// ----------------- 多选下拉（✅ + 点击空白收起） -----------------
+function MultiPick({ label, options, value = [], onChange }) {
+  const [open, setOpen] = useState(false);
+  const boxRef = useRef(null);
 
-  const update = (patch) => {
-    const next = { ...value, ...patch };
-    onChange && onChange(next);
+  useEffect(() => {
+    const onDoc = (e) => {
+      if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+
+  const toggle = (opt) => {
+    const exists = value.includes(opt);
+    const next = exists ? value.filter((x) => x !== opt) : [...value, opt];
+    onChange?.(next);
   };
 
-  // 通用：多选（带 ✅）
-  const toggleMulti = (field, item) => {
-    const current = Array.isArray(value[field]) ? value[field] : [];
-    const exists = current.includes(item);
-    const next = exists ? current.filter((v) => v !== item) : [...current, item];
-    update({ [field]: next });
-  };
+  return (
+    <div className="space-y-1" ref={boxRef}>
+      <label className="block text-sm font-medium text-gray-700">{label}</label>
 
-  const renderMultiSelect = (label, field, options, placeholder) => {
-    const selected = Array.isArray(value[field]) ? value[field] : [];
-    return (
-      <div className="mt-3">
-        <label className="block font-medium mb-1">{label}</label>
-        <div className="border rounded p-2 bg-white cursor-pointer">
-          <div className="text-sm text-gray-700">
-            {selected.length === 0 ? (
-              <span className="text-gray-400">{placeholder}</span>
-            ) : (
-              selected.map((v) => `${v} ✅`).join("，")
-            )}
-          </div>
-        </div>
-        <div className="mt-1 border rounded bg-white divide-y">
+      <div
+        className="w-full border rounded p-2 bg-white cursor-pointer"
+        onClick={() => setOpen((p) => !p)}
+      >
+        {value.length === 0 ? (
+          <span className="text-gray-400">点击选择（可多选）</span>
+        ) : (
+          <span className="font-medium">{value.map((v) => `${v} ✅`).join("，")}</span>
+        )}
+      </div>
+
+      {open && (
+        <div className="border rounded bg-white shadow max-h-60 overflow-auto">
           {options.map((opt) => {
-            const isOn = selected.includes(opt);
+            const selected = value.includes(opt);
             return (
-              <button
+              <div
                 key={opt}
-                type="button"
-                className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex justify-between items-center ${
-                  isOn ? "bg-gray-50 font-semibold" : ""
+                className={`px-3 py-2 flex items-center justify-between cursor-pointer hover:bg-gray-100 ${
+                  selected ? "bg-gray-50 font-semibold" : ""
                 }`}
-                onClick={() => toggleMulti(field, opt)}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  toggle(opt);
+                }}
               >
                 <span>{opt}</span>
-                {isOn && <span>✅</span>}
-              </button>
+                {selected && <span className="text-green-600">✅</span>}
+              </div>
             );
           })}
         </div>
-      </div>
-    );
+      )}
+    </div>
+  );
+}
+
+// ----------------- 床型：多选 + 数量 -----------------
+function BedTypePicker({ value = [], onChange }) {
+  const [openKey, setOpenKey] = useState(null);
+  const refs = useRef({});
+
+  useEffect(() => {
+    const onDoc = (e) => {
+      const anyHit = Object.values(refs.current).some((el) => el && el.contains(e.target));
+      if (!anyHit) setOpenKey(null);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+
+  const hasType = (t) => value.some((x) => x.type === t);
+
+  const toggleType = (t) => {
+    const exists = hasType(t);
+    const next = exists
+      ? value.filter((x) => x.type !== t)
+      : [...value, { type: t, count: "" }];
+    onChange?.(next);
   };
 
-  // Bed config: [{ type, count }]
-  const beds = Array.isArray(value.beds) ? value.beds : [];
-
-  const updateBed = (index, patch) => {
-    const list = [...beds];
-    list[index] = { ...list[index], ...patch };
-    update({ beds: list });
+  const setCount = (t, count) => {
+    const next = value.map((x) => (x.type === t ? { ...x, count } : x));
+    onChange?.(next);
   };
 
-  const ensureBedsForSelectedTypes = (nextTypes) => {
-    const types = Array.isArray(nextTypes) ? nextTypes : [];
-    const list = types.map((t) => {
-      const existing = beds.find((b) => b.type === t);
-      return existing || { type: t, count: "1" };
-    });
-    update({ beds: list });
+  const pickCount = (t, opt) => {
+    if (opt === "custom") {
+      setCount(t, "");
+      setOpenKey(null);
+      return;
+    }
+    setCount(t, String(opt));
+    setOpenKey(null);
   };
 
-  const bedTypes = Array.isArray(value.bedTypes) ? value.bedTypes : [];
+  const quantityOptions = [0, 1, 2, 3, 4, 5, 6, "custom"];
 
   return (
-    <div className="space-y-4 mt-4 border rounded-lg p-4 bg-gray-50">
-      {/* 房型 */}
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-gray-700">请选择床型（可多选 + 数量）</label>
+
+      {/* 选择床型 */}
+      <div className="grid grid-cols-2 gap-2">
+        {BED_TYPE_OPTIONS.map((t) => {
+          const selected = hasType(t);
+          return (
+            <button
+              type="button"
+              key={t}
+              className={`border rounded p-2 text-left hover:bg-gray-50 ${
+                selected ? "bg-gray-50 font-semibold" : "bg-white"
+              }`}
+              onClick={() => toggleType(t)}
+            >
+              {t} {selected ? "✅" : ""}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 数量 */}
+      <div className="space-y-3">
+        {value.map((item) => {
+          const display = /^\d+$/.test(String(item.count || ""))
+            ? formatNumber(item.count)
+            : item.count || "";
+
+          return (
+            <div
+              key={item.type}
+              ref={(el) => (refs.current[item.type] = el)}
+              className="flex items-center gap-3 border p-3 rounded bg-gray-50"
+            >
+              <span className="font-medium">{item.type}</span>
+
+              <div className="relative w-40">
+                <input
+                  type="text"
+                  className="w-full border rounded px-2 py-1 bg-white"
+                  placeholder="输入或选择数量"
+                  value={display}
+                  onChange={(e) => {
+                    const raw = parseNumber(e.target.value);
+                    if (!/^\d*$/.test(raw)) return;
+                    if (raw.length > 7) return;
+                    setCount(item.type, raw);
+                  }}
+                  onFocus={() => setOpenKey(item.type)}
+                  onClick={() => setOpenKey(item.type)}
+                />
+
+                {openKey === item.type && (
+                  <ul className="absolute z-20 mt-1 w-full bg-white border rounded shadow max-h-60 overflow-auto">
+                    {quantityOptions.map((opt) => {
+                      const isCustom = opt === "custom";
+                      return (
+                        <li
+                          key={String(opt)}
+                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            pickCount(item.type, opt);
+                          }}
+                        >
+                          {isCustom ? "自定义" : String(opt)}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ----------------- 主表单 -----------------
+export default function RoomRentalForm({
+  value,
+  onChange,
+  // ✅ 你要把 “额外空间 / 家私 / 设施 / 步行到交通” 放在“偏向种族”下面：
+  // 直接从 upload-property.js 传进来一段 JSX
+  extraSection = null,
+}) {
+  // ✅ 受控：内部只做一层镜像，真正数据永远来自 props.value
+  const data = useMemo(() => ({ ...defaultValue, ...(value || {}) }), [value]);
+
+  // ✅ 统一更新函数
+  const patch = (p) => {
+    const next = { ...data, ...p };
+    onChange?.(next);
+  };
+
+  const availableText = data.availableFrom
+    ? `在 ${data.availableFrom} 就可以开始入住了`
+    : "";
+
+  const showCarparkRentPrice = data.carparkCount === "车位另租";
+
+  return (
+    <div className="space-y-4 mt-4 border rounded-lg p-4 bg-white">
+      {/* 这是什么房？ */}
       <div>
-        <label className="block font-medium mb-1">这是什么房？</label>
+        <label className="block text-sm font-medium text-gray-700">这是什么房？</label>
         <select
-          className="w-full border rounded p-2"
-          value={value.roomType || ""}
-          onChange={(e) => update({ roomType: e.target.value })}
+          className="border rounded w-full p-2"
+          value={data.roomType}
+          onChange={(e) => patch({ roomType: e.target.value })}
         >
-          <option value="">请选择房型</option>
-          <option value="大房">大房</option>
-          <option value="中房">中房</option>
-          <option value="单人房">单人房</option>
+          <option value="">请选择</option>
+          {ROOM_TYPE_OPTIONS.map((x) => (
+            <option key={x} value={x}>
+              {x}
+            </option>
+          ))}
         </select>
       </div>
 
       {/* 卫生间 */}
       <div>
-        <label className="block font-medium mb-1">卫生间</label>
+        <label className="block text-sm font-medium text-gray-700">卫生间</label>
         <select
-          className="w-full border rounded p-2"
-          value={value.bathroomType || ""}
-          onChange={(e) => update({ bathroomType: e.target.value })}
+          className="border rounded w-full p-2"
+          value={data.bathroomType}
+          onChange={(e) => patch({ bathroomType: e.target.value })}
         >
-          <option value="">请选择卫生间类型</option>
-          <option value="独立卫生间">独立卫生间</option>
-          <option value="共用卫生间">共用卫生间</option>
+          <option value="">请选择</option>
+          {BATHROOM_OPTIONS.map((x) => (
+            <option key={x} value={x}>
+              {x}
+            </option>
+          ))}
         </select>
       </div>
 
-      {/* 床型多选 + 数量 */}
-      <div>
-        <label className="block font-medium mb-1">请选择床型</label>
-        <div className="border rounded p-2 bg-white">
-          <div className="flex flex-wrap gap-2">
-            {bedTypeOptions.map((opt) => {
-              const on = bedTypes.includes(opt);
-              return (
-                <button
-                  key={opt}
-                  type="button"
-                  className={`px-2 py-1 text-sm rounded border flex items-center gap-1 ${
-                    on ? "bg-blue-50 border-blue-500 font-semibold" : "bg-white"
-                  }`}
-                  onClick={() => {
-                    const exists = bedTypes.includes(opt);
-                    const next = exists
-                      ? bedTypes.filter((v) => v !== opt)
-                      : [...bedTypes, opt];
-                    update({ bedTypes: next });
-                    ensureBedsForSelectedTypes(next);
-                  }}
-                >
-                  <span>{opt}</span>
-                  {on && <span>✅</span>}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+      {/* 床型（多选+数量） */}
+      <BedTypePicker
+        value={data.bedTypes}
+        onChange={(bedTypes) => patch({ bedTypes })}
+      />
 
-        {/* 数量列表 */}
-        {beds.length > 0 && (
-          <div className="mt-3 space-y-2">
-            {beds.map((bed, idx) => (
-              <div
-                key={bed.type}
-                className="flex items-center gap-3 border p-2 rounded bg-white"
-              >
-                <span className="w-32 text-sm font-medium">{bed.type}</span>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min={0}
-                    className="w-24 border rounded px-2 py-1 text-sm"
-                    value={bed.count ?? ""}
-                    onChange={(e) =>
-                      updateBed(idx, {
-                        count: e.target.value.replace(/[^\d]/g, ""),
-                      })
-                    }
-                  />
-                  <span className="text-sm text-gray-500">张</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* 房间私密性 */}
+      {/* 独立/共用 */}
       <div>
-        <label className="block font-medium mb-1">是独立房间还是共用房间？</label>
+        <label className="block text-sm font-medium text-gray-700">是独立房间还是共用房间？</label>
         <select
-          className="w-full border rounded p-2"
-          value={value.roomPrivacy || ""}
-          onChange={(e) => update({ roomPrivacy: e.target.value })}
+          className="border rounded w-full p-2"
+          value={data.roomPrivacy}
+          onChange={(e) => patch({ roomPrivacy: e.target.value })}
         >
           <option value="">请选择</option>
-          <option value="独立房间">独立房间</option>
-          <option value="共用房间">共用房间</option>
+          {ROOM_PRIVACY_OPTIONS.map((x) => (
+            <option key={x} value={x}>
+              {x}
+            </option>
+          ))}
         </select>
       </div>
 
-      {/* 性别要求 */}
+      {/* 男女混住 */}
       <div>
-        <label className="block font-medium mb-1">是否男女混住？</label>
+        <label className="block text-sm font-medium text-gray-700">是否男女混住？</label>
         <select
-          className="w-full border rounded p-2"
-          value={value.genderPolicy || ""}
-          onChange={(e) => update({ genderPolicy: e.target.value })}
+          className="border rounded w-full p-2"
+          value={data.genderPolicy}
+          onChange={(e) => patch({ genderPolicy: e.target.value })}
         >
           <option value="">请选择</option>
-          <option value="男女混住">男女混住</option>
-          <option value="只限女生">只限女生</option>
-          <option value="只限男生">只限男生</option>
+          {GENDER_OPTIONS.map((x) => (
+            <option key={x} value={x}>
+              {x}
+            </option>
+          ))}
         </select>
       </div>
 
       {/* 宠物 */}
       <div>
-        <label className="block font-medium mb-1">是否允许宠物？</label>
+        <label className="block text-sm font-medium text-gray-700">是否允许宠物？</label>
         <select
-          className="w-full border rounded p-2"
-          value={value.petsAllowed || ""}
-          onChange={(e) => update({ petsAllowed: e.target.value })}
+          className="border rounded w-full p-2"
+          value={data.petAllowed}
+          onChange={(e) => patch({ petAllowed: e.target.value })}
         >
-          <option value="">请选择</option>
-          <option value="允许">允许</option>
-          <option value="不允许">不允许</option>
+          {YESNO_OPTIONS.map((x) => (
+            <option key={x.value} value={x.value}>
+              {x.label}
+            </option>
+          ))}
         </select>
       </div>
 
-      {/* ⬇️ 新加：是否允许烹饪 */}
+      {/* ✅ 允许烹饪（新增） */}
       <div>
-        <label className="block font-medium mb-1">是否允许烹饪？</label>
+        <label className="block text-sm font-medium text-gray-700">是否允许烹饪？</label>
         <select
-          className="w-full border rounded p-2"
-          value={value.cookingAllowed || ""}
-          onChange={(e) => update({ cookingAllowed: e.target.value })}
+          className="border rounded w-full p-2"
+          value={data.cookingAllowed}
+          onChange={(e) => patch({ cookingAllowed: e.target.value })}
         >
-          <option value="">请选择</option>
-          <option value="允许">允许</option>
-          <option value="不允许">不允许</option>
+          {YESNO_OPTIONS.map((x) => (
+            <option key={x.value} value={x.value}>
+              {x.label}
+            </option>
+          ))}
         </select>
       </div>
 
-      {/* 租金包括 - 多选 */}
-      {renderMultiSelect(
-        "租金包括",
-        "rentIncludes",
-        rentIncludeOptions,
-        "请选择租金包含的项目（可多选）"
-      )}
+      {/* 租金包括（多选✅） */}
+      <MultiPick
+        label="租金包括"
+        options={RENT_INCLUDES_OPTIONS}
+        value={data.rentIncludes}
+        onChange={(rentIncludes) => patch({ rentIncludes })}
+      />
 
       {/* 清洁服务 */}
       <div>
-        <label className="block font-medium mb-1">清洁服务</label>
+        <label className="block text-sm font-medium text-gray-700">清洁服务</label>
         <select
-          className="w-full border rounded p-2"
-          value={value.cleaningService || ""}
-          onChange={(e) => update({ cleaningService: e.target.value })}
+          className="border rounded w-full p-2"
+          value={data.cleaningService}
+          onChange={(e) => patch({ cleaningService: e.target.value })}
         >
           <option value="">请选择</option>
-          {cleaningOptions.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
+          {CLEANING_OPTIONS.map((x) => (
+            <option key={x} value={x}>
+              {x}
             </option>
           ))}
         </select>
@@ -310,95 +416,89 @@ export default function RoomRentalForm({ data, onChange }) {
 
       {/* 车位 */}
       <div>
-        <label className="block font-medium mb-1">包括几个车位？</label>
+        <label className="block text-sm font-medium text-gray-700">包括几个车位？</label>
         <select
-          className="w-full border rounded p-2"
-          value={value.parkingOption || ""}
-          onChange={(e) => update({ parkingOption: e.target.value })}
+          className="border rounded w-full p-2"
+          value={data.carparkCount}
+          onChange={(e) => {
+            const v = e.target.value;
+            patch({
+              carparkCount: v,
+              carparkRentPrice: v === "车位另租" ? data.carparkRentPrice : "",
+            });
+          }}
         >
           <option value="">请选择</option>
-          {parkingOptions.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
+          {CARPARK_OPTIONS.map((x) => (
+            <option key={x} value={x}>
+              {x}
             </option>
           ))}
         </select>
       </div>
 
-      {/* 如果是车位另租，显示车位租金 */}
-      {value.parkingOption === "车位另租" && (
+      {/* 车位另租价格 */}
+      {showCarparkRentPrice && (
         <div>
-          <label className="block font-medium mb-1">
-            一个车位大概多少钱？
-          </label>
+          <label className="block text-sm font-medium text-gray-700">一个车位大概多少钱？</label>
+
           <select
-            className="w-full border rounded p-2"
-            value={value.parkingRentPrice || ""}
-            onChange={(e) => update({ parkingRentPrice: e.target.value })}
+            className="border rounded w-full p-2 mb-2"
+            value={data.carparkRentPrice || ""}
+            onChange={(e) => patch({ carparkRentPrice: e.target.value })}
           >
-            <option value="">请选择价格</option>
-            {parkingRentOptions.map((price) => (
-              <option key={price} value={String(price)}>
-                {formatNumber(price)}
+            <option value="">请选择</option>
+            {CARPARK_RENT_PRICE_PRESETS.map((x) => (
+              <option key={x} value={x}>
+                {formatNumber(x)}
               </option>
             ))}
           </select>
+
+          <input
+            type="text"
+            className="border rounded w-full p-2"
+            placeholder="也可以手动输入（会自动加千分位）"
+            value={formatNumber(data.carparkRentPrice)}
+            onChange={(e) => {
+              const raw = parseNumber(e.target.value);
+              if (!/^\d*$/.test(raw)) return;
+              if (raw.length > 9) return;
+              patch({ carparkRentPrice: raw });
+            }}
+          />
         </div>
       )}
 
-      {/* 偏向的种族 - 多选 */}
-      {renderMultiSelect(
-        "偏向的种族",
-        "preferredRaces",
-        raceOptions,
-        "请选择偏向的种族（可多选）"
-      )}
+      {/* 偏向种族（多选✅） */}
+      <MultiPick
+        label="偏向的种族"
+        options={RACE_OPTIONS}
+        value={data.preferredRaces}
+        onChange={(preferredRaces) => patch({ preferredRaces })}
+      />
 
-      {/* 接受的租期 - 多选 */}
-      {renderMultiSelect(
-        "接受的租期",
-        "acceptedLeaseTerms",
-        leaseTermOptions,
-        "请选择接受的租期（可多选）"
-      )}
+      {/* ✅ 你要放在这里的四个输入框（额外空间/家私/设施/步行到交通） */}
+      {extraSection}
+
+      {/* 接受租期（多选✅） */}
+      <MultiPick
+        label="接受的租期"
+        options={TENANCY_OPTIONS}
+        value={data.acceptedTenancy}
+        onChange={(acceptedTenancy) => patch({ acceptedTenancy })}
+      />
 
       {/* 入住日期 */}
       <div>
-        <label className="block font-medium mb-1">几时开始可以入住？</label>
+        <label className="block text-sm font-medium text-gray-700">几时开始可以入住？</label>
         <input
           type="date"
-          className="w-full border rounded p-2"
-          value={value.availableFrom || ""}
-          onChange={(e) => update({ availableFrom: e.target.value })}
+          className="border rounded w-full p-2"
+          value={data.availableFrom}
+          onChange={(e) => patch({ availableFrom: e.target.value })}
         />
-        {value.availableFrom && (
-          <p className="mt-1 text-sm text-gray-600">
-            在 {value.availableFrom} 就可以开始入住了
-          </p>
-        )}
-      </div>
-
-      {/* 下面是你普通表单里的 4 个输入框 */}
-      <ExtraSpacesSelector
-        value={value.extraSpaces || []}
-        onChange={(v) => update({ extraSpaces: v })}
-      />
-      <FurnitureSelector
-        value={value.furniture || []}
-        onChange={(v) => update({ furniture: v })}
-      />
-      <FacilitiesSelector
-        value={value.facilities || []}
-        onChange={(v) => update({ facilities: v })}
-      />
-      <div className="mb-2">
-        <label className="block font-medium mb-1">
-          你的产业步行能到达公共交通吗？
-        </label>
-        <TransitSelector
-          value={value.transit || null}
-          onChange={(v) => update({ transit: v })}
-        />
+        {availableText && <p className="text-sm text-gray-600 mt-1">{availableText}</p>}
       </div>
     </div>
   );
