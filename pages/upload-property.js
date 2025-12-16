@@ -25,6 +25,7 @@ import ImageUpload from "@/components/ImageUpload";
 import TransitSelector from "@/components/TransitSelector";
 import AdvancedAvailabilityCalendar from "@/components/AdvancedAvailabilityCalendar";
 import FloorCountSelector from "@/components/FloorCountSelector";
+import RoomRentalForm from "@/components/RoomRentalForm";
 
 // ✅ 现在只保留一个：Homestay / Hotel 都用这个表单
 import HotelUploadForm from "@/components/hotel/HotelUploadForm";
@@ -306,6 +307,12 @@ export default function UploadProperty() {
       setLoading(false);
     }
   };
+
+  // ...
+{isRoomRental && (
+  <RoomRentalForm data={singleFormData} onChange={setSingleFormData} />
+)}
+
 
   // ---------- Homestay / Hotel 识别 ----------
   const saleTypeNorm = (saleType || "").toLowerCase();
