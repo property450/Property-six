@@ -35,22 +35,37 @@ const extraSpacesOptions = [
  *
  * props:
  *  - value: 数组
- *      quantity 模式: [{ label, count }]
+ *      quantity 模式: [{ label, count, remark? }]
  *      remark   模式: [{ label, remark }]
  *  - onChange: (nextArray) => void
  *  - variant: "quantity" | "remark"
- *      不传时默认 "quantity"（保持 sale / rent 现有逻辑）
+ *      不传时默认 "quantity"（Sale / Rent）
  */
 export default function ExtraSpacesSelector({
   value = [],
   onChange,
   variant = "quantity",
 }) {
-  const [selectedSpaces, setSelectedSpaces] = useState(value);
+  const [selectedSpaces, setSelectedSpaces] = useState([]);
 
-  // 同步外部传进来的值
+  // 同步外部传进来的值，兼容老数据结构
   useEffect(() => {
-    setSelectedSpaces(value || []);
+    const arr = Array.isArray(value) ? value : [];
+    const normalized = arr.map((item) => {
+      if (!item) return { label: "", count: "", remark: "" };
+
+      if (typeof item === "string") {
+        return { label: item, count: "", remark: "" };
+      }
+
+      const label = item.label ?? item.value ?? "";
+      return {
+        label,
+        count: item.count ?? "",
+        remark: item.remark ?? "",
+      };
+    });
+    setSelectedSpaces(normalized);
   }, [value]);
 
   // ---------- 共用：标签选择 ----------
@@ -59,13 +74,23 @@ export default function ExtraSpacesSelector({
 
     const updated = newLabels.map((label) => {
       const existing = selectedSpaces.find((s) => s.label === label);
-      if (existing) return existing;
+
+      if (existing) {
+        // 保留原来的 count / remark
+        return {
+          label,
+          count: existing.count ?? "",
+          remark: existing.remark ?? "",
+        };
+      }
 
       // 不同模式有不同默认结构
       if (variant === "remark") {
         return { label, remark: "" };
       }
-      return { label, count: "" };
+
+      // quantity 模式默认有 count + remark
+      return { label, count: "", remark: "" };
     });
 
     setSelectedSpaces(updated);
@@ -89,6 +114,7 @@ export default function ExtraSpacesSelector({
       );
       if (!anyHit) setOpenKey(null);
     };
+
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
   }, [variant]);
@@ -180,7 +206,7 @@ export default function ExtraSpacesSelector({
 
       {/* 不同模式下面的内容不同 */}
       {variant === "quantity" ? (
-        // ---------- 数量模式：标签 + 数量选择 ----------
+        // ---------- 数量模式：标签 + 数量选择 + 备注 ----------
         <div className="space-y-3 mt-3">
           {selectedSpaces.map((space) => {
             const isNumberLike = /^\d+$/.test(String(space.count || ""));
@@ -188,33 +214,48 @@ export default function ExtraSpacesSelector({
               ? formatNumber(space.count)
               : space.count || "";
             const isCustom = !!customFlags[space.label];
-            const placeholder = isCustom ? "请输入你要的数字" : "输入或选择数量";
+            const placeholder = isCustom
+              ? "请输入你要的数字"
+              : "输入或选择数量";
 
             return (
               <div
                 key={space.label}
                 ref={(el) => (refs.current[space.label] = el)}
-                className="flex items-center gap-3 border p-3 rounded-lg bg-gray-50"
+                className="border p-3 rounded-lg bg-gray-50"
               >
-                <span className="font-medium">{space.label}</span>
-                <div className="relative w-32">
-                  <input
-                    type="text"
-                    className="w-full border border-gray-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring focus:border-blue-500"
-                    placeholder={placeholder}
-                    value={display}
-                    onChange={(e) =>
-                      handleInputCount(space.label, e.target.value)
-                    }
-                    onFocus={() => setOpenKey(space.label)}
-                    onClick={() => setOpenKey(space.label)}
-                  />
-                  {openKey === space.label && (
-                    <ul className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
-                      {renderQuantityOptions(space.label)}
-                    </ul>
-                  )}
+                <div className="flex items-center gap-3">
+                  <span className="font-medium">{space.label}</span>
+                  <div className="relative w-32">
+                    <input
+                      type="text"
+                      className="w-full border border-gray-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring focus:border-blue-500"
+                      placeholder={placeholder}
+                      value={display}
+                      onChange={(e) =>
+                        handleInputCount(space.label, e.target.value)
+                      }
+                      onFocus={() => setOpenKey(space.label)}
+                      onClick={() => setOpenKey(space.label)}
+                    />
+                    {openKey === space.label && (
+                      <ul className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+                        {renderQuantityOptions(space.label)}
+                      </ul>
+                    )}
+                  </div>
                 </div>
+
+                {/* ⭐ 新增：备注输入框（Sale / Rent 也有） */}
+                <input
+                  type="text"
+                  className="mt-2 w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring focus:border-blue-500 bg-white"
+                  placeholder="备注（可留空）"
+                  value={space.remark || ""}
+                  onChange={(e) =>
+                    setRemarkValue(space.label, e.target.value)
+                  }
+                />
               </div>
             );
           })}
