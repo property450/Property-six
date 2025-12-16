@@ -1,5 +1,7 @@
 // components/FacilitiesSelector.js
-import React, { useState } from "react";
+"use client";
+
+import React, { useState, useEffect } from "react";
 import CreatableSelect from "react-select/creatable";
 
 const facilitiesOptions = [
@@ -92,27 +94,61 @@ const facilitiesOptions = [
   "防风雨候车亭",
 ].map((label) => ({ value: label, label }));
 
+// value 结构：[{ label, remark }]
 export default function FacilitiesSelector({ value = [], onChange }) {
-  const [selectedOptions, setSelectedOptions] = useState(
-    value.map((v) => ({ value: v, label: v }))
-  );
+  const [items, setItems] = useState([]);
 
+  // 把外部传进来的数组（字符串或对象）统一成 {label, remark}
+  useEffect(() => {
+    const arr = Array.isArray(value) ? value : [];
+    const normalized = arr
+      .map((item) => {
+        if (!item) return null;
+        if (typeof item === "string") {
+          return { label: item, remark: "" };
+        }
+        const label = item.label ?? item.value ?? "";
+        if (!label) return null;
+        return { label, remark: item.remark ?? "" };
+      })
+      .filter(Boolean);
+    setItems(normalized);
+  }, [value]);
+
+  const emit = (next) => {
+    setItems(next);
+    onChange?.(next); // 直接把对象数组回传，父组件会 JSON.stringify 存数据库
+  };
+
+  // 标签选择变化
   const handleChange = (selected) => {
-    setSelectedOptions(selected || []);
-    onChange(selected ? selected.map((opt) => opt.value) : []);
+    const labels = (selected || []).map((opt) => opt.value);
+    const updated = labels.map((label) => {
+      const existing = items.find((x) => x.label === label);
+      return existing || { label, remark: "" };
+    });
+    emit(updated);
+  };
+
+  const setRemark = (label, remark) => {
+    const updated = items.map((item) =>
+      item.label === label ? { ...item, remark } : item
+    );
+    emit(updated);
   };
 
   return (
-    <div className="mb-4">
-      <label className="block font-medium mb-1">设施</label>
+    <div className="mb-4 space-y-3">
+      <label className="block font-medium mb-1">设施（可加备注）</label>
+
       <CreatableSelect
         isMulti
         placeholder="选择或输入设施..."
         options={facilitiesOptions}
-        value={selectedOptions}
+        value={items.map((s) => ({ value: s.label, label: s.label }))}
         onChange={handleChange}
         formatCreateLabel={(inputValue) => `添加自定义: ${inputValue}`}
-        closeMenuOnSelect={false} // ✅ 选中后不关闭
+        closeMenuOnSelect={false}
         styles={{
           menu: (provided) => ({
             ...provided,
@@ -120,7 +156,24 @@ export default function FacilitiesSelector({ value = [], onChange }) {
           }),
         }}
       />
+
+      {/* 每个设施的备注输入框 */}
+      {items.length > 0 && (
+        <div className="space-y-2 mt-2">
+          {items.map((item) => (
+            <div key={item.label} className="flex flex-col gap-1">
+              <span className="text-sm text-gray-700">{item.label}</span>
+              <input
+                type="text"
+                className="border rounded p-1 text-sm"
+                placeholder="备注（可留空）"
+                value={item.remark || ""}
+                onChange={(e) => setRemark(item.label, e.target.value)}
+              />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
-  
