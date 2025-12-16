@@ -308,11 +308,6 @@ export default function UploadProperty() {
     }
   };
 
-  // ...
-{isRoomRental && (
-  <RoomRentalForm data={singleFormData} onChange={setSingleFormData} />
-)}
-
 
   // ---------- Homestay / Hotel 识别 ----------
   const saleTypeNorm = (saleType || "").toLowerCase();
