@@ -37,16 +37,45 @@ const furnitureOptions = [
   "煤气炉",
 ].map((label) => ({ value: label, label }));
 
+// value 结构：[{ label, count, remark? }]
 export default function FurnitureSelector({ value = [], onChange }) {
-  const [selectedFurniture, setSelectedFurniture] = useState(value);
+  const [selectedFurniture, setSelectedFurniture] = useState([]);
   const [openKey, setOpenKey] = useState(null);
   const [customFlags, setCustomFlags] = useState({});
   const refs = useRef({});
 
+  // 同步外部数据，兼容字符串/旧结构
+  useEffect(() => {
+    const arr = Array.isArray(value) ? value : [];
+    const normalized = arr
+      .map((item) => {
+        if (!item) return null;
+        if (typeof item === "string") {
+          return { label: item, count: "", remark: "" };
+        }
+        const label = item.label ?? item.value ?? "";
+        if (!label) return null;
+        return {
+          label,
+          count: item.count ?? "",
+          remark: item.remark ?? "",
+        };
+      })
+      .filter(Boolean);
+    setSelectedFurniture(normalized);
+  }, [value]);
+
+  const emit = (next) => {
+    setSelectedFurniture(next);
+    onChange?.(next);
+  };
+
   // 点击外部关闭下拉
   useEffect(() => {
     const onDocClick = (e) => {
-      const anyHit = Object.values(refs.current).some((el) => el && el.contains(e.target));
+      const anyHit = Object.values(refs.current).some(
+        (el) => el && el.contains(e.target)
+      );
       if (!anyHit) setOpenKey(null);
     };
     document.addEventListener("mousedown", onDocClick);
@@ -58,31 +87,43 @@ export default function FurnitureSelector({ value = [], onChange }) {
     const newLabels = (selected || []).map((opt) => opt.value);
     const updated = newLabels.map((label) => {
       const existing = selectedFurniture.find((s) => s.label === label);
-      return existing || { label, count: "" };
+      return (
+        existing || {
+          label,
+          count: "",
+          remark: "",
+        }
+      );
     });
-    setSelectedFurniture(updated);
-    onChange?.(updated);
+    emit(updated);
   };
 
   // 设置数量
-  const setFieldValue = (label, val) => {
+  const setCountValue = (label, val) => {
     const updated = selectedFurniture.map((s) =>
       s.label === label ? { ...s, count: val } : s
     );
-    setSelectedFurniture(updated);
-    onChange?.(updated);
+    emit(updated);
+  };
+
+  // 设置备注
+  const setRemarkValue = (label, remark) => {
+    const updated = selectedFurniture.map((s) =>
+      s.label === label ? { ...s, remark } : s
+    );
+    emit(updated);
   };
 
   // 选择数量
   const handlePick = (label, opt) => {
     if (opt === "custom") {
       setCustomFlags((p) => ({ ...p, [label]: true }));
-      setFieldValue(label, "");
+      setCountValue(label, "");
       setOpenKey(null);
       return;
     }
     setCustomFlags((p) => ({ ...p, [label]: false }));
-    setFieldValue(label, String(opt));
+    setCountValue(label, String(opt));
     setOpenKey(null);
   };
 
@@ -91,7 +132,7 @@ export default function FurnitureSelector({ value = [], onChange }) {
     const raw = parseNumber(rawInput);
     if (!/^\d*$/.test(raw)) return;
     if (raw.length > 7) return;
-    setFieldValue(label, raw);
+    setCountValue(label, raw);
   };
 
   // 数量选项渲染
@@ -115,7 +156,7 @@ export default function FurnitureSelector({ value = [], onChange }) {
 
   return (
     <div className="space-y-4">
-      <label className="block font-medium mb-1">家私</label>
+      <label className="block font-medium mb-1">家私（可加备注）</label>
 
       {/* 标签输入框 */}
       <CreatableSelect
@@ -123,7 +164,10 @@ export default function FurnitureSelector({ value = [], onChange }) {
         closeMenuOnSelect={false}
         placeholder="选择或输入家私..."
         options={furnitureOptions}
-        value={selectedFurniture.map((s) => ({ value: s.label, label: s.label }))}
+        value={selectedFurniture.map((s) => ({
+          value: s.label,
+          label: s.label,
+        }))}
         onChange={handleSelectChange}
         formatCreateLabel={(inputValue) => `添加自定义: ${inputValue}`}
         styles={{
@@ -134,11 +178,13 @@ export default function FurnitureSelector({ value = [], onChange }) {
         }}
       />
 
-      {/* 数量输入框 */}
+      {/* 数量 + 备注 */}
       <div className="space-y-3">
         {selectedFurniture.map((item) => {
           const isNumberLike = /^\d+$/.test(String(item.count || ""));
-          const display = isNumberLike ? formatNumber(item.count) : item.count || "";
+          const display = isNumberLike
+            ? formatNumber(item.count)
+            : item.count || "";
           const isCustom = !!customFlags[item.label];
           const placeholder = isCustom ? "请输入你要的数字" : "输入或选择数量";
 
@@ -146,25 +192,36 @@ export default function FurnitureSelector({ value = [], onChange }) {
             <div
               key={item.label}
               ref={(el) => (refs.current[item.label] = el)}
-              className="flex items-center gap-3 border p-3 rounded-lg bg-gray-50"
+              className="border p-3 rounded-lg bg-gray-50"
             >
-              <span className="font-medium">{item.label}</span>
-              <div className="relative w-32">
-                <input
-                  type="text"
-                  className="w-full border border-gray-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring focus:border-blue-500"
-                  placeholder={placeholder}
-                  value={display}
-                  onChange={(e) => handleInput(item.label, e.target.value)}
-                  onFocus={() => setOpenKey(item.label)}
-                  onClick={() => setOpenKey(item.label)}
-                />
-                {openKey === item.label && (
-                  <ul className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
-                    {renderOptions(item.label)}
-                  </ul>
-                )}
+              <div className="flex items-center gap-3">
+                <span className="font-medium">{item.label}</span>
+                <div className="relative w-32">
+                  <input
+                    type="text"
+                    className="w-full border border-gray-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring focus:border-blue-500"
+                    placeholder={placeholder}
+                    value={display}
+                    onChange={(e) => handleInput(item.label, e.target.value)}
+                    onFocus={() => setOpenKey(item.label)}
+                    onClick={() => setOpenKey(item.label)}
+                  />
+                  {openKey === item.label && (
+                    <ul className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+                      {renderOptions(item.label)}
+                    </ul>
+                  )}
+                </div>
               </div>
+
+              {/* ⭐ 新增：备注输入框 */}
+              <input
+                type="text"
+                className="mt-2 w-full border border-gray-300 rounded px-2 py-1 text-sm bg-white focus:outline-none focus:ring focus:border-blue-500"
+                placeholder="备注（可留空）"
+                value={item.remark || ""}
+                onChange={(e) => setRemarkValue(item.label, e.target.value)}
+              />
             </div>
           );
         })}
