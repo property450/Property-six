@@ -719,7 +719,17 @@ export default function UploadProperty() {
                   htmlFor="description"
                   className="block text-sm font-medium text-gray-700"
                 >
-                    </div>
+                  房源描述
+                </label>
+                <textarea
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="请输入房源详细描述..."
+                  rows={4}
+                  className="w-full border rounded-lg p-2 resize-y"
+                />
+              </div>
             </div>
           )}
 
