@@ -133,6 +133,10 @@ function makeDefaultRoomForm() {
   };
 }
 
+function deepClone(obj) {
+  return JSON.parse(JSON.stringify(obj || {}));
+}
+
 export default function UploadProperty() {
   const router = useRouter();
   const user = useUser();
@@ -480,36 +484,60 @@ export default function UploadProperty() {
                 </div>
               )}
 
+       // New Project：从第一个房型复制到其它房型的字段
+const PROJECT_COPY_FIELDS = [
+  "extraSpaces",
+  "furniture",
+  "facilities",
+  "transit",
+];
+
+
               <UnitTypeSelector
-                propertyStatus={computedStatus}
-                layouts={unitLayouts}
-                onChange={(newLayouts) => {
-                  setUnitLayouts((prev) => {
-                    const oldList = Array.isArray(prev) ? prev : [];
-                    const nextList = Array.isArray(newLayouts) ? newLayouts : [];
+  propertyStatus={computedStatus}
+  layouts={unitLayouts}
+  onChange={(newLayouts) => {
+    setUnitLayouts((prev) => {
+      const oldList = Array.isArray(prev) ? prev : [];
+      const nextList = Array.isArray(newLayouts) ? newLayouts : [];
 
-                    const maxLen = Math.max(oldList.length, nextList.length);
-                    const merged = [];
+      // 👉 取“当前最新的第一个房型”作为模板
+      const template = oldList[0] || {};
 
-                    for (let i = 0; i < maxLen; i++) {
-                      const oldItem = oldList[i] || {};
-                      const newItem = nextList[i] || {};
+      const merged = nextList.map((incoming, index) => {
+        // 已存在的房型 → 保留自己的值
+        if (oldList[index]) {
+          return {
+            ...oldList[index],
+            ...incoming,
+          };
+        }
 
-                      const withProjectType =
-                        isBulkRentProject && projectCategory
-                          ? {
-                              propertyCategory: projectCategory,
-                              subType: projectSubType || oldItem.subType || "",
-                            }
-                          : {};
+        // 新增的房型（index > 0）
+        if (index > 0 && template) {
+          const copiedFields = {};
+          PROJECT_COPY_FIELDS.forEach((key) => {
+            if (template[key] !== undefined) {
+              copiedFields[key] = deepClone(template[key]);
+            }
+          });
 
-                      merged[i] = { ...oldItem, ...newItem, ...withProjectType };
-                    }
+          return {
+            ...incoming,
+            ...copiedFields,
+          };
+        }
 
-                    return merged;
-                  });
-                }}
-              />
+        // index === 0（第一个）
+        return {
+          ...incoming,
+        };
+      });
+
+      return merged;
+    });
+  }}
+/>
 
               {unitLayouts.length > 0 && (
                 <div className="space-y-4 mt-4">
