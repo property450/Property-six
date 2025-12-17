@@ -233,7 +233,8 @@ export default function UploadProperty() {
     computedStatus?.includes("Developer Unit");
 
   // 是否「只出租房间」
-  const isRoomRental = saleType === "Rent" && roomRentalMode === "room";
+  const isRoomRental =
+  String(saleType || "").toLowerCase() === "rent" && roomRentalMode === "room";
 
   // 当不再是项目类时，清空 layouts
   useEffect(() => {
@@ -507,6 +508,24 @@ export default function UploadProperty() {
                   land: convertToSqft(areaData.values.land, areaData.units.land),
                 }}
               />
+
+{/* ✅ Rent（非项目）才显示：整间/房间出租切换（不靠 TypeSelector） */}
+{String(saleType || "").toLowerCase() === "rent" && !isProject && (
+  <div className="space-y-2">
+    <label className="block text-sm font-medium text-gray-700">
+      出租方式
+    </label>
+    <select
+      value={roomRentalMode}
+      onChange={(e) => setRoomRentalMode(e.target.value)}
+      className="mt-1 block w-full border rounded-lg p-2"
+    >
+      <option value="whole">不是，要出租整间</option>
+      <option value="room">是的，只要出租房间</option>
+    </select>
+  </div>
+)}
+
 
               {/* 每平方英尺 RM 计算 */}
               {(() => {
