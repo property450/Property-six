@@ -23,6 +23,7 @@ import FurnitureSelector from "@/components/FurnitureSelector";
 import BuildYearSelector from "@/components/BuildYearSelector";
 import ImageUpload from "@/components/ImageUpload";
 import TransitSelector from "@/components/TransitSelector";
+import AdvancedAvailabilityCalendar from "@/components/AdvancedAvailabilityCalendar";
 import FloorCountSelector from "@/components/FloorCountSelector";
 import RoomRentalForm from "@/components/RoomRentalForm";
 
@@ -62,19 +63,8 @@ function shouldShowFloorSelector(type, saleType, rentBatchMode) {
 
 // 给「批量 Rent 项目」在外面统一选 Category / Sub Type 用
 const LAYOUT_CATEGORY_OPTIONS = {
-  "Bungalow / Villa": [
-    "Bungalow",
-    "Link Bungalow",
-    "Twin Villa",
-    "Zero-Lot Bungalow",
-    "Bungalow land",
-  ],
-  "Apartment / Condo / Service Residence": [
-    "Apartment",
-    "Condominium",
-    "Flat",
-    "Service Residence",
-  ],
+  "Bungalow / Villa": ["Bungalow", "Link Bungalow", "Twin Villa", "Zero-Lot Bungalow", "Bungalow land"],
+  "Apartment / Condo / Service Residence": ["Apartment", "Condominium", "Flat", "Service Residence"],
   "Semi-Detached House": ["Cluster House", "Semi-Detached House"],
   "Terrace / Link House": ["Terraced House", "Townhouse"],
   "Business Property": [
@@ -125,35 +115,15 @@ const LAYOUT_CATEGORY_OPTIONS = {
   ],
 };
 
-// -------------------- 默认 AreaSelector 值 --------------------
-const defaultAreaData = {
-  types: ["buildUp"],
-  units: { buildUp: "square feet", land: "square feet" },
-  values: { buildUp: "", land: "" },
-};
-
-// -------------------- 房间表单默认对象 --------------------
-function makeDefaultRoomForm() {
-  return {
-    price: "",
-    areaData: JSON.parse(JSON.stringify(defaultAreaData)),
-    roomData: {}, // 给 RoomRentalForm 的 value（它会自己 merge defaultValue）
-  };
-}
-
 export default function UploadProperty() {
   const router = useRouter();
   const user = useUser();
   const fileInputRef = useRef(null);
 
-  useEffect(() => {
-    if (user === null) router.push("/login");
-  }, [user, router]);
-
-  if (!user) return <div>正在检查登录状态...</div>;
-
+  // ✅ hooks 必须在任何 return 之前（你之前那版会触发 hooks 顺序错误）
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+
   const [address, setAddress] = useState("");
   const [latitude, setLatitude] = useState(null);
   const [longitude, setLongitude] = useState(null);
@@ -162,13 +132,7 @@ export default function UploadProperty() {
   const [saleType, setSaleType] = useState(""); // Sale / Rent / Homestay / Hotel
   const [propertyStatus, setPropertyStatus] = useState(""); // New Project / Completed Unit / ...
   const [rentBatchMode, setRentBatchMode] = useState("no"); // "no" | "yes"
-
-  // ✅ 来自 TypeSelector：整间 / 房间出租
-  const [roomRentalMode, setRoomRentalMode] = useState("whole"); // whole | room
-  // ✅ 来自 TypeSelector：single / multi
-  const [roomCountMode, setRoomCountMode] = useState("single"); // single | multi
-  // ✅ 来自 TypeSelector：2~10
-  const [roomCount, setRoomCount] = useState("2");
+  const [roomRentalMode, setRoomRentalMode] = useState("whole"); // "whole" | "room"
 
   // 批量 Rent 项目：统一的 Property Category / Sub Type
   const [projectCategory, setProjectCategory] = useState("");
@@ -177,7 +141,7 @@ export default function UploadProperty() {
   // 项目类房源的 layout 列表
   const [unitLayouts, setUnitLayouts] = useState([]);
 
-  // 普通单一房源的表单数据（整间出租/出售）
+  // 普通单一房源 / 房间出租 表单的数据（RoomRentalForm 也复用这一份）
   const [singleFormData, setSingleFormData] = useState({
     price: "",
     buildUp: "",
@@ -200,14 +164,20 @@ export default function UploadProperty() {
     transit: null,
   });
 
-  // ✅ 整间出租/出售 的 areaData
-  const [areaData, setAreaData] = useState(JSON.parse(JSON.stringify(defaultAreaData)));
-
-  // ✅ 房间出租：房间表单数组（每个房间都有自己的 area + price + roomData）
-  const [roomForms, setRoomForms] = useState([makeDefaultRoomForm()]);
+  const [areaData, setAreaData] = useState({
+    types: ["buildUp"],
+    units: { buildUp: "square feet", land: "square feet" },
+    values: { buildUp: "", land: "" },
+  });
 
   const [availability, setAvailability] = useState({});
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (user === null) router.push("/login");
+  }, [user, router]);
+
+  if (!user) return <div>正在检查登录状态...</div>;
 
   // ---------- 地图 / 地址 ----------
   const handleLocationSelect = ({ lat, lng, address }) => {
@@ -221,17 +191,16 @@ export default function UploadProperty() {
     const num = parseFloat(String(val || "").replace(/,/g, ""));
     if (isNaN(num) || num <= 0) return 0;
     const u = (unit || "").toString().toLowerCase();
-    if (
-      u.includes("square meter") ||
-      u.includes("sq m") ||
-      u.includes("square metres") ||
-      u.includes("sqm")
-    ) {
+    if (u.includes("square meter") || u.includes("sq m") || u.includes("square metres") || u.includes("sqm")) {
       return num * 10.7639;
     }
     if (u.includes("acre")) return num * 43560;
     if (u.includes("hectare")) return num * 107639;
-    return num; // 默认 sqft
+    return num;
+  };
+
+  const handleAreaChange = (data) => {
+    setAreaData(data);
   };
 
   // ---------- Rent 批量项目的判定 ----------
@@ -247,32 +216,18 @@ export default function UploadProperty() {
     computedStatus?.includes("Completed Unit") ||
     computedStatus?.includes("Developer Unit");
 
-  // ✅ 是否「只出租房间」
-  const isRoomRental =
-    String(saleType || "").toLowerCase() === "rent" && roomRentalMode === "room" && !isProject;
+  // 是否「只出租房间」
+  const isRoomRental = String(saleType || "").toLowerCase() === "rent" && roomRentalMode === "room";
+
+  // ✅ New Project（Sale）才启用“复制字段到其它 layouts”的逻辑
+  const enableProjectAutoCopy =
+    String(saleType || "").toLowerCase() === "sale" &&
+    computedStatus === "New Project / Under Construction";
 
   // 当不再是项目类时，清空 layouts
   useEffect(() => {
     if (!isProject) setUnitLayouts([]);
   }, [isProject]);
-
-  // ✅ 根据 roomCountMode / roomCount 自动生成房间表单数量
-  useEffect(() => {
-    if (!isRoomRental) return;
-
-    const targetCount =
-      roomCountMode === "multi" ? Math.min(10, Math.max(2, parseInt(roomCount || "2", 10))) : 1;
-
-    setRoomForms((prev) => {
-      const list = Array.isArray(prev) ? prev : [];
-      if (list.length === targetCount) return list;
-
-      const next = [...list];
-      while (next.length < targetCount) next.push(makeDefaultRoomForm());
-      while (next.length > targetCount) next.pop();
-      return next;
-    });
-  }, [isRoomRental, roomCountMode, roomCount]);
 
   // 根据单一房源的配置生成图片上传配置
   const photoConfig = {
@@ -297,44 +252,14 @@ export default function UploadProperty() {
 
     setLoading(true);
     try {
-      // ✅ unit_layouts 组装：
-      // - 项目：unitLayouts
-      // - 非项目整间： [singleFormData]
-      // - 非项目房间出租：每个房间一份（包含自己的 price + areaData + roomData），并合并共享字段（extra/facilities/furniture/transit...）
-      let unitLayoutsPayload = [];
-
-      if (isProject && unitLayouts.length > 0) {
-        unitLayoutsPayload = unitLayouts;
-      } else if (isRoomRental) {
-        unitLayoutsPayload = roomForms.map((rf) => ({
-          // 共享字段（你说要放在“偏向种族”下面的那些）
-          extraSpaces: singleFormData.extraSpaces || [],
-          furniture: singleFormData.furniture || [],
-          facilities: singleFormData.facilities || [],
-          transit: singleFormData.transit || null,
-
-          // 每个房间自己的 price + area
-          price: rf.price || "",
-          area: rf.areaData || JSON.parse(JSON.stringify(defaultAreaData)),
-
-          // RoomRentalForm 自己的字段
-          ...(rf.roomData || {}),
-        }));
-      } else {
-        unitLayoutsPayload = [singleFormData];
-      }
-
       const { error } = await supabase
         .from("properties")
         .insert([
           {
             title,
             description,
-            unit_layouts: JSON.stringify(unitLayoutsPayload),
-
-            // ✅ 主表 price：整间出租用 singleFormData.price；房间出租就不强塞（避免误导）
-            price: !isRoomRental ? (singleFormData.price || undefined) : undefined,
-
+            unit_layouts: JSON.stringify(isProject && unitLayouts.length > 0 ? unitLayouts : [singleFormData]),
+            price: singleFormData.price || undefined,
             address,
             lat: latitude,
             lng: longitude,
@@ -343,15 +268,11 @@ export default function UploadProperty() {
             sale_type: saleType || null,
             property_status: computedStatus || null,
             build_year: singleFormData.buildYear,
-
             bedrooms: singleFormData.bedrooms,
             bathrooms: singleFormData.bathrooms,
             carpark: singleFormData.carpark,
             store: singleFormData.store,
-
-            // ✅ 主表 area：整间出租用 areaData；房间出租每房间有自己的
-            area: !isRoomRental ? JSON.stringify(areaData) : JSON.stringify({}),
-
+            area: JSON.stringify(areaData),
             facilities: JSON.stringify(singleFormData.facilities || []),
             furniture: JSON.stringify(singleFormData.furniture || []),
             facing: singleFormData.facing,
@@ -377,9 +298,8 @@ export default function UploadProperty() {
   // ---------- Homestay / Hotel 识别 ----------
   const saleTypeNorm = (saleType || "").toLowerCase();
   const isHomestay = saleTypeNorm.includes("homestay");
-  const isHotel = saleTypeNorm.includes("hotel");
+  const isHotel = saleTypeNorm.includes("hotel"); // 覆盖 "Hotel / Resort"
 
-  // ---------- JSX ----------
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-4">
       <h1 className="text-2xl font-bold mb-4">上传房源</h1>
@@ -397,16 +317,10 @@ export default function UploadProperty() {
           const newStatus = formData?.propertyStatus || "";
           const newSaleType = formData?.saleType || "";
           const newStoreys = formData?.storeys;
-
-          // ✅ 来自 TypeSelector
           const newRoomRentalMode = formData?.roomRentalMode || "whole";
-          const newRoomCountMode = formData?.roomCountMode || "single";
-          const newRoomCount = formData?.roomCount || "2";
 
           setSaleType(newSaleType);
           setRoomRentalMode(newRoomRentalMode);
-          setRoomCountMode(newRoomCountMode);
-          setRoomCount(newRoomCount);
 
           setPropertyStatus((prev) => (prev === newStatus ? prev : newStatus));
 
@@ -416,7 +330,7 @@ export default function UploadProperty() {
         }}
       />
 
-      {/* ========= Homestay / Hotel 统一用 HotelUploadForm ========= */}
+      {/* Homestay / Hotel */}
       {isHomestay || isHotel ? (
         <HotelUploadForm />
       ) : (
@@ -437,6 +351,7 @@ export default function UploadProperty() {
                         setProjectCategory(cat);
                         setProjectSubType("");
 
+                        // 把 Category 同步到所有 layout
                         setUnitLayouts((prev) =>
                           (Array.isArray(prev) ? prev : []).map((layout) => ({
                             ...layout,
@@ -488,52 +403,66 @@ export default function UploadProperty() {
                 </div>
               )}
 
-       
+              {/* 这个项目有多少个房型/layout？ */}
               <UnitTypeSelector
-  propertyStatus={computedStatus}
-  layouts={unitLayouts}
-  onChange={(newLayouts) => {
-    setUnitLayouts((prev) => {
-      const oldList = Array.isArray(prev) ? prev : [];
-      const nextList = Array.isArray(newLayouts) ? newLayouts : [];
+                propertyStatus={computedStatus}
+                layouts={unitLayouts}
+                onChange={(newLayouts) => {
+                  setUnitLayouts((prev) => {
+                    const oldList = Array.isArray(prev) ? prev : [];
+                    const nextList = Array.isArray(newLayouts) ? newLayouts : [];
 
-      // 👉 取“当前最新的第一个房型”作为模板
-      const template = oldList[0] || {};
+                    // ✅ 用“当前最新的第一个房型”当模板（New Project 才用）
+                    const template = oldList[0] || {};
 
-      const merged = nextList.map((incoming, index) => {
-        // 已存在的房型 → 保留自己的值
-        if (oldList[index]) {
-          return {
-            ...oldList[index],
-            ...incoming,
-          };
-        }
+                    const merged = nextList.map((incoming, index) => {
+                      const oldItem = oldList[index];
 
-        // 新增的房型（index > 0）
-        if (index > 0 && template) {
-          const copiedFields = {};
-          PROJECT_COPY_FIELDS.forEach((key) => {
-            if (template[key] !== undefined) {
-              copiedFields[key] = deepClone(template[key]);
-            }
-          });
+                      // 批量 Rent：把统一的 Category/SubType 贴进去
+                      const withProjectType =
+                        isBulkRentProject && projectCategory
+                          ? {
+                              propertyCategory: projectCategory,
+                              subType: projectSubType || (oldItem?.subType || ""),
+                            }
+                          : {};
 
-          return {
-            ...incoming,
-            ...copiedFields,
-          };
-        }
+                      // 已存在的 layout：保留自己的值（不会被模板覆盖）
+                      if (oldItem) {
+                        return {
+                          ...oldItem,
+                          ...incoming,
+                          ...withProjectType,
+                        };
+                      }
 
-        // index === 0（第一个）
-        return {
-          ...incoming,
-        };
-      });
+                      // 新增 layout（index > 0）：New Project 自动复制模板字段
+                      if (index > 0 && enableProjectAutoCopy && template) {
+                        const copiedFields = {};
+                        PROJECT_COPY_FIELDS.forEach((key) => {
+                          if (template[key] !== undefined) {
+                            copiedFields[key] = deepClone(template[key]);
+                          }
+                        });
 
-      return merged;
-    });
-  }}
-/>
+                        return {
+                          ...incoming,
+                          ...copiedFields,
+                          ...withProjectType,
+                        };
+                      }
+
+                      // index === 0（第一个）
+                      return {
+                        ...incoming,
+                        ...withProjectType,
+                      };
+                    });
+
+                    return merged;
+                  });
+                }}
+              />
 
               {unitLayouts.length > 0 && (
                 <div className="space-y-4 mt-4">
@@ -563,228 +492,84 @@ export default function UploadProperty() {
               )}
             </>
           ) : (
-            /* ------------ 普通非项目房源（整间 / 房间出租） ------------ */
+            /* ------------ 普通非项目房源（单一房源 & 房间出租） ------------ */
             <div className="space-y-4 mt-6">
-              {/* ✅ 房间出租：每个房间自己的 Area + Price（你要的） */}
+              <AreaSelector onChange={handleAreaChange} initialValue={areaData} />
+
+              <PriceInput
+                value={singleFormData.price}
+                onChange={(val) => setSingleFormData((prev) => ({ ...prev, price: val }))}
+                listingMode={saleType}
+                area={{
+                  buildUp: convertToSqft(areaData.values.buildUp, areaData.units.buildUp),
+                  land: convertToSqft(areaData.values.land, areaData.units.land),
+                }}
+              />
+
+              {/* 每平方英尺 RM 计算 */}
+              {(() => {
+                try {
+                  const buildUpSqft = convertToSqft(areaData.values.buildUp, areaData.units.buildUp);
+                  const landSqft = convertToSqft(areaData.values.land, areaData.units.land);
+                  const totalAreaSqft = (buildUpSqft || 0) + (landSqft || 0);
+
+                  const priceVal = singleFormData.price;
+                  if (!totalAreaSqft || !priceVal) return null;
+
+                  const priceNum = Number(String(priceVal).replace(/,/g, ""));
+                  if (!priceNum || !isFinite(priceNum)) return null;
+
+                  const psf = priceNum / totalAreaSqft;
+
+                  return (
+                    <p className="text-sm text-gray-600 mt-1">
+                      每平方英尺: RM{" "}
+                      {psf.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    </p>
+                  );
+                } catch (e) {
+                  return null;
+                }
+              })()}
+
+              {/* ✅ 房间出租表单 vs 普通整间出租/出售表单 */}
               {isRoomRental ? (
-                <div className="space-y-6">
-                  {roomForms.map((rf, idx) => {
-                    const buildUpSqft = convertToSqft(
-                      rf.areaData?.values?.buildUp,
-                      rf.areaData?.units?.buildUp
-                    );
-                    const landSqft = convertToSqft(
-                      rf.areaData?.values?.land,
-                      rf.areaData?.units?.land
-                    );
-                    const totalAreaSqft = (buildUpSqft || 0) + (landSqft || 0);
-
-                    const priceNum = Number(String(rf.price || "").replace(/,/g, ""));
-                    const psf =
-                      totalAreaSqft > 0 && Number.isFinite(priceNum) && priceNum > 0
-                        ? priceNum / totalAreaSqft
-                        : null;
-
-                    return (
-                      <div key={idx} className="border rounded-xl p-4 bg-white space-y-3">
-                        <h3 className="text-lg font-semibold">房间 {idx + 1}</h3>
-
-                        <AreaSelector
-                          onChange={(data) => {
-                            setRoomForms((prev) => {
-                              const next = [...prev];
-                              next[idx] = { ...next[idx], areaData: data };
-                              return next;
-                            });
-                          }}
-                          initialValue={rf.areaData}
-                        />
-
-                        <PriceInput
-                          value={rf.price}
-                          onChange={(val) => {
-                            setRoomForms((prev) => {
-                              const next = [...prev];
-                              next[idx] = { ...next[idx], price: val };
-                              return next;
-                            });
-                          }}
-                          listingMode={saleType}
-                          area={{
-                            buildUp: buildUpSqft,
-                            land: landSqft,
-                          }}
-                        />
-
-                        {psf !== null && (
-                          <p className="text-sm text-gray-600 mt-1">
-                            每平方英尺: RM{" "}
-                            {psf.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                          </p>
-                         )}
-
-                        <RoomRentalForm
-                          value={rf.roomData}
-                          onChange={(nextRoomData) => {
-                            setRoomForms((prev) => {
-                              const next = [...prev];
-                              next[idx] = { ...next[idx], roomData: nextRoomData };
-                              return next;
-                            });
-                          }}
-                          extraSection={
-                            <div className="space-y-4 mt-3">
-                              <ExtraSpacesSelector
-                                value={singleFormData.extraSpaces || []}
-                                onChange={(val) =>
-                                  setSingleFormData((prev) => ({ ...prev, extraSpaces: val }))
-                                }
-                              />
-
-                            <FurnitureSelector
-                                value={singleFormData.furniture || []}
-                                onChange={(val) =>
-                                  setSingleFormData((prev) => ({ ...prev, furniture: val }))
-                                }
-                              />
-
-                              <FacilitiesSelector
-                                value={singleFormData.facilities || []}
-                                onChange={(val) =>
-                                  setSingleFormData((prev) => ({ ...prev, facilities: val }))
-                                }
-                              />
-
-                              <TransitSelector
-                                value={singleFormData.transit || null}
-                                onChange={(info) =>
-                                  setSingleFormData((prev) => ({ ...prev, transit: info }))
-                                }
-                              />
-                            </div>
-}
-/>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                /* ✅ 整间出租/出售：原本表单保留 */
-                <>
-                  <AreaSelector onChange={(data) => setAreaData(data)} initialValue={areaData} />
-
-                  <PriceInput
-                    value={singleFormData.price}
-                    onChange={(val) => setSingleFormData((prev) => ({ ...prev, price: val }))}
-                    listingMode={saleType}
-                    area={{
-                      buildUp: convertToSqft(areaData.values.buildUp, areaData.units.buildUp),
-                      land: convertToSqft(areaData.values.land, areaData.units.land),
-                    }}
-/>
-
-                  {/* 每平方英尺 RM 计算 */}
-                  {(() => {
-                    try {
-                      const buildUpSqft = convertToSqft(areaData.values.buildUp, areaData.units.buildUp);
-                      const landSqft = convertToSqft(areaData.values.land, areaData.units.land);
-                      const totalAreaSqft = (buildUpSqft || 0) + (landSqft || 0);
-
-                      const priceVal = singleFormData.price;
-                      if (!totalAreaSqft || !priceVal) return null;
-
-                      const priceNum = Number(String(priceVal).replace(/,/g, ""));
-                      if (!priceNum || !isFinite(priceNum)) return null;
-
-                      const psf = priceNum / totalAreaSqft;
-
-                    return (
-                        <p className="text-sm text-gray-600 mt-1">
-                          每平方英尺: RM{" "}
-                          {psf.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                        </p>
-                      );
-                    } catch (e) {
-                      return null;
-                    }
-                  })()}
-
-                  <RoomCountSelector
-                    value={{
-                      bedrooms: singleFormData.bedrooms,
-                      bathrooms: singleFormData.bathrooms,
-                      kitchens: singleFormData.kitchens,
-                      livingRooms: singleFormData.livingRooms,
-                    }}
-                    onChange={(patch) => setSingleFormData((prev) => ({ ...prev, ...patch }))}
-                  />
-
-<CarparkCountSelector
-                    value={singleFormData.carpark}
-                    onChange={(val) => setSingleFormData((prev) => ({ ...prev, carpark: val }))}
-                    mode="single"
-                  />
-
-                  <CarparkLevelSelector
-                    value={singleFormData.carparkPosition}
-                    onChange={(val) =>
-                      setSingleFormData((prev) => ({ ...prev, carparkPosition: val }))
-                    }
-                    mode="single"
-                  />
-
-                  <ExtraSpacesSelector
-                    value={singleFormData.extraSpaces || []}
-                    onChange={(val) => setSingleFormData((prev) => ({ ...prev, extraSpaces: val }))}
-                  />
-
-<FacingSelector
-                    value={singleFormData.facing}
-                    onChange={(val) => setSingleFormData((prev) => ({ ...prev, facing: val }))}
-                  />
-
-                  <FurnitureSelector
-                    value={singleFormData.furniture}
-                    onChange={(val) => setSingleFormData((prev) => ({ ...prev, furniture: val }))}
-                  />
-
-                  {!isProject && shouldShowFloorSelector(type, saleType, rentBatchMode) && (
-                    <FloorCountSelector
-                      value={singleFormData.storeys}
-                      onChange={(v) => setSingleFormData((prev) => ({ ...prev, storeys: v }))}
-                    />
-                  )}
-
-                  <FacilitiesSelector
-                    value={singleFormData.facilities}
-                    onChange={(val) => setSingleFormData((prev) => ({ ...prev, facilities: val }))}
-                  />
-
+                <RoomRentalForm
+                  value={singleFormData}
+                  onChange={(next) => setSingleFormData((prev) => ({ ...prev, ...next }))}
+                  extraSection={
+                    <div className="space-y-4 mt-3">
+                      <ExtraSpacesSelector
+                        value={singleFormData.extraSpaces || []}
+                        onChange={(val) => setSingleFormData((prev) => ({ ...prev, extraSpaces: val }))}
+                      />
+                      <FurnitureSelector
+                        value={singleFormData.furniture || []}
+                        onChange={(val) => setSingleFormData((prev) => ({ ...prev, furniture: val }))}
+                      />
+                      <FacilitiesSelector
+                        value={singleFormData.facilities || []}
+                        onChange={(val) => setSingleFormData((prev) => ({ ...prev, facilities: val }))}
+                      />
                       <TransitSelector
                     value={singleFormData.transit || null}
                     onChange={(info) => setSingleFormData((prev) => ({ ...prev, transit: info }))}
                   />
 
-                  {/* 建成年份 / 预计完成年份：只在 Sale 时显示 */}
-                  {saleType === "Sale" &&
-                    computedStatus === "New Project / Under Construction" && (
-                      <BuildYearSelector
-                        value={singleFormData.buildYear}
-                        onChange={(val) => setSingleFormData((prev) => ({ ...prev, buildYear: val }))}
-                        quarter={singleFormData.quarter}
-                        onQuarterChange={(val) => setSingleFormData((prev) => ({ ...prev, quarter: val }))}
-                        showQuarter={true}
-                        label="预计交付时间"
-                      />
-                    )}
+                  {/* 建成年份 / 预计完成年份：统一放在交通信息下面，只在 Sale 时显示 */}
+                  {saleType === "Sale" && computedStatus === "New Project / Under Construction" && (
+                    <BuildYearSelector
+                      value={singleFormData.buildYear}
+                      onChange={(val) => setSingleFormData((prev) => ({ ...prev, buildYear: val }))}
+                      quarter={singleFormData.quarter}
+                      onQuarterChange={(val) => setSingleFormData((prev) => ({ ...prev, quarter: val }))}
+                      showQuarter={true}
+                      label="预计交付时间"
+                    />
+                  )}
 
-                  {saleType === "Sale" &&
-                    [
-                      "Completed Unit / Developer Unit",
-                      "Subsale / Secondary Market",
-                      "Auction Property",
-                      "Rent-to-Own Scheme",
-                    ].includes(computedStatus) && (
+{saleType === "Sale" &&
+                    ["Completed Unit / Developer Unit", "Subsale / Secondary Market", "Auction Property", "Rent-to-Own Scheme"].includes(computedStatus) && (
                       <BuildYearSelector
                         value={singleFormData.buildYear}
                         onChange={(val) => setSingleFormData((prev) => ({ ...prev, buildYear: val }))}
@@ -814,7 +599,7 @@ export default function UploadProperty() {
             </div>
           )}
 
-{/* 非项目类时的图片上传（房间出租也可以继续用这个；你现在逻辑是跟着 singleFormData.photos） */}
+{/* 非项目类时的图片上传 */}
           {!isProject && (
             <ImageUpload
               config={photoConfig}
