@@ -200,6 +200,15 @@ export default function TypeSelector({
     }
   }, [saleType, finalType, value, onChange]);
 
+
+  // ✅ 当切到批量 Rent（yes）时，强制回到整间，避免 upload 表单卡在 RoomRentalForm
+useEffect(() => {
+  if (saleType === "Rent" && rentBatchMode === "yes") {
+    setRoomRentalMode("whole");
+  }
+}, [saleType, rentBatchMode]);
+
+
   // ---------- 通知外部完整表单 ----------
   useEffect(() => {
     const formData = {
