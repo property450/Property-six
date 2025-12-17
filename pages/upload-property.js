@@ -544,53 +544,58 @@ export default function UploadProperty() {
 
               {/* ✅ 房间出租表单 vs 普通整间出租/出售表单 */}
               {isRoomRental ? (
-                <RoomRentalForm
-                  value={singleFormData}
-                  onChange={(next) =>
-                    setSingleFormData((prev) => ({ ...prev, ...next }))
-                  }
-                  extraSection={
-                    <div className="space-y-4 mt-3">
-                      <ExtraSpacesSelector
-                        value={singleFormData.extraSpaces || []}
-                        onChange={(val) =>
-                          setSingleFormData((prev) => ({
-                            ...prev,
-                            extraSpaces: val,
-                          }))
-                        }
-                      />
+  <RoomRentalForm
+    value={singleFormData}
+    onChange={(next) =>
+      setSingleFormData((prev) => ({ ...prev, ...next }))
+    }
+    extraSection={
+      <div className="space-y-4 mt-3">
+        <ExtraSpacesSelector
+          value={singleFormData.extraSpaces || []}
+          onChange={(val) =>
+            setSingleFormData((prev) => ({
+              ...prev,
+              extraSpaces: val,
+            }))
+          }
+        />
 
-                      <FurnitureSelector
-                        value={singleFormData.furniture || []}
-                        onChange={(val) =>
-                          setSingleFormData((prev) => ({
-                            ...prev,
-                            furniture: val,
-                          }))
-                        }
-                      />
+        <FurnitureSelector
+          value={singleFormData.furniture || []}
+          onChange={(val) =>
+            setSingleFormData((prev) => ({
+              ...prev,
+              furniture: val,
+            }))
+          }
+        />
 
-                      <FacilitiesSelector
-                        value={singleFormData.facilities || []}
-                        onChange={(val) =>
-                          setSingleFormData((prev) => ({
-                            ...prev,
-                            facilities: val,
-                          }))
-                        }
-                      />
+        <FacilitiesSelector
+          value={singleFormData.facilities || []}
+          onChange={(val) =>
+            setSingleFormData((prev) => ({
+              ...prev,
+              facilities: val,
+            }))
+          }
+        />
 
-                      <TransitSelector
-                    value={singleFormData.transit || null}
-                    onChange={(info) =>
-                      setSingleFormData((prev) => ({
-                        ...prev,
-                        transit: info,
-                      }))
-                    }
-                  />
-
+        <TransitSelector
+          value={singleFormData.transit || null}
+          onChange={(info) =>
+            setSingleFormData((prev) => ({
+              ...prev,
+              transit: info,
+            }))
+          }
+        />
+      </div>
+    }
+  />
+) : (
+  <>
+  
                   {/* 建成年份 / 预计完成年份：只在 Sale 时显示 */}
                   {saleType === "Sale" &&
                     computedStatus === "New Project / Under Construction" && (
