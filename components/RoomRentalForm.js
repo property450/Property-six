@@ -137,6 +137,42 @@ function MultiPick({ label, options, value = [], onChange }) {
 
 // ----------------- 床型：多选 + 数量 -----------------
 function BedTypePicker({ value = [], onChange }) {
+  const [open, setOpen] = useState(false);
+  const boxRef = useRef(null);
+
+  useEffect(() => {
+    const onDoc = (e) => {
+      if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+
+  const hasType = (t) => value.some((x) => x.type === t);
+  const isNoBedSelected = hasType("没有提供床");
+
+  const toggleType = (t) => {
+    // ✅ 选“没有提供床” → 清空其它，只保留它
+    if (t === "没有提供床") {
+      const next = isNoBedSelected ? [] : [{ type: "没有提供床", count: "" }];
+      onChange?.(next);
+      setOpen(false);
+      return;
+    }
+
+    // ✅ 选其它床型时，如果当前有“没有提供床”，先移除它
+    const base = isNoBedSelected ? value.filter((x) => x.type !== "没有提供床") : value;
+
+    const exists = base.some((x) => x.type === t);
+    const next = exists ? base.filter((x) => x.type !== t) : [...base, { type: t, count: "" }];
+    onChange?.(next);
+  };
+
+  const setCount = (t, count) => {
+    const next = value.map((x) => (x.type === t ? { ...x, count } : x));
+    onChange?.(next);
+  };
+
   const [openKey, setOpenKey] = useState(null);
   const refs = useRef({});
 
@@ -149,20 +185,7 @@ function BedTypePicker({ value = [], onChange }) {
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
 
-  const hasType = (t) => value.some((x) => x.type === t);
-
-  const toggleType = (t) => {
-    const exists = hasType(t);
-    const next = exists
-      ? value.filter((x) => x.type !== t)
-      : [...value, { type: t, count: "" }];
-    onChange?.(next);
-  };
-
-  const setCount = (t, count) => {
-    const next = value.map((x) => (x.type === t ? { ...x, count } : x));
-    onChange?.(next);
-  };
+  const quantityOptions = [0, 1, 2, 3, 4, 5, 6, "custom"];
 
   const pickCount = (t, opt) => {
     if (opt === "custom") {
@@ -174,67 +197,89 @@ function BedTypePicker({ value = [], onChange }) {
     setOpenKey(null);
   };
 
-  const quantityOptions = [0, 1, 2, 3, 4, 5, 6, "custom"];
+  const displayText =
+    value.length === 0
+      ? "请选择床型（可多选）"
+      : value.map((v) => `${v.type} ✅`).join("，");
 
   return (
-    <div className="space-y-2">
-      <label className="block text-sm font-medium text-gray-700">请选择床型（可多选 + 数量）</label>
+    <div className="space-y-2" ref={boxRef}>
+      <label className="block text-sm font-medium text-gray-700">
+        请选择床型（可多选 + 数量）
+      </label>
 
-      {/* 选择床型 */}
-      <div className="grid grid-cols-2 gap-2">
-        {BED_TYPE_OPTIONS.map((t) => {
-          const selected = hasType(t);
-          return (
-            <button
-              type="button"
-              key={t}
-              className={`border rounded p-2 text-left hover:bg-gray-50 ${
-                selected ? "bg-gray-50 font-semibold" : "bg-white"
-              }`}
-              onClick={() => toggleType(t)}
-            >
-              {t} {selected ? "✅" : ""}
-            </button>
-          );
-        })}
+      {/* 下拉显示框 */}
+      <div
+        className="w-full border rounded p-2 bg-white cursor-pointer"
+        onClick={() => setOpen((p) => !p)}
+      >
+        {value.length === 0 ? (
+          <span className="text-gray-400">{displayText}</span>
+        ) : (
+          <span className="font-medium">{displayText}</span>
+        )}
       </div>
 
-      {/* 数量 */}
-      <div className="space-y-3">
-        {value.map((item) => {
-          const display = /^\d+$/.test(String(item.count || ""))
-            ? formatNumber(item.count)
-            : item.count || "";
+      {/* 下拉菜单 */}
+      {open && (
+        <div className="border rounded bg-white shadow max-h-60 overflow-auto">
+          {BED_TYPE_OPTIONS.map((t) => {
+            const selected = hasType(t);
+            const disabled = isNoBedSelected && t !== "没有提供床"; // ✅ 选了“没有提供床”时其它选项不可选
+            return (
+              <div
+                key={t}
+                className={`px-3 py-2 flex items-center justify-between cursor-pointer hover:bg-gray-100 ${
+                  selected ? "bg-gray-50 font-semibold" : ""
+                } ${disabled ? "opacity-50 pointer-events-none" : ""}`}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  toggleType(t);
+                }}
+              >
+                <span>{t}</span>
+                {selected && <span className="text-green-600">✅</span>}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
-          return (
-            <div
-              key={item.type}
-              ref={(el) => (refs.current[item.type] = el)}
-              className="flex items-center gap-3 border p-3 rounded bg-gray-50"
-            >
-              <span className="font-medium">{item.type}</span>
+      {/* 数量区域：有“没有提供床”时不显示数量 */}
+      {!isNoBedSelected && value.length > 0 && (
+        <div className="space-y-3">
+          {value.map((item) => {
+            const display = /^\d+$/.test(String(item.count || ""))
+              ? formatNumber(item.count)
+              : item.count || "";
 
-              <div className="relative w-40">
-                <input
-                  type="text"
-                  className="w-full border rounded px-2 py-1 bg-white"
-                  placeholder="输入或选择数量"
-                  value={display}
-                  onChange={(e) => {
-                    const raw = parseNumber(e.target.value);
-                    if (!/^\d*$/.test(raw)) return;
-                    if (raw.length > 7) return;
-                    setCount(item.type, raw);
-                  }}
-                  onFocus={() => setOpenKey(item.type)}
-                  onClick={() => setOpenKey(item.type)}
-                />
+            return (
+              <div
+                key={item.type}
+                ref={(el) => (refs.current[item.type] = el)}
+                className="flex items-center gap-3 border p-3 rounded bg-gray-50"
+              >
+                <span className="font-medium">{item.type}</span>
 
-                {openKey === item.type && (
-                  <ul className="absolute z-20 mt-1 w-full bg-white border rounded shadow max-h-60 overflow-auto">
-                    {quantityOptions.map((opt) => {
-                      const isCustom = opt === "custom";
-                      return (
+                <div className="relative w-40">
+                  <input
+                    type="text"
+                    className="w-full border rounded px-2 py-1 bg-white"
+                    placeholder="输入或选择数量"
+                    value={display}
+                    onChange={(e) => {
+                      const raw = parseNumber(e.target.value);
+                      if (!/^\d*$/.test(raw)) return;
+                      if (raw.length > 7) return;
+                      setCount(item.type, raw);
+                    }}
+                    onFocus={() => setOpenKey(item.type)}
+                    onClick={() => setOpenKey(item.type)}
+                  />
+
+                  {openKey === item.type && (
+                    <ul className="absolute z-20 mt-1 w-full bg-white border rounded shadow max-h-60 overflow-auto">
+                      {quantityOptions.map((opt) => (
                         <li
                           key={String(opt)}
                           className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
@@ -243,17 +288,17 @@ function BedTypePicker({ value = [], onChange }) {
                             pickCount(item.type, opt);
                           }}
                         >
-                          {isCustom ? "自定义" : String(opt)}
+                          {opt === "custom" ? "自定义" : String(opt)}
                         </li>
-                      );
-                    })}
-                  </ul>
-                )}
+                      ))}
+                    </ul>
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
