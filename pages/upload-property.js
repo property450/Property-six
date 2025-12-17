@@ -35,6 +35,14 @@ const AddressSearchInput = dynamic(() => import("@/components/AddressSearchInput
   ssr: false,
 });
 
+// ✅ New Project：从第一个房型复制到其它房型的字段
+const PROJECT_COPY_FIELDS = ["extraSpaces", "furniture", "facilities", "transit"];
+
+// ✅ 深拷贝，避免 layout 之间引用同一个数组/对象造成联动
+function deepClone(obj) {
+  return JSON.parse(JSON.stringify(obj || {}));
+}
+
 // Rent + landed / business / industrial + 单一房源 时，显示「有多少层」
 function shouldShowFloorSelector(type, saleType, rentBatchMode) {
   if (!type) return false;
@@ -131,10 +139,6 @@ function makeDefaultRoomForm() {
     areaData: JSON.parse(JSON.stringify(defaultAreaData)),
     roomData: {}, // 给 RoomRentalForm 的 value（它会自己 merge defaultValue）
   };
-}
-
-function deepClone(obj) {
-  return JSON.parse(JSON.stringify(obj || {}));
 }
 
 export default function UploadProperty() {
@@ -484,15 +488,7 @@ export default function UploadProperty() {
                 </div>
               )}
 
-       // New Project：从第一个房型复制到其它房型的字段
-const PROJECT_COPY_FIELDS = [
-  "extraSpaces",
-  "furniture",
-  "facilities",
-  "transit",
-];
-
-
+       
               <UnitTypeSelector
   propertyStatus={computedStatus}
   layouts={unitLayouts}
