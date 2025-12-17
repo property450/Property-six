@@ -539,26 +539,40 @@ export default function UploadProperty() {
     onChange={(next) =>
       setSingleFormData((prev) => ({ ...prev, ...next }))
     }
-    extraSection={...}
+    extraSection={
+      <div className="space-y-4 mt-3">
+        <ExtraSpacesSelector
+          value={singleFormData.extraSpaces || []}
+          onChange={(val) =>
+            setSingleFormData((prev) => ({ ...prev, extraSpaces: val }))
+          }
+        />
+
+        <FurnitureSelector
+          value={singleFormData.furniture || []}
+          onChange={(val) =>
+            setSingleFormData((prev) => ({ ...prev, furniture: val }))
+          }
+        />
+
+        <FacilitiesSelector
+          value={singleFormData.facilities || []}
+          onChange={(val) =>
+            setSingleFormData((prev) => ({ ...prev, facilities: val }))
+          }
+        />
+
+        <TransitSelector
+          value={singleFormData.transit || null}
+          onChange={(info) =>
+            setSingleFormData((prev) => ({ ...prev, transit: info }))
+          }
+        />
+      </div>
+    }
   />
 ) : (
   <div className="space-y-4">
-                      <ExtraSpacesSelector
-                        value={singleFormData.extraSpaces || []}
-                        onChange={(val) => setSingleFormData((prev) => ({ ...prev, extraSpaces: val }))}
-                      />
-                      <FurnitureSelector
-                        value={singleFormData.furniture || []}
-                        onChange={(val) => setSingleFormData((prev) => ({ ...prev, furniture: val }))}
-                      />
-                      <FacilitiesSelector
-                        value={singleFormData.facilities || []}
-                        onChange={(val) => setSingleFormData((prev) => ({ ...prev, facilities: val }))}
-                      />
-                      <TransitSelector
-                    value={singleFormData.transit || null}
-                    onChange={(info) => setSingleFormData((prev) => ({ ...prev, transit: info }))}
-                  />
 
                   {/* 建成年份 / 预计完成年份：统一放在交通信息下面，只在 Sale 时显示 */}
                   {saleType === "Sale" &&
