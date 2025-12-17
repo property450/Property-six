@@ -837,10 +837,11 @@ onChange={(patch) => {
       <div className="mb-4">
         <label className="font-medium">交通信息</label>
         <TransitSelector
-          onChange={(val) => {
-            handleFieldChange("transit", val);
-          }}
-        />
+  value={layout.transit || null}
+  onChange={(val) => {
+    handleFieldChange("transit", val);
+  }}
+/>
       </div>
 
       {/* 建成年份 + 季度 */}
