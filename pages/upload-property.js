@@ -534,11 +534,15 @@ export default function UploadProperty() {
 
               {/* ✅ 房间出租表单 vs 普通整间出租/出售表单 */}
               {isRoomRental ? (
-                <RoomRentalForm
-                  value={singleFormData}
-                  onChange={(next) => setSingleFormData((prev) => ({ ...prev, ...next }))}
-                  extraSection={
-                    <div className="space-y-4 mt-3">
+  <RoomRentalForm
+    value={singleFormData}
+    onChange={(next) =>
+      setSingleFormData((prev) => ({ ...prev, ...next }))
+    }
+    extraSection={...}
+  />
+) : (
+  <div className="space-y-4">
                       <ExtraSpacesSelector
                         value={singleFormData.extraSpaces || []}
                         onChange={(val) => setSingleFormData((prev) => ({ ...prev, extraSpaces: val }))}
@@ -557,30 +561,49 @@ export default function UploadProperty() {
                   />
 
                   {/* 建成年份 / 预计完成年份：统一放在交通信息下面，只在 Sale 时显示 */}
-                  {saleType === "Sale" && computedStatus === "New Project / Under Construction" && (
-                    <BuildYearSelector
-                      value={singleFormData.buildYear}
-                      onChange={(val) => setSingleFormData((prev) => ({ ...prev, buildYear: val }))}
-                      quarter={singleFormData.quarter}
-                      onQuarterChange={(val) => setSingleFormData((prev) => ({ ...prev, quarter: val }))}
-                      showQuarter={true}
-                      label="预计交付时间"
-                    />
-                  )}
+                  {saleType === "Sale" &&
+      computedStatus === "New Project / Under Construction" && (
+        <BuildYearSelector
+          value={singleFormData.buildYear}
+          onChange={(val) =>
+            setSingleFormData((prev) => ({
+              ...prev,
+              buildYear: val,
+            }))
+          }
+          quarter={singleFormData.quarter}
+          onQuarterChange={(val) =>
+            setSingleFormData((prev) => ({
+              ...prev,
+              quarter: val,
+            }))
+          }
+          showQuarter
+          label="预计交付时间"
+        />
+      )}
 
-{saleType === "Sale" &&
-                    ["Completed Unit / Developer Unit", "Subsale / Secondary Market", "Auction Property", "Rent-to-Own Scheme"].includes(computedStatus) && (
-                      <BuildYearSelector
-                        value={singleFormData.buildYear}
-                        onChange={(val) => setSingleFormData((prev) => ({ ...prev, buildYear: val }))}
-                        quarter={undefined}
-                        onQuarterChange={() => {}}
-                        showQuarter={false}
-                        label="完成年份"
-                      />
-                    )}
-                </>
-              )}
+            {saleType === "Sale" &&
+      [
+        "Completed Unit / Developer Unit",
+        "Subsale / Secondary Market",
+        "Auction Property",
+        "Rent-to-Own Scheme",
+      ].includes(computedStatus) && (
+        <BuildYearSelector
+          value={singleFormData.buildYear}
+          onChange={(val) =>
+            setSingleFormData((prev) => ({
+              ...prev,
+              buildYear: val,
+            }))
+          }
+          showQuarter={false}
+          label="完成年份"
+        />
+      )}
+  </div>
+)}
 
 {/* 房源描述（整间 / 单间都要有） */}
               <div className="space-y-2">
