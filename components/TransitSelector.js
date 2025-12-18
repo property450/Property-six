@@ -1,10 +1,11 @@
-//components/TransitSelector.js
+// components/TransitSelector.js
 "use client";
-import { useState, useEffect } from "react";
+
+import { useMemo } from "react";
 import Select from "react-select";
 import CreatableSelect from "react-select/creatable";
 
-// 🚉 所有路线和站点数据
+// 🚉 所有路线和站点数据（保持你原本的）
 const transitData = {
   "KTM Seremban Line": [
     "Batu Caves","Taman Wahyu","Kampung Batu","Batu Kentonmen","Sentul",
@@ -53,7 +54,7 @@ const transitData = {
     "Sri Damansara Timur","Metro Prima","Kepong Baru","Jinjang","Sri Delima","Kampung Batu","Batu Kentonmen",
     "Jalan Ipoh","Sentul Barat","Titiwangsa","Hospital Kuala Lumpur","Raja Uda","Ampang Park",
     "Persiaran KLCC","Conlay","Tun Razak Exchange","Chan Sow Lin","Bandar Malaysia Utara","Bandar Malaysia Selatan",
-    "Kuchai","Taman Naga Emas","Sri Petaling","Sungai Besi","Serdang Raya Utara","Serdang Raya Selatan",
+    "Kuchai","Taman Naga Emas","Sri Petaling","Sungai Buli","Serdang Raya Utara","Serdang Raya Selatan",
     "Serdang Jaya","UPM","Taman Universiti","Cyberjaya Utara","Cyberjaya City Centre","Putrajaya Sentral"
   ],
   "KL Monorail": [
@@ -67,67 +68,106 @@ const transitData = {
   "BRT Sunway": [
     "Setia Jaya","Mentari","Sunway Lagoon","SunMed","SunU-Monash","South Quay-USJ1","USJ7"
   ],
-  "Custom": [] // 自定义
+  "Custom": []
 };
 
-export default function TransitSelector({ onChange }) {
-  const [nearTransit, setNearTransit] = useState(null);
-  const [selectedLines, setSelectedLines] = useState([]);
-  const [selectedStations, setSelectedStations] = useState({});
+const YESNO_OPTIONS = [
+  { value: "yes", label: "Yes" },
+  { value: "no", label: "No" },
+];
 
-  useEffect(() => {
-    if (onChange) {
-      onChange({ nearTransit, selectedLines, selectedStations });
-    }
-  }, [nearTransit, selectedLines, selectedStations, onChange]);
+function safeValue(v) {
+  if (!v || typeof v !== "object") {
+    return { nearTransit: null, selectedLines: [], selectedStations: {} };
+  }
+  return {
+    nearTransit: v.nearTransit ?? null,
+    selectedLines: Array.isArray(v.selectedLines) ? v.selectedLines : [],
+    selectedStations: v.selectedStations && typeof v.selectedStations === "object" ? v.selectedStations : {},
+  };
+}
+
+export default function TransitSelector({ value, onChange }) {
+  const v = safeValue(value);
+
+  const lineOptions = useMemo(
+    () => Object.keys(transitData).map((line) => ({ value: line, label: line })),
+    []
+  );
+
+  const selectedLineOptions = useMemo(
+    () => v.selectedLines.map((line) => ({ value: line, label: line })),
+    [v.selectedLines]
+  );
+
+  const setNearTransit = (next) => {
+    const nextObj = {
+      ...v,
+      nearTransit: next,
+      // 选 No 时，把后面全部清空（避免残留）
+      selectedLines: next === "yes" ? v.selectedLines : [],
+      selectedStations: next === "yes" ? v.selectedStations : {},
+    };
+    onChange?.(nextObj);
+  };
+
+  const setSelectedLines = (opts) => {
+    const nextLines = (opts || []).map((o) => o.value);
+    // 只保留还存在的 stations
+    const nextStations = {};
+    nextLines.forEach((line) => {
+      if (v.selectedStations?.[line]) nextStations[line] = v.selectedStations[line];
+    });
+
+    onChange?.({
+      ...v,
+      selectedLines: nextLines,
+      selectedStations: nextStations,
+    });
+  };
+
+  const setStationsForLine = (line, vals) => {
+    onChange?.({
+      ...v,
+      selectedStations: {
+        ...(v.selectedStations || {}),
+        [line]: vals || [],
+      },
+    });
+  };
 
   return (
     <div className="space-y-4">
-      {/* Step 1 */}
       <label className="font-medium">你的产业步行能到达公共交通吗？</label>
       <Select
-        options={[
-          { value: "yes", label: "Yes" },
-          { value: "no", label: "No" }
-        ]}
-        onChange={(opt) => setNearTransit(opt.value)}
+        options={YESNO_OPTIONS}
+        value={YESNO_OPTIONS.find((x) => x.value === v.nearTransit) || null}
+        onChange={(opt) => setNearTransit(opt?.value || null)}
         placeholder="请选择..."
       />
 
-      {/* Step 2: 路线多选 */}
-      {nearTransit === "yes" && (
+      {v.nearTransit === "yes" && (
         <div>
           <label className="font-medium">请选择路线 (可多选)</label>
           <Select
             isMulti
-            options={Object.keys(transitData).map((line) => ({
-              value: line,
-              label: line
-            }))}
-            value={selectedLines.map((line) => ({ value: line, label: line }))}
-            onChange={(opts) => {
-              setSelectedLines(opts.map((o) => o.value));
-              setSelectedStations({}); // 重置站点
-            }}
+            options={lineOptions}
+            value={selectedLineOptions}
+            onChange={setSelectedLines}
             placeholder="选择路线..."
           />
         </div>
       )}
 
-      {/* Step 3: 每条路线显示站点选择 */}
-      {nearTransit === "yes" &&
-        selectedLines.map((line) =>
+      {v.nearTransit === "yes" &&
+        v.selectedLines.map((line) =>
           line === "Custom" ? (
             <div key={line}>
               <label className="font-medium">请输入自定义站点</label>
               <CreatableSelect
                 isMulti
-                onChange={(vals) =>
-                  setSelectedStations((prev) => ({
-                    ...prev,
-                    [line]: vals
-                  }))
-                }
+                value={v.selectedStations?.[line] || []}
+                onChange={(vals) => setStationsForLine(line, vals)}
                 placeholder="输入站点名称..."
               />
             </div>
@@ -136,17 +176,9 @@ export default function TransitSelector({ onChange }) {
               <label className="font-medium">{line} - 请选择站点</label>
               <Select
                 isMulti
-                options={transitData[line].map((s) => ({
-                  value: s,
-                  label: s
-                }))}
-                value={selectedStations[line] || []}
-                onChange={(vals) =>
-                  setSelectedStations((prev) => ({
-                    ...prev,
-                    [line]: vals
-                  }))
-                }
+                options={(transitData[line] || []).map((s) => ({ value: s, label: s }))}
+                value={v.selectedStations?.[line] || []}
+                onChange={(vals) => setStationsForLine(line, vals)}
                 placeholder="选择站点..."
               />
             </div>
@@ -154,4 +186,4 @@ export default function TransitSelector({ onChange }) {
         )}
     </div>
   );
-                  }
+}
