@@ -344,8 +344,12 @@ export default function UnitLayoutForm({
   projectCategory,
   projectSubType,
   lockCategory = false,
+  enableCommonCopy = false,
 }) {
   const layout = data || {};
+
+  // ✅ Sale -> New Project：Layout1 统一复制/脱钩（只影响：家私/设施/额外空间/公共交通）
+  const inheritCommon = enableCommonCopy && index > 0 ? layout._inheritCommon !== false : false;
   const fileInputRef = useRef(null);
 
   const projectType = layout.projectType; // UploadProperty 里已经传进来了
@@ -410,6 +414,36 @@ export default function UnitLayoutForm({
     facilities: layout.facilities || [],
     orientation: layout.facing || "",
   });
+
+
+// ✅ 关键修复：当父组件把「复制过来的 common 字段」写回 layout 后，
+// 这里必须同步到本地 photoConfig，否则界面看起来像“没有复制”。
+useEffect(() => {
+  setPhotoConfig((prev) => ({
+    ...prev,
+    bedrooms: layout.bedrooms || "",
+    bathrooms: layout.bathrooms || "",
+    kitchens: layout.kitchens || "",
+    livingRooms: layout.livingRooms || "",
+    carpark: layout.carpark || "",
+    store: layout.store || "",
+    extraSpaces: layout.extraSpaces || [],
+    furniture: layout.furniture || [],
+    facilities: layout.facilities || [],
+    orientation: layout.facing || [],
+  }));
+}, [
+  layout.bedrooms,
+  layout.bathrooms,
+  layout.kitchens,
+  layout.livingRooms,
+  layout.carpark,
+  layout.store,
+  layout.extraSpaces,
+  layout.furniture,
+  layout.facilities,
+  layout.facing,
+]);
 
   // ✅ 当父组件复制/同步 layout 数据时（比如 Layout1 -> Layout2），这里要同步更新本地 photoConfig，
   // 否则 UI 看起来不会变化（但实际上 layout 已经变了）。
@@ -606,6 +640,36 @@ useEffect(() => {
   return (
     <div className="border rounded-lg p-4 shadow-sm bg-white">
       <h3 className="font-semibold mb-3">Layout {index + 1}</h3>
+
+      {enableCommonCopy && index > 0 && (
+        <div className="mb-3 p-3 rounded-lg border bg-gray-50">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={inheritCommon}
+              onChange={(e) =>
+                updateLayout({ _inheritCommon: e.target.checked }, { toggleInherit: true })
+              }
+            />
+            <span>
+              跟随 Layout 1（家私 / 设施 / 额外空间 / 公共交通）
+              <span className="text-gray-500">（取消勾选=脱钩，可独立设置）</span>
+            </span>
+          </label>
+          {!inheritCommon && (
+            <button
+              type="button"
+              className="mt-2 text-sm underline text-gray-600 hover:text-gray-800"
+              onClick={() =>
+                updateLayout({ _inheritCommon: true }, { toggleInherit: true })
+              }
+            >
+              重新跟随并复制 Layout 1
+            </button>
+          )}
+        </div>
+      )}
+
 
       {/* 上传 Layout 图纸 */}
       <div className="mb-3">
@@ -850,59 +914,77 @@ onChange={(patch) => {
         }
       />
 
-{/* 额外空间 */}
-      <ExtraSpacesSelector
-        value={photoConfig.extraSpaces}
+
+{/* 额外空间（common） */}
+<div className={inheritCommon ? "opacity-70" : ""}>
+  <div className={inheritCommon ? "pointer-events-none" : ""}>
+    <ExtraSpacesSelector
+      value={photoConfig.extraSpaces}
+      onChange={(val) => {
+        setPhotoConfig((prev) => ({ ...prev, extraSpaces: val }));
+        updateLayout({ extraSpaces: val }, { commonField: "extraSpaces" });
+      }}
+    />
+  </div>
+</div>
+
+{/* 朝向 */}
+<FacingSelector
+  value={photoConfig.orientation}
+  onChange={(val) => {
+    setPhotoConfig((prev) => ({ ...prev, orientation: val }));
+    handleFieldChange("facing", val);
+  }}
+/>
+
+{/* 车位楼层 */}
+<CarparkLevelSelector
+  value={layout.carparkPosition}
+  onChange={(val) => handleFieldChange("carparkPosition", val)}
+  mode="range"
+/>
+
+{/* 家具（common） */}
+<div className={inheritCommon ? "opacity-70" : ""}>
+  <div className={inheritCommon ? "pointer-events-none" : ""}>
+    <FurnitureSelector
+      value={photoConfig.furniture}
+      onChange={(val) => {
+        setPhotoConfig((prev) => ({ ...prev, furniture: val }));
+        updateLayout({ furniture: val }, { commonField: "furniture" });
+      }}
+    />
+  </div>
+</div>
+
+{/* 设施（common） */}
+<div className={inheritCommon ? "opacity-70" : ""}>
+  <div className={inheritCommon ? "pointer-events-none" : ""}>
+    <FacilitiesSelector
+      value={photoConfig.facilities}
+      onChange={(val) => {
+        setPhotoConfig((prev) => ({ ...prev, facilities: val }));
+        updateLayout({ facilities: val }, { commonField: "facilities" });
+      }}
+    />
+  </div>
+</div>
+
+{/* 公共交通（common） */}
+<div className={inheritCommon ? "opacity-70" : ""}>
+  <div className={inheritCommon ? "pointer-events-none" : ""}>
+    <div className="mb-4">
+      <label className="font-medium">交通信息</label>
+      <TransitSelector
+        value={normalizeTransitValue(layout.transit)}
         onChange={(val) => {
-          setPhotoConfig((prev) => ({ ...prev, extraSpaces: val }));
-          updateLayout({ extraSpaces: val }, { commonField: "extraSpaces" });
+          const v = normalizeTransitOnChange(val);
+          updateLayout({ transit: v }, { commonField: "transit" });
         }}
       />
-
-      {/* 朝向 */}
-      <FacingSelector
-        value={photoConfig.orientation}
-        onChange={(val) => {
-          setPhotoConfig((prev) => ({ ...prev, orientation: val }));
-          handleFieldChange("facing", val);
-        }}
-      />
-
-      {/* 车位楼层 */}
-      <CarparkLevelSelector
-      value={layout.carparkPosition}
-        onChange={(val) => handleFieldChange("carparkPosition", val)}
-        mode="range"
-      />
-
-      {/* 家具 / 设施 */}
-      <FurnitureSelector
-        value={photoConfig.furniture}
-        onChange={(val) => {
-          setPhotoConfig((prev) => ({ ...prev, furniture: val }));
-          updateLayout({ furniture: val }, { commonField: "furniture" });
-        }}
-      />
-
-      <FacilitiesSelector
-        value={photoConfig.facilities}
-        onChange={(val) => {
-          setPhotoConfig((prev) => ({ ...prev, facilities: val }));
-          updateLayout({ facilities: val }, { commonField: "facilities" });
-        }}
-      />
-
-          {/* 交通信息（每个 layout 自己的） */}
-      <div className="mb-4">
-        <label className="font-medium">交通信息</label>
-        <TransitSelector
-          value={normalizeTransitValue(layout.transit)}
-          onChange={(val) => {
-            const v = normalizeTransitOnChange(val);
-            updateLayout({ transit: v }, { commonField: "transit" });
-          }}
-        />
-      </div>
+    </div>
+  </div>
+</div>
 
       {/* 建成年份 + 季度 */}
       {showBuildYear && (
@@ -978,4 +1060,4 @@ onChange={(patch) => {
       </div>
     </div>
   );
-          }
+                                        }
