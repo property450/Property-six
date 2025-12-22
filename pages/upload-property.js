@@ -36,7 +36,7 @@ const AddressSearchInput = dynamic(
   { ssr: false }
 );
 
-// 鎵归噺 Rent 椤圭洰锛氱粺涓€ Category / Sub Type
+// 批量 Rent 项目：统一 Category / Sub Type
 const LAYOUT_CATEGORY_OPTIONS = {
   "Bungalow / Villa": [
     "Bungalow",
@@ -101,10 +101,10 @@ const LAYOUT_CATEGORY_OPTIONS = {
   ],
 };
 
-// 鉁� 浣犺澶嶅埗/鑴遍挬鐨� common 瀛楁锛堝彧鍋氳繖鍥涗釜锛�
+// ✅ 你要复制/脱钩的 common 字段（只做这四个）
 const COMMON_KEYS = ["extraSpaces", "furniture", "facilities", "transit"];
 
-// 娣辨嫹璐濓紝閬垮厤寮曠敤鍏变韩瀵艰嚧鈥滄敼涓€涓奖鍝嶅叏閮ㄢ€�
+// 深拷贝，避免引用共享导致“改一个影响全部”
 function cloneDeep(v) {
   try {
     return JSON.parse(JSON.stringify(v));
@@ -113,7 +113,7 @@ function cloneDeep(v) {
   }
 }
 
-// 鍙彁鍙� common 瀛楁
+// 只提取 common 字段
 function pickCommon(layout) {
   const o = layout || {};
   return {
@@ -124,7 +124,7 @@ function pickCommon(layout) {
   };
 }
 
-// 鐢ㄤ簬鍒ゆ柇 common 鏄惁鍙樺寲
+// 用于判断 common 是否变化
 function commonHash(layout) {
   try {
     return JSON.stringify(pickCommon(layout));
@@ -133,30 +133,30 @@ function commonHash(layout) {
   }
 }
 
-// 鉁呫€愬叧閿慨澶嶃€戞妸 UnitTypeSelector onChange 鐨勮繑鍥炲€硷紝缁熶竴鍙樻垚 layouts 鏁扮粍
+// ✅【关键修复】把 UnitTypeSelector onChange 的返回值，统一变成 layouts 数组
 function normalizeLayoutsFromUnitTypeSelector(payload) {
-  // 1) 宸茬粡鏄暟缁� -> 鐩存帴杩斿洖
+  // 1) 已经是数组 -> 直接返回
   if (Array.isArray(payload)) return payload;
 
-  // 2) 鍙兘鐩存帴鍥炰紶鏁板瓧锛堥€夋嫨浜嗗嚑涓埧鍨嬶級
+  // 2) 可能直接回传数字（选择了几个房型）
   if (typeof payload === "number") {
     const n = Math.max(0, Math.floor(payload));
     return Array.from({ length: n }, () => ({}));
   }
 
-  // 3) 鍙兘鍥炰紶瀛楃涓叉暟瀛�
+  // 3) 可能回传字符串数字
   if (typeof payload === "string" && /^\d+$/.test(payload.trim())) {
     const n = Math.max(0, Math.floor(Number(payload.trim())));
     return Array.from({ length: n }, () => ({}));
   }
 
-  // 4) 鍙兘鏄璞★細{ count: 3 } / { layoutCount: 3 } / { unitCount: 3 }
+  // 4) 可能是对象：{ count: 3 } / { layoutCount: 3 } / { unitCount: 3 }
   if (payload && typeof payload === "object") {
-    // 甯歌瀛楁浼樺厛锛歭ayouts / unitLayouts
+    // 常见字段优先：layouts / unitLayouts
     if (Array.isArray(payload.layouts)) return payload.layouts;
     if (Array.isArray(payload.unitLayouts)) return payload.unitLayouts;
 
-    // 甯歌 count 瀛楁
+    // 常见 count 字段
     const maybeCount =
       payload.count ??
       payload.layoutCount ??
@@ -175,11 +175,11 @@ function normalizeLayoutsFromUnitTypeSelector(payload) {
     }
   }
 
-  // 5) 涓嶈璇嗙殑鏍煎紡 -> 杩斿洖绌�
+  // 5) 不认识的格式 -> 返回空
   return [];
 }
 
-// 闈㈢Н鍗曚綅杞崲
+// 面积单位转换
 const convertToSqft = (val, unit) => {
   const num = parseFloat(String(val || "").replace(/,/g, ""));
   if (isNaN(num) || num <= 0) return 0;
@@ -200,28 +200,28 @@ export default function UploadProperty() {
   const router = useRouter();
   const user = useUser();
 
-  // 鍩虹淇℃伅
+  // 基础信息
   const [title, setTitle] = useState("");
-  const [description, setDescription] = useState(""); // 椤跺眰鎻忚堪
+  const [description, setDescription] = useState(""); // 顶层描述
   const [address, setAddress] = useState("");
   const [latitude, setLatitude] = useState(null);
   const [longitude, setLongitude] = useState(null);
 
-  // 鏉ヨ嚜 TypeSelector 鐨勫€�
+  // 来自 TypeSelector 的值
   const [type, setType] = useState("");
   const [saleType, setSaleType] = useState(""); // Sale / Rent / Homestay / Hotel...
   const [propertyStatus, setPropertyStatus] = useState(""); // New Project / Under Construction ...
   const [rentBatchMode, setRentBatchMode] = useState("no"); // "no" | "yes"
   const [roomRentalMode, setRoomRentalMode] = useState("whole"); // "whole" | "room"
 
-  // 鎵归噺 Rent 椤圭洰锛氱粺涓€ Category/SubType
+  // 批量 Rent 项目：统一 Category/SubType
   const [projectCategory, setProjectCategory] = useState("");
   const [projectSubType, setProjectSubType] = useState("");
 
-  // 椤圭洰 layouts锛圢ew Project / Completed Unit / Rent batch etc 閮藉湪杩欓噷锛�
+  // 项目 layouts（New Project / Completed Unit / Rent batch etc 都在这里）
   const [unitLayouts, setUnitLayouts] = useState([]);
 
-  // 闈為」鐩紙鍗曚竴鎴挎簮锛夋暟鎹�
+  // 非项目（单一房源）数据
   const [singleFormData, setSingleFormData] = useState({
     price: "",
     buildUp: "",
@@ -244,7 +244,7 @@ export default function UploadProperty() {
     transit: null,
   });
 
-  // AreaSelector 鏁版嵁
+  // AreaSelector 数据
   const [areaData, setAreaData] = useState({
     types: ["buildUp"],
     units: { buildUp: "square feet", land: "square feet" },
@@ -256,14 +256,14 @@ export default function UploadProperty() {
 
   const [loading, setLoading] = useState(false);
 
-  // 鐧诲綍妫€鏌�
+  // 登录检查
   useEffect(() => {
     if (user === null) router.push("/login");
   }, [user, router]);
 
-  if (!user) return <>姝ｅ湪妫€鏌ョ櫥褰曠姸鎬�...</>;
+  if (!user) return <>正在检查登录状态...</>;
 
-  // 鍦板潃閫夋嫨
+  // 地址选择
   const handleLocationSelect = ({ lat, lng, address }) => {
     setLatitude(lat);
     setLongitude(lng);
@@ -271,7 +271,7 @@ export default function UploadProperty() {
   };
 
   // -----------------------------
-  // 鍒ゅ畾椤圭洰/妯″紡
+  // 判定项目/模式
   // -----------------------------
   const saleTypeNorm = (saleType || "").toLowerCase();
   const isHomestay = saleTypeNorm.includes("homestay");
@@ -294,17 +294,17 @@ export default function UploadProperty() {
     String(saleType || "").toLowerCase() === "rent" &&
     roomRentalMode === "room";
 
-  // 鉁� 鍙湪 Sale + New Project 鍚敤 鈥淟ayout1 鍚屾/鑴遍挬鈥�
+  // ✅ 只在 Sale + New Project 启用 “Layout1 同步/脱钩”
   const enableProjectAutoCopy =
     String(saleType || "").toLowerCase() === "sale" &&
     computedStatus === "New Project / Under Construction";
 
-  // 涓嶅啀鏄」鐩被鏃舵竻绌� layouts
+  // 不再是项目类时清空 layouts
   useEffect(() => {
     if (!isProject) setUnitLayouts([]);
   }, [isProject]);
 
-  // 鉁� 鍏抽敭锛氬綋 Layout1(common)鍙樺寲鏃讹紝鍚屾缁欎粛鍦ㄧ户鎵跨殑 layout
+  // ✅ 关键：当 Layout1(common)变化时，同步给仍在继承的 layout
   const lastCommonHashRef = useRef(null);
   useEffect(() => {
     if (!enableProjectAutoCopy) return;
@@ -333,7 +333,7 @@ export default function UploadProperty() {
     lastCommonHashRef.current = h;
   }, [enableProjectAutoCopy, unitLayouts]);
 
-  // 鍥剧墖涓婁紶 config锛堥潪椤圭洰锛�
+  // 图片上传 config（非项目）
   const photoConfig = {
     bedrooms: singleFormData.bedrooms || "",
     bathrooms: singleFormData.bathrooms || "",
@@ -348,11 +348,11 @@ export default function UploadProperty() {
   };
 
   // -----------------------------
-  // 鎻愪氦
+  // 提交
   // -----------------------------
   const handleSubmit = async () => {
     if (!title || !address || !latitude || !longitude) {
-      toast.error("璇峰～鍐欏畬鏁翠俊鎭�");
+      toast.error("请填写完整信息");
       return;
     }
     setLoading(true);
@@ -393,48 +393,48 @@ export default function UploadProperty() {
 
       if (error) throw error;
 
-      toast.success("鎴挎簮涓婁紶鎴愬姛");
+      toast.success("房源上传成功");
       router.push("/");
     } catch (err) {
       console.error(err);
-      toast.error("涓婁紶澶辫触锛岃妫€鏌ユ帶鍒跺彴");
+      toast.error("上传失败，请检查控制台");
     } finally {
       setLoading(false);
     }
   };
 
   // -----------------------------
-  // 娓叉煋
+  // 渲染
   // -----------------------------
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-4">
-      <h1 className="text-2xl font-bold">涓婁紶鎴挎簮</h1>
+      <h1 className="text-2xl font-bold">上传房源</h1>
 
-      {/* 鏍囬 */}
+      {/* 标题 */}
       <input
         className="w-full border rounded-lg p-2"
-        placeholder="鎴挎簮鏍囬"
+        placeholder="房源标题"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
       />
 
-      {/* 鍦板潃 */}
+      {/* 地址 */}
       <div className="space-y-2">
-        <label className="font-medium">鍦板潃</label>
+        <label className="font-medium">地址</label>
         <AddressSearchInput onSelect={handleLocationSelect} />
         {address ? (
-          <div className="text-sm text-gray-600">宸查€夋嫨锛歿address}</div>
+          <div className="text-sm text-gray-600">已选择：{address}</div>
         ) : null}
       </div>
 
-      {/* 鉁� TypeSelector锛氭纭帴娉曪紙鍏抽敭淇锛� */}
+      {/* ✅ TypeSelector：正确接法（关键修复） */}
       <TypeSelector
         onChange={(typeString) => {
-          // TypeSelector 鐨� onChange 鍙細鍥炰紶瀛楃涓诧紙鏈€缁� type锛�
+          // TypeSelector 的 onChange 只会回传字符串（最终 type）
           setType(typeString || "");
         }}
         onFormChange={(formData) => {
-          // 鉁� 杩欓噷鎵嶆槸鏁村寘鏁版嵁
+          // ✅ 这里才是整包数据
           const newSaleType = formData?.saleType || "";
           const newStatus = formData?.propertyStatus || "";
           const newRentBatchMode = formData?.rentBatchMode || "no";
@@ -450,22 +450,22 @@ export default function UploadProperty() {
         onChangeRentBatchMode={setRentBatchMode}
       />
 
-      {/* Homestay / Hotel 琛ㄥ崟淇濇寔 */}
+      {/* Homestay / Hotel 表单保持 */}
       {isHomestay || isHotel ? (
         <HotelUploadForm />
       ) : (
         <>
           {/* -----------------------------
-              椤圭洰妯″紡锛圢ew Project / Completed Unit / Developer Unit锛�
+              项目模式（New Project / Completed Unit / Developer Unit）
              ----------------------------- */}
           {isProject ? (
             <>
-              {/* Bulk Rent 椤圭洰锛氱粺涓€ Category/SubType */}
+              {/* Bulk Rent 项目：统一 Category/SubType */}
               {isBulkRentProject && (
                 <div className="space-y-3 border rounded-lg p-3 bg-gray-50">
                   <div>
                     <label className="font-medium">
-                      Property Category锛堟暣涓」鐩級
+                      Property Category（整个项目）
                     </label>
                     <select
                       value={projectCategory}
@@ -474,7 +474,7 @@ export default function UploadProperty() {
                         setProjectCategory(cat);
                         setProjectSubType("");
 
-                        // 鍚屾鍒板凡瀛樺湪 layouts
+                        // 同步到已存在 layouts
                         setUnitLayouts((prev) =>
                           (Array.isArray(prev) ? prev : []).map((l) => ({
                             ...l,
@@ -485,7 +485,7 @@ export default function UploadProperty() {
                       }}
                       className="mt-1 block w-full border rounded-lg p-2"
                     >
-                      <option value="">璇烽€夋嫨绫诲埆</option>
+                      <option value="">请选择类别</option>
                       {Object.keys(LAYOUT_CATEGORY_OPTIONS).map((cat) => (
                         <option key={cat} value={cat}>
                           {cat}
@@ -496,7 +496,7 @@ export default function UploadProperty() {
 
                   {projectCategory && LAYOUT_CATEGORY_OPTIONS[projectCategory] && (
                     <div>
-                      <label className="font-medium">Sub Type锛堟暣涓」鐩級</label>
+                      <label className="font-medium">Sub Type（整个项目）</label>
                       <select
                         value={projectSubType}
                         onChange={(e) => {
@@ -512,7 +512,7 @@ export default function UploadProperty() {
                         }}
                         className="mt-1 block w-full border rounded-lg p-2"
                       >
-                        <option value="">璇烽€夋嫨鍏蜂綋绫诲瀷</option>
+                        <option value="">请选择具体类型</option>
                         {LAYOUT_CATEGORY_OPTIONS[projectCategory].map((item) => (
                           <option key={item} value={item}>
                             {item}
@@ -524,21 +524,21 @@ export default function UploadProperty() {
                 </div>
               )}
 
-              {/* 鉁� 閫夋嫨鎴垮瀷鏁伴噺 -> 鐢熸垚瀵瑰簲 UnitLayoutForm锛堝叧閿慨澶嶏細琛ラ綈 props锛� */}
+              {/* ✅ 选择房型数量 -> 生成对应 UnitLayoutForm（关键修复：补齐 props） */}
               <UnitTypeSelector
-                propertyStatus={computedStatus} // 鉁� 蹇呬紶锛屽惁鍒欏畠浼� return null
-                layouts={unitLayouts} // 鉁� 蹇呬紶锛屽惁鍒欏畠鏃犳硶鈥滃鍑忊€濅繚鎸佸凡濉唴瀹�
+                propertyStatus={computedStatus} // ✅ 必传，否则它会 return null
+                layouts={unitLayouts} // ✅ 必传，否则它无法“增减”保持已填内容
                 onChange={(payload) => {
                   const normalized = normalizeLayoutsFromUnitTypeSelector(payload);
 
                   setUnitLayouts((prev) => {
                     const oldList = Array.isArray(prev) ? prev : [];
-                    const nextList = normalized; // 鉁� 鐜板湪淇濊瘉鏄暟缁�
+                    const nextList = normalized; // ✅ 现在保证是数组
 
                     const merged = nextList.map((incoming, idx) => {
                       const oldItem = oldList[idx] || {};
 
-                      // bulk rent锛氬己鍒跺啓鍏� category/subType
+                      // bulk rent：强制写入 category/subType
                       const withProjectType =
                         isBulkRentProject && projectCategory
                           ? {
@@ -547,8 +547,8 @@ export default function UploadProperty() {
                             }
                           : {};
 
-                      // 鉁� index0 姘歌繙涓嶇户鎵�
-                      // 鉁� index>0 榛樿缁ф壙 true锛堥櫎闈炴棫鐨勫凡缁忚劚閽╋級
+                      // ✅ index0 永远不继承
+                      // ✅ index>0 默认继承 true（除非旧的已经脱钩）
                       const inherit =
                         idx === 0
                           ? false
@@ -564,7 +564,7 @@ export default function UploadProperty() {
                       };
                     });
 
-                    // 鉁� 鏂板 layouts 鏃讹細绔嬪埢澶嶅埗涓€娆� layout0 鐨� common 缁欎粛缁ф壙鐨�
+                    // ✅ 新增 layouts 时：立刻复制一次 layout0 的 common 给仍继承的
                     if (enableProjectAutoCopy && merged.length > 1) {
                       const common0 = pickCommon(merged[0] || {});
                       return merged.map((l, idx) => {
@@ -579,7 +579,7 @@ export default function UploadProperty() {
                 }}
               />
 
-              {/* 娓叉煋 layouts */}
+              {/* 渲染 layouts */}
               {unitLayouts.length > 0 && (
                 <div className="space-y-4 mt-4">
                   {unitLayouts.map((layout, index) => (
@@ -597,8 +597,13 @@ export default function UploadProperty() {
 
                           const prevLayout = base[index] || {};
                           const updatedLayout = { ...prevLayout, ...updated };
+                          // ✅ 如果是 common 字段（额外空间/家私/设施/公共交通），并且不是第一个 layout：立刻脱钩
+                          if (enableProjectAutoCopy && index > 0 && meta?.commonField) {
+                            updatedLayout._inheritCommon = false;
+                          }
 
-                          // 鍒濆鍖� inherit flag
+
+                          // 初始化 inherit flag
                           if (index === 0) updatedLayout._inheritCommon = false;
                           if (
                             index > 0 &&
@@ -610,34 +615,21 @@ export default function UploadProperty() {
                                 : true;
                           }
 
-                          const isCommonField =
-                            !!meta?.commonField &&
-                            Array.isArray(COMMON_KEYS) &&
-                            COMMON_KEYS.includes(meta.commonField);
-
-                          // 鉁� index>0锛氭敼浜� common锛堝洓涓瓧娈碉級鈫� 绔嬪埢鑴遍挬
+                          // ✅ index>0：只要你改了 common（四个字段），立刻脱钩
                           if (enableProjectAutoCopy && index > 0) {
-                            if (isCommonField) {
+                            const prevH = commonHash(prevLayout);
+                            const nextH = commonHash(updatedLayout);
+                            if (prevH !== nextH) {
                               updatedLayout._inheritCommon = false;
-                            } else {
-                              // 鍏滃簳锛氬鏋滄煇浜涘湴鏂规病鏈変紶 meta锛屽氨鐢� hash 鍒ゆ柇
-                              const prevH = commonHash(prevLayout);
-                              const nextH = commonHash(updatedLayout);
-                              if (prevH !== nextH) {
-                                updatedLayout._inheritCommon = false;
-                              }
                             }
                           }
 
                           next[index] = updatedLayout;
 
-                          // 鉁� index==0锛氭敼浜� common 鈫� 鍚屾缁欎粛缁ф壙鐨� layout
+                          // ✅ index==0：改了 common，就同步到仍继承的 layout
                           if (enableProjectAutoCopy && index === 0) {
-                            const shouldSync = isCommonField
-                              ? true
-                              : commonHash(prevLayout) !== commonHash(updatedLayout);
-
-                            if (shouldSync) {
+                            // ✅ Layout 1 改了 common 字段：立即同步给仍在继承的 layout（不等 useEffect）
+                            if (meta?.commonField) {
                               const common0 = pickCommon(updatedLayout);
                               for (let i = 1; i < next.length; i++) {
                                 const li = next[i] || {};
@@ -645,10 +637,18 @@ export default function UploadProperty() {
                                   next[i] = { ...li, ...cloneDeep(common0) };
                                 }
                               }
-                              // 璁╀笂闈㈢殑 effect 涓嶈閲嶅鍚屾
-                              try {
-                                lastCommonHashRef.current = commonHash(updatedLayout);
-                              } catch {}
+                            }
+
+                            const prevH = commonHash(prevLayout);
+                            const nextH = commonHash(updatedLayout);
+                            if (prevH !== nextH) {
+                              const common0 = pickCommon(updatedLayout);
+                              for (let i = 1; i < next.length; i++) {
+                                const li = next[i] || {};
+                                if (li._inheritCommon === true) {
+                                  next[i] = { ...li, ...cloneDeep(common0) };
+                                }
+                              }
                             }
                           }
 
@@ -662,7 +662,7 @@ export default function UploadProperty() {
             </>
           ) : (
             /* -----------------------------
-               闈為」鐩細鍗曚竴鎴挎簮 / 鎴块棿鍑虹閫昏緫
+               非项目：单一房源 / 房间出租逻辑
              ----------------------------- */
             <div className="space-y-4">
               <AreaSelector
@@ -793,7 +793,7 @@ export default function UploadProperty() {
                     }
                   />
 
-                  {/* BuildYear 鏉′欢淇濇寔 */}
+                  {/* BuildYear 条件保持 */}
                   {saleType === "Sale" &&
                     computedStatus === "New Project / Under Construction" && (
                       <BuildYearSelector
@@ -806,7 +806,7 @@ export default function UploadProperty() {
                           setSingleFormData((p) => ({ ...p, quarter: val }))
                         }
                         showQuarter
-                        label="棰勮浜や粯鏃堕棿"
+                        label="预计交付时间"
                       />
                     )}
 
@@ -823,18 +823,18 @@ export default function UploadProperty() {
                           setSingleFormData((p) => ({ ...p, buildYear: val }))
                         }
                         showQuarter={false}
-                        label="瀹屾垚骞翠唤"
+                        label="完成年份"
                       />
                     )}
                 </>
               )}
 
               <div>
-                <label className="block font-medium mb-1">鎴挎簮鎻忚堪</label>
+                <label className="block font-medium mb-1">房源描述</label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="璇疯緭鍏ユ埧婧愯缁嗘弿杩�..."
+                  placeholder="请输入房源详细描述..."
                   rows={4}
                   className="w-full border rounded-lg p-2 resize-y"
                 />
@@ -859,8 +859,8 @@ export default function UploadProperty() {
         disabled={loading}
         className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full"
       >
-        {loading ? "涓婁紶涓�..." : "鎻愪氦鎴挎簮"}
+        {loading ? "上传中..." : "提交房源"}
       </Button>
     </div>
   );
-}
+                }
