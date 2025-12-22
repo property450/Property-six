@@ -1,7 +1,7 @@
-﻿// components/UnitLayoutForm.js
+// components/UnitLayoutForm.js
 "use client";
 
-import { useState, useRef, useEffect, Fragment } from "react";
+import { useState, useRef, useEffect } from "react";
 
 import PriceInput from "./PriceInput";
 import CarparkCountSelector from "./CarparkCountSelector";
@@ -14,6 +14,15 @@ import CarparkLevelSelector from "./CarparkLevelSelector";
 import RoomCountSelector from "./RoomCountSelector";
 import AreaSelector from "./AreaSelector";
 import TransitSelector from "./TransitSelector";
+
+// 深拷贝（用于复制 common 字段）
+function cloneDeep(v) {
+  try {
+    return JSON.parse(JSON.stringify(v));
+  } catch {
+    return v;
+  }
+}
 import FloorCountSelector from "./FloorCountSelector";
 
 /** 把 AreaSelector 返回的对象，转换成「总平方英尺」 */
@@ -337,43 +346,6 @@ function getPhotoLabelsFromConfig(config) {
 // ================================
 // 组件主体
 // ================================
-
-// 安全 stringify：用于生成 key（避免 selector 半受控导致 UI 不刷新）
-function safeStringify(v) {
-  try {
-    return JSON.stringify(v);
-  } catch {
-    return String(Date.now());
-  }
-}
-
-
-// TransitSelector 的值兼容处理（避免“选了但不记住”）
-// 统一转成字符串 "Yes" / "No" / ""，并兼容 event / {value} / {walkable:boolean}
-function normalizeTransitValue(v) {
-  if (v === undefined || v === null) return "";
-  if (typeof v === "string") return v;
-  if (typeof v === "boolean") return v ? "Yes" : "No";
-  if (typeof v === "object") {
-    if (v?.target && typeof v.target.value !== "undefined") return String(v.target.value);
-    if (typeof v.value !== "undefined") return String(v.value);
-    if (typeof v.walkable === "boolean") return v.walkable ? "Yes" : "No";
-  }
-  return "";
-}
-
-// onChange 也统一成 "Yes"/"No"/""（兼容 event / {value} / {walkable:boolean} / boolean）
-function normalizeTransitOnChange(val) {
-  if (val && typeof val === "object") {
-    if (val.target && typeof val.target.value !== "undefined") return val.target.value;
-    if (typeof val.value !== "undefined") return val.value;
-    if (typeof val.walkable === "boolean") return val.walkable ? "Yes" : "No";
-  }
-  if (typeof val === "boolean") return val ? "Yes" : "No";
-  return val ?? "";
-}
-
-
 export default function UnitLayoutForm({
   index,
   data,
@@ -382,19 +354,9 @@ export default function UnitLayoutForm({
   projectSubType,
   lockCategory = false,
   enableCommonCopy = false,
+  commonFromFirst = null,
 }) {
   const layout = data || {};
-
-  // ✅ Sale -> New Project：Layout1 统一复制/脱钩（只影响：家私/设施/额外空间/公共交通）
-  const inheritCommon = enableCommonCopy && index > 0 ? layout._inheritCommon !== false : false;
-
-  const commonRenderKey = safeStringify({
-    inheritCommon,
-    extraSpaces: Array.isArray(layout.extraSpaces) ? layout.extraSpaces : [],
-    furniture: Array.isArray(layout.furniture) ? layout.furniture : [],
-    facilities: Array.isArray(layout.facilities) ? layout.facilities : [],
-    transit: normalizeTransitValue(layout.transit),
-  });
   const fileInputRef = useRef(null);
 
   const projectType = layout.projectType; // UploadProperty 里已经传进来了
@@ -457,70 +419,18 @@ export default function UnitLayoutForm({
     extraSpaces: layout.extraSpaces || [],
     furniture: layout.furniture || [],
     facilities: layout.facilities || [],
-    orientation: layout.facing || "",
+    orientation: layout.facing || [],
   });
 
-
-// ✅ 关键修复：当父组件把「复制过来的 common 字段」写回 layout 后，
-// 这里必须同步到本地 photoConfig，否则界面看起来像“没有复制”。
-useEffect(() => {
-  setPhotoConfig((prev) => ({
-    ...prev,
-    bedrooms: layout.bedrooms || "",
-    bathrooms: layout.bathrooms || "",
-    kitchens: layout.kitchens || "",
-    livingRooms: layout.livingRooms || "",
-    carpark: layout.carpark || "",
-    store: layout.store || "",
-    extraSpaces: layout.extraSpaces || [],
-    furniture: layout.furniture || [],
-    facilities: layout.facilities || [],
-    orientation: layout.facing || [],
-  }));
-}, [
-  layout.bedrooms,
-  layout.bathrooms,
-  layout.kitchens,
-  layout.livingRooms,
-  layout.carpark,
-  layout.store,
-  layout.extraSpaces,
-  layout.furniture,
-  layout.facilities,
-  layout.facing,
-]);
-
-  // ✅ 当父组件复制/同步 layout 数据时（比如 Layout1 -> Layout2），这里要同步更新本地 photoConfig，
-  // 否则 UI 看起来不会变化（但实际上 layout 已经变了）。
+  // ✅ 当父组件“复制 common 字段”到这个 layout 时，photoConfig 也要同步，不然 UI 看起来像“没复制”
   useEffect(() => {
     setPhotoConfig((prev) => ({
       ...prev,
-      bedrooms: layout.bedrooms || "",
-      bathrooms: layout.bathrooms || "",
-      kitchens: layout.kitchens || "",
-      livingRooms: layout.livingRooms || "",
-      carpark: layout.carpark || "",
-      store: layout.store || "",
       extraSpaces: Array.isArray(layout.extraSpaces) ? layout.extraSpaces : [],
       furniture: Array.isArray(layout.furniture) ? layout.furniture : [],
       facilities: Array.isArray(layout.facilities) ? layout.facilities : [],
-      orientation: layout.facing || "",
     }));
-    // 只在 layout 对应字段变化时更新（避免输入时抖动）
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    layout.bedrooms,
-    layout.bathrooms,
-    layout.kitchens,
-    layout.livingRooms,
-    layout.carpark,
-    layout.store,
-    layout.facing,
-    JSON.stringify(layout.extraSpaces || []),
-    JSON.stringify(layout.furniture || []),
-    JSON.stringify(layout.facilities || []),
-  ]);
-
+  }, [layout.extraSpaces, layout.furniture, layout.facilities]);
 
   // layout.photos 里按 label 存图片
   const photosByLabel = layout.photos || {};
@@ -576,21 +486,10 @@ useEffect(() => {
   }, []);
 
   // 更新 layout
-  const updateLayout = (patch, meta = {}) => {
+  const updateLayout = (patch) => {
     const updated = { ...layout, ...patch };
-    onChange && onChange(updated, meta);
+    onChange && onChange(updated);
   };
-      if (typeof val.value !== "undefined") return val.value;
-      if (typeof val.walkable === "boolean") return val.walkable ? "Yes" : "No";
-    }
-    if (typeof val === "boolean") return val ? "Yes" : "No";
-    return val ?? "";
-  };
-
-  // 用于生成稳定 key，强制某些 selector 在父组件复制后重新渲染（解决“看起来没复制”的问题）
-  
-
-
 
   const handleFieldChange = (field, value) => {
     updateLayout({ [field]: value });
@@ -670,36 +569,6 @@ useEffect(() => {
     <div className="border rounded-lg p-4 shadow-sm bg-white">
       <h3 className="font-semibold mb-3">Layout {index + 1}</h3>
 
-      {enableCommonCopy && index > 0 && (
-        <div className="mb-3 p-3 rounded-lg border bg-gray-50">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={inheritCommon}
-              onChange={(e) =>
-                updateLayout({ _inheritCommon: e.target.checked }, { toggleInherit: true })
-              }
-            />
-            <span>
-              跟随 Layout 1（家私 / 设施 / 额外空间 / 公共交通）
-              <span className="text-gray-500">（取消勾选=脱钩，可独立设置）</span>
-            </span>
-          </label>
-          {!inheritCommon && (
-            <button
-              type="button"
-              className="mt-2 text-sm underline text-gray-600 hover:text-gray-800"
-              onClick={() =>
-                updateLayout({ _inheritCommon: true }, { toggleInherit: true })
-              }
-            >
-              重新跟随并复制 Layout 1
-            </button>
-          )}
-        </div>
-      )}
-
-
       {/* 上传 Layout 图纸 */}
       <div className="mb-3">
         <button
@@ -761,7 +630,7 @@ useEffect(() => {
 
       {/* Sub Type + 层数 + Property Subtype */}
       {category && CATEGORY_OPTIONS[category] && (
-        <Fragment>
+        <>
           {/* Sub Type——批量项目时不在这里选 */}
           {!lockCategory && (
             <div className="mb-3">
@@ -844,7 +713,7 @@ useEffect(() => {
               )}
             </div>
           )}
-        </Fragment>
+        </>
       )}
 
       {/* 这个房型有多少个单位？ */}
@@ -944,76 +813,80 @@ onChange={(patch) => {
       />
 
 
-{/* 额外空间（common） */}
-<div className={""}>
-  <div className={""}>
-    <ExtraSpacesSelector key={`es-${index}-${commonRenderKey}`}
-      value={photoConfig.extraSpaces}
-      onChange={(val) => {
-        setPhotoConfig((prev) => ({ ...prev, extraSpaces: val }));
-        updateLayout({ extraSpaces: val }, { commonField: "extraSpaces" });
-      }}
-    />
-  </div>
-</div>
+      {/* ✅ New Project：Layout2+ 默认跟随 Layout1（可脱钩） */}
+      {enableCommonCopy && index > 0 && (
+        <div className="flex items-center gap-2 mb-2">
+          <input
+            type="checkbox"
+            checked={layout._inheritCommon !== false}
+            onChange={(e) => {
+              const checked = e.target.checked;
+              if (checked) {
+                // 重新跟随：把 Layout1 的 common 再复制一次，并标记继承
+                const common = commonFromFirst ? cloneDeep(commonFromFirst) : {};
+                updateLayout({ _inheritCommon: true, ...common });
+              } else {
+                // 脱钩：之后 Layout1 再改不会覆盖这里
+                updateLayout({ _inheritCommon: false });
+              }
+            }}
+          />
+          <span className="text-sm">跟随第一个房型（自动复制）</span>
+        </div>
+      )}
 
-{/* 朝向 */}
-<FacingSelector
-  value={photoConfig.orientation}
-  onChange={(val) => {
-    setPhotoConfig((prev) => ({ ...prev, orientation: val }));
-    handleFieldChange("facing", val);
-  }}
-/>
-
-{/* 车位楼层 */}
-<CarparkLevelSelector
-  value={layout.carparkPosition}
-  onChange={(val) => handleFieldChange("carparkPosition", val)}
-  mode="range"
-/>
-
-{/* 家具（common） */}
-<div className={""}>
-  <div className={""}>
-    <FurnitureSelector key={`fur-${index}-${commonRenderKey}`}
-      value={photoConfig.furniture}
-      onChange={(val) => {
-        setPhotoConfig((prev) => ({ ...prev, furniture: val }));
-        updateLayout({ furniture: val }, { commonField: "furniture" });
-      }}
-    />
-  </div>
-</div>
-
-{/* 设施（common） */}
-<div className={""}>
-  <div className={""}>
-    <FacilitiesSelector key={`fac-${index}-${commonRenderKey}`}
-      value={photoConfig.facilities}
-      onChange={(val) => {
-        setPhotoConfig((prev) => ({ ...prev, facilities: val }));
-        updateLayout({ facilities: val }, { commonField: "facilities" });
-      }}
-    />
-  </div>
-</div>
-
-{/* 公共交通（common） */}
-<div className={""}>
-  <div className={""}>
-    <div className="mb-4">
-      <label className="font-medium">交通信息</label>
-      <TransitSelector key={`tr-${index}-${commonRenderKey}`}
-        value={normalizeTransitValue(layout.transit)}
+{/* 额外空间 */}
+      <ExtraSpacesSelector
+        value={photoConfig.extraSpaces}
         onChange={(val) => {
-          const v = normalizeTransitOnChange(val);
-          updateLayout({ transit: v }, { commonField: "transit" });
+          setPhotoConfig((prev) => ({ ...prev, extraSpaces: val }));
+          handleFieldChange("extraSpaces", val);
         }}
       />
-    </div>
-  </div>
-</div>
+
+      {/* 朝向 */}
+      <FacingSelector
+        value={photoConfig.orientation}
+        onChange={(val) => {
+          setPhotoConfig((prev) => ({ ...prev, orientation: val }));
+          handleFieldChange("facing", val);
+        }}
+      />
+
+      {/* 车位楼层 */}
+      <CarparkLevelSelector
+      value={layout.carparkPosition}
+        onChange={(val) => handleFieldChange("carparkPosition", val)}
+        mode="range"
+      />
+
+      {/* 家具 / 设施 */}
+      <FurnitureSelector
+        value={photoConfig.furniture}
+        onChange={(val) => {
+          setPhotoConfig((prev) => ({ ...prev, furniture: val }));
+          handleFieldChange("furniture", val);
+        }}
+      />
+
+      <FacilitiesSelector
+        value={photoConfig.facilities}
+        onChange={(val) => {
+          setPhotoConfig((prev) => ({ ...prev, facilities: val }));
+          handleFieldChange("facilities", val);
+        }}
+      />
+
+          {/* 交通信息（每个 layout 自己的） */}
+      <div className="mb-4">
+        <label className="font-medium">交通信息</label>
+        <TransitSelector
+  value={layout.transit || null}
+  onChange={(val) => {
+    handleFieldChange("transit", val);
+  }}
+/>
+      </div>
 
       {/* 建成年份 + 季度 */}
       {showBuildYear && (
