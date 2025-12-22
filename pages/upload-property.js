@@ -297,7 +297,8 @@ export default function UploadProperty() {
   // ✅ 只在 Sale + New Project 启用 “Layout1 同步/脱钩”
   const enableProjectAutoCopy =
     String(saleType || "").toLowerCase() === "sale" &&
-    computedStatus === "New Project / Under Construction";
+    (computedStatus?.includes("New Project") ||
+      computedStatus?.includes("Under Construction"));
 
   // 不再是项目类时清空 layouts
   useEffect(() => {
@@ -597,202 +598,8 @@ export default function UploadProperty() {
 
                           const prevLayout = base[index] || {};
                           const updatedLayout = { ...prevLayout, ...updated };
-                          // ✅ 如果是 common 字段（额外空间/家私/设施/公共交通），并且不是第一个 layout：立刻脱钩
-                          if (enableProjectAutoCopy && index > 0 && meta?.commonField) {
-                            updatedLayout._inheritCommon = false;
-                          }
 
-
-                          // 初始化 inherit flag
-                          if (index === 0) updatedLayout._inheritCommon = false;
-                          if (
-                            index > 0 &&
-                            typeof updatedLayout._inheritCommon !== "boolean"
-                          ) {
-                            updatedLayout._inheritCommon =
-                              typeof prevLayout._inheritCommon === "boolean"
-                                ? prevLayout._inheritCommon
-                                : true;
-                          }
-
-                          // ✅ index>0：只要你改了 common（四个字段），立刻脱钩
-                          if (enableProjectAutoCopy && index > 0) {
-                            const prevH = commonHash(prevLayout);
-                            const nextH = commonHash(updatedLayout);
-                            if (prevH !== nextH) {
-                              updatedLayout._inheritCommon = false;
-                            }
-                          }
-
-                          next[index] = updatedLayout;
-
-                          // ✅ index==0：改了 common，就同步到仍继承的 layout
-                          if (enableProjectAutoCopy && index === 0) {
-                            // ✅ Layout 1 改了 common 字段：立即同步给仍在继承的 layout（不等 useEffect）
-                            if (meta?.commonField) {
-                              const common0 = pickCommon(updatedLayout);
-                              for (let i = 1; i < next.length; i++) {
-                                const li = next[i] || {};
-                                if (li._inheritCommon === true) {
-                                  next[i] = { ...li, ...cloneDeep(common0) };
-                                }
-                              }
-                            }
-
-                            const prevH = commonHash(prevLayout);
-                            const nextH = commonHash(updatedLayout);
-                            if (prevH !== nextH) {
-                              const common0 = pickCommon(updatedLayout);
-                              for (let i = 1; i < next.length; i++) {
-                                const li = next[i] || {};
-                                if (li._inheritCommon === true) {
-                                  next[i] = { ...li, ...cloneDeep(common0) };
-                                }
-                              }
-                            }
-                          }
-
-                          return next;
-                        });
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
-            </>
-          ) : (
-            /* -----------------------------
-               非项目：单一房源 / 房间出租逻辑
-             ----------------------------- */
-            <div className="space-y-4">
-              <AreaSelector
-                initialValue={areaData}
-                onChange={(val) => setAreaData(val)}
-              />
-
-              <PriceInput
-                value={singleFormData.price}
-                onChange={(val) =>
-                  setSingleFormData((p) => ({ ...p, price: val }))
-                }
-                listingMode={saleType}
-                area={{
-                  buildUp: convertToSqft(
-                    areaData.values.buildUp,
-                    areaData.units.buildUp
-                  ),
-                  land: convertToSqft(areaData.values.land, areaData.units.land),
-                }}
-              />
-
-              {isRoomRental ? (
-                <RoomRentalForm
-                  value={singleFormData}
-                  onChange={(nextData) =>
-                    setSingleFormData((p) => ({ ...p, ...nextData }))
-                  }
-                  extraSection={
-                    <div className="space-y-3">
-                      <ExtraSpacesSelector
-                        value={singleFormData.extraSpaces}
-                        onChange={(val) =>
-                          setSingleFormData((p) => ({
-                            ...p,
-                            extraSpaces: val,
-                          }))
-                          }
-                      />
-                      <FurnitureSelector
-                        value={singleFormData.furniture}
-                        onChange={(val) =>
-                          setSingleFormData((p) => ({ ...p, furniture: val }))
-                        }
-                      />
-                      <FacilitiesSelector
-                        value={singleFormData.facilities}
-                        onChange={(val) =>
-                          setSingleFormData((p) => ({ ...p, facilities: val }))
-                        }
-                      />
-                      <TransitSelector
-                        value={singleFormData.transit || null}
-                        onChange={(info) =>
-                          setSingleFormData((p) => ({ ...p, transit: info }))
-                        }
-                      />
-                    </div>
-                  }
-                />
-              ) : (
-                <>
-                  <RoomCountSelector
-                    value={{
-                      bedrooms: singleFormData.bedrooms,
-                      bathrooms: singleFormData.bathrooms,
-                      kitchens: singleFormData.kitchens,
-                      livingRooms: singleFormData.livingRooms,
-                    }}
-                    onChange={(patch) =>
-                      setSingleFormData((p) => ({ ...p, ...patch }))
-                    }
-                  />
-
-                  <CarparkCountSelector
-                    value={singleFormData.carpark}
-                    onChange={(val) =>
-                      setSingleFormData((p) => ({ ...p, carpark: val }))
-                    }
-                    mode={
-                      computedStatus === "New Project / Under Construction" ||
-                      computedStatus === "Completed Unit / Developer Unit"
-                        ? "range"
-                        : "single"
-                    }
-                  />
-
-                  <CarparkLevelSelector
-                    value={singleFormData.carparkPosition}
-                    onChange={(val) =>
-                      setSingleFormData((p) => ({ ...p, carparkPosition: val }))
-                    }
-                    mode="range"
-                  />
-
-                  <FacingSelector
-                    value={singleFormData.facing}
-                    onChange={(val) =>
-                      setSingleFormData((p) => ({ ...p, facing: val }))
-                    }
-                  />
-
-                  <ExtraSpacesSelector
-                    value={singleFormData.extraSpaces}
-                    onChange={(val) =>
-                      setSingleFormData((p) => ({ ...p, extraSpaces: val }))
-                    }
-                  />
-
-                  <FurnitureSelector
-                    value={singleFormData.furniture}
-                    onChange={(val) =>
-                      setSingleFormData((p) => ({ ...p, furniture: val }))
-                      }
-                  />
-
-                  <FacilitiesSelector
-                    value={singleFormData.facilities}
-                    onChange={(val) =>
-                      setSingleFormData((p) => ({ ...p, facilities: val }))
-                    }
-                  />
-
-                  <TransitSelector
-                    value={singleFormData.transit || null}
-                    onChange={(info) =>
-                      setSingleFormData((p) => ({ ...p, transit: info }))
-                    }
-                  />
-
+                          
                   {/* BuildYear 条件保持 */}
                   {saleType === "Sale" &&
                     computedStatus === "New Project / Under Construction" && (
@@ -863,4 +670,4 @@ export default function UploadProperty() {
       </Button>
     </div>
   );
-                }
+                          }
