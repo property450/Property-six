@@ -1,49 +1,7 @@
-﻿﻿﻿// components/UnitLayoutForm.js
+// components/UnitLayoutForm.js
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-
-
-// ---------- TransitSelector: 统一把各种返回值归一成对象（用于受控显示） ----------
-// 我们在 DB / state 里允许保存：null / "" / "Yes" / "No" / boolean / { walkable: true/false } / { value: "Yes"/"No" }
-function normalizeTransitObj(val) {
-  if (val === undefined || val === null || val === "") return null;
-
-  // 已经是对象
-  if (typeof val === "object") {
-    // 常见：{ walkable: true/false }
-    if (typeof val.walkable === "boolean") return { ...val };
-
-    // 常见：{ value: "Yes"/"No" }
-    if (typeof val.value === "string") {
-      const v = String(val.value).trim().toLowerCase();
-      if (v === "yes" || v === "y" || v === "true") return { walkable: true };
-      if (v === "no" || v === "n" || v === "false") return { walkable: false };
-    }
-    return { ...val };
-  }
-
-  // boolean
-  if (typeof val === "boolean") return { walkable: val };
-
-  // string
-  if (typeof val === "string") {
-    const v = val.trim().toLowerCase();
-    if (v === "yes" || v === "y" || v === "true") return { walkable: true };
-    if (v === "no" || v === "n" || v === "false") return { walkable: false };
-  }
-
-  return null;
-}
-
-function normalizeTransitOnChange(val) {
-  // 兼容 event
-  if (val && typeof val === "object" && val.target) {
-    return normalizeTransitObj(val.target.value);
-  }
-  return normalizeTransitObj(val);
-}
-
 
 import PriceInput from "./PriceInput";
 import CarparkCountSelector from "./CarparkCountSelector";
@@ -58,9 +16,51 @@ import AreaSelector from "./AreaSelector";
 import TransitSelector from "./TransitSelector";
 import FloorCountSelector from "./FloorCountSelector";
 
-// 把 TransitSelector 的各种返回值统一成字符串（用于受控显示）
 
-// 把 onChange 传回来的 event / option / boolean 统一成字符串
+// ================== Transit value normalize (防止选择后又跳回“请选择”) ==================
+function toBool(v) {
+  if (v === true || v === false) return v;
+  const s = String(v ?? "").trim().toLowerCase();
+  if (s === "yes" || s === "y" || s === "true" || s === "1") return true;
+  if (s === "no" || s === "n" || s === "false" || s === "0") return false;
+  return null;
+}
+
+// 给 TransitSelector 的 value：尽量使用对象 { walkable: boolean }
+function normalizeTransitToSelector(val) {
+  if (!val) return null;
+
+  if (typeof val === "object") {
+    if (typeof val.walkable === "boolean") return { walkable: val.walkable };
+    if (typeof val.value !== "undefined") {
+      const b = toBool(val.value);
+      return b === null ? null : { walkable: b };
+    }
+  }
+
+  const b = toBool(val);
+  return b === null ? null : { walkable: b };
+}
+
+// 存回 layout 的值：统一存对象 { walkable: boolean } 或 null
+function normalizeTransitFromSelector(val) {
+  if (!val) return null;
+
+  if (typeof val === "object") {
+    if (typeof val.walkable === "boolean") return { walkable: val.walkable };
+    if (typeof val.value !== "undefined") {
+      const b = toBool(val.value);
+      return b === null ? null : { walkable: b };
+    }
+    if (typeof val.target?.value !== "undefined") {
+      const b = toBool(val.target.value);
+      return b === null ? null : { walkable: b };
+    }
+  }
+
+  const b = toBool(val);
+  return b === null ? null : { walkable: b };
+}
 
 
 /** 把 AreaSelector 返回的对象，转换成「总平方英尺」 */
@@ -230,15 +230,6 @@ const NEED_STOREYS_CATEGORY = new Set([
   "Semi-Detached House",
   "Terrace / Link House",
 ]);
-
-// 哪些字段属于“母版可复制字段”
-const COMMON_FIELDS = new Set([
-  "extraSpaces",
-  "furniture",
-  "facilities",
-  "transit",
-]);
-
 
 // ---------- 工具 ----------
 const formatNumber = (num) => {
@@ -521,13 +512,13 @@ useEffect(() => {
   }, []);
 
   // 更新 layout
-  const updateLayout = (patch, meta = {}) => {
-  const updated = { ...layout, ...patch };
-  onChange && onChange(updated, meta);
-};
+  const updateLayout = (patch, meta) => {
+    const updated = { ...layout, ...patch };
+    onChange && onChange(updated, meta);
+  };
 
-  const handleFieldChange = (field, value) => {
-    updateLayout({ [field]: value });
+  const handleFieldChange = (field, value, meta) => {
+    updateLayout({ [field]: value }, meta);
   };
 
   const handleLayoutUpload = (e) => {
@@ -849,16 +840,12 @@ onChange={(patch) => {
 
 {/* 额外空间 */}
       <ExtraSpacesSelector
-  value={photoConfig.extraSpaces}
-  onChange={(val) => {
-    setPhotoConfig((prev) => ({ ...prev, extraSpaces: val }));
-    updateLayout(
-      { extraSpaces: val },
-      { commonField: "extraSpaces" }
-    );
-  }}
-/>
-
+        value={photoConfig.extraSpaces}
+        onChange={(val) => {
+          setPhotoConfig((prev) => ({ ...prev, extraSpaces: val }));
+          handleFieldChange("extraSpaces", val, { commonField: "extraSpaces" });
+        }}
+      />
 
       {/* 朝向 */}
       <FacingSelector
@@ -878,39 +865,32 @@ onChange={(patch) => {
 
       {/* 家具 / 设施 */}
       <FurnitureSelector
-  value={photoConfig.furniture}
-  onChange={(val) => {
-    setPhotoConfig((prev) => ({ ...prev, furniture: val }));
-    updateLayout(
-      { furniture: val },
-      { commonField: "furniture" }
-    );
-  }}
-/>
+        value={photoConfig.furniture}
+        onChange={(val) => {
+          setPhotoConfig((prev) => ({ ...prev, furniture: val }));
+          handleFieldChange("furniture", val, { commonField: "furniture" });
+        }}
+      />
 
       <FacilitiesSelector
-  value={photoConfig.facilities}
-  onChange={(val) => {
-    setPhotoConfig((prev) => ({ ...prev, facilities: val }));
-    updateLayout(
-      { facilities: val },
-      { commonField: "facilities" }
-    );
-  }}
-/>
+        value={photoConfig.facilities}
+        onChange={(val) => {
+          setPhotoConfig((prev) => ({ ...prev, facilities: val }));
+          handleFieldChange("facilities", val, { commonField: "facilities" });
+        }}
+      />
 
           {/* 交通信息（每个 layout 自己的） */}
       <div className="mb-4">
         <label className="font-medium">交通信息</label>
         <TransitSelector
-  value={normalizeTransitObj(layout.transit)}
+  value={normalizeTransitToSelector(layout.transit)}
   onChange={(val) => {
-    updateLayout(
-      { transit: normalizeTransitOnChange(val) },
-      { commonField: "transit" }
-    );
+    const normalized = normalizeTransitFromSelector(val);
+    handleFieldChange("transit", normalized, { commonField: "transit" });
   }}
 />
+      </div>
 
       {/* 建成年份 + 季度 */}
       {showBuildYear && (
@@ -986,4 +966,4 @@ onChange={(patch) => {
       </div>
     </div>
   );
-}
+          }
