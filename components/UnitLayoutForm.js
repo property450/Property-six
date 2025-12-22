@@ -347,6 +347,33 @@ function safeStringify(v) {
   }
 }
 
+
+// TransitSelector 的值兼容处理（避免“选了但不记住”）
+// 统一转成字符串 "Yes" / "No" / ""，并兼容 event / {value} / {walkable:boolean}
+function normalizeTransitValue(v) {
+  if (v === undefined || v === null) return "";
+  if (typeof v === "string") return v;
+  if (typeof v === "boolean") return v ? "Yes" : "No";
+  if (typeof v === "object") {
+    if (v?.target && typeof v.target.value !== "undefined") return String(v.target.value);
+    if (typeof v.value !== "undefined") return String(v.value);
+    if (typeof v.walkable === "boolean") return v.walkable ? "Yes" : "No";
+  }
+  return "";
+}
+
+// onChange 也统一成 "Yes"/"No"/""（兼容 event / {value} / {walkable:boolean} / boolean）
+function normalizeTransitOnChange(val) {
+  if (val && typeof val === "object") {
+    if (val.target && typeof val.target.value !== "undefined") return val.target.value;
+    if (typeof val.value !== "undefined") return val.value;
+    if (typeof val.walkable === "boolean") return val.walkable ? "Yes" : "No";
+  }
+  if (typeof val === "boolean") return val ? "Yes" : "No";
+  return val ?? "";
+}
+
+
 export default function UnitLayoutForm({
   index,
   data,
@@ -553,26 +580,6 @@ useEffect(() => {
     const updated = { ...layout, ...patch };
     onChange && onChange(updated, meta);
   };
-
-  // -----------------------------
-  // TransitSelector 的值兼容处理
-  // 说明：有些组件会把 onChange 直接回传 event，有些回传 { value }，也可能回传 boolean。
-  // 这里统一转成字符串 "Yes" / "No" / ""，避免“选了但不记住”的问题。
-  const normalizeTransitValue = (v) => {
-    if (v === undefined || v === null) return "";
-    if (typeof v === "string") return v;
-    if (typeof v === "boolean") return v ? "Yes" : "No";
-    if (typeof v === "object") {
-      if (v?.target && typeof v.target.value !== "undefined") return String(v.target.value);
-      if (typeof v.value !== "undefined") return String(v.value);
-      if (typeof v.walkable === "boolean") return v.walkable ? "Yes" : "No";
-    }
-    return "";
-  };
-
-  const normalizeTransitOnChange = (val) => {
-    if (val && typeof val === "object") {
-      if (val.target && typeof val.target.value !== "undefined") return val.target.value;
       if (typeof val.value !== "undefined") return val.value;
       if (typeof val.walkable === "boolean") return val.walkable ? "Yes" : "No";
     }
@@ -840,7 +847,7 @@ useEffect(() => {
         </Fragment>
       )}
 
-{/* 这个房型有多少个单位？ */}
+      {/* 这个房型有多少个单位？ */}
       <div className="mb-3" ref={unitCountRef}>
         <label className="block font-medium mb-1">这个房型有多少个单位？</label>
         <div className="relative">
@@ -1082,4 +1089,4 @@ onChange={(patch) => {
       </div>
     </div>
   );
-              }
+}
