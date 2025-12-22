@@ -1,4 +1,4 @@
-// pages/upload-property.js
+﻿// pages/upload-property.js
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -524,6 +524,8 @@ export default function UploadProperty() {
 
               {/* ✅ 选择房型数量 -> 生成对应 UnitLayoutForm（关键修复在这里） */}
               <UnitTypeSelector
+                propertyStatus={computedStatus}
+                layouts={unitLayouts}
                 onChange={(payload) => {
                   const normalized = normalizeLayoutsFromUnitTypeSelector(payload);
 
@@ -864,4 +866,4 @@ export default function UploadProperty() {
       </Button>
     </div>
   );
-                      }
+                          }
