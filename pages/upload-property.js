@@ -434,13 +434,31 @@ export default function UploadProperty() {
         value={type}
         onChange={(newValue) => setType(newValue)}
         onFormChange={(formData) => {
-          setSaleType(formData?.saleType || "");
-          setPropertyStatus(formData?.propertyStatus || "");
-          setUsage(formData?.usage || "");
-          setProjectCategory(formData?.propertyCategory || "");
-          setProjectSubType(formData?.subType || "");
-          setRentBatchMode(formData?.rentBatchMode || "no");
-          setRoomRentalMode(formData?.roomRentalMode || "whole");
+          if (!formData || typeof formData !== "object") return;
+
+          // ✅ 重要：只更新「TypeSelector 明确回传的字段」
+          // 这样不会因为某次回传缺少字段而把你已选择的值清空，导致“选了又跳回请选择/不记住”
+          if (Object.prototype.hasOwnProperty.call(formData, "saleType")) {
+            setSaleType(formData.saleType || "");
+          }
+          if (Object.prototype.hasOwnProperty.call(formData, "propertyStatus")) {
+            setPropertyStatus(formData.propertyStatus || "");
+          }
+          if (Object.prototype.hasOwnProperty.call(formData, "usage")) {
+            setUsage(formData.usage || "");
+          }
+          if (Object.prototype.hasOwnProperty.call(formData, "propertyCategory")) {
+            setProjectCategory(formData.propertyCategory || "");
+          }
+          if (Object.prototype.hasOwnProperty.call(formData, "subType")) {
+            setProjectSubType(formData.subType || "");
+          }
+          if (Object.prototype.hasOwnProperty.call(formData, "rentBatchMode")) {
+            setRentBatchMode(formData.rentBatchMode || "no");
+          }
+          if (Object.prototype.hasOwnProperty.call(formData, "roomRentalMode")) {
+            setRoomRentalMode(formData.roomRentalMode || "whole");
+          }
         }}
         rentBatchMode={rentBatchMode}
         onChangeRentBatchMode={(val) => setRentBatchMode(val)}
@@ -859,4 +877,4 @@ export default function UploadProperty() {
       </Button>
     </div>
   );
-}
+                      }
