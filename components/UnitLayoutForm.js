@@ -184,15 +184,6 @@ const NEED_STOREYS_CATEGORY = new Set([
   "Terrace / Link House",
 ]);
 
-// 哪些字段属于“母版可复制字段”
-const COMMON_FIELDS = new Set([
-  "extraSpaces",
-  "furniture",
-  "facilities",
-  "transit",
-]);
-
-
 // ---------- 工具 ----------
 const formatNumber = (num) => {
   if (num === "" || num === undefined || num === null) return "";
@@ -417,8 +408,40 @@ export default function UnitLayoutForm({
     extraSpaces: layout.extraSpaces || [],
     furniture: layout.furniture || [],
     facilities: layout.facilities || [],
-    orientation: layout.facing || [],
+    orientation: layout.facing || "",
   });
+
+  // ✅ 当父组件复制/同步 layout 数据时（比如 Layout1 -> Layout2），这里要同步更新本地 photoConfig，
+  // 否则 UI 看起来不会变化（但实际上 layout 已经变了）。
+  useEffect(() => {
+    setPhotoConfig((prev) => ({
+      ...prev,
+      bedrooms: layout.bedrooms || "",
+      bathrooms: layout.bathrooms || "",
+      kitchens: layout.kitchens || "",
+      livingRooms: layout.livingRooms || "",
+      carpark: layout.carpark || "",
+      store: layout.store || "",
+      extraSpaces: Array.isArray(layout.extraSpaces) ? layout.extraSpaces : [],
+      furniture: Array.isArray(layout.furniture) ? layout.furniture : [],
+      facilities: Array.isArray(layout.facilities) ? layout.facilities : [],
+      orientation: layout.facing || "",
+    }));
+    // 只在 layout 对应字段变化时更新（避免输入时抖动）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    layout.bedrooms,
+    layout.bathrooms,
+    layout.kitchens,
+    layout.livingRooms,
+    layout.carpark,
+    layout.store,
+    layout.facing,
+    JSON.stringify(layout.extraSpaces || []),
+    JSON.stringify(layout.furniture || []),
+    JSON.stringify(layout.facilities || []),
+  ]);
+
 
   // layout.photos 里按 label 存图片
   const photosByLabel = layout.photos || {};
@@ -437,20 +460,6 @@ export default function UnitLayoutForm({
     setPropertySubtype(parseSubtypeToArray(layout.propertySubtype));
     setStoreys(layout.storeys || "");
     setUnitCountLocal(layout.unitCount ? String(layout.unitCount) : "");
-
-    // ✅ 同步 photoConfig（避免 Layout1 复制后 UI 不更新）
-    setPhotoConfig({
-      bedrooms: layout.bedrooms || "",
-      bathrooms: layout.bathrooms || "",
-      kitchens: layout.kitchens || "",
-      livingRooms: layout.livingRooms || "",
-      carpark: layout.carpark || "",
-      store: layout.store || "",
-      extraSpaces: layout.extraSpaces || [],
-      furniture: layout.furniture || [],
-      facilities: layout.facilities || [],
-      orientation: layout.facing || "",
-    });
   }, [
     lockCategory,
     projectCategory,
@@ -460,16 +469,6 @@ export default function UnitLayoutForm({
     layout.propertySubtype,
     layout.storeys,
     layout.unitCount,
-    layout.bedrooms,
-    layout.bathrooms,
-    layout.kitchens,
-    layout.livingRooms,
-    layout.carpark,
-    layout.store,
-    layout.extraSpaces,
-    layout.furniture,
-    layout.facilities,
-    layout.facing,
   ]);
 
   // Apartment / Business 时显示 propertySubtype
@@ -499,9 +498,9 @@ useEffect(() => {
 
   // 更新 layout
   const updateLayout = (patch, meta = {}) => {
-  const updated = { ...layout, ...patch };
-  onChange && onChange(updated, meta);
-};
+    const updated = { ...layout, ...patch };
+    onChange && onChange(updated, meta);
+  };
 
   const handleFieldChange = (field, value) => {
     updateLayout({ [field]: value });
@@ -826,16 +825,12 @@ onChange={(patch) => {
 
 {/* 额外空间 */}
       <ExtraSpacesSelector
-  value={photoConfig.extraSpaces}
-  onChange={(val) => {
-    setPhotoConfig((prev) => ({ ...prev, extraSpaces: val }));
-    updateLayout(
-      { extraSpaces: val },
-      { commonField: "extraSpaces" }
-    );
-  }}
-/>
-
+        value={photoConfig.extraSpaces}
+        onChange={(val) => {
+          setPhotoConfig((prev) => ({ ...prev, extraSpaces: val }));
+          updateLayout({ extraSpaces: val }, { commonField: "extraSpaces" });
+        }}
+      />
 
       {/* 朝向 */}
       <FacingSelector
@@ -855,26 +850,20 @@ onChange={(patch) => {
 
       {/* 家具 / 设施 */}
       <FurnitureSelector
-  value={photoConfig.furniture}
-  onChange={(val) => {
-    setPhotoConfig((prev) => ({ ...prev, furniture: val }));
-    updateLayout(
-      { furniture: val },
-      { commonField: "furniture" }
-    );
-  }}
-/>
+        value={photoConfig.furniture}
+        onChange={(val) => {
+          setPhotoConfig((prev) => ({ ...prev, furniture: val }));
+          updateLayout({ furniture: val }, { commonField: "furniture" });
+        }}
+      />
 
       <FacilitiesSelector
-  value={photoConfig.facilities}
-  onChange={(val) => {
-    setPhotoConfig((prev) => ({ ...prev, facilities: val }));
-    updateLayout(
-      { facilities: val },
-      { commonField: "facilities" }
-    );
-  }}
-/>
+        value={photoConfig.facilities}
+        onChange={(val) => {
+          setPhotoConfig((prev) => ({ ...prev, facilities: val }));
+          updateLayout({ facilities: val }, { commonField: "facilities" });
+        }}
+      />
 
           {/* 交通信息（每个 layout 自己的） */}
       <div className="mb-4">
@@ -882,12 +871,10 @@ onChange={(patch) => {
         <TransitSelector
   value={layout.transit || null}
   onChange={(val) => {
-    updateLayout(
-      { transit: val },
-      { commonField: "transit" }
-    );
+    updateLayout({ transit: val }, { commonField: "transit" });
   }}
 />
+      </div>
 
       {/* 建成年份 + 季度 */}
       {showBuildYear && (
