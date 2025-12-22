@@ -1,4 +1,4 @@
-﻿// pages/upload-property.js
+// pages/upload-property.js
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -293,11 +293,12 @@ export default function UploadProperty() {
     String(saleType || "").toLowerCase() === "rent" &&
     roomRentalMode === "room";
 
-  // ✅ 你要求的：只在 Sale + New Project 启用 “Layout1 同步/脱钩”
+    // ✅ 只在 Sale + New Project 启用“Layout1 同步/脱钩”
   const enableProjectAutoCopy =
     String(saleType || "").toLowerCase() === "sale" &&
-    (String(computedStatus || "").toLowerCase().includes("new project") ||
-      String(computedStatus || "").toLowerCase().includes("under construction"));
+    String(computedStatus || "").includes("New Project");
+    String(saleType || "").toLowerCase() === "sale" &&
+    computedStatus === "New Project / Under Construction";
 
   // 不再是项目类时清空 layouts（保留你原本行为）
   useEffect(() => {
@@ -429,21 +430,19 @@ export default function UploadProperty() {
 
       {/* TypeSelector：你项目的入口 */}
       <TypeSelector
-        onChange={(formData) => {
-          const newType = formData?.type || "";
-          const newSaleType = formData?.saleType || "";
-          const newStatus = formData?.propertyStatus || "";
-          const newRentBatchMode = formData?.rentBatchMode || "no";
-          const newRoomRentalMode = formData?.roomRentalMode || "whole";
-
-          setType(newType);
-          setSaleType(newSaleType);
-          setRentBatchMode(newRentBatchMode);
-          setRoomRentalMode(newRoomRentalMode);
-
-          // 防止重复 setState 触发不必要的刷新
-          setPropertyStatus((prev) => (prev === newStatus ? prev : newStatus));
+        value={type}
+        onChange={(newValue) => setType(newValue)}
+        onFormChange={(formData) => {
+          setSaleType(formData?.saleType || "");
+          setPropertyStatus(formData?.propertyStatus || "");
+          setUsage(formData?.usage || "");
+          setPropertyCategory(formData?.propertyCategory || "");
+          setSubType(formData?.subType || "");
+          setRentBatchMode(formData?.rentBatchMode || "no");
+          setRoomRentalMode(formData?.roomRentalMode || "whole");
         }}
+        rentBatchMode={rentBatchMode}
+        onChangeRentBatchMode={(val) => setRentBatchMode(val)}
       />
 
       {/* Homestay / Hotel 你原本的表单保持 */}
@@ -525,7 +524,6 @@ export default function UploadProperty() {
               {/* ✅ 选择房型数量 -> 生成对应 UnitLayoutForm（关键修复在这里） */}
               <UnitTypeSelector
                 propertyStatus={computedStatus}
-                layouts={unitLayouts}
                 onChange={(payload) => {
                   const normalized = normalizeLayoutsFromUnitTypeSelector(payload);
 
@@ -536,7 +534,6 @@ export default function UploadProperty() {
                     // 以 nextList 的长度为准，避免旧残留导致“数量不对/不生成”
                     const merged = nextList.map((incoming, idx) => {
                       const oldItem = oldList[idx] || {};
-
                       // bulk rent：强制写入 category/subType
                       const withProjectType =
                         isBulkRentProject && projectCategory
@@ -590,32 +587,13 @@ export default function UploadProperty() {
                       projectSubType={projectSubType}
                       lockCategory={isBulkRentProject} // bulk rent 锁定 category/subType
                       enableCommonCopy={enableProjectAutoCopy}
-                      onChange={(updated) => {
+                      onChange={(updated, meta) => {
                         setUnitLayouts((prev) => {
                           const base = Array.isArray(prev) ? prev : [];
                           const next = [...base];
 
                           const prevLayout = base[index] || {};
                           const updatedLayout = { ...prevLayout, ...updated };
-                          const updatedHasCommonPatch =
-                            Object.prototype.hasOwnProperty.call(updated, "extraSpaces") ||
-                            Object.prototype.hasOwnProperty.call(updated, "furniture") ||
-                            Object.prototype.hasOwnProperty.call(updated, "facilities") ||
-                            Object.prototype.hasOwnProperty.call(updated, "transit");
-
-                          // ✅ 手动勾选“同步 Layout1”时：立刻把 Layout1 的 common 复制过来
-                          if (
-                            enableProjectAutoCopy &&
-                            index > 0 &&
-                            typeof updated._inheritCommon === "boolean"
-                          ) {
-                            updatedLayout._inheritCommon = updated._inheritCommon;
-                            if (updated._inheritCommon === true) {
-                              const common0 = pickCommon(base[0] || {});
-                              Object.assign(updatedLayout, cloneDeep(common0));
-                            }
-                          }
-
 
                           // 初始化 inherit flag
                           if (index === 0) updatedLayout._inheritCommon = false;
@@ -629,8 +607,22 @@ export default function UploadProperty() {
                                 : true;
                           }
 
+                          // ✅ 更精准：如果子表单明确告诉我们改的是 common 字段，直接脱钩/同步
+                          const commonKeys = new Set(["extraSpaces", "furniture", "facilities", "transit"]);
+                          if (enableProjectAutoCopy && meta?.commonField && commonKeys.has(meta.commonField)) {
+                            if (index > 0) {
+                              updatedLayout._inheritCommon = false; // 子 layout 改 common -> 脱钩
+                            }
+                          }
+                          if (enableProjectAutoCopy && meta?.inheritToggle && index > 0) {
+                            // 勾回“同步 Layout1”时：立刻把 Layout1 的 common 复制回来
+                            if (updatedLayout._inheritCommon !== false) {
+                              const common0 = pickCommon(base[0] || {});
+                              Object.assign(updatedLayout, cloneDeep(common0));
+                            }
+                          }
                           // ✅ index>0：只要你改了 common（四个字段），立刻脱钩
-                          if (enableProjectAutoCopy && index > 0 && updatedHasCommonPatch) {
+                          if (enableProjectAutoCopy && index > 0) {
                             const prevH = commonHash(prevLayout);
                             const nextH = commonHash(updatedLayout);
                             if (prevH !== nextH) {
@@ -866,4 +858,4 @@ export default function UploadProperty() {
       </Button>
     </div>
   );
-                          }
+}
