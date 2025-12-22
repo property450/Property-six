@@ -428,17 +428,29 @@ export default function UploadProperty() {
 
       {/* TypeSelector：你项目的入口 */}
       <TypeSelector
-        onChange={(formData) => {
-          const newType = formData?.type || "";
-          const newSaleType = formData?.saleType || "";
-          const newStatus = formData?.propertyStatus || "";
-          const newRentBatchMode = formData?.rentBatchMode || "no";
-          const newRoomRentalMode = formData?.roomRentalMode || "whole";
+  // 1) onChange：只负责回传最终 type 字符串
+  onChange={(typeString) => {
+    setType(typeString || "");
+  }}
 
-          setType(newType);
-          setSaleType(newSaleType);
-          setRentBatchMode(newRentBatchMode);
-          setRoomRentalMode(newRoomRentalMode);
+  // 2) ✅ onFormChange：才是你要的“整包数据”
+  onFormChange={(formData) => {
+    const newSaleType = formData?.saleType || "";
+    const newStatus = formData?.propertyStatus || "";
+    const newRentBatchMode = formData?.rentBatchMode || "no";
+    const newRoomRentalMode = formData?.roomRentalMode || "whole";
+
+    setSaleType(newSaleType);
+    setRentBatchMode(newRentBatchMode);
+    setRoomRentalMode(newRoomRentalMode);
+
+    setPropertyStatus((prev) => (prev === newStatus ? prev : newStatus));
+  }}
+
+  // 3) ✅ 这两个一定要传，不然 TypeSelector 内部 batch mode 不会和外部同步
+  rentBatchMode={rentBatchMode}
+  onChangeRentBatchMode={setRentBatchMode}
+/>
 
           // 防止重复 setState 触发不必要的刷新
           setPropertyStatus((prev) => (prev === newStatus ? prev : newStatus));
