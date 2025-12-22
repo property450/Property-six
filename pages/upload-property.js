@@ -523,6 +523,8 @@ export default function UploadProperty() {
 
               {/* ✅ 选择房型数量 -> 生成对应 UnitLayoutForm（关键修复在这里） */}
               <UnitTypeSelector
+               propertyStatus={computedStatus}   // ✅ 关键：把真实状态传进去
+  layouts={unitLayouts}
                 onChange={(payload) => {
                   const normalized = normalizeLayoutsFromUnitTypeSelector(payload);
 
