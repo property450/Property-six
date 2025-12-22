@@ -437,8 +437,8 @@ export default function UploadProperty() {
           setSaleType(formData?.saleType || "");
           setPropertyStatus(formData?.propertyStatus || "");
           setUsage(formData?.usage || "");
-          setPropertyCategory(formData?.propertyCategory || "");
-          setSubType(formData?.subType || "");
+          setProjectCategory(formData?.propertyCategory || "");
+          setProjectSubType(formData?.subType || "");
           setRentBatchMode(formData?.rentBatchMode || "no");
           setRoomRentalMode(formData?.roomRentalMode || "whole");
         }}
@@ -730,6 +730,19 @@ export default function UploadProperty() {
                     }}
                     onChange={(patch) =>
                       setSingleFormData((p) => ({ ...p, ...patch }))
+                    }
+                  />
+
+                  <CarparkCountSelector
+                    value={singleFormData.carpark}
+                    onChange={(val) =>
+                      setSingleFormData((p) => ({ ...p, carpark: val }))
+                    }
+                    mode={
+                      computedStatus === "New Project / Under Construction" ||
+                      computedStatus === "Completed Unit / Developer Unit"
+                        ? "range"
+                        : "single"
                     }
                   />
 
