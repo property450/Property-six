@@ -698,7 +698,208 @@ useEffect(() => {
                 )}
               </div>
 
-                    )}
+              {/* 下拉多选菜单 */}
+              {subtypeOpen && (
+                <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+                  {SUBTYPE_OPTIONS.map((opt) => {
+                    const selected = propertySubtype.includes(opt);
+                    return (
+                      <div
+                        key={opt}
+                        className={`px-3 py-2 flex justify-between items-center cursor-pointer hover:bg-gray-100 ${
+                          selected ? "bg-gray-50 font-semibold" : ""
+                        }`}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          toggleSubtype(opt);
+                        }}
+                      >
+                        <span>{opt}</span>
+                        {selected && (
+                          <span className="text-green-600">✅</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* 这个房型有多少个单位？ */}
+      <div className="mb-3" ref={unitCountRef}>
+        <label className="block font-medium mb-1">这个房型有多少个单位？</label>
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="例如：120"
+            value={formatNumber(unitCountLocal)}
+            onChange={(e) => {
+              const raw = parseNumber(e.target.value);
+              if (!/^\d*$/.test(raw)) return;
+              setUnitCountLocal(raw);
+              handleFieldChange("unitCount", raw);
+            }}
+            onFocus={() => setUnitDropdownOpen(true)}
+            onClick={() => setUnitDropdownOpen(true)}
+            className="border p-2 rounded w-full"
+          />
+
+          {unitDropdownOpen && (
+            <ul className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+              <li className="px-3 py-2 text-gray-500 cursor-default select-none border-b">
+                从 1 ~ 1,000 中选择，或直接输入
+              </li>
+              {Array.from({ length: 1000 }, (_, i) => i + 1).map((num) => (
+                <li
+                  key={num}
+                  className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    const val = String(num);
+                    setUnitCountLocal(val);
+                    handleFieldChange("unitCount", val);
+                    setUnitDropdownOpen(false);
+                  }}
+                >
+                  {num.toLocaleString()}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      {/* 面积 */}
+      <AreaSelector
+        initialValue={areaForPsf || {}}
+        onChange={(val) => {
+          setAreaForPsf(val);
+          handleFieldChange("buildUp", val);
+        }}
+      />
+
+{/* 价格 */}
+      <PriceInput
+        value={priceForPsf}
+        onChange={(val) => {
+          setPriceForPsf(val);
+          handleFieldChange("price", val);
+        }}
+        listingMode={isBulkRent ? "Rent" : undefined}
+        type={isBulkRent ? undefined : layout.projectType}
+      />
+
+      {/* 每平方英尺 */}
+      {psfText && <p className="text-sm text-gray-600 mt-1">{psfText}</p>}
+
+      {/* 房间数量 */}
+      <RoomCountSelector
+        value={{
+          bedrooms: photoConfig.bedrooms,
+          bathrooms: photoConfig.bathrooms,
+          kitchens: photoConfig.kitchens,
+          livingRooms: photoConfig.livingRooms,
+        }}
+onChange={(patch) => {
+          setPhotoConfig((prev) => ({ ...prev, ...patch }));
+          updateLayout(patch);
+        }}
+      />
+
+      {/* 停车位数量 */}
+      <CarparkCountSelector
+        value={photoConfig.carpark}
+        onChange={(val) => {
+          setPhotoConfig((prev) => ({ ...prev, carpark: val }));
+          handleFieldChange("carpark", val);
+        }}
+        mode={
+          layout.projectType === "New Project / Under Construction" ||
+          layout.projectType === "Completed Unit / Developer Unit"
+            ? "range"
+            : "single"
+        }
+      />
+
+{/* 额外空间 */}
+      <ExtraSpacesSelector
+  value={photoConfig.extraSpaces}
+  onChange={(val) => {
+    setPhotoConfig((prev) => ({ ...prev, extraSpaces: val }));
+    updateLayout(
+      { extraSpaces: val },
+      { commonField: "extraSpaces" }
+    );
+  }}
+/>
+
+
+      {/* 朝向 */}
+      <FacingSelector
+        value={photoConfig.orientation}
+        onChange={(val) => {
+          setPhotoConfig((prev) => ({ ...prev, orientation: val }));
+          handleFieldChange("facing", val);
+        }}
+      />
+
+      {/* 车位楼层 */}
+      <CarparkLevelSelector
+      value={layout.carparkPosition}
+        onChange={(val) => handleFieldChange("carparkPosition", val)}
+        mode="range"
+      />
+
+      {/* 家具 / 设施 */}
+      <FurnitureSelector
+  value={photoConfig.furniture}
+  onChange={(val) => {
+    setPhotoConfig((prev) => ({ ...prev, furniture: val }));
+    updateLayout(
+      { furniture: val },
+      { commonField: "furniture" }
+    );
+  }}
+/>
+
+      <FacilitiesSelector
+  value={photoConfig.facilities}
+  onChange={(val) => {
+    setPhotoConfig((prev) => ({ ...prev, facilities: val }));
+    updateLayout(
+      { facilities: val },
+      { commonField: "facilities" }
+    );
+  }}
+/>
+
+          {/* 交通信息（每个 layout 自己的） */}
+      <div className="mb-4">
+        <label className="font-medium">交通信息</label>
+        <TransitSelector
+  value={layout.transit || null}
+  onChange={(val) => {
+    updateLayout(
+      { transit: val },
+      { commonField: "transit" }
+    );
+  }}
+/>
+
+      {/* 建成年份 + 季度 */}
+      {showBuildYear && (
+        <BuildYearSelector
+          value={layout.buildYear}
+          onChange={(val) => updateLayout({ buildYear: val })}
+          quarter={layout.quarter}
+          onQuarterChange={(val) => updateLayout({ quarter: val })}
+          showQuarter={isNewProject} // 新项目才显示季度
+          label={isNewProject ? "预计交付时间" : "完成年份"}
+        />
+      )}
 
 {/* 每个 Layout 自己的房源描述 */}
       <div className="mt-3 mb-3">
@@ -762,4 +963,4 @@ useEffect(() => {
       </div>
     </div>
   );
-                        }
+}
