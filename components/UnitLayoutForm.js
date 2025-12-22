@@ -184,6 +184,15 @@ const NEED_STOREYS_CATEGORY = new Set([
   "Terrace / Link House",
 ]);
 
+// 哪些字段属于“母版可复制字段”
+const COMMON_FIELDS = new Set([
+  "extraSpaces",
+  "furniture",
+  "facilities",
+  "transit",
+]);
+
+
 // ---------- 工具 ----------
 const formatNumber = (num) => {
   if (num === "" || num === undefined || num === null) return "";
@@ -465,10 +474,10 @@ useEffect(() => {
   }, []);
 
   // 更新 layout
-  const updateLayout = (patch) => {
-    const updated = { ...layout, ...patch };
-    onChange && onChange(updated);
-  };
+  const updateLayout = (patch, meta = {}) => {
+  const updated = { ...layout, ...patch };
+  onChange && onChange(updated, meta);
+};
 
   const handleFieldChange = (field, value) => {
     updateLayout({ [field]: value });
@@ -793,12 +802,16 @@ onChange={(patch) => {
 
 {/* 额外空间 */}
       <ExtraSpacesSelector
-        value={photoConfig.extraSpaces}
-        onChange={(val) => {
-          setPhotoConfig((prev) => ({ ...prev, extraSpaces: val }));
-          handleFieldChange("extraSpaces", val);
-        }}
-      />
+  value={photoConfig.extraSpaces}
+  onChange={(val) => {
+    setPhotoConfig((prev) => ({ ...prev, extraSpaces: val }));
+    updateLayout(
+      { extraSpaces: val },
+      { commonField: "extraSpaces" }
+    );
+  }}
+/>
+
 
       {/* 朝向 */}
       <FacingSelector
@@ -818,20 +831,26 @@ onChange={(patch) => {
 
       {/* 家具 / 设施 */}
       <FurnitureSelector
-        value={photoConfig.furniture}
-        onChange={(val) => {
-          setPhotoConfig((prev) => ({ ...prev, furniture: val }));
-          handleFieldChange("furniture", val);
-        }}
-      />
+  value={photoConfig.furniture}
+  onChange={(val) => {
+    setPhotoConfig((prev) => ({ ...prev, furniture: val }));
+    updateLayout(
+      { furniture: val },
+      { commonField: "furniture" }
+    );
+  }}
+/>
 
       <FacilitiesSelector
-        value={photoConfig.facilities}
-        onChange={(val) => {
-          setPhotoConfig((prev) => ({ ...prev, facilities: val }));
-          handleFieldChange("facilities", val);
-        }}
-      />
+  value={photoConfig.facilities}
+  onChange={(val) => {
+    setPhotoConfig((prev) => ({ ...prev, facilities: val }));
+    updateLayout(
+      { facilities: val },
+      { commonField: "facilities" }
+    );
+  }}
+/>
 
           {/* 交通信息（每个 layout 自己的） */}
       <div className="mb-4">
@@ -839,10 +858,12 @@ onChange={(patch) => {
         <TransitSelector
   value={layout.transit || null}
   onChange={(val) => {
-    handleFieldChange("transit", val);
+    updateLayout(
+      { transit: val },
+      { commonField: "transit" }
+    );
   }}
 />
-      </div>
 
       {/* 建成年份 + 季度 */}
       {showBuildYear && (
