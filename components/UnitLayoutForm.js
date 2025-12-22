@@ -337,6 +337,16 @@ function getPhotoLabelsFromConfig(config) {
 // ================================
 // 组件主体
 // ================================
+
+// 安全 stringify：用于生成 key（避免 selector 半受控导致 UI 不刷新）
+function safeStringify(v) {
+  try {
+    return JSON.stringify(v);
+  } catch {
+    return String(Date.now());
+  }
+}
+
 export default function UnitLayoutForm({
   index,
   data,
@@ -571,13 +581,7 @@ useEffect(() => {
   };
 
   // 用于生成稳定 key，强制某些 selector 在父组件复制后重新渲染（解决“看起来没复制”的问题）
-  const safeStringify = (v) => {
-    try {
-      return JSON.stringify(v);
-    } catch {
-      return String(Date.now());
-    }
-  };
+  
 
 
 
@@ -836,7 +840,7 @@ useEffect(() => {
         </Fragment>
       )}
 
-      {/* 这个房型有多少个单位？ */}
+{/* 这个房型有多少个单位？ */}
       <div className="mb-3" ref={unitCountRef}>
         <label className="block font-medium mb-1">这个房型有多少个单位？</label>
         <div className="relative">
@@ -934,8 +938,8 @@ onChange={(patch) => {
 
 
 {/* 额外空间（common） */}
-<div className={inheritCommon ? "opacity-70" : ""}>
-  <div className={inheritCommon ? "pointer-events-none" : ""}>
+<div className={""}>
+  <div className={""}>
     <ExtraSpacesSelector key={`es-${index}-${commonRenderKey}`}
       value={photoConfig.extraSpaces}
       onChange={(val) => {
@@ -963,8 +967,8 @@ onChange={(patch) => {
 />
 
 {/* 家具（common） */}
-<div className={inheritCommon ? "opacity-70" : ""}>
-  <div className={inheritCommon ? "pointer-events-none" : ""}>
+<div className={""}>
+  <div className={""}>
     <FurnitureSelector key={`fur-${index}-${commonRenderKey}`}
       value={photoConfig.furniture}
       onChange={(val) => {
@@ -976,8 +980,8 @@ onChange={(patch) => {
 </div>
 
 {/* 设施（common） */}
-<div className={inheritCommon ? "opacity-70" : ""}>
-  <div className={inheritCommon ? "pointer-events-none" : ""}>
+<div className={""}>
+  <div className={""}>
     <FacilitiesSelector key={`fac-${index}-${commonRenderKey}`}
       value={photoConfig.facilities}
       onChange={(val) => {
@@ -989,8 +993,8 @@ onChange={(patch) => {
 </div>
 
 {/* 公共交通（common） */}
-<div className={inheritCommon ? "opacity-70" : ""}>
-  <div className={inheritCommon ? "pointer-events-none" : ""}>
+<div className={""}>
+  <div className={""}>
     <div className="mb-4">
       <label className="font-medium">交通信息</label>
       <TransitSelector key={`tr-${index}-${commonRenderKey}`}
@@ -1078,4 +1082,4 @@ onChange={(patch) => {
       </div>
     </div>
   );
-                  }
+              }
