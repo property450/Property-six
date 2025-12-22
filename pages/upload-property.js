@@ -616,6 +616,7 @@ export default function UploadProperty() {
                       projectCategory={projectCategory}
                       projectSubType={projectSubType}
                       lockCategory={isBulkRentProject}
+                      enableCommonCopy={enableProjectAutoCopy}
                       onChange={(updated, meta) => {
                         setUnitLayouts((prev) => {
                           const base = Array.isArray(prev) ? prev : [];
@@ -623,6 +624,19 @@ export default function UploadProperty() {
 
                           const prevLayout = base[index] || {};
                           const updatedLayout = { ...prevLayout, ...updated };
+
+
+// ✅ 用户手动「跟随/脱钩」切换
+if (enableProjectAutoCopy && index > 0 && meta?.toggleInherit) {
+  const wantInherit = updatedLayout._inheritCommon !== false;
+  if (wantInherit) {
+    updatedLayout._inheritCommon = true;
+    const common0 = pickCommon(base[0] || {});
+    Object.assign(updatedLayout, cloneDeep(common0));
+  } else {
+    updatedLayout._inheritCommon = false;
+  }
+}
 
                           // ✅ 如果是 common 字段修改：
                           // - index>0：立刻脱钩
@@ -890,4 +904,4 @@ export default function UploadProperty() {
       </Button>
     </div>
   );
-          }
+                    }
