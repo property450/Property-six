@@ -350,6 +350,14 @@ export default function UnitLayoutForm({
 
   // ✅ Sale -> New Project：Layout1 统一复制/脱钩（只影响：家私/设施/额外空间/公共交通）
   const inheritCommon = enableCommonCopy && index > 0 ? layout._inheritCommon !== false : false;
+
+  const commonRenderKey = safeStringify({
+    inheritCommon,
+    extraSpaces: Array.isArray(layout.extraSpaces) ? layout.extraSpaces : [],
+    furniture: Array.isArray(layout.furniture) ? layout.furniture : [],
+    facilities: Array.isArray(layout.facilities) ? layout.facilities : [],
+    transit: normalizeTransitValue(layout.transit),
+  });
   const fileInputRef = useRef(null);
 
   const projectType = layout.projectType; // UploadProperty 里已经传进来了
@@ -561,6 +569,16 @@ useEffect(() => {
     if (typeof val === "boolean") return val ? "Yes" : "No";
     return val ?? "";
   };
+
+  // 用于生成稳定 key，强制某些 selector 在父组件复制后重新渲染（解决“看起来没复制”的问题）
+  const safeStringify = (v) => {
+    try {
+      return JSON.stringify(v);
+    } catch {
+      return String(Date.now());
+    }
+  };
+
 
 
   const handleFieldChange = (field, value) => {
@@ -918,7 +936,7 @@ onChange={(patch) => {
 {/* 额外空间（common） */}
 <div className={inheritCommon ? "opacity-70" : ""}>
   <div className={inheritCommon ? "pointer-events-none" : ""}>
-    <ExtraSpacesSelector
+    <ExtraSpacesSelector key={`es-${index}-${commonRenderKey}`}
       value={photoConfig.extraSpaces}
       onChange={(val) => {
         setPhotoConfig((prev) => ({ ...prev, extraSpaces: val }));
@@ -947,7 +965,7 @@ onChange={(patch) => {
 {/* 家具（common） */}
 <div className={inheritCommon ? "opacity-70" : ""}>
   <div className={inheritCommon ? "pointer-events-none" : ""}>
-    <FurnitureSelector
+    <FurnitureSelector key={`fur-${index}-${commonRenderKey}`}
       value={photoConfig.furniture}
       onChange={(val) => {
         setPhotoConfig((prev) => ({ ...prev, furniture: val }));
@@ -960,7 +978,7 @@ onChange={(patch) => {
 {/* 设施（common） */}
 <div className={inheritCommon ? "opacity-70" : ""}>
   <div className={inheritCommon ? "pointer-events-none" : ""}>
-    <FacilitiesSelector
+    <FacilitiesSelector key={`fac-${index}-${commonRenderKey}`}
       value={photoConfig.facilities}
       onChange={(val) => {
         setPhotoConfig((prev) => ({ ...prev, facilities: val }));
@@ -975,7 +993,7 @@ onChange={(patch) => {
   <div className={inheritCommon ? "pointer-events-none" : ""}>
     <div className="mb-4">
       <label className="font-medium">交通信息</label>
-      <TransitSelector
+      <TransitSelector key={`tr-${index}-${commonRenderKey}`}
         value={normalizeTransitValue(layout.transit)}
         onChange={(val) => {
           const v = normalizeTransitOnChange(val);
@@ -1060,4 +1078,4 @@ onChange={(patch) => {
       </div>
     </div>
   );
-                                        }
+                  }
