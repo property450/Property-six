@@ -1,4 +1,4 @@
-﻿﻿// pages/upload-property.js
+﻿﻿﻿// pages/upload-property.js
 "use client";
 
 import { useState, useEffect, useRef, Fragment } from "react";
@@ -114,13 +114,27 @@ function cloneDeep(v) {
 }
 
 // 只提取 common 字段
+
+// 统一把 transit 保存为字符串（"Yes"/"No"/""），避免 select 选了但显示不出来
+function normalizeTransitCommon(v) {
+  if (v === undefined || v === null) return "";
+  if (typeof v === "string") return v;
+  if (typeof v === "boolean") return v ? "Yes" : "No";
+  if (typeof v === "object") {
+    if (v?.target && typeof v.target.value !== "undefined") return String(v.target.value);
+    if (typeof v.value !== "undefined") return String(v.value);
+    if (typeof v.walkable === "boolean") return v.walkable ? "Yes" : "No";
+  }
+  return "";
+}
+
 function pickCommon(layout) {
   const o = layout || {};
   return {
     extraSpaces: Array.isArray(o.extraSpaces) ? o.extraSpaces : [],
     furniture: Array.isArray(o.furniture) ? o.furniture : [],
     facilities: Array.isArray(o.facilities) ? o.facilities : [],
-    transit: o.transit ?? null,
+    transit: normalizeTransitCommon(o.transit),
   };
 }
 
@@ -297,8 +311,19 @@ export default function UploadProperty() {
   // ✅ 只在 Sale + New Project 启用 “Layout1 同步/脱钩”
   const enableProjectAutoCopy =
     String(saleType || "").toLowerCase() === "sale" &&
-    (computedStatus?.includes("New Project") ||
-      computedStatus?.includes("Under Construction"));
+    (() => {
+      const s = String(computedStatus || "");
+      const sl = s.toLowerCase();
+      // 兼容：New Project / Under Construction / 新项目 等
+      return (
+        sl.includes("new project") ||
+        sl.includes("under construction") ||
+        s.includes("新项目") ||
+        s.includes("新樓盤") ||
+        s.includes("新楼盘")
+      );
+    })();
+
 
   // 不再是项目类时清空 layouts
   useEffect(() => {
@@ -866,4 +891,3 @@ export default function UploadProperty() {
     </div>
   );
 }
-
