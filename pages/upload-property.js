@@ -1,4 +1,4 @@
-// pages/upload-property.js
+﻿// pages/upload-property.js
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -599,41 +599,7 @@ export default function UploadProperty() {
                           const prevLayout = base[index] || {};
                           const updatedLayout = { ...prevLayout, ...updated };
 
-                          
-                  {/* BuildYear 条件保持 */}
-                  {saleType === "Sale" &&
-                    computedStatus === "New Project / Under Construction" && (
-                      <BuildYearSelector
-                        value={singleFormData.buildYear}
-                        onChange={(val) =>
-                          setSingleFormData((p) => ({ ...p, buildYear: val }))
-                        }
-                        quarter={singleFormData.quarter}
-                        onQuarterChange={(val) =>
-                          setSingleFormData((p) => ({ ...p, quarter: val }))
-                        }
-                        showQuarter
-                        label="预计交付时间"
-                      />
-                    )}
-
-                  {saleType === "Sale" &&
-                    [
-                      "Completed Unit / Developer Unit",
-                      "Subsale / Secondary Market",
-                      "Auction Property",
-                      "Rent-to-Own Scheme",
-                    ].includes(computedStatus) && (
-                      <BuildYearSelector
-                        value={singleFormData.buildYear}
-                        onChange={(val) =>
-                          setSingleFormData((p) => ({ ...p, buildYear: val }))
-                        }
-                        showQuarter={false}
-                        label="完成年份"
-                      />
-                    )}
-                </>
+                                  </>
               )}
 
               <div>
@@ -670,4 +636,4 @@ export default function UploadProperty() {
       </Button>
     </div>
   );
-                          }
+}
