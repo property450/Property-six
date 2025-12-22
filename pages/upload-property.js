@@ -349,7 +349,7 @@ export default function UploadProperty() {
       const next = [...base];
       for (let i = 1; i < next.length; i++) {
         const li = next[i] || {};
-        if (li._inheritCommon === true) {
+        if (li._inheritCommon !== false) {
           next[i] = { ...li, ...cloneDeep(common0) };
         }
       }
@@ -595,7 +595,7 @@ export default function UploadProperty() {
                       const common0 = pickCommon(merged[0] || {});
                       return merged.map((l, idx) => {
                         if (idx === 0) return l;
-                        if (l._inheritCommon !== true) return l;
+                        if (l._inheritCommon === false) return l;
                         return { ...l, ...cloneDeep(common0) };
                       });
                     }
@@ -634,7 +634,7 @@ export default function UploadProperty() {
                               const common0 = pickCommon(updatedLayout);
                               for (let i = 1; i < next.length; i++) {
                                 const li = next[i] || {};
-                                if (li._inheritCommon === true) {
+                                if (li._inheritCommon !== false) {
                                   next[i] = { ...li, ...cloneDeep(common0) };
                                 }
                               }
@@ -672,7 +672,7 @@ export default function UploadProperty() {
                               const common0 = pickCommon(updatedLayout);
                               for (let i = 1; i < next.length; i++) {
                                 const li = next[i] || {};
-                                if (li._inheritCommon === true) {
+                                if (li._inheritCommon !== false) {
                                   next[i] = { ...li, ...cloneDeep(common0) };
                                 }
                               }
@@ -890,4 +890,4 @@ export default function UploadProperty() {
       </Button>
     </div>
   );
-}
+          }
