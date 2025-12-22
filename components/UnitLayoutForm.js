@@ -1,7 +1,7 @@
-// components/UnitLayoutForm.js
+﻿// components/UnitLayoutForm.js
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Fragment } from "react";
 
 import PriceInput from "./PriceInput";
 import CarparkCountSelector from "./CarparkCountSelector";
@@ -502,6 +502,33 @@ useEffect(() => {
     onChange && onChange(updated, meta);
   };
 
+  // -----------------------------
+  // TransitSelector 的值兼容处理
+  // 说明：有些组件会把 onChange 直接回传 event，有些回传 { value }，也可能回传 boolean。
+  // 这里统一转成字符串 "Yes" / "No" / ""，避免“选了但不记住”的问题。
+  const normalizeTransitValue = (v) => {
+    if (v === undefined || v === null) return "";
+    if (typeof v === "string") return v;
+    if (typeof v === "boolean") return v ? "Yes" : "No";
+    if (typeof v === "object") {
+      if (v?.target && typeof v.target.value !== "undefined") return String(v.target.value);
+      if (typeof v.value !== "undefined") return String(v.value);
+      if (typeof v.walkable === "boolean") return v.walkable ? "Yes" : "No";
+    }
+    return "";
+  };
+
+  const normalizeTransitOnChange = (val) => {
+    if (val && typeof val === "object") {
+      if (val.target && typeof val.target.value !== "undefined") return val.target.value;
+      if (typeof val.value !== "undefined") return val.value;
+      if (typeof val.walkable === "boolean") return val.walkable ? "Yes" : "No";
+    }
+    if (typeof val === "boolean") return val ? "Yes" : "No";
+    return val ?? "";
+  };
+
+
   const handleFieldChange = (field, value) => {
     updateLayout({ [field]: value });
   };
@@ -641,7 +668,7 @@ useEffect(() => {
 
       {/* Sub Type + 层数 + Property Subtype */}
       {category && CATEGORY_OPTIONS[category] && (
-        <>
+        <Fragment>
           {/* Sub Type——批量项目时不在这里选 */}
           {!lockCategory && (
             <div className="mb-3">
@@ -724,7 +751,7 @@ useEffect(() => {
               )}
             </div>
           )}
-        </>
+        </Fragment>
       )}
 
       {/* 这个房型有多少个单位？ */}
@@ -869,11 +896,12 @@ onChange={(patch) => {
       <div className="mb-4">
         <label className="font-medium">交通信息</label>
         <TransitSelector
-  value={layout.transit || null}
-  onChange={(val) => {
-    updateLayout({ transit: val }, { commonField: "transit" });
-  }}
-/>
+          value={normalizeTransitValue(layout.transit)}
+          onChange={(val) => {
+            const v = normalizeTransitOnChange(val);
+            updateLayout({ transit: v }, { commonField: "transit" });
+          }}
+        />
       </div>
 
       {/* 建成年份 + 季度 */}
