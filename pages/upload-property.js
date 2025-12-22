@@ -1,4 +1,4 @@
-// pages/upload-property.js
+﻿// pages/upload-property.js
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -308,10 +308,10 @@ export default function UploadProperty() {
     String(saleType || "").toLowerCase() === "rent" &&
     roomRentalMode === "room";
 
-  // ✅ 只在 Sale + New Project 启用 “Layout1 同步/脱钩”
+  // ✅ Sale + New Project 启用 “Layout1 同步/脱钩”（用 includes 更稳，避免文案改动导致失效）
   const enableProjectAutoCopy =
     String(saleType || "").toLowerCase() === "sale" &&
-    computedStatus === "New Project / Under Construction";
+    String(computedStatus || "").includes("New Project");
 
   // 不再是项目类时清空 layouts
   useEffect(() => {
@@ -609,7 +609,7 @@ export default function UploadProperty() {
                           const base = Array.isArray(prev) ? prev : [];
                           const next = [...base];
 
-                        const prevLayout = base[index] || {};
+                          const prevLayout = base[index] || {};
                           const updatedLayout = { ...prevLayout, ...updated };
 
                           // 初始化 inherit flag
@@ -861,4 +861,4 @@ export default function UploadProperty() {
       </Button>
     </div>
   );
-                      }
+}
