@@ -904,4 +904,4 @@ if (enableProjectAutoCopy && index > 0 && meta?.toggleInherit) {
       </Button>
     </div>
   );
-                    }
+}
