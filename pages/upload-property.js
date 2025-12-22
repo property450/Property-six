@@ -594,15 +594,7 @@ export default function UploadProperty() {
                 }}
               />
 
-              {/* 渲染 layouts（你原本就有，我只把 key 改成稳定 index，避免 id 不存在导致渲染异常） */}
-              {unitLayouts.length > 0 && (
-                <div className="space-y-4 mt-4">
-                  {unitLayouts.map((layout, index) => (
-                    <UnitLayoutForm
-                      key={index}
-                      index={index}
-                      data={layout}
-                      projectCategory={projectCategory}
+              projectCategory={projectCategory}
                       projectSubType={projectSubType}
                       lockCategory={isBulkRentProject} // bulk rent 锁定 category/subType
                       enableCommonCopy={enableProjectAutoCopy}
@@ -877,4 +869,4 @@ export default function UploadProperty() {
       </Button>
     </div>
   );
-                      }
+}
