@@ -1,4 +1,4 @@
-﻿﻿// components/UnitLayoutForm.js
+﻿// components/UnitLayoutForm.js
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -394,13 +394,15 @@ export default function UnitLayoutForm({
   enableCommonCopy = false,
 }) {
   const layout = data || {};
-  const inheritCommon = layout._inheritCommon !== false;
   const fileInputRef = useRef(null);
+
+  // ✅ New Project：Layout2+ 是否跟随 Layout1（默认跟随）
+  const isInheritingCommon = index > 0 ? layout._inheritCommon !== false : false;
 
   const projectType = layout.projectType; // UploadProperty 里已经传进来了
   const rentMode = layout.rentMode; // "Sale" / "Rent" 之类
 
-  const isNewProject = String(projectType || "").toLowerCase().includes("new project");
+  const isNewProject = projectType === "New Project / Under Construction";
   const isCompletedProject =
     projectType === "Completed Unit / Developer Unit";
 
@@ -599,14 +601,14 @@ useEffect(() => {
         <div className="mb-3 flex items-center gap-2">
           <input
             type="checkbox"
-            className="h-4 w-4"
-            checked={inheritCommon}
-            onChange={(e) => onChange({ _inheritCommon: e.target.checked })}
+            checked={isInheritingCommon}
+            onChange={(e) => {
+              updateLayout({ _inheritCommon: e.target.checked }, { inheritToggle: true });
+            }}
           />
           <span className="text-sm text-gray-700">同步 Layout 1（家私/设施/额外空间/公共交通）</span>
         </div>
       )}
-
       <h3 className="font-semibold mb-3">Layout {index + 1}</h3>
 
       {/* 上传 Layout 图纸 */}
@@ -980,4 +982,4 @@ onChange={(patch) => {
       </div>
     </div>
   );
-}
+                       }
