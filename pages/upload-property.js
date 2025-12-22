@@ -1,4 +1,4 @@
-﻿// pages/upload-property.js
+// pages/upload-property.js
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -36,7 +36,7 @@ const AddressSearchInput = dynamic(
   { ssr: false }
 );
 
-// 批量 Rent 项目：统一 Category / Sub Type
+// 批量 Rent 项目：统一 Category / Sub Type（你原本就有）
 const LAYOUT_CATEGORY_OPTIONS = {
   "Bungalow / Villa": [
     "Bungalow",
@@ -113,20 +113,6 @@ function cloneDeep(v) {
   }
 }
 
-
-// 把 TransitSelector 的各种返回值统一成字符串（用于受控显示 & 复制/对比）
-function normalizeTransitValue(val) {
-  if (val == null) return "";
-  if (typeof val === "string") return val;
-  if (typeof val === "boolean") return val ? "Yes" : "No";
-  if (typeof val === "object") {
-    if (typeof val.value !== "undefined") return String(val.value ?? "");
-    if (typeof val.walkable === "boolean") return val.walkable ? "Yes" : "No";
-    if (typeof val.canWalk === "boolean") return val.canWalk ? "Yes" : "No";
-  }
-  return String(val ?? "");
-}
-
 // 只提取 common 字段
 function pickCommon(layout) {
   const o = layout || {};
@@ -134,7 +120,7 @@ function pickCommon(layout) {
     extraSpaces: Array.isArray(o.extraSpaces) ? o.extraSpaces : [],
     furniture: Array.isArray(o.furniture) ? o.furniture : [],
     facilities: Array.isArray(o.facilities) ? o.facilities : [],
-    transit: normalizeTransitValue(o.transit),
+    transit: o.transit ?? null,
   };
 }
 
@@ -193,7 +179,7 @@ function normalizeLayoutsFromUnitTypeSelector(payload) {
   return [];
 }
 
-// 面积单位转换
+// 面积单位转换（你原本就有）
 const convertToSqft = (val, unit) => {
   const num = parseFloat(String(val || "").replace(/,/g, ""));
   if (isNaN(num) || num <= 0) return 0;
@@ -235,7 +221,7 @@ export default function UploadProperty() {
   // 项目 layouts（New Project / Completed Unit / Rent batch etc 都在这里）
   const [unitLayouts, setUnitLayouts] = useState([]);
 
-  // 非项目（单一房源）数据
+  // 非项目（单一房源）数据（你原本就有）
   const [singleFormData, setSingleFormData] = useState({
     price: "",
     buildUp: "",
@@ -265,7 +251,7 @@ export default function UploadProperty() {
     values: { buildUp: "", land: "" },
   });
 
-  // availability
+  // availability（你原本就有）
   const [availability, setAvailability] = useState({});
 
   const [loading, setLoading] = useState(false);
@@ -285,7 +271,7 @@ export default function UploadProperty() {
   };
 
   // -----------------------------
-  // 判定项目/模式
+  // 判定项目/模式（尽量不动你逻辑）
   // -----------------------------
   const saleTypeNorm = (saleType || "").toLowerCase();
   const isHomestay = saleTypeNorm.includes("homestay");
@@ -293,7 +279,6 @@ export default function UploadProperty() {
 
   const isBulkRentProject =
     String(saleType || "").toLowerCase() === "rent" && rentBatchMode === "yes";
-
   const computedStatus = isBulkRentProject
     ? "Completed Unit / Developer Unit"
     : propertyStatus;
@@ -308,12 +293,12 @@ export default function UploadProperty() {
     String(saleType || "").toLowerCase() === "rent" &&
     roomRentalMode === "room";
 
-  // ✅ Sale + New Project 启用 “Layout1 同步/脱钩”（用 includes 更稳，避免文案改动导致失效）
+  // ✅ 你要求的：只在 Sale + New Project 启用 “Layout1 同步/脱钩”
   const enableProjectAutoCopy =
     String(saleType || "").toLowerCase() === "sale" &&
-    String(computedStatus || "").includes("New Project");
+    computedStatus === "New Project / Under Construction";
 
-  // 不再是项目类时清空 layouts
+  // 不再是项目类时清空 layouts（保留你原本行为）
   useEffect(() => {
     if (!isProject) setUnitLayouts([]);
   }, [isProject]);
@@ -441,30 +426,26 @@ export default function UploadProperty() {
         ) : null}
       </div>
 
-      {/* ✅ TypeSelector：正确接法（关键修复） */}
+      {/* TypeSelector：你项目的入口 */}
       <TypeSelector
-        onChange={(typeString) => {
-          // TypeSelector 的 onChange 只会回传字符串（最终 type）
-          setType(typeString || "");
-        }}
-        onFormChange={(formData) => {
-          // ✅ 这里才是整包数据
+        onChange={(formData) => {
+          const newType = formData?.type || "";
           const newSaleType = formData?.saleType || "";
           const newStatus = formData?.propertyStatus || "";
           const newRentBatchMode = formData?.rentBatchMode || "no";
           const newRoomRentalMode = formData?.roomRentalMode || "whole";
 
+          setType(newType);
           setSaleType(newSaleType);
           setRentBatchMode(newRentBatchMode);
           setRoomRentalMode(newRoomRentalMode);
 
+          // 防止重复 setState 触发不必要的刷新
           setPropertyStatus((prev) => (prev === newStatus ? prev : newStatus));
         }}
-        rentBatchMode={rentBatchMode}
-        onChangeRentBatchMode={setRentBatchMode}
       />
 
-      {/* Homestay / Hotel 表单保持 */}
+      {/* Homestay / Hotel 你原本的表单保持 */}
       {isHomestay || isHotel ? (
         <HotelUploadForm />
       ) : (
@@ -474,7 +455,7 @@ export default function UploadProperty() {
              ----------------------------- */}
           {isProject ? (
             <>
-              {/* Bulk Rent 项目：统一 Category/SubType */}
+              {/* Bulk Rent 项目：统一 Category/SubType（你原本就有） */}
               {isBulkRentProject && (
                 <div className="space-y-3 border rounded-lg p-3 bg-gray-50">
                   <div>
@@ -488,7 +469,7 @@ export default function UploadProperty() {
                         setProjectCategory(cat);
                         setProjectSubType("");
 
-                        // 同步到已存在 layouts
+                        // 同步到已存在 layouts（不破坏其它字段）
                         setUnitLayouts((prev) =>
                           (Array.isArray(prev) ? prev : []).map((l) => ({
                             ...l,
@@ -510,7 +491,9 @@ export default function UploadProperty() {
 
                   {projectCategory && LAYOUT_CATEGORY_OPTIONS[projectCategory] && (
                     <div>
-                      <label className="font-medium">Sub Type（整个项目）</label>
+                      <label className="font-medium">
+                        Sub Type（整个项目）
+                      </label>
                       <select
                         value={projectSubType}
                         onChange={(e) => {
@@ -538,10 +521,8 @@ export default function UploadProperty() {
                 </div>
               )}
 
-              {/* ✅ 选择房型数量 -> 生成对应 UnitLayoutForm（关键修复：补齐 props） */}
+              {/* ✅ 选择房型数量 -> 生成对应 UnitLayoutForm（关键修复在这里） */}
               <UnitTypeSelector
-                propertyStatus={computedStatus} // ✅ 必传，否则它会 return null
-                layouts={unitLayouts} // ✅ 必传，否则它无法“增减”保持已填内容
                 onChange={(payload) => {
                   const normalized = normalizeLayoutsFromUnitTypeSelector(payload);
 
@@ -549,6 +530,7 @@ export default function UploadProperty() {
                     const oldList = Array.isArray(prev) ? prev : [];
                     const nextList = normalized; // ✅ 现在保证是数组
 
+                    // 以 nextList 的长度为准，避免旧残留导致“数量不对/不生成”
                     const merged = nextList.map((incoming, idx) => {
                       const oldItem = oldList[idx] || {};
 
@@ -583,7 +565,7 @@ export default function UploadProperty() {
                       const common0 = pickCommon(merged[0] || {});
                       return merged.map((l, idx) => {
                         if (idx === 0) return l;
-                        if (l._inheritCommon === false) return l;
+                        if (l._inheritCommon !== true) return l;
                         return { ...l, ...cloneDeep(common0) };
                       });
                     }
@@ -593,7 +575,7 @@ export default function UploadProperty() {
                 }}
               />
 
-              {/* 渲染 layouts */}
+              {/* 渲染 layouts（你原本就有，我只把 key 改成稳定 index，避免 id 不存在导致渲染异常） */}
               {unitLayouts.length > 0 && (
                 <div className="space-y-4 mt-4">
                   {unitLayouts.map((layout, index) => (
@@ -603,7 +585,25 @@ export default function UploadProperty() {
                       data={layout}
                       projectCategory={projectCategory}
                       projectSubType={projectSubType}
-                      lockCategory={isBulkRentProject}
+                      lockCategory={isBulkRentProject} // bulk rent 锁定 category/subType
+                      enableCommonCopy={enableProjectAutoCopy}
+                      inheritCommon={index === 0 ? false : layout._inheritCommon !== false}
+                      onToggleInheritCommon={(checked) => {
+                        setUnitLayouts((prev) => {
+                          const base = Array.isArray(prev) ? prev : [];
+                          const next = [...base];
+                          if (index <= 0) return next;
+
+                          const common0 = pickCommon(next[0] || {});
+                          const li = next[index] || {};
+                          if (checked) {
+                            next[index] = { ...li, _inheritCommon: true, ...cloneDeep(common0) };
+                          } else {
+                            next[index] = { ...li, _inheritCommon: false };
+                          }
+                          return next;
+                        });
+                      }}
                       onChange={(updated) => {
                         setUnitLayouts((prev) => {
                           const base = Array.isArray(prev) ? prev : [];
@@ -660,7 +660,7 @@ export default function UploadProperty() {
             </>
           ) : (
             /* -----------------------------
-               非项目：单一房源 / 房间出租逻辑
+               非项目：你原本的单一房源 / 房间出租逻辑（保留）
              ----------------------------- */
             <div className="space-y-4">
               <AreaSelector
@@ -686,8 +686,8 @@ export default function UploadProperty() {
               {isRoomRental ? (
                 <RoomRentalForm
                   value={singleFormData}
-                  onChange={(nextData) =>
-                    setSingleFormData((p) => ({ ...p, ...nextData }))
+                  onChange={(next) =>
+                    setSingleFormData((p) => ({ ...p, ...next }))
                   }
                   extraSection={
                     <div className="space-y-3">
@@ -698,7 +698,7 @@ export default function UploadProperty() {
                             ...p,
                             extraSpaces: val,
                           }))
-                          }
+                        }
                       />
                       <FurnitureSelector
                         value={singleFormData.furniture}
@@ -710,7 +710,7 @@ export default function UploadProperty() {
                         value={singleFormData.facilities}
                         onChange={(val) =>
                           setSingleFormData((p) => ({ ...p, facilities: val }))
-                        }
+                          }
                       />
                       <TransitSelector
                         value={singleFormData.transit || null}
@@ -774,7 +774,7 @@ export default function UploadProperty() {
                     value={singleFormData.furniture}
                     onChange={(val) =>
                       setSingleFormData((p) => ({ ...p, furniture: val }))
-                      }
+                    }
                   />
 
                   <FacilitiesSelector
@@ -791,14 +791,14 @@ export default function UploadProperty() {
                     }
                   />
 
-                  {/* BuildYear 条件保持 */}
+                  {/* BuildYear 保留你原本的条件 */}
                   {saleType === "Sale" &&
                     computedStatus === "New Project / Under Construction" && (
                       <BuildYearSelector
                         value={singleFormData.buildYear}
                         onChange={(val) =>
                           setSingleFormData((p) => ({ ...p, buildYear: val }))
-                        }
+                          }
                         quarter={singleFormData.quarter}
                         onQuarterChange={(val) =>
                           setSingleFormData((p) => ({ ...p, quarter: val }))
