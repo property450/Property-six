@@ -1,7 +1,7 @@
-﻿// pages/upload-property.js
+﻿﻿// pages/upload-property.js
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Fragment } from "react";
 import { useRouter } from "next/router";
 import dynamic from "next/dynamic";
 import { supabase } from "../supabaseClient";
@@ -261,7 +261,7 @@ export default function UploadProperty() {
     if (user === null) router.push("/login");
   }, [user, router]);
 
-  if (!user) return <>正在检查登录状态...</>;
+  if (!user) return <div>正在检查登录状态...</div>;
 
   // 地址选择
   const handleLocationSelect = ({ lat, lng, address }) => {
@@ -455,12 +455,12 @@ export default function UploadProperty() {
       {isHomestay || isHotel ? (
         <HotelUploadForm />
       ) : (
-        <>
+        <Fragment>
           {/* -----------------------------
               项目模式（New Project / Completed Unit / Developer Unit）
              ----------------------------- */}
           {isProject ? (
-            <>
+            <Fragment>
               {/* Bulk Rent 项目：统一 Category/SubType */}
               {isBulkRentProject && (
                 <div className="space-y-3 border rounded-lg p-3 bg-gray-50">
@@ -599,7 +599,236 @@ export default function UploadProperty() {
                           const prevLayout = base[index] || {};
                           const updatedLayout = { ...prevLayout, ...updated };
 
-                                  </>
+                          // ✅ 如果是 common 字段修改：
+                          // - index>0：立刻脱钩
+                          // - index==0：强制同步给仍继承的 layout（不依赖 hash，避免 selector 可能原地修改导致检测不到）
+                          if (enableProjectAutoCopy && meta?.commonField) {
+                            if (index > 0) {
+                              updatedLayout._inheritCommon = false;
+                            } else if (index === 0) {
+                              const common0 = pickCommon(updatedLayout);
+                              for (let i = 1; i < next.length; i++) {
+                                const li = next[i] || {};
+                                if (li._inheritCommon === true) {
+                                  next[i] = { ...li, ...cloneDeep(common0) };
+                                }
+                              }
+                            }
+                          }
+
+                          // 初始化 inherit flag
+                          if (index === 0) updatedLayout._inheritCommon = false;
+                          if (
+                            index > 0 &&
+                            typeof updatedLayout._inheritCommon !== "boolean"
+                          ) {
+                            updatedLayout._inheritCommon =
+                              typeof prevLayout._inheritCommon === "boolean"
+                                ? prevLayout._inheritCommon
+                                : true;
+                          }
+
+                          // ✅ index>0：只要你改了 common（四个字段），立刻脱钩
+                          if (enableProjectAutoCopy && index > 0) {
+                            const prevH = commonHash(prevLayout);
+                            const nextH = commonHash(updatedLayout);
+                            if (prevH !== nextH) {
+                              updatedLayout._inheritCommon = false;
+                            }
+                          }
+
+                          next[index] = updatedLayout;
+
+                          // ✅ index==0：改了 common，就同步到仍继承的 layout
+                          if (enableProjectAutoCopy && index === 0) {
+                            const prevH = commonHash(prevLayout);
+                            const nextH = commonHash(updatedLayout);
+                            if (prevH !== nextH) {
+                              const common0 = pickCommon(updatedLayout);
+                              for (let i = 1; i < next.length; i++) {
+                                const li = next[i] || {};
+                                if (li._inheritCommon === true) {
+                                  next[i] = { ...li, ...cloneDeep(common0) };
+                                }
+                              }
+                            }
+                          }
+
+                          return next;
+                        });
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </Fragment>
+          ) : (
+            /* -----------------------------
+               非项目：单一房源 / 房间出租逻辑
+             ----------------------------- */
+            <div className="space-y-4">
+              <AreaSelector
+                initialValue={areaData}
+                onChange={(val) => setAreaData(val)}
+              />
+
+              <PriceInput
+                value={singleFormData.price}
+                onChange={(val) =>
+                  setSingleFormData((p) => ({ ...p, price: val }))
+                }
+                listingMode={saleType}
+                area={{
+                  buildUp: convertToSqft(
+                    areaData.values.buildUp,
+                    areaData.units.buildUp
+                  ),
+                  land: convertToSqft(areaData.values.land, areaData.units.land),
+                }}
+              />
+
+              {isRoomRental ? (
+                <RoomRentalForm
+                  value={singleFormData}
+                  onChange={(nextData) =>
+                    setSingleFormData((p) => ({ ...p, ...nextData }))
+                  }
+                  extraSection={
+                    <div className="space-y-3">
+                      <ExtraSpacesSelector
+                        value={singleFormData.extraSpaces}
+                        onChange={(val) =>
+                          setSingleFormData((p) => ({
+                            ...p,
+                            extraSpaces: val,
+                          }))
+                        }
+                      />
+                      <FurnitureSelector
+                        value={singleFormData.furniture}
+                        onChange={(val) =>
+                          setSingleFormData((p) => ({ ...p, furniture: val }))
+                        }
+                      />
+                      <FacilitiesSelector
+                        value={singleFormData.facilities}
+                        onChange={(val) =>
+                          setSingleFormData((p) => ({ ...p, facilities: val }))
+                        }
+                      />
+                      <TransitSelector
+                        value={singleFormData.transit || null}
+                        onChange={(info) =>
+                          setSingleFormData((p) => ({ ...p, transit: info }))
+                        }
+                      />
+                    </div>
+                  }
+                />
+              ) : (
+                <Fragment>
+                  <RoomCountSelector
+                    value={{
+                      bedrooms: singleFormData.bedrooms,
+                      bathrooms: singleFormData.bathrooms,
+                      kitchens: singleFormData.kitchens,
+                      livingRooms: singleFormData.livingRooms,
+                    }}
+                    onChange={(patch) =>
+                      setSingleFormData((p) => ({ ...p, ...patch }))
+                    }
+                  />
+
+                  <CarparkCountSelector
+                    value={singleFormData.carpark}
+                    onChange={(val) =>
+                      setSingleFormData((p) => ({ ...p, carpark: val }))
+                    }
+                    mode={
+                      computedStatus === "New Project / Under Construction" ||
+                      computedStatus === "Completed Unit / Developer Unit"
+                        ? "range"
+                        : "single"
+                    }
+                  />
+
+                  <CarparkLevelSelector
+                    value={singleFormData.carparkPosition}
+                    onChange={(val) =>
+                      setSingleFormData((p) => ({ ...p, carparkPosition: val }))
+                    }
+                    mode="range"
+                  />
+
+                  <FacingSelector
+                    value={singleFormData.facing}
+                    onChange={(val) =>
+                      setSingleFormData((p) => ({ ...p, facing: val }))
+                    }
+                  />
+
+                  <ExtraSpacesSelector
+                    value={singleFormData.extraSpaces}
+                    onChange={(val) =>
+                      setSingleFormData((p) => ({ ...p, extraSpaces: val }))
+                    }
+                  />
+
+                  <FurnitureSelector
+                    value={singleFormData.furniture}
+                    onChange={(val) =>
+                      setSingleFormData((p) => ({ ...p, furniture: val }))
+                    }
+                  />
+
+                  <FacilitiesSelector
+                    value={singleFormData.facilities}
+                    onChange={(val) =>
+                      setSingleFormData((p) => ({ ...p, facilities: val }))
+                    }
+                  />
+
+                  <TransitSelector
+                    value={singleFormData.transit || null}
+                    onChange={(info) =>
+                      setSingleFormData((p) => ({ ...p, transit: info }))
+                    }
+                  />
+
+                  {/* BuildYear 条件保持 */}
+                  {saleType === "Sale" &&
+                    computedStatus === "New Project / Under Construction" && (
+                      <BuildYearSelector
+                        value={singleFormData.buildYear}
+                        onChange={(val) =>
+                          setSingleFormData((p) => ({ ...p, buildYear: val }))
+                        }
+                        quarter={singleFormData.quarter}
+                        onQuarterChange={(val) =>
+                          setSingleFormData((p) => ({ ...p, quarter: val }))
+                        }
+                        showQuarter
+                        label="预计交付时间"
+                      />
+                    )}
+
+                  {saleType === "Sale" &&
+                    [
+                      "Completed Unit / Developer Unit",
+                      "Subsale / Secondary Market",
+                      "Auction Property",
+                      "Rent-to-Own Scheme",
+                    ].includes(computedStatus) && (
+                      <BuildYearSelector
+                        value={singleFormData.buildYear}
+                        onChange={(val) =>
+                          setSingleFormData((p) => ({ ...p, buildYear: val }))
+                        }
+                        showQuarter={false}
+                        label="完成年份"
+                      />
+                    )}
+                </Fragment>
               )}
 
               <div>
@@ -624,7 +853,7 @@ export default function UploadProperty() {
               )}
             </div>
           )}
-        </>
+        </Fragment>
       )}
 
       <Button
@@ -637,3 +866,4 @@ export default function UploadProperty() {
     </div>
   );
 }
+
