@@ -211,6 +211,7 @@ export default function UploadProperty() {
   const [type, setType] = useState("");
   const [saleType, setSaleType] = useState(""); // Sale / Rent / Homestay / Hotel...
   const [propertyStatus, setPropertyStatus] = useState(""); // New Project / Under Construction ...
+  const [usage, setUsage] = useState(""); // (可选) 用途 / Usage
   const [rentBatchMode, setRentBatchMode] = useState("no"); // "no" | "yes"
   const [roomRentalMode, setRoomRentalMode] = useState("whole"); // "whole" | "room"
 
@@ -729,19 +730,6 @@ export default function UploadProperty() {
                     }}
                     onChange={(patch) =>
                       setSingleFormData((p) => ({ ...p, ...patch }))
-                    }
-                  />
-
-                  <CarparkCountSelector
-                    value={singleFormData.carpark}
-                    onChange={(val) =>
-                      setSingleFormData((p) => ({ ...p, carpark: val }))
-                    }
-                    mode={
-                      computedStatus === "New Project / Under Construction" ||
-                      computedStatus === "Completed Unit / Developer Unit"
-                        ? "range"
-                        : "single"
                     }
                   />
 
