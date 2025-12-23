@@ -541,14 +541,14 @@ export default function UploadProperty() {
 
               {/* ✅ 选择房型数量 -> 生成对应 UnitLayoutForm（关键修复在这里） */}
               <UnitTypeSelector
-                propertyStatus={computedStatus}
-                onChange={(payload) => {
-                  const normalized = normalizeLayoutsFromUnitTypeSelector(payload);
+  propertyStatus={computedStatus}
+  onChange={(payload) => {
+    const normalized = normalizeLayoutsFromUnitTypeSelector(payload);
 
     setUnitLayouts((prev) => {
       const oldList = Array.isArray(prev) ? prev : [];
 
-      // ✅ 关键修复：如果房型数量没有变化，不重建 layouts，避免覆盖用户勾选状态
+      // 房型数量没变，不重建，避免清空用户选择
       if (oldList.length === normalized.length) {
         return prev;
       }
@@ -570,7 +570,7 @@ export default function UploadProperty() {
         };
       });
 
-      // 新增房型时，才同步 Layout1 的 common
+      // 新增 layout 时：同步 layout0 的 common
       if (enableProjectAutoCopy && merged.length > 1) {
         const common0 = pickCommon(merged[0] || {});
         return merged.map((l, idx) => {
@@ -582,6 +582,9 @@ export default function UploadProperty() {
 
       return merged;
     });
+  }}
+/>
+
 // ✅ 新增 layouts 时：立刻复制一次 layout0 的 common 给仍继承的
                     if (enableProjectAutoCopy && merged.length > 1) {
                       const common0 = pickCommon(merged[0] || {});
