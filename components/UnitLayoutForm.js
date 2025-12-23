@@ -600,12 +600,15 @@ useEffect(() => {
       {enableCommonCopy && index > 0 && (
         <div className="mb-3 flex items-center gap-2">
           <input
-            type="checkbox"
-            checked={isInheritingCommon}
-            onChange={(e) => {
-              updateLayout({ _inheritCommon: e.target.checked, __fromToggle: true }, { inheritToggle: true });
-            }}
-          />
+  type="checkbox"
+  checked={!!layout._inheritCommon}
+  onChange={(e) => {
+    onChange({
+      _inheritCommon: e.target.checked,
+    });
+  }}
+/>
+
           <span className="text-sm text-gray-700">同步 Layout 1（家私/设施/额外空间/公共交通）</span>
         </div>
       )}
