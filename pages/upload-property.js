@@ -291,8 +291,7 @@ export default function UploadProperty() {
     computedStatus?.includes("Developer Unit");
 
   const isRoomRental =
-    String(saleType || "").toLowerCase() === "rent" &&
-    roomRentalMode === "room";
+    String(saleType || "").toLowerCase() === "rent" && roomRentalMode === "room";
 
   // ✅ 只在 Sale + New Project 启用“Layout1 同步/脱钩”
   const enableProjectAutoCopy =
@@ -602,7 +601,7 @@ export default function UploadProperty() {
                       projectCategory={projectCategory}
                       projectSubType={projectSubType}
                       lockCategory={isBulkRentProject} // bulk rent 锁定 category/subType
-                      enableCommonCopy={enableProjectAutoCopy}
+                       enableCommonCopy={enableProjectAutoCopy}
                       onChange={(updated, meta) => {
                         setUnitLayouts((prev) => {
                           const base = Array.isArray(prev) ? prev : [];
@@ -767,7 +766,7 @@ export default function UploadProperty() {
                     }
                   />
 
-                    <CarparkLevelSelector
+                  <CarparkLevelSelector
                     value={singleFormData.carparkPosition}
                     onChange={(val) =>
                       setSingleFormData((p) => ({ ...p, carparkPosition: val }))
@@ -880,4 +879,4 @@ export default function UploadProperty() {
       </Button>
     </div>
   );
-                            }
+                      }
