@@ -295,10 +295,9 @@ export default function UploadProperty() {
     roomRentalMode === "room";
 
     // ✅ 只在 Sale + New Project 启用“Layout1 同步/脱钩”
-    const enableProjectAutoCopy =
+  const enableProjectAutoCopy =
     String(saleType || "").toLowerCase() === "sale" &&
-    (String(computedStatus || "").includes("New Project") ||
-      String(computedStatus || "").includes("Under Construction"));
+    String(computedStatus || "").includes("New Project");
 
   // 不再是项目类时清空 layouts（保留你原本行为）
   useEffect(() => {
@@ -306,34 +305,6 @@ export default function UploadProperty() {
   }, [isProject]);
 
   // ✅ 关键：当 Layout1(common)变化时，同步给仍在继承的 layout
-  const lastCommonHashRef = useRef(null);
-  useEffect(() => {
-    if (!enableProjectAutoCopy) return;
-    if (!Array.isArray(unitLayouts) || unitLayouts.length < 2) return;
-
-    const h = commonHash(unitLayouts[0] || {});
-    if (lastCommonHashRef.current === null) {
-      lastCommonHashRef.current = h;
-      return;
-    }
-    if (lastCommonHashRef.current === h) return;
-
-    const common0 = pickCommon(unitLayouts[0] || {});
-    setUnitLayouts((prev) => {
-      const base = Array.isArray(prev) ? prev : [];
-      const next = [...base];
-      for (let i = 1; i < next.length; i++) {
-        const li = next[i] || {};
-        if (li._inheritCommon !== false) {
-          next[i] = { ...li, ...cloneDeep(common0) };
-        }
-      }
-      return next;
-    });
-
-    lastCommonHashRef.current = h;
-  }, [enableProjectAutoCopy, unitLayouts]);
-
   // 图片上传 config（非项目）
   const photoConfig = {
     bedrooms: singleFormData.bedrooms || "",
@@ -547,15 +518,28 @@ export default function UploadProperty() {
 
                   setUnitLayouts((prev) => {
                     const oldList = Array.isArray(prev) ? prev : [];
+                    const nextList = normalized; // ✅ 现在保证是数组
 
-                    // ✅ 关键修复：房型数量没变，不重建 layouts，避免覆盖用户勾选状态
-                    if (oldList.length === normalized.length) {
+                    // ✅ 关键修复：如果房型数量没有变化，不重建 layouts，避免覆盖用户勾选状态
+                    if (oldList.length === nextList.length) {
                       return prev;
                     }
 
-                    const merged = normalized.map((incoming, idx) => {
-                      const oldItem = oldList[idx] || {};
 
+                    // 以 nextList 的长度为准，避免旧残留导致“数量不对/不生成”
+                    const merged = nextList.map((incoming, idx) => {
+                      const oldItem = oldList[idx] || {};
+                      // bulk rent：强制写入 category/subType
+                      const withProjectType =
+                        isBulkRentProject && projectCategory
+                          ? {
+                              propertyCategory: projectCategory,
+                              subType: projectSubType || oldItem.subType || "",
+                            }
+                          : {};
+
+                      // ✅ index0 永远不继承
+                      // ✅ index>0 默认继承 true（除非旧的已经脱钩）
                       const inherit =
                         idx === 0
                           ? false
@@ -566,21 +550,32 @@ export default function UploadProperty() {
                       return {
                         ...oldItem,
                         ...incoming,
+                        ...withProjectType,
                         _inheritCommon: inherit,
                       };
                     });
 
+                    // ✅ 新增 layouts 时：立刻复制一次 layout0 的 common 给仍继承的
+                    if (enableProjectAutoCopy && merged.length > 1) {
+                      const common0 = pickCommon(merged[0] || {});
+                      return merged.map((l, idx) => {
+                        if (idx === 0) return l;
+                        if (l._inheritCommon === false) return l;
+                        return { ...l, ...cloneDeep(common0) };
+                      });
+                    }
+
                     return merged;
                   });
                 }}
-              }
-/>
-{/* 渲染 layouts（你原本就有，我只把 key 改成稳定 index，避免 id 不存在导致渲染异常） */}
+              />
+
+              {/* 渲染 layouts（你原本就有，我只把 key 改成稳定 index，避免 id 不存在导致渲染异常） */}
               {unitLayouts.length > 0 && (
                 <div className="space-y-4 mt-4">
                   {unitLayouts.map((layout, index) => (
                     <UnitLayoutForm
-                      key={layout?._uiId || layout?.id || index}
+                      key={index}
                       index={index}
                       data={layout}
                       projectCategory={projectCategory}
@@ -594,20 +589,6 @@ export default function UploadProperty() {
 
                           const prevLayout = base[index] || {};
                           const updatedLayout = { ...prevLayout, ...updated };
-
-                          // ✅【最终修复】用户点“同步 Layout1”勾选时：以 _inheritCommon 为唯一真相，
-                          // 并且（勾上时）立刻把 Layout1 的 common 复制进来；避免后续任何自动脱钩逻辑把勾选打回去。
-                          if (enableProjectAutoCopy && index > 0 && meta?.inheritToggle) {
-                            const inherit = !!updatedLayout._inheritCommon;
-                            updatedLayout._inheritCommon = inherit;
-                            if (inherit) {
-                              const common0 = pickCommon(base[0] || {});
-                              Object.assign(updatedLayout, cloneDeep(common0));
-                            }
-                            next[index] = updatedLayout;
-                            return next;
-                          }
-
 
                           // 初始化 inherit flag
                           if (index === 0) updatedLayout._inheritCommon = false;
@@ -635,8 +616,8 @@ export default function UploadProperty() {
                               Object.assign(updatedLayout, cloneDeep(common0));
                             }
                           }
-                          // ✅ index>0：只要你改了 common（四个字段），立刻脱钩
-                          if (enableProjectAutoCopy && index > 0) {
+                          // ✅ index>0：只要你改了 common（四个字段），立刻脱钩（但“点勾同步/脱钩”不走这里）
+                          if (enableProjectAutoCopy && index > 0 && !meta?.inheritToggle) {
                             const prevH = commonHash(prevLayout);
                             const nextH = commonHash(updatedLayout);
                             if (prevH !== nextH) {
@@ -872,4 +853,4 @@ export default function UploadProperty() {
       </Button>
     </div>
   );
-                          }
+}
