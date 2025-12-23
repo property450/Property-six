@@ -295,11 +295,10 @@ export default function UploadProperty() {
     roomRentalMode === "room";
 
     // ✅ 只在 Sale + New Project 启用“Layout1 同步/脱钩”
-  const enableProjectAutoCopy =
+    const enableProjectAutoCopy =
     String(saleType || "").toLowerCase() === "sale" &&
-    String(computedStatus || "").includes("New Project");
-    String(saleType || "").toLowerCase() === "sale" &&
-    computedStatus === "New Project / Under Construction";
+    (String(computedStatus || "").includes("New Project") ||
+      String(computedStatus || "").includes("Under Construction"));
 
   // 不再是项目类时清空 layouts（保留你原本行为）
   useEffect(() => {
@@ -542,69 +541,56 @@ export default function UploadProperty() {
 
               {/* ✅ 选择房型数量 -> 生成对应 UnitLayoutForm（关键修复在这里） */}
               <UnitTypeSelector
-                propertyStatus={computedStatus}
-                onChange={(payload) => {
-                  const normalized = normalizeLayoutsFromUnitTypeSelector(payload);
+  propertyStatus={computedStatus}
+  onChange={(payload) => {
+    const normalized = normalizeLayoutsFromUnitTypeSelector(payload);
 
-                  setUnitLayouts((prev) => {
-                    const oldList = Array.isArray(prev) ? prev : [];
+    setUnitLayouts((prev) => {
+      const oldList = Array.isArray(prev) ? prev : [];
 
-                    // ✅ 关键修复：如果房型数量没有变化，不重建 layouts，避免覆盖用户勾选状态
-                    if (oldList.length === normalized.length) {
-                      return prev;
-                    }
-                    const nextList = normalized; // ✅ 现在保证是数组
+      // 房型数量没变，不重建，避免清空用户选择
+      if (oldList.length === normalized.length) {
+        return prev;
+      }
 
-                    // 以 nextList 的长度为准，避免旧残留导致“数量不对/不生成”
-                    const merged = nextList.map((incoming, idx) => {
-                      const oldItem = oldList[idx] || {};
-                      // bulk rent：强制写入 category/subType
-                      const withProjectType =
-                        isBulkRentProject && projectCategory
-                          ? {
-                              propertyCategory: projectCategory,
-                              subType: projectSubType || oldItem.subType || "",
-                            }
-                          : {};
+      const merged = normalized.map((incoming, idx) => {
+        const oldItem = oldList[idx] || {};
 
-                      // ✅ index0 永远不继承
-                      // ✅ index>0 默认继承 true（除非旧的已经脱钩）
-                      const inherit =
-                        idx === 0
-                          ? false
-                          : typeof oldItem._inheritCommon === "boolean"
-                          ? oldItem._inheritCommon
-                          : true;
+        const inherit =
+          idx === 0
+            ? false
+            : typeof oldItem._inheritCommon === "boolean"
+            ? oldItem._inheritCommon
+            : true;
 
-                      return {
-                        ...oldItem,
-                        ...incoming,
-                        ...withProjectType,
-                        _inheritCommon: inherit,
-                      };
-                    });
+        return {
+          ...oldItem,
+          ...incoming,
+          _inheritCommon: inherit,
+        };
+      });
 
-                    // ✅ 新增 layouts 时：立刻复制一次 layout0 的 common 给仍继承的
-                    if (enableProjectAutoCopy && merged.length > 1) {
-                      const common0 = pickCommon(merged[0] || {});
-                      return merged.map((l, idx) => {
-                        if (idx === 0) return l;
-                        if (l._inheritCommon === false) return l;
-                        return { ...l, ...cloneDeep(common0) };
-                      });
-                    }
+      // 新增 layout 时：同步 layout0 的 common
+      if (enableProjectAutoCopy && merged.length > 1) {
+        const common0 = pickCommon(merged[0] || {});
+        return merged.map((l, idx) => {
+          if (idx === 0) return l;
+          if (l._inheritCommon === false) return l;
+          return { ...l, ...cloneDeep(common0) };
+        });
+      }
 
-                    return merged;
-                  });
-                }}
-              />
+      return merged;
+    });
+  }}
+/>
 
-              {/* 渲染 layouts（你原本就有，我只把 key 改成稳定 index，避免 id 不存在导致渲染异常） */}
+{/* 渲染 layouts（你原本就有，我只把 key 改成稳定 index，避免 id 不存在导致渲染异常） */}
               {unitLayouts.length > 0 && (
                 <div className="space-y-4 mt-4">
                   {unitLayouts.map((layout, index) => (
                     <UnitLayoutForm
-                      key={index}
+                      key={layout?._uiId || layout?.id || index}
                       index={index}
                       data={layout}
                       projectCategory={projectCategory}
@@ -618,6 +604,20 @@ export default function UploadProperty() {
 
                           const prevLayout = base[index] || {};
                           const updatedLayout = { ...prevLayout, ...updated };
+
+                          // ✅【最终修复】用户点“同步 Layout1”勾选时：以 _inheritCommon 为唯一真相，
+                          // 并且（勾上时）立刻把 Layout1 的 common 复制进来；避免后续任何自动脱钩逻辑把勾选打回去。
+                          if (enableProjectAutoCopy && index > 0 && meta?.inheritToggle) {
+                            const inherit = !!updatedLayout._inheritCommon;
+                            updatedLayout._inheritCommon = inherit;
+                            if (inherit) {
+                              const common0 = pickCommon(base[0] || {});
+                              Object.assign(updatedLayout, cloneDeep(common0));
+                            }
+                            next[index] = updatedLayout;
+                            return next;
+                          }
+
 
                           // 初始化 inherit flag
                           if (index === 0) updatedLayout._inheritCommon = false;
@@ -882,4 +882,4 @@ export default function UploadProperty() {
       </Button>
     </div>
   );
-                    }
+}
