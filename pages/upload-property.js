@@ -541,63 +541,41 @@ export default function UploadProperty() {
 
               {/* ✅ 选择房型数量 -> 生成对应 UnitLayoutForm（关键修复在这里） */}
               <UnitTypeSelector
-  propertyStatus={computedStatus}
-  onChange={(payload) => {
-    const normalized = normalizeLayoutsFromUnitTypeSelector(payload);
+                propertyStatus={computedStatus}
+                onChange={(payload) => {
+                  const normalized = normalizeLayoutsFromUnitTypeSelector(payload);
 
-    setUnitLayouts((prev) => {
-      const oldList = Array.isArray(prev) ? prev : [];
+                  setUnitLayouts((prev) => {
+                    const oldList = Array.isArray(prev) ? prev : [];
 
-      if (oldList.length === normalized.length) {
-        return prev;
-      }
-
-      const merged = normalized.map((incoming, idx) => {
-        const oldItem = oldList[idx] || {};
-        const inherit =
-          idx === 0
-            ? false
-            : typeof oldItem._inheritCommon === "boolean"
-            ? oldItem._inheritCommon
-            : true;
-
-        return {
-          ...oldItem,
-          ...incoming,
-          _inheritCommon: inherit,
-        };
-      });
-
-      if (enableProjectAutoCopy && merged.length > 1) {
-        const common0 = pickCommon(merged[0] || {});
-        return merged.map((l, idx) => {
-          if (idx === 0) return l;
-          if (l._inheritCommon === false) return l;
-          return { ...l, ...cloneDeep(common0) };
-        });
-      }
-
-      return merged;
-    });
-  }}
-/>
-
-// ✅ 新增 layouts 时：立刻复制一次 layout0 的 common 给仍继承的
-                    if (enableProjectAutoCopy && merged.length > 1) {
-                      const common0 = pickCommon(merged[0] || {});
-                      return merged.map((l, idx) => {
-                        if (idx === 0) return l;
-                        if (l._inheritCommon === false) return l;
-                        return { ...l, ...cloneDeep(common0) };
-                      });
+                    // ✅ 关键修复：房型数量没变，不重建 layouts，避免覆盖用户勾选状态
+                    if (oldList.length === normalized.length) {
+                      return prev;
                     }
+
+                    const merged = normalized.map((incoming, idx) => {
+                      const oldItem = oldList[idx] || {};
+
+                      const inherit =
+                        idx === 0
+                          ? false
+                          : typeof oldItem._inheritCommon === "boolean"
+                          ? oldItem._inheritCommon
+                          : true;
+
+                      return {
+                        ...oldItem,
+                        ...incoming,
+                        _inheritCommon: inherit,
+                      };
+                    });
 
                     return merged;
                   });
                 }}
-              />
-
-              {/* 渲染 layouts（你原本就有，我只把 key 改成稳定 index，避免 id 不存在导致渲染异常） */}
+              }
+/>
+{/* 渲染 layouts（你原本就有，我只把 key 改成稳定 index，避免 id 不存在导致渲染异常） */}
               {unitLayouts.length > 0 && (
                 <div className="space-y-4 mt-4">
                   {unitLayouts.map((layout, index) => (
@@ -894,4 +872,4 @@ export default function UploadProperty() {
       </Button>
     </div>
   );
-}
+                          }
