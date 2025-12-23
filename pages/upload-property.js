@@ -548,14 +548,12 @@ export default function UploadProperty() {
     setUnitLayouts((prev) => {
       const oldList = Array.isArray(prev) ? prev : [];
 
-      // 房型数量没变，不重建，避免清空用户选择
       if (oldList.length === normalized.length) {
         return prev;
       }
 
       const merged = normalized.map((incoming, idx) => {
         const oldItem = oldList[idx] || {};
-
         const inherit =
           idx === 0
             ? false
@@ -570,7 +568,6 @@ export default function UploadProperty() {
         };
       });
 
-      // 新增 layout 时：同步 layout0 的 common
       if (enableProjectAutoCopy && merged.length > 1) {
         const common0 = pickCommon(merged[0] || {});
         return merged.map((l, idx) => {
