@@ -1,4 +1,4 @@
-﻿// components/UnitLayoutForm.js
+﻿﻿// components/UnitLayoutForm.js
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -599,16 +599,16 @@ useEffect(() => {
     <div className="border rounded-lg p-4 shadow-sm bg-white">
       {enableCommonCopy && index > 0 && (
         <div className="mb-3 flex items-center gap-2">
+          
           <input
-  type="checkbox"
-  checked={!!layout._inheritCommon}
-  onChange={(e) => {
-    onChange({
-      _inheritCommon: e.target.checked,
-    });
-  }}
-/>
-
+            type="checkbox"
+            checked={!!layout._inheritCommon}
+            onChange={(e) => {
+              // ✅ 告诉父组件：这是“用户点勾同步/脱钩”的动作
+              updateLayout({ _inheritCommon: e.target.checked }, { inheritToggle: true });
+            }}
+          />
+          
           <span className="text-sm text-gray-700">同步 Layout 1（家私/设施/额外空间/公共交通）</span>
         </div>
       )}
@@ -985,4 +985,3 @@ onChange={(patch) => {
       </div>
     </div>
   );
-            }
