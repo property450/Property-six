@@ -304,35 +304,7 @@ export default function UploadProperty() {
   useEffect(() => {
     if (!isProject) setUnitLayouts([]);
   }, [isProject]);
-
-  // ✅ 关键：当 Layout1(common)变化时，同步给仍在继承的 layout
-  const lastCommonHashRef = useRef(null);
-  useEffect(() => {
-    if (!enableProjectAutoCopy) return;
-    if (!Array.isArray(unitLayouts) || unitLayouts.length < 2) return;
-
-    const h = commonHash(unitLayouts[0] || {});
-    if (lastCommonHashRef.current === null) {
-      lastCommonHashRef.current = h;
-      return;
-    }
-    if (lastCommonHashRef.current === h) return;
-
-    const common0 = pickCommon(unitLayouts[0] || {});
-    setUnitLayouts((prev) => {
-      const base = Array.isArray(prev) ? prev : [];
-      const next = [...base];
-      for (let i = 1; i < next.length; i++) {
-        const li = next[i] || {};
-        if (li._inheritCommon !== false) {
-          next[i] = { ...li, ...cloneDeep(common0) };
-        }
-      }
-      return next;
-    });
-
-    lastCommonHashRef.current = h;
-  }, [enableProjectAutoCopy, unitLayouts]);
+  // ✅ Layout 同步逻辑已在 UnitLayoutForm 的 onChange 内处理（避免 useEffect + setState 造成无限循环）
 
   // 图片上传 config（非项目）
   const photoConfig = {
