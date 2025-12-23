@@ -635,26 +635,24 @@ export default function UploadProperty() {
                           }
                           if (enableProjectAutoCopy && meta?.inheritToggle && index > 0) {
                             // 勾回“同步 Layout1”时：立刻把 Layout1 的 common 复制回来
+                            // ✅ 注意：此处是“用户点勾”的动作，不要被下面的 hash 脱钩逻辑反向覆盖
                             if (updatedLayout._inheritCommon !== false) {
+                              updatedLayout._inheritCommon = true;
                               const common0 = pickCommon(base[0] || {});
                               Object.assign(updatedLayout, cloneDeep(common0));
+                            } else {
+                              updatedLayout._inheritCommon = false;
                             }
                           }
                           // ✅ index>0：只要你改了 common（四个字段），立刻脱钩
-                          if (enableProjectAutoCopy && index > 0) {
-                            // Skip auto-detach when the user toggles "sync with Layout 1"
-                            if (meta?.inheritToggle || updatedLayout.__fromToggle) {
-                              if (updatedLayout.__fromToggle) delete updatedLayout.__fromToggle;
-                            } else {
-                              const prevH = commonHash(prevLayout);
-                              const nextH = commonHash(updatedLayout);
-                              if (prevH !== nextH) {
-                                updatedLayout._inheritCommon = false;
-                              }
+                          if (enableProjectAutoCopy && index > 0 && !meta?.inheritToggle) {
+                            const prevH = commonHash(prevLayout);
+                            const nextH = commonHash(updatedLayout);
+                            if (prevH !== nextH) {
+                              updatedLayout._inheritCommon = false;
                             }
                           }
-
-                          next[index] = updatedLayout;
+next[index] = updatedLayout;
 
                           // ✅ index==0：改了 common，就同步到仍继承的 layout
                           if (enableProjectAutoCopy && index === 0) {
@@ -882,5 +880,4 @@ export default function UploadProperty() {
       </Button>
     </div>
   );
-}
-                   
+          }
