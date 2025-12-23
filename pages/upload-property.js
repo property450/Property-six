@@ -1,4 +1,4 @@
-// pages/upload-property.js
+﻿// pages/upload-property.js
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -296,11 +296,7 @@ export default function UploadProperty() {
 
     // ✅ 只在 Sale + New Project 启用“Layout1 同步/脱钩”
   const enableProjectAutoCopy =
-    String(saleType || "").toLowerCase() === "sale" &&
-    String(computedStatus || "").includes("New Project");
-    String(saleType || "").toLowerCase() === "sale" &&
-    computedStatus === "New Project / Under Construction";
-
+    saleTypeNorm === "sale" && String(computedStatus || "").includes("New Project");
   // 不再是项目类时清空 layouts（保留你原本行为）
   useEffect(() => {
     if (!isProject) setUnitLayouts([]);
@@ -880,4 +876,4 @@ next[index] = updatedLayout;
       </Button>
     </div>
   );
-          }
+}
