@@ -603,7 +603,7 @@ useEffect(() => {
             type="checkbox"
             checked={isInheritingCommon}
             onChange={(e) => {
-              updateLayout({ _inheritCommon: e.target.checked }, { inheritToggle: true });
+              updateLayout({ _inheritCommon: e.target.checked, __fromToggle: true }, { inheritToggle: true });
             }}
           />
           <span className="text-sm text-gray-700">同步 Layout 1（家私/设施/额外空间/公共交通）</span>
@@ -982,4 +982,4 @@ onChange={(patch) => {
       </div>
     </div>
   );
-                       }
+            }
