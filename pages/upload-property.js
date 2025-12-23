@@ -639,7 +639,7 @@ export default function UploadProperty() {
                             }
                           }
                           // ✅ index>0：只要你改了 common（四个字段），立刻脱钩
-                          if (enableProjectAutoCopy && index > 0 && !meta?.inheritToggle) {
+                           if (enableProjectAutoCopy && index > 0 && !meta?.inheritToggle) {
                             const prevH = commonHash(prevLayout);
                             const nextH = commonHash(updatedLayout);
                             if (prevH !== nextH) {
