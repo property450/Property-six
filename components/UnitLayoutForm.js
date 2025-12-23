@@ -1,4 +1,4 @@
-﻿// components/UnitLayoutForm.js
+// components/UnitLayoutForm.js
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -15,7 +15,6 @@ import RoomCountSelector from "./RoomCountSelector";
 import AreaSelector from "./AreaSelector";
 import TransitSelector from "./TransitSelector";
 import FloorCountSelector from "./FloorCountSelector";
-
 
 // ================== Transit value normalize (防止选择后又跳回“请选择”) ==================
 function toBool(v) {
@@ -61,7 +60,6 @@ function normalizeTransitFromSelector(val) {
   const b = toBool(val);
   return b === null ? null : { walkable: b };
 }
-
 
 /** 把 AreaSelector 返回的对象，转换成「总平方英尺」 */
 function getAreaSqftFromAreaSelector(area) {
@@ -137,7 +135,7 @@ function getPsfText(areaObj, priceValue) {
   const highPrice = maxPrice > 0 ? maxPrice : minPrice;
 
   const lowPsf = lowPrice / totalAreaSqft;
-  const highPsf = highPrice > 0 ? highPrice / totalAreaSqft : lowPsf;
+  const highPsf = maxPrice > 0 ? maxPrice / totalAreaSqft : lowPsf;
 
   if (!isFinite(lowPsf)) return "";
 
@@ -492,13 +490,13 @@ export default function UnitLayoutForm({
 
   // Apartment / Business 时显示 propertySubtype
   // Apartment / Business / Industrial 时显示 propertySubtype
-useEffect(() => {
-  const shouldShow =
-    category === "Apartment / Condo / Service Residence" ||
-    category === "Business Property" ||
-    category === "Industrial Property";
-  setShowSubtype(shouldShow);
-}, [category]);
+  useEffect(() => {
+    const shouldShow =
+      category === "Apartment / Condo / Service Residence" ||
+      category === "Business Property" ||
+      category === "Industrial Property";
+    setShowSubtype(shouldShow);
+  }, [category]);
 
   // 点击外面关闭两个下拉：单位数量 & Property Subtype
   useEffect(() => {
@@ -514,6 +512,18 @@ useEffect(() => {
     return () =>
       document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // ✅ 当 Layout 的 common 字段变化时，同步更新本地 photoConfig（仅当继承 Layout1 时）
+  useEffect(() => {
+    if (enableCommonCopy && index > 0 && layout._inheritCommon !== false) {
+      setPhotoConfig((prev) => ({
+        ...prev,
+        extraSpaces: layout.extraSpaces || [],
+        facilities: layout.facilities || [],
+        furniture: layout.furniture || [],
+      }));
+    }
+  }, [enableCommonCopy, index, layout._inheritCommon, layout.extraSpaces, layout.facilities, layout.furniture]);
 
   // 更新 layout
   const updateLayout = (patch, meta) => {
@@ -717,7 +727,7 @@ useEffect(() => {
               {/* 显示区域（点击打开下拉） */}
               <div
                 className="border p-2 rounded w-full bg-white cursor-pointer"
-                onClick={() => setSubtypeOpen((prev) => !prev)}
+                onClick={() => setSubtypeOpen((prev) => !(prev))}
               >
                 {propertySubtype.length === 0 ? (
                   <span className="text-gray-400">
@@ -758,7 +768,7 @@ useEffect(() => {
         </>
       )}
 
-      {/* 这个房型有多少个单位？ */}
+         {/* 这个房型有多少个单位？ */}
       <div className="mb-3" ref={unitCountRef}>
         <label className="block font-medium mb-1">这个房型有多少个单位？</label>
         <div className="relative">
@@ -811,7 +821,7 @@ useEffect(() => {
         }}
       />
 
-{/* 价格 */}
+      {/* 价格 */}
       <PriceInput
         value={priceForPsf}
         onChange={(val) => {
@@ -833,7 +843,7 @@ useEffect(() => {
           kitchens: photoConfig.kitchens,
           livingRooms: photoConfig.livingRooms,
         }}
-onChange={(patch) => {
+        onChange={(patch) => {
           setPhotoConfig((prev) => ({ ...prev, ...patch }));
           updateLayout(patch);
         }}
@@ -854,7 +864,7 @@ onChange={(patch) => {
         }
       />
 
-{/* 额外空间 */}
+      {/* 额外空间 */}
       <ExtraSpacesSelector
         value={photoConfig.extraSpaces}
         onChange={(val) => {
@@ -874,7 +884,7 @@ onChange={(patch) => {
 
       {/* 车位楼层 */}
       <CarparkLevelSelector
-      value={layout.carparkPosition}
+        value={layout.carparkPosition}
         onChange={(val) => handleFieldChange("carparkPosition", val)}
         mode="range"
       />
@@ -896,16 +906,16 @@ onChange={(patch) => {
         }}
       />
 
-          {/* 交通信息（每个 layout 自己的） */}
+      {/* 交通信息（每个 layout 自己的） */}
       <div className="mb-4">
         <label className="font-medium">交通信息</label>
         <TransitSelector
-  value={normalizeTransitToSelector(layout.transit)}
-  onChange={(val) => {
-    const normalized = normalizeTransitFromSelector(val);
-    handleFieldChange("transit", normalized, { commonField: "transit" });
-  }}
-/>
+          value={normalizeTransitToSelector(layout.transit)}
+          onChange={(val) => {
+            const normalized = normalizeTransitFromSelector(val);
+            handleFieldChange("transit", normalized, { commonField: "transit" });
+          }}
+        />
       </div>
 
       {/* 建成年份 + 季度 */}
@@ -920,7 +930,7 @@ onChange={(patch) => {
         />
       )}
 
-{/* 每个 Layout 自己的房源描述 */}
+      {/* 每个 Layout 自己的房源描述 */}
       <div className="mt-3 mb-3">
         <label className="block font-medium mb-1">房源描述</label>
         <textarea
@@ -942,7 +952,7 @@ onChange={(patch) => {
 
               <input
                 type="file"
-                            multiple
+                multiple
                 accept="image/*"
                 onChange={(e) => handlePhotoChange(e, label)}
               />
@@ -964,7 +974,7 @@ onChange={(patch) => {
                       onClick={() => removePhoto(label, index)}
                     >
                       X
-</button>
+                    </button>
 
                     <button
                       type="button"
@@ -982,5 +992,4 @@ onChange={(patch) => {
       </div>
     </div>
   );
-                  }
-        
+                            }
