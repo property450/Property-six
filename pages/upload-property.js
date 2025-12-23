@@ -136,7 +136,7 @@ function commonHash(layout) {
 // ✅【关键修复】把 UnitTypeSelector onChange 的返回值，统一变成 layouts 数组
 function normalizeLayoutsFromUnitTypeSelector(payload) {
   // 1) 已经是数组 -> 直接返回
-  if (Array.isArray(payload)) return payload.map((o) => ({ ...o, _uiId: o?._uiId || (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random().toString(16).slice(2)}`) }));
+  if (Array.isArray(payload)) return payload;
 
   // 2) 可能直接回传数字（选择了几个房型）
   if (typeof payload === "number") {
@@ -297,7 +297,8 @@ export default function UploadProperty() {
     // ✅ 只在 Sale + New Project 启用“Layout1 同步/脱钩”
   const enableProjectAutoCopy =
     String(saleType || "").toLowerCase() === "sale" &&
-    String(computedStatus || "").includes("New Project");
+    (String(computedStatus || "").includes("New Project") ||
+      String(computedStatus || "") === "New Project / Under Construction");
 
   // 不再是项目类时清空 layouts（保留你原本行为）
   useEffect(() => {
@@ -597,7 +598,7 @@ export default function UploadProperty() {
                 <div className="space-y-4 mt-4">
                   {unitLayouts.map((layout, index) => (
                     <UnitLayoutForm
-                      key={layout?._uiId || layout?.id || index}
+                      key={layout?._uiId || index}
                       index={index}
                       data={layout}
                       projectCategory={projectCategory}
@@ -638,7 +639,8 @@ export default function UploadProperty() {
                               Object.assign(updatedLayout, cloneDeep(common0));
                             }
                           }
-                          // ✅ index>0：只要你改了 common（四个字段），立刻脱钩（但“勾回同步”复制 common 不算脱钩）
+                          // ✅ index>0：只要你改了 common（四个字段），立刻脱钩
+                          // ⚠️ 但“勾回同步 Layout1”时会先复制 Layout1 的 common，这一步不应该触发脱钩
                           if (enableProjectAutoCopy && index > 0 && !meta?.inheritToggle) {
                             const prevH = commonHash(prevLayout);
                             const nextH = commonHash(updatedLayout);
@@ -875,4 +877,4 @@ next[index] = updatedLayout;
     </div>
   );
 }
-           
+                   
