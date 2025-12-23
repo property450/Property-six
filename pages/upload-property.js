@@ -298,8 +298,6 @@ export default function UploadProperty() {
   const enableProjectAutoCopy =
     String(saleType || "").toLowerCase() === "sale" &&
     String(computedStatus || "").includes("New Project");
-    String(saleType || "").toLowerCase() === "sale" &&
-    computedStatus === "New Project / Under Construction";
 
   // 不再是项目类时清空 layouts（保留你原本行为）
   useEffect(() => {
@@ -641,8 +639,6 @@ export default function UploadProperty() {
                             }
                           }
                           // ✅ index>0：只要你改了 common（四个字段），立刻脱钩
-                          // ⚠️ 但当你「勾回同步 Layout1」时（inheritToggle），我们会主动复制 Layout1 的 common，
-                          //    这时候不应该马上又被判断为“不一致”而自动脱钩。
                           if (enableProjectAutoCopy && index > 0 && !meta?.inheritToggle) {
                             const prevH = commonHash(prevLayout);
                             const nextH = commonHash(updatedLayout);
@@ -879,4 +875,4 @@ export default function UploadProperty() {
       </Button>
     </div>
   );
-                   }
+}
