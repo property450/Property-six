@@ -297,8 +297,9 @@ export default function UploadProperty() {
     // ✅ 只在 Sale + New Project 启用“Layout1 同步/脱钩”
   const enableProjectAutoCopy =
     String(saleType || "").toLowerCase() === "sale" &&
-    (String(computedStatus || "").includes("New Project") ||
-      String(computedStatus || "") === "New Project / Under Construction");
+    String(computedStatus || "").includes("New Project");
+    String(saleType || "").toLowerCase() === "sale" &&
+    computedStatus === "New Project / Under Construction";
 
   // 不再是项目类时清空 layouts（保留你原本行为）
   useEffect(() => {
@@ -598,7 +599,7 @@ export default function UploadProperty() {
                 <div className="space-y-4 mt-4">
                   {unitLayouts.map((layout, index) => (
                     <UnitLayoutForm
-                      key={layout?._uiId || index}
+                      key={index}
                       index={index}
                       data={layout}
                       projectCategory={projectCategory}
@@ -640,7 +641,8 @@ export default function UploadProperty() {
                             }
                           }
                           // ✅ index>0：只要你改了 common（四个字段），立刻脱钩
-                          // ⚠️ 但“勾回同步 Layout1”时会先复制 Layout1 的 common，这一步不应该触发脱钩
+                          // ⚠️ 但当你「勾回同步 Layout1」时（inheritToggle），我们会主动复制 Layout1 的 common，
+                          //    这时候不应该马上又被判断为“不一致”而自动脱钩。
                           if (enableProjectAutoCopy && index > 0 && !meta?.inheritToggle) {
                             const prevH = commonHash(prevLayout);
                             const nextH = commonHash(updatedLayout);
@@ -648,7 +650,8 @@ export default function UploadProperty() {
                               updatedLayout._inheritCommon = false;
                             }
                           }
-next[index] = updatedLayout;
+
+                          next[index] = updatedLayout;
 
                           // ✅ index==0：改了 common，就同步到仍继承的 layout
                           if (enableProjectAutoCopy && index === 0) {
@@ -876,5 +879,4 @@ next[index] = updatedLayout;
       </Button>
     </div>
   );
-}
-                   
+                   }
