@@ -104,23 +104,6 @@ const LAYOUT_CATEGORY_OPTIONS = {
 // ✅ 你要复制/脱钩的 common 字段（只做这四个）
 const COMMON_KEYS = ["extraSpaces", "furniture", "facilities", "transit"];
 
-// --- UI 稳定 key：避免 New Project 多个 Layout 因为 key=index 导致组件反复重建（勾选/多选会“记不住”）---
-function makeUiId() {
-  try {
-    return crypto.randomUUID();
-  } catch {
-    return `ui_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-  }
-}
-
-function ensureLayoutUiIds(list) {
-  const arr = Array.isArray(list) ? list : [];
-  return arr.map((x) => {
-    const o = (x && typeof x === "object") ? x : {};
-    return o._uiId ? o : { ...o, _uiId: makeUiId() };
-  });
-}
-
 // 深拷贝，避免引用共享导致“改一个影响全部”
 function cloneDeep(v) {
   try {
@@ -315,6 +298,8 @@ export default function UploadProperty() {
   const enableProjectAutoCopy =
     String(saleType || "").toLowerCase() === "sale" &&
     String(computedStatus || "").includes("New Project");
+    String(saleType || "").toLowerCase() === "sale" &&
+    computedStatus === "New Project / Under Construction";
 
   // 不再是项目类时清空 layouts（保留你原本行为）
   useEffect(() => {
@@ -344,7 +329,7 @@ export default function UploadProperty() {
           next[i] = { ...li, ...cloneDeep(common0) };
         }
       }
-      return ensureLayoutUiIds(next);
+      return next;
     });
 
     lastCommonHashRef.current = h;
@@ -591,7 +576,6 @@ export default function UploadProperty() {
                         ...incoming,
                         ...withProjectType,
                         _inheritCommon: inherit,
-                        _uiId: oldItem._uiId || incoming._uiId || makeUiId(),
                       };
                     });
 
@@ -615,7 +599,7 @@ export default function UploadProperty() {
                 <div className="space-y-4 mt-4">
                   {unitLayouts.map((layout, index) => (
                     <UnitLayoutForm
-                      key={layout?._uiId || index}
+                      key={index}
                       index={index}
                       data={layout}
                       projectCategory={projectCategory}
@@ -657,11 +641,16 @@ export default function UploadProperty() {
                             }
                           }
                           // ✅ index>0：只要你改了 common（四个字段），立刻脱钩
-                          if (enableProjectAutoCopy && index > 0 && !meta?.inheritToggle) {
-                            const prevH = commonHash(prevLayout);
-                            const nextH = commonHash(updatedLayout);
-                            if (prevH !== nextH) {
-                              updatedLayout._inheritCommon = false;
+                          if (enableProjectAutoCopy && index > 0) {
+                            // Skip auto-detach when the user toggles "sync with Layout 1"
+                            if (meta?.inheritToggle || updatedLayout.__fromToggle) {
+                              if (updatedLayout.__fromToggle) delete updatedLayout.__fromToggle;
+                            } else {
+                              const prevH = commonHash(prevLayout);
+                              const nextH = commonHash(updatedLayout);
+                              if (prevH !== nextH) {
+                                updatedLayout._inheritCommon = false;
+                              }
                             }
                           }
 
@@ -682,7 +671,7 @@ export default function UploadProperty() {
                             }
                           }
 
-                          return ensureLayoutUiIds(next);
+                          return next;
                         });
                       }}
                     />
@@ -893,4 +882,5 @@ export default function UploadProperty() {
       </Button>
     </div>
   );
-                    }
+}
+                   
