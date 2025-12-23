@@ -408,71 +408,6 @@ export default function UploadProperty() {
   // -----------------------------
   // 渲染
   // -----------------------------
-  // New Project: UnitLayoutForm onChange（抽出来避免 JSX 结尾括号/大括号错位导致 build error）
-  const handleUnitLayoutChange = (index, updated, meta) => {
-    setUnitLayouts((prev) => {
-      const base = Array.isArray(prev) ? prev : [];
-      const next = [...base];
-
-      const prevLayout = base[index] || {};
-      const updatedLayout = { ...prevLayout, ...updated };
-
-      // 初始化 inherit flag
-      if (index === 0) updatedLayout._inheritCommon = false;
-      if (
-        index > 0 &&
-        typeof updatedLayout._inheritCommon !== "boolean"
-      ) {
-        updatedLayout._inheritCommon =
-          typeof prevLayout._inheritCommon === "boolean"
-            ? prevLayout._inheritCommon
-            : true;
-      }
-
-      // ✅ 更精准：如果子表单明确告诉我们改的是 common 字段，直接脱钩/同步
-      const commonKeys = new Set(["extraSpaces", "furniture", "facilities", "transit"]);
-      if (enableProjectAutoCopy && meta?.commonField && commonKeys.has(meta.commonField)) {
-        if (index > 0) {
-          updatedLayout._inheritCommon = false; // 子 layout 改 common -> 脱钩
-        }
-      }
-      if (enableProjectAutoCopy && meta?.inheritToggle && index > 0) {
-        // 勾回“同步 Layout1”时：立刻把 Layout1 的 common 复制回来
-        if (updatedLayout._inheritCommon !== false) {
-          const common0 = pickCommon(base[0] || {});
-          Object.assign(updatedLayout, cloneDeep(common0));
-        }
-      }
-      // ✅ index>0：只要你改了 common（四个字段），立刻脱钩
-      if (enableProjectAutoCopy && index > 0) {
-        const prevH = commonHash(prevLayout);
-        const nextH = commonHash(updatedLayout);
-        if (prevH !== nextH) {
-          updatedLayout._inheritCommon = false;
-        }
-      }
-
-      next[index] = updatedLayout;
-
-      // ✅ index==0：改了 common，就同步到仍继承的 layout
-      if (enableProjectAutoCopy && index === 0) {
-        const prevH = commonHash(prevLayout);
-        const nextH = commonHash(updatedLayout);
-        if (prevH !== nextH) {
-          const common0 = pickCommon(updatedLayout);
-          for (let i = 1; i < next.length; i++) {
-            const li = next[i] || {};
-            if (li._inheritCommon !== false) {
-              next[i] = { ...li, ...cloneDeep(common0) };
-            }
-          }
-        }
-      }
-
-      return next;
-    });
-  };
-
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-4">
       <h1 className="text-2xl font-bold">上传房源</h1>
@@ -671,7 +606,69 @@ export default function UploadProperty() {
                       projectSubType={projectSubType}
                       lockCategory={isBulkRentProject} // bulk rent 锁定 category/subType
                       enableCommonCopy={enableProjectAutoCopy}
-                      onChange={(updated, meta) => handleUnitLayoutChange(index, updated, meta)}
+                      onChange={(updated, meta) => {
+                        setUnitLayouts((prev) => {
+                          const base = Array.isArray(prev) ? prev : [];
+                          const next = [...base];
+
+                          const prevLayout = base[index] || {};
+                          const updatedLayout = { ...prevLayout, ...updated };
+
+                          // 初始化 inherit flag
+                          if (index === 0) updatedLayout._inheritCommon = false;
+                          if (
+                            index > 0 &&
+                            typeof updatedLayout._inheritCommon !== "boolean"
+                          ) {
+                            updatedLayout._inheritCommon =
+                              typeof prevLayout._inheritCommon === "boolean"
+                                ? prevLayout._inheritCommon
+                                : true;
+                          }
+
+                          // ✅ 更精准：如果子表单明确告诉我们改的是 common 字段，直接脱钩/同步
+                          const commonKeys = new Set(["extraSpaces", "furniture", "facilities", "transit"]);
+                          if (enableProjectAutoCopy && meta?.commonField && commonKeys.has(meta.commonField)) {
+                            if (index > 0) {
+                              updatedLayout._inheritCommon = false; // 子 layout 改 common -> 脱钩
+                            }
+                          }
+                          if (enableProjectAutoCopy && meta?.inheritToggle && index > 0) {
+                            // 勾回“同步 Layout1”时：立刻把 Layout1 的 common 复制回来
+                            if (updatedLayout._inheritCommon !== false) {
+                              const common0 = pickCommon(base[0] || {});
+                              Object.assign(updatedLayout, cloneDeep(common0));
+                            }
+                          }
+                          // ✅ index>0：只要你改了 common（四个字段），立刻脱钩
+                          if (enableProjectAutoCopy && index > 0) {
+                            const prevH = commonHash(prevLayout);
+                            const nextH = commonHash(updatedLayout);
+                            if (prevH !== nextH) {
+                              updatedLayout._inheritCommon = false;
+                            }
+                          }
+
+                          next[index] = updatedLayout;
+
+                          // ✅ index==0：改了 common，就同步到仍继承的 layout
+                          if (enableProjectAutoCopy && index === 0) {
+                            const prevH = commonHash(prevLayout);
+                            const nextH = commonHash(updatedLayout);
+                            if (prevH !== nextH) {
+                              const common0 = pickCommon(updatedLayout);
+                              for (let i = 1; i < next.length; i++) {
+                                const li = next[i] || {};
+                                if (li._inheritCommon !== false) {
+                                  next[i] = { ...li, ...cloneDeep(common0) };
+                                }
+                              }
+                            }
+                          }
+
+                          return next;
+                        });
+                      }}
                     />
                   ))}
                 </div>
@@ -751,19 +748,6 @@ export default function UploadProperty() {
                     }}
                     onChange={(patch) =>
                       setSingleFormData((p) => ({ ...p, ...patch }))
-                    }
-                  />
-
-                  <CarparkCountSelector
-                    value={singleFormData.carpark}
-                    onChange={(val) =>
-                      setSingleFormData((p) => ({ ...p, carpark: val }))
-                    }
-                    mode={
-                      computedStatus === "New Project / Under Construction" ||
-                      computedStatus === "Completed Unit / Developer Unit"
-                        ? "range"
-                        : "single"
                     }
                   />
 
@@ -880,6 +864,4 @@ export default function UploadProperty() {
       </Button>
     </div>
   );
-}
-                  
-           
+                    }
