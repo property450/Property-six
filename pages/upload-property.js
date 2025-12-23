@@ -878,4 +878,3 @@ export default function UploadProperty() {
     </div>
   );
 }
-                   
