@@ -549,14 +549,26 @@ export default function UploadProperty() {
                   setUnitLayouts((prev) => {
                     const oldList = Array.isArray(prev) ? prev : [];
 
-                    // ✅ 关键修复：房型数量没变就不重建 layouts，避免覆盖用户勾选状态
+                    // ✅ 关键修复：如果房型数量没有变化，不重建 layouts，避免覆盖用户勾选状态
                     if (oldList.length === normalized.length) {
                       return prev;
                     }
+                    const nextList = normalized; // ✅ 现在保证是数组
 
-                    const merged = normalized.map((incoming, idx) => {
+                    // 以 nextList 的长度为准，避免旧残留导致“数量不对/不生成”
+                    const merged = nextList.map((incoming, idx) => {
                       const oldItem = oldList[idx] || {};
+                      // bulk rent：强制写入 category/subType
+                      const withProjectType =
+                        isBulkRentProject && projectCategory
+                          ? {
+                              propertyCategory: projectCategory,
+                              subType: projectSubType || oldItem.subType || "",
+                            }
+                          : {};
 
+                      // ✅ index0 永远不继承
+                      // ✅ index>0 默认继承 true（除非旧的已经脱钩）
                       const inherit =
                         idx === 0
                           ? false
@@ -567,6 +579,7 @@ export default function UploadProperty() {
                       return {
                         ...oldItem,
                         ...incoming,
+                        ...withProjectType,
                         _inheritCommon: inherit,
                       };
                     });
@@ -585,6 +598,7 @@ export default function UploadProperty() {
                   });
                 }}
               />
+
               {/* 渲染 layouts（你原本就有，我只把 key 改成稳定 index，避免 id 不存在导致渲染异常） */}
               {unitLayouts.length > 0 && (
                 <div className="space-y-4 mt-4">
@@ -868,4 +882,4 @@ export default function UploadProperty() {
       </Button>
     </div>
   );
-}
+                    }
