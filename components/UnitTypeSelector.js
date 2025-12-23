@@ -15,6 +15,7 @@ export default function UnitTypeSelector({ propertyStatus, layouts = [], onChang
 
   // layout 的初始结构
   const createEmptyLayout = () => ({
+    _uiId: `ly-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     type: "",
     propertyCategory: "",
     subType: "",
@@ -69,6 +70,9 @@ export default function UnitTypeSelector({ propertyStatus, layouts = [], onChang
 
     // ⭐ 在原有 layouts 基础上“增减”，不要每次全部重建
     let next = Array.isArray(layouts) ? [...layouts] : [];
+
+    // ✅ 保证每个 layout 有稳定 key，避免 React 重新挂载导致勾选状态看起来“记不住”
+    next = next.map((l) => (l && l._uiId ? l : { ...l, _uiId: `ly-${Date.now()}-${Math.random().toString(16).slice(2)}` }));
 
     // 长度不够就补空 layout
     if (next.length < count) {
