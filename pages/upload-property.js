@@ -133,7 +133,7 @@ function commonHash(layout) {
   }
 }
 
-// ✅关键修复把 UnitTypeSelector onChange 的返回值，统一变成 layouts 数组
+// ✅【关键修复】把 UnitTypeSelector onChange 的返回值，统一变成 layouts 数组
 function normalizeLayoutsFromUnitTypeSelector(payload) {
   // 1) 已经是数组 -> 直接返回
   if (Array.isArray(payload)) return payload;
@@ -291,11 +291,15 @@ export default function UploadProperty() {
     computedStatus?.includes("Developer Unit");
 
   const isRoomRental =
-    String(saleType || "").toLowerCase() === "rent" && roomRentalMode === "room";
+    String(saleType || "").toLowerCase() === "rent" &&
+    roomRentalMode === "room";
 
-  // ✅ 只在 Sale + New Project 启用“Layout1 同步/脱钩”
+    // ✅ 只在 Sale + New Project 启用“Layout1 同步/脱钩”
   const enableProjectAutoCopy =
-    saleTypeNorm === "sale" && String(computedStatus || "").includes("New Project");
+    String(saleType || "").toLowerCase() === "sale" &&
+    String(computedStatus || "").includes("New Project");
+    String(saleType || "").toLowerCase() === "sale" &&
+    computedStatus === "New Project / Under Construction";
 
   // 不再是项目类时清空 layouts（保留你原本行为）
   useEffect(() => {
@@ -601,7 +605,7 @@ export default function UploadProperty() {
                       projectCategory={projectCategory}
                       projectSubType={projectSubType}
                       lockCategory={isBulkRentProject} // bulk rent 锁定 category/subType
-                       enableCommonCopy={enableProjectAutoCopy}
+                      enableCommonCopy={enableProjectAutoCopy}
                       onChange={(updated, meta) => {
                         setUnitLayouts((prev) => {
                           const base = Array.isArray(prev) ? prev : [];
@@ -631,23 +635,20 @@ export default function UploadProperty() {
                           }
                           if (enableProjectAutoCopy && meta?.inheritToggle && index > 0) {
                             // 勾回“同步 Layout1”时：立刻把 Layout1 的 common 复制回来
-                            // ✅ 注意：此处是“用户点勾”的动作，不要被下面的 hash 脱钩逻辑反向覆盖
                             if (updatedLayout._inheritCommon !== false) {
-                              updatedLayout._inheritCommon = true;
                               const common0 = pickCommon(base[0] || {});
                               Object.assign(updatedLayout, cloneDeep(common0));
-                            } else {
-                              updatedLayout._inheritCommon = false;
                             }
                           }
                           // ✅ index>0：只要你改了 common（四个字段），立刻脱钩
-                          if (enableProjectAutoCopy && index > 0 && !meta?.inheritToggle) {
+                          if (enableProjectAutoCopy && index > 0) {
                             const prevH = commonHash(prevLayout);
                             const nextH = commonHash(updatedLayout);
                             if (prevH !== nextH) {
                               updatedLayout._inheritCommon = false;
                             }
                           }
+
                           next[index] = updatedLayout;
 
                           // ✅ index==0：改了 common，就同步到仍继承的 layout
@@ -694,10 +695,7 @@ export default function UploadProperty() {
                     areaData.values.buildUp,
                     areaData.units.buildUp
                   ),
-                  land: convertToSqft(
-                    areaData.values.land,
-                    areaData.units.land
-                  ),
+                  land: convertToSqft(areaData.values.land, areaData.units.land),
                 }}
               />
 
@@ -728,7 +726,7 @@ export default function UploadProperty() {
                         value={singleFormData.facilities}
                         onChange={(val) =>
                           setSingleFormData((p) => ({ ...p, facilities: val }))
-                        }
+                          }
                       />
                       <TransitSelector
                         value={singleFormData.transit || null}
@@ -816,7 +814,7 @@ export default function UploadProperty() {
                         value={singleFormData.buildYear}
                         onChange={(val) =>
                           setSingleFormData((p) => ({ ...p, buildYear: val }))
-                        }
+                          }
                         quarter={singleFormData.quarter}
                         onQuarterChange={(val) =>
                           setSingleFormData((p) => ({ ...p, quarter: val }))
@@ -879,4 +877,4 @@ export default function UploadProperty() {
       </Button>
     </div>
   );
-                      }
+                }
