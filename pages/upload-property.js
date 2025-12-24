@@ -102,8 +102,6 @@ export default function UploadProperty() {
 
   // ✅ TypeSelector 需要的「value」
   const [typeValue, setTypeValue] = useState("");
-  const [rentBatchMode, setRentBatchMode] = useState("no");
-
 
   // 基础信息
   const [title, setTitle] = useState("");
