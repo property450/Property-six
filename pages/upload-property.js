@@ -10,70 +10,42 @@ import { Button } from "@/components/ui/button";
 
 import TypeSelector from "@/components/TypeSelector";
 
-// ✅ 你新建的 3 个独立表单文件
+// ✅ 你新建的 3 个独立表单文件（保持你的结构不变）
 import ProjectUploadForm from "@/components/forms/ProjectUploadForm";
 import RentUploadForm from "@/components/forms/RentUploadForm";
 import SaleUploadForm from "@/components/forms/SaleUploadForm";
 
 import { useUser } from "@supabase/auth-helpers-react";
 
-// -----------------------------
-// dynamic (ssr false)
-// -----------------------------
-const AddressSearchInput = dynamic(() => import("@/components/AddressSearchInput"), {
-  ssr: false,
-});
+// ✅ 只在浏览器渲染（避免 SSR/hydration 问题）
+const AddressSearchInput = dynamic(() => import("@/components/AddressSearchInput"), { ssr: false });
 
-/**
- * ✅ 解决 “Element type is invalid ... got object”
- * 有些文件你可能是 default export，有些可能是 named export
- * 这里统一做兼容：优先 default，其次找同名导出
- */
-const resolveComponent = (mod, names = []) => {
+// ✅ 兼容 default / named export：避免 “Element type is invalid ... got object”
+const resolveComponent = (mod, preferredNames = []) => {
   if (!mod) return null;
-  if (mod.default) return mod.default;
-  for (const n of names) {
-    if (mod[n]) return mod[n];
+  if (typeof mod === "function") return mod;
+  if (mod.default && typeof mod.default === "function") return mod.default;
+  for (const n of preferredNames) {
+    if (typeof mod[n] === "function") return mod[n];
   }
-  // 最后兜底：找第一个函数/组件
-  const first = Object.values(mod).find((v) => typeof v === "function");
-  return first || null;
+  const firstFn = Object.values(mod).find((v) => typeof v === "function");
+  return firstFn || null;
 };
 
 const HomestayUploadForm = dynamic(
-  () =>
-    import("@/components/homestay/HomestayUploadForm").then((m) =>
-      resolveComponent(m, ["HomestayUploadForm"])
-    ),
+  () => import("@/components/homestay/HomestayUploadForm").then((m) => resolveComponent(m, ["HomestayUploadForm"])),
   { ssr: false }
 );
 
 const HotelUploadForm = dynamic(
-  () =>
-    import("@/components/hotel/HotelUploadForm").then((m) =>
-      resolveComponent(m, ["HotelUploadForm"])
-    ),
+  () => import("@/components/hotel/HotelUploadForm").then((m) => resolveComponent(m, ["HotelUploadForm"])),
   { ssr: false }
 );
 
-// -----------------------------
 // 批量 Rent 项目：统一 Category / Sub Type（你原本就有）
-// -----------------------------
 const LAYOUT_CATEGORY_OPTIONS = {
-  "Bungalow / Villa": [
-    "Bungalow",
-    "Link Bungalow",
-    "Twin Villa",
-    "Zero-Lot Bungalow",
-    "Twin Villa",
-    "Bungalow land",
-  ],
-  "Apartment / Condo / Service Residence": [
-    "Apartment",
-    "Condominium",
-    "Flat",
-    "Service Residence",
-  ],
+  "Bungalow / Villa": ["Bungalow", "Link Bungalow", "Twin Villa", "Zero-Lot Bungalow", "Bungalow land"],
+  "Apartment / Condo / Service Residence": ["Apartment", "Condominium", "Flat", "Service Residence"],
   "Semi-Detached House": ["Cluster House", "Semi-Detached House"],
   "Terrace / Link House": ["Terraced House", "Townhouse"],
   "Business Property": [
@@ -148,9 +120,7 @@ const convertToSqft = (val, unit) => {
   const num = parseFloat(String(val || "").replace(/,/g, ""));
   if (isNaN(num) || num <= 0) return 0;
   const u = String(unit || "").toLowerCase();
-  if (u.includes("square meter") || u.includes("sq m") || u.includes("sqm")) {
-    return num * 10.7639;
-  }
+  if (u.includes("square meter") || u.includes("sq m") || u.includes("sqm")) return num * 10.7639;
   if (u.includes("acre")) return num * 43560;
   if (u.includes("hectare")) return num * 107639;
   return num;
@@ -160,44 +130,49 @@ export default function UploadProperty() {
   const router = useRouter();
   const user = useUser();
 
-  // ✅ 避免 hydration mismatch（你截图那种）
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  if (!mounted) return null;
+  // ✅ TypeSelector 的 value（不改变你现有逻辑，只是让 TypeSelector 内部对比用）
+  const [typeValue, setTypeValue] = useState("");
 
-  // -----------------------------
-  // 基本字段（你原本就有）
-  // -----------------------------
+  // 基础信息
   const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [address, setAddress] = useState("");
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
 
-  // -----------------------------
-  // ✅ TypeSelector 接线（关键修复）
-  // TypeSelector 会通过 onFormChange 回传所有选择
-  // -----------------------------
-  const [saleType, setSaleType] = useState(""); // "Sale" / "Rent" / "Homestay" / "Hotel/Resort"
-  const [computedStatus, setComputedStatus] = useState(""); // propertyStatus
-  const [roomRentalMode, setRoomRentalMode] = useState("whole"); // whole / room
-  const [rentBatchMode, setRentBatchMode] = useState("no"); // no / yes （需要批量操作吗）
+  // 主模式 / 状态（保留你的旧变量名，避免影响下游）
+  const [saleType, setSaleType] = useState("");
+  const [computedStatus, setComputedStatus] = useState("");
 
-  // 保留你原本下游用的表单数据
+  // Rent 专用
+  const [roomRentalMode, setRoomRentalMode] = useState("whole"); // whole / room
+  const [rentBatchMode, setRentBatchMode] = useState("no"); // yes/no（需要批量操作吗）
+
+  // 项目模式
+  const [unitLayouts, setUnitLayouts] = useState([]);
+  const [projectCategory, setProjectCategory] = useState("");
+  const [projectSubType, setProjectSubType] = useState("");
+
+  // 单一表单（非项目）
   const [singleFormData, setSingleFormData] = useState({
     price: "",
+    priceLow: "",
+    priceHigh: "",
     bedrooms: "",
     bathrooms: "",
     kitchens: "",
     livingRooms: "",
     carpark: "",
+    carparkPosition: "",
+    facing: "",
     extraSpaces: [],
     facilities: [],
     furniture: [],
-    facing: "",
     transit: null,
+    buildYear: "",
+    quarter: "",
+    photos: {},
   });
-
-  const [description, setDescription] = useState("");
 
   const [areaData, setAreaData] = useState({
     types: ["buildUp", "land"],
@@ -207,13 +182,6 @@ export default function UploadProperty() {
 
   const [loading, setLoading] = useState(false);
 
-  // Project layouts（New Project / Completed Unit）
-  const [unitLayouts, setUnitLayouts] = useState([]);
-
-  // bulk rent 项目的 project category/subType
-  const [projectCategory, setProjectCategory] = useState("");
-  const [projectSubType, setProjectSubType] = useState("");
-
   // 处理地址选点
   const handleLocationSelect = (loc) => {
     if (!loc) return;
@@ -222,30 +190,24 @@ export default function UploadProperty() {
     setLongitude(loc.lng || "");
   };
 
-  // -----------------------------
-  // 统一判定（保持你原本逻辑）
-  // -----------------------------
+  // 统一判定（保持你的原本逻辑）
   const saleTypeNorm = String(saleType || "").toLowerCase();
   const isHomestay = saleTypeNorm.includes("homestay");
   const isHotel = saleTypeNorm.includes("hotel");
 
   const isProject =
-    computedStatus === "New Project / Under Construction" ||
-    computedStatus === "Completed Unit / Developer Unit";
+    computedStatus === "New Project / Under Construction" || computedStatus === "Completed Unit / Developer Unit";
 
   const isBulkRentProject =
     String(saleType || "").toLowerCase() === "rent" &&
     computedStatus === "New Project / Under Construction" &&
     rentBatchMode === "yes";
 
-  const isRoomRental =
-    String(saleType || "").toLowerCase() === "rent" &&
-    roomRentalMode === "room";
+  const isRoomRental = String(saleType || "").toLowerCase() === "rent" && roomRentalMode === "room";
 
   // ✅ 只在 Sale + New Project / Under Construction 启用“Layout1 同步/脱钩”
   const enableProjectAutoCopy =
-    String(saleType || "").toLowerCase() === "sale" &&
-    computedStatus === "New Project / Under Construction";
+    String(saleType || "").toLowerCase() === "sale" && computedStatus === "New Project / Under Construction";
 
   // 不再是项目类时清空 layouts（保留你原本行为）
   useEffect(() => {
@@ -267,7 +229,7 @@ export default function UploadProperty() {
   };
 
   // -----------------------------
-  // 提交（保留你原本结构）
+  // 提交（你原本的结构）
   // -----------------------------
   const handleSubmit = async () => {
     try {
@@ -288,10 +250,7 @@ export default function UploadProperty() {
         return;
       }
 
-      // ✅ 这里保持你原本 insert/update 逻辑（你原文件如果有完整提交逻辑，请放回这里）
-      // toast.success("提交成功");
-      // router.push("/");
-
+      // ⚠️ 这里保持你原本 insert/update 逻辑（你可以把你原来完整的 supabase 提交代码放回来）
       toast.success("提交成功");
       router.push("/");
     } catch (e) {
@@ -321,32 +280,26 @@ export default function UploadProperty() {
         <div className="text-sm text-gray-600">{address}</div>
       </div>
 
-      {/* ✅ Type Selector（按你现在这份 TypeSelector 的接口接线） */}
+      {/* ✅ TypeSelector：用你现在的新版接口对接（这是 New Project / Homestay/Hotel 能切换的关键） */}
       <TypeSelector
-        value={saleType} // 这里只是给它对比用（它内部不吃 value 来回填，所以不影响 UI）
-        onChange={(val) => {
-          // TypeSelector 会吐出 finalType 或 saleType 字符串（它内部逻辑保留）
-          // 你这里存不存都行；我们主要依赖 onFormChange
-        }}
+        value={typeValue}
+        onChange={setTypeValue}
         rentBatchMode={rentBatchMode}
-        onChangeRentBatchMode={(val) => setRentBatchMode(val)}
+        onChangeRentBatchMode={(v) => setRentBatchMode(v)}
         onFormChange={(form) => {
-          // ✅ 关键：把 TypeSelector 的内部选择同步回父层
-          // 这样 isProject / isHomestay / isHotel 才会正确
+          // 把 TypeSelector 的内部选择同步回父层（保持你旧变量名）
           setSaleType(form?.saleType || "");
           setComputedStatus(form?.propertyStatus || "");
-
-          // 房间出租模式
           setRoomRentalMode(form?.roomRentalMode || "whole");
 
-          // 批量 rent
+          // 兼容：如果 TypeSelector 也回传 rentBatchMode，就同步
           if (typeof form?.rentBatchMode === "string") {
             setRentBatchMode(form.rentBatchMode);
           }
         }}
       />
 
-      {/* ✅ 这里开始：按模式渲染独立表单（不改你的字/UI，只是修复接线） */}
+      {/* ✅ 按你的原本逻辑渲染（不改你表单结构，只修“切换不生效/报错”） */}
       {isHomestay ? (
         <HomestayUploadForm />
       ) : isHotel ? (
