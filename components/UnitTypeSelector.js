@@ -1,114 +1,71 @@
 // components/UnitTypeSelector.js
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createEmptyLayout } from "../factories/layoutFactory";
 
-export default function UnitTypeSelector({ propertyStatus, layouts = [], onChange }) {
-  // 只有项目类房源时显示
-  const shouldShow =
-    propertyStatus?.includes("New Project") ||
-    propertyStatus?.includes("Under Construction") ||
-    propertyStatus?.includes("Completed Unit") ||
-    propertyStatus?.includes("Developer Unit");
+export default function UnitTypeSelector({
+  saleType,
+  unitLayouts,
+  setUnitLayouts,
+}) {
+  const [count, setCount] = useState(1);
 
-  const [count, setCount] = useState(0);
-
-  // layout 的初始结构
-  const createEmptyLayout = () => ({
-    _uiId: `ly-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-    type: "",
-    propertyCategory: "",
-    subType: "",
-    unitCount: "",
-
-    price: "",
-    buildUp: {},
-
-    // 房间数量（全部用 number）
-    bedrooms: 0,
-    bathrooms: 0,
-    kitchens: 0,
-    livingRooms: 0,
-
-    // 停车位数字
-    carpark: 0,
-
-    // 车位位置（range）
-    carparkPosition: { min: 0, max: 0 },
-
-    extraSpaces: [],
-    facilities: [],
-    furniture: [],
-
-    facing: "",
-
-    photos: [],
-    layoutPhotos: [],
-
-    buildYear: "",
-    quarter: "",
-
-    transit: null,
-
-    // ⭐ 每个 layout 自己的房源描述
-    description: "",
-  });
+  const shouldShow = useMemo(() => {
+    return saleType === "New Project (Developer)" || saleType === "Completed Unit (Developer)";
+  }, [saleType]);
 
   useEffect(() => {
-    // 不是项目类时：清空
-    if (!shouldShow) {
-      if (count !== 0) setCount(0);
-      onChange?.([]);
-      return;
-    }
+    if (!shouldShow) return;
 
-    // 项目类但没选数量：清空
-    if (!count || count <= 0) {
-      onChange?.([]);
-      return;
-    }
+    const arr = Array.isArray(unitLayouts) ? unitLayouts : [];
+    const n = arr.length > 0 ? arr.length : 1;
+    setCount(n);
 
-    // ⭐ 在原有 layouts 基础上“增减”，不要每次全部重建
-    let next = Array.isArray(layouts) ? [...layouts] : [];
+    // 确保每个 layout 都有 _uiId
+    setUnitLayouts((prev) => {
+      const p = Array.isArray(prev) ? prev : [];
+      if (!p.length) return [createEmptyLayout()];
+      return p.map((l) => (l && l._uiId ? l : { ...(l || {}), _uiId: createEmptyLayout()._uiId }));
+    });
+  }, [shouldShow]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // ✅ 保证每个 layout 有稳定 key，避免 React 重新挂载导致勾选状态看起来“记不住”
-    next = next.map((l) => (l && l._uiId ? l : { ...l, _uiId: `ly-${Date.now()}-${Math.random().toString(16).slice(2)}` }));
+  useEffect(() => {
+    if (!shouldShow) return;
 
-    // 长度不够就补空 layout
-    if (next.length < count) {
-      while (next.length < count) {
-        next.push(createEmptyLayout());
+    setUnitLayouts((prev) => {
+      const arr = Array.isArray(prev) ? prev : [];
+      const next = [...arr];
+
+      if (next.length < count) {
+        for (let i = next.length; i < count; i++) next.push(createEmptyLayout());
+      } else if (next.length > count) {
+        next.splice(count);
       }
-    }
-
-    // 太多就裁掉多余的
-    if (next.length > count) {
-      next = next.slice(0, count);
-    }
-
-    onChange?.(next);
-    // 注意：这里不要把 layouts 放进依赖，否则每次父组件更新又重置
-  }, [count, shouldShow]); // ✅ 只依赖 count 和 shouldShow
+      return next;
+    });
+  }, [count, shouldShow, setUnitLayouts]);
 
   if (!shouldShow) return null;
 
   return (
-    <div className="mb-6">
-      <label className="block font-medium mb-2">
-        这个项目有多少个房型 / Layout？
-      </label>
+    <div className="mb-4">
+      <label className="font-semibold block mb-2">这个项目有多少个房型 / Layout 数量</label>
       <select
-        className="border p-2 rounded w-full"
-        value={count || ""}
-        onChange={(e) => setCount(Number(e.target.value) || 0)}
+        className="w-full border rounded p-2"
+        value={count}
+        onChange={(e) => setCount(Number(e.target.value))}
       >
-        <option value="">请选择房型数量</option>
-        {Array.from({ length: 30 }, (_, i) => i + 1).map((n) => (
-          <option key={n} value={n}>
-            {n} 个房型
-          </option>
-        ))}
+        {Array.from({ length: 20 }).map((_, i) => {
+          const v = i + 1;
+          return (
+            <option key={v} value={v}>
+              {v}
+            </option>
+          );
+        })}
       </select>
     </div>
   );
 }
+
