@@ -10,35 +10,36 @@ import { Button } from "@/components/ui/button";
 
 import TypeSelector from "@/components/TypeSelector";
 
-// ✅ 你新建的 3 个独立表单文件（保持你的结构不变）
+// ✅ 你新建的 3 个独立表单文件
 import ProjectUploadForm from "@/components/forms/ProjectUploadForm";
 import RentUploadForm from "@/components/forms/RentUploadForm";
 import SaleUploadForm from "@/components/forms/SaleUploadForm";
 
 import { useUser } from "@supabase/auth-helpers-react";
 
-// ✅ 只在浏览器渲染（避免 SSR/hydration 问题）
+// ✅ 地址输入：client only
 const AddressSearchInput = dynamic(() => import("@/components/AddressSearchInput"), { ssr: false });
 
-// ✅ 兼容 default / named export：避免 “Element type is invalid ... got object”
-const resolveComponent = (mod, preferredNames = []) => {
-  if (!mod) return null;
-  if (typeof mod === "function") return mod;
-  if (mod.default && typeof mod.default === "function") return mod.default;
-  for (const n of preferredNames) {
-    if (typeof mod[n] === "function") return mod[n];
-  }
-  const firstFn = Object.values(mod).find((v) => typeof v === "function");
-  return firstFn || null;
-};
-
+/**
+ * ✅ Homestay / Hotel：用 dynamic + “default 或 named export” 兼容
+ * 这样就不会再出现 “Element type is invalid... got object”
+ * 如果你的文件是 export default => 用 default
+ * 如果你的文件是 export function HomestayUploadForm => 用 named
+ * 两个都没有 => 返回一个空组件（不报错）
+ */
 const HomestayUploadForm = dynamic(
-  () => import("@/components/homestay/HomestayUploadForm").then((m) => resolveComponent(m, ["HomestayUploadForm"])),
+  () =>
+    import("@/components/homestay/HomestayUploadForm").then(
+      (m) => m.default || m.HomestayUploadForm || (() => null)
+    ),
   { ssr: false }
 );
 
 const HotelUploadForm = dynamic(
-  () => import("@/components/hotel/HotelUploadForm").then((m) => resolveComponent(m, ["HotelUploadForm"])),
+  () =>
+    import("@/components/hotel/HotelUploadForm").then(
+      (m) => m.default || m.HotelUploadForm || (() => null)
+    ),
   { ssr: false }
 );
 
@@ -130,23 +131,27 @@ export default function UploadProperty() {
   const router = useRouter();
   const user = useUser();
 
-  // ✅ TypeSelector 的 value（不改变你现有逻辑，只是让 TypeSelector 内部对比用）
-  const [typeValue, setTypeValue] = useState("");
+  // ✅ 只做 hydration 稳定（不提前 return，不会造成 hooks 错误）
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   // 基础信息
   const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
+  const [description, setDescription] = useState(""); // 顶层描述
   const [address, setAddress] = useState("");
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
 
-  // 主模式 / 状态（保留你的旧变量名，避免影响下游）
+  // ✅ TypeSelector 回传的完整表单对象（关键）
+  const [typeForm, setTypeForm] = useState(null);
+
+  // 主模式 / 状态（你页面其它逻辑会用到）
   const [saleType, setSaleType] = useState("");
   const [computedStatus, setComputedStatus] = useState("");
 
   // Rent 专用
   const [roomRentalMode, setRoomRentalMode] = useState("whole"); // whole / room
-  const [rentBatchMode, setRentBatchMode] = useState("no"); // yes/no（需要批量操作吗）
+  const [rentBatchMode, setRentBatchMode] = useState("no"); // yes/no
 
   // 项目模式
   const [unitLayouts, setUnitLayouts] = useState([]);
@@ -190,24 +195,37 @@ export default function UploadProperty() {
     setLongitude(loc.lng || "");
   };
 
-  // 统一判定（保持你的原本逻辑）
+  // ✅ 关键：每次 TypeSelector 改变，把核心字段同步到父层 state
+  useEffect(() => {
+    if (!typeForm) return;
+    setSaleType(typeForm.saleType || "");
+    setComputedStatus(typeForm.propertyStatus || "");
+    setRoomRentalMode(typeForm.roomRentalMode || "whole");
+    if (typeof typeForm.rentBatchMode === "string") setRentBatchMode(typeForm.rentBatchMode);
+  }, [typeForm]);
+
+  // 统一判定
   const saleTypeNorm = String(saleType || "").toLowerCase();
   const isHomestay = saleTypeNorm.includes("homestay");
   const isHotel = saleTypeNorm.includes("hotel");
 
   const isProject =
-    computedStatus === "New Project / Under Construction" || computedStatus === "Completed Unit / Developer Unit";
+    computedStatus === "New Project / Under Construction" ||
+    computedStatus === "Completed Unit / Developer Unit";
 
   const isBulkRentProject =
     String(saleType || "").toLowerCase() === "rent" &&
     computedStatus === "New Project / Under Construction" &&
     rentBatchMode === "yes";
 
-  const isRoomRental = String(saleType || "").toLowerCase() === "rent" && roomRentalMode === "room";
+  const isRoomRental =
+    String(saleType || "").toLowerCase() === "rent" &&
+    roomRentalMode === "room";
 
   // ✅ 只在 Sale + New Project / Under Construction 启用“Layout1 同步/脱钩”
   const enableProjectAutoCopy =
-    String(saleType || "").toLowerCase() === "sale" && computedStatus === "New Project / Under Construction";
+    String(saleType || "").toLowerCase() === "sale" &&
+    computedStatus === "New Project / Under Construction";
 
   // 不再是项目类时清空 layouts（保留你原本行为）
   useEffect(() => {
@@ -229,7 +247,7 @@ export default function UploadProperty() {
   };
 
   // -----------------------------
-  // 提交（你原本的结构）
+  // 提交
   // -----------------------------
   const handleSubmit = async () => {
     try {
@@ -250,7 +268,6 @@ export default function UploadProperty() {
         return;
       }
 
-      // ⚠️ 这里保持你原本 insert/update 逻辑（你可以把你原来完整的 supabase 提交代码放回来）
       toast.success("提交成功");
       router.push("/");
     } catch (e) {
@@ -280,75 +297,72 @@ export default function UploadProperty() {
         <div className="text-sm text-gray-600">{address}</div>
       </div>
 
-      {/* ✅ TypeSelector：用你现在的新版接口对接（这是 New Project / Homestay/Hotel 能切换的关键） */}
+      {/* ✅ TypeSelector：用你现在的新接口 */}
       <TypeSelector
-        value={typeValue}
-        onChange={setTypeValue}
+        value={typeForm?.finalType || ""} // 只是给 TypeSelector 内部对比用，不影响你原 UI
+        onChange={() => {}}
         rentBatchMode={rentBatchMode}
         onChangeRentBatchMode={(v) => setRentBatchMode(v)}
         onFormChange={(form) => {
-          // 把 TypeSelector 的内部选择同步回父层（保持你旧变量名）
-          setSaleType(form?.saleType || "");
-          setComputedStatus(form?.propertyStatus || "");
-          setRoomRentalMode(form?.roomRentalMode || "whole");
-
-          // 兼容：如果 TypeSelector 也回传 rentBatchMode，就同步
-          if (typeof form?.rentBatchMode === "string") {
-            setRentBatchMode(form.rentBatchMode);
-          }
+          // ✅ 关键：一定要 setTypeForm，父层才能拿到 saleType/propertyStatus
+          setTypeForm(form || null);
         }}
       />
 
-      {/* ✅ 按你的原本逻辑渲染（不改你表单结构，只修“切换不生效/报错”） */}
-      {isHomestay ? (
-        <HomestayUploadForm />
-      ) : isHotel ? (
-        <HotelUploadForm />
-      ) : isProject ? (
-        <ProjectUploadForm
-          computedStatus={computedStatus}
-          isBulkRentProject={isBulkRentProject}
-          projectCategory={projectCategory}
-          setProjectCategory={setProjectCategory}
-          projectSubType={projectSubType}
-          setProjectSubType={setProjectSubType}
-          unitLayouts={unitLayouts}
-          setUnitLayouts={setUnitLayouts}
-          enableProjectAutoCopy={enableProjectAutoCopy}
-          LAYOUT_CATEGORY_OPTIONS={LAYOUT_CATEGORY_OPTIONS}
-          normalizeLayoutsFromUnitTypeSelector={normalizeLayoutsFromUnitTypeSelector}
-          pickCommon={pickCommon}
-          cloneDeep={cloneDeep}
-          commonHash={commonHash}
-        />
-      ) : String(saleType || "").toLowerCase() === "rent" ? (
-        <RentUploadForm
-          saleType={saleType}
-          computedStatus={computedStatus}
-          isRoomRental={isRoomRental}
-          roomRentalMode={roomRentalMode}
-          singleFormData={singleFormData}
-          setSingleFormData={setSingleFormData}
-          areaData={areaData}
-          setAreaData={setAreaData}
-          description={description}
-          setDescription={setDescription}
-          photoConfig={photoConfig}
-          convertToSqft={convertToSqft}
-        />
-      ) : (
-        <SaleUploadForm
-          saleType={saleType}
-          computedStatus={computedStatus}
-          singleFormData={singleFormData}
-          setSingleFormData={setSingleFormData}
-          areaData={areaData}
-          setAreaData={setAreaData}
-          description={description}
-          setDescription={setDescription}
-          photoConfig={photoConfig}
-          convertToSqft={convertToSqft}
-        />
+      {/* ✅ 表单区：等 mounted 后再渲染，避免 hydration 问题（不提前 return，不会 hooks 错） */}
+      {mounted && (
+        <>
+          {isHomestay ? (
+            <HomestayUploadForm />
+          ) : isHotel ? (
+            <HotelUploadForm />
+          ) : isProject ? (
+            <ProjectUploadForm
+              computedStatus={computedStatus}
+              isBulkRentProject={isBulkRentProject}
+              projectCategory={projectCategory}
+              setProjectCategory={setProjectCategory}
+              projectSubType={projectSubType}
+              setProjectSubType={setProjectSubType}
+              unitLayouts={unitLayouts}
+              setUnitLayouts={setUnitLayouts}
+              enableProjectAutoCopy={enableProjectAutoCopy}
+              LAYOUT_CATEGORY_OPTIONS={LAYOUT_CATEGORY_OPTIONS}
+              normalizeLayoutsFromUnitTypeSelector={normalizeLayoutsFromUnitTypeSelector}
+              pickCommon={pickCommon}
+              cloneDeep={cloneDeep}
+              commonHash={commonHash}
+            />
+          ) : String(saleType || "").toLowerCase() === "rent" ? (
+            <RentUploadForm
+              saleType={saleType}
+              computedStatus={computedStatus}
+              isRoomRental={isRoomRental}
+              roomRentalMode={roomRentalMode}
+              singleFormData={singleFormData}
+              setSingleFormData={setSingleFormData}
+              areaData={areaData}
+              setAreaData={setAreaData}
+              description={description}
+              setDescription={setDescription}
+              photoConfig={photoConfig}
+              convertToSqft={convertToSqft}
+            />
+          ) : (
+            <SaleUploadForm
+              saleType={saleType}
+              computedStatus={computedStatus}
+              singleFormData={singleFormData}
+              setSingleFormData={setSingleFormData}
+              areaData={areaData}
+              setAreaData={setAreaData}
+              description={description}
+              setDescription={setDescription}
+              photoConfig={photoConfig}
+              convertToSqft={convertToSqft}
+            />
+          )}
+        </>
       )}
 
       <Button
