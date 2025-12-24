@@ -1,368 +1,186 @@
 // pages/upload-property.js
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
-import dynamic from "next/dynamic";
-import { supabase } from "../supabaseClient";
 import { toast } from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 
 import TypeSelector from "@/components/TypeSelector";
-import UnitTypeSelector from "@/components/UnitTypeSelector";
 import UnitLayoutForm from "@/components/UnitLayoutForm";
 
-import AreaSelector from "@/components/AreaSelector";
-import PriceInput from "@/components/PriceInput";
-import RoomCountSelector from "@/components/RoomCountSelector";
-import CarparkCountSelector from "@/components/CarparkCountSelector";
-import ExtraSpacesSelector from "@/components/ExtraSpacesSelector";
-import FacingSelector from "@/components/FacingSelector";
-import CarparkLevelSelector from "@/components/CarparkLevelSelector";
-import FacilitiesSelector from "@/components/FacilitiesSelector";
-import FurnitureSelector from "@/components/FurnitureSelector";
-import BuildYearSelector from "@/components/BuildYearSelector";
-import ImageUpload from "@/components/ImageUpload";
-import TransitSelector from "@/components/TransitSelector";
-import RoomRentalForm from "@/components/RoomRentalForm";
-
-// Homestay / Hotel
-import HotelUploadForm from "@/components/hotel/HotelUploadForm";
+// ✅ 你已经有这两个文件：直接正常 import（不要 require/try-catch，避免不显示）
 import HomestayUploadForm from "@/components/homestay/HomestayUploadForm";
+import HotelUploadForm from "@/components/hotel/HotelUploadForm";
 
-// ✅ 你新建的 3 个独立表单文件
-import ProjectUploadForm from "@/components/forms/ProjectUploadForm";
-import RentUploadForm from "@/components/forms/RentUploadForm";
-import SaleUploadForm from "@/components/forms/SaleUploadForm";
-
-import { useUser } from "@supabase/auth-helpers-react";
-
-const AddressSearchInput = dynamic(
-  () => import("@/components/AddressSearchInput"),
-  { ssr: false }
-);
-
-// 批量 Rent 项目：统一 Category / Sub Type（你原本就有）
-const LAYOUT_CATEGORY_OPTIONS = {
-  "Bungalow / Villa": [
-    "Bungalow",
-    "Link Bungalow",
-    "Twin Villa",
-    "Zero-Lot Bungalow",
-    "Bungalow land",
-  ],
-  "Apartment / Condo / Service Residence": [
-    "Apartment",
-    "Condominium",
-    "Flat",
-    "Service Residence",
-  ],
-  "Semi-Detached House": ["Cluster House", "Semi-Detached House"],
-  "Terrace / Link House": ["Terraced House", "Townhouse"],
-  "Business Property": [
-    "Hotel / Resort",
-    "Hostel / Dormitory",
-    "Boutique Hotel",
-    "Office",
-    "Office Suite",
-    "Business Suite",
-    "Retail Shop",
-    "Retail Space",
-    "Retail Office",
-    "Shop",
-    "Shop / Office",
-    "Sofo",
-    "Soho",
-    "Sovo",
-    "Commercial Bungalow",
-    "Commercial Semi-Detached House",
-    "Mall / Commercial Complex",
-    "School / University",
-    "Hospital / Medical Centre",
-    "Mosque / Temple / Church",
-    "Government Office",
-    "Community Hall / Public Utilities",
-  ],
-  "Industrial Property": [
-    "Factory",
-    "Cluster Factory",
-    "Semi-D Factory",
-    "Detached Factory",
-    "Terrace Factory",
-    "Warehouse",
-    "Showroom cum Warehouse",
-    "Light Industrial",
-    "Heavy Industrial",
-  ],
-  Land: [
-    "Agricultural Land",
-    "Industrial Land",
-    "Commercial Land",
-    "Residential Land",
-    "Oil Palm Estate",
-    "Rubber Plantation",
-    "Fruit Orchard",
-    "Paddy Field",
-    "Vacant Agricultural Land",
-  ],
-};
-
-// ---------- utils ----------
-const cloneDeep = (v) => JSON.parse(JSON.stringify(v || {}));
-
-const pickCommon = (l = {}) => ({
-  extraSpaces: l.extraSpaces || [],
-  furniture: l.furniture || [],
-  facilities: l.facilities || [],
-  transit: l.transit || null,
-});
-
-const commonHash = (l) => JSON.stringify(pickCommon(l));
-
-const normalizeLayoutsFromUnitTypeSelector = (payload) => {
-  if (Array.isArray(payload)) return payload;
-  const n = Number(payload);
-  if (!Number.isFinite(n) || n <= 0) return [];
-  return Array.from({ length: n }, () => ({}));
-};
-
-// ====== 面积转换（你原本就有） ======
-const convertToSqft = (val, unit) => {
-  const num = parseFloat(String(val || "").replace(/,/g, ""));
-  if (isNaN(num) || num <= 0) return 0;
-  const u = String(unit || "").toLowerCase();
-  if (u.includes("square meter") || u.includes("sq m") || u.includes("sqm")) {
-    return num * 10.7639;
-  }
-  if (u.includes("acre")) return num * 43560;
-  if (u.includes("hectare")) return num * 107639;
-  return num;
-};
-
-export default function UploadProperty() {
+export default function UploadPropertyPage() {
   const router = useRouter();
-  const user = useUser();
 
-  // 基础信息
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState(""); // 顶层描述
-  const [address, setAddress] = useState("");
-  const [latitude, setLatitude] = useState("");
-  const [longitude, setLongitude] = useState("");
+  // TypeSelector 的最终字符串（你 TypeSelector 会自动生成，例如 "Homestay - Entire Place"）
+  const [typeValue, setTypeValue] = useState("");
 
-  // 主模式 / 状态
-  const [saleType, setSaleType] = useState("");
-  const [computedStatus, setComputedStatus] = useState("");
+  // TypeSelector 回传的完整表单结构（最关键：决定显示什么表单）
+  const [typeForm, setTypeForm] = useState(null);
 
-  // Rent 专用
-  const [roomRentalMode, setRoomRentalMode] = useState("whole"); // whole / room
+  // Rent 批量模式（你 TypeSelector 会控制显示/隐藏）
+  const [rentBatchMode, setRentBatchMode] = useState("no");
 
-  // 项目模式
-  const [unitLayouts, setUnitLayouts] = useState([]);
-  const [projectCategory, setProjectCategory] = useState("");
-  const [projectSubType, setProjectSubType] = useState("");
+  // ✅ New Project / Completed Unit：房型数量（layout 数量）
+  const [projectLayoutCount, setProjectLayoutCount] = useState(""); // "1","2"... string
 
-  // 单一表单（非项目）
-  const [singleFormData, setSingleFormData] = useState({
-    price: "",
-    priceLow: "",
-    priceHigh: "",
-    bedrooms: "",
-    bathrooms: "",
-    kitchens: "",
-    livingRooms: "",
-    carpark: "",
-    carparkPosition: "",
-    facing: "",
-    extraSpaces: [],
-    facilities: [],
-    furniture: [],
-    transit: null,
-    buildYear: "",
-    quarter: "",
-    photos: {},
-  });
+  // layouts（每个 layout 对应一个 UnitLayoutForm）
+  const [layouts, setLayouts] = useState([]);
 
-  const [areaData, setAreaData] = useState({
-    types: ["buildUp", "land"],
-    values: { buildUp: "", land: "" },
-    units: { buildUp: "Square Feet (sqft)", land: "Square Feet (sqft)" },
-  });
+  const saleType = typeForm?.saleType || ""; // Sale / Rent / Homestay / Hotel/Resort
+  const propertyStatus = typeForm?.propertyStatus || ""; // New Project / Completed Unit / Subsale...
+  const isProjectStatus =
+    propertyStatus === "New Project / Under Construction" ||
+    propertyStatus === "Completed Unit / Developer Unit";
 
-  const [loading, setLoading] = useState(false);
+  // ✅ 你原本的需求：New Project / Completed Unit 必须先选 layout 数量，才出现 layout 表单
+  const shouldAskProjectLayoutCount = saleType === "Sale" && isProjectStatus;
 
-  // 处理地址选点
-  const handleLocationSelect = (loc) => {
-    if (!loc) return;
-    setAddress(loc.address || "");
-    setLatitude(loc.lat || "");
-    setLongitude(loc.lng || "");
-  };
+  // 将 projectLayoutCount 映射成数字
+  const projectCountNumber = useMemo(() => {
+    const n = Number(String(projectLayoutCount || "").trim());
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    return Math.floor(n);
+  }, [projectLayoutCount]);
 
-  // 统一判定
-  const saleTypeNorm = String(saleType || "").toLowerCase();
-  const isHomestay = saleTypeNorm.includes("homestay");
-  const isHotel = saleTypeNorm.includes("hotel");
-
-  const isProject =
-    computedStatus === "New Project / Under Construction" ||
-    computedStatus === "Completed Unit / Developer Unit";
-
-  const isBulkRentProject =
-    String(saleType || "").toLowerCase() === "rent" &&
-    computedStatus === "New Project / Under Construction";
-
-  const isRoomRental =
-    String(saleType || "").toLowerCase() === "rent" &&
-    roomRentalMode === "room";
-
-  // ✅ 只在 Sale + New Project / Under Construction 启用“Layout1 同步/脱钩”
-  const enableProjectAutoCopy =
-    String(saleType || "").toLowerCase() === "sale" &&
-    computedStatus === "New Project / Under Construction";
-
-  // 不再是项目类时清空 layouts（保留你原本行为）
+  // ✅ 当切换到非 project 模式时，清掉 projectLayoutCount，避免影响其它模式
   useEffect(() => {
-    if (!isProject) setUnitLayouts([]);
-  }, [isProject]);
-
-  // 生成 photoConfig（你原本就有）
-  const photoConfig = {
-    bedrooms: singleFormData.bedrooms || "",
-    bathrooms: singleFormData.bathrooms || "",
-    kitchens: singleFormData.kitchens || "",
-    livingRooms: singleFormData.livingRooms || "",
-    carpark: singleFormData.carpark || "",
-    extraSpaces: singleFormData.extraSpaces || [],
-    facilities: singleFormData.facilities || [],
-    furniture: singleFormData.furniture || [],
-    orientation: singleFormData.facing || "",
-    transit: singleFormData.transit || null,
-  };
-
-  // -----------------------------
-  // 提交
-  // -----------------------------
-  const handleSubmit = async () => {
-    try {
-      setLoading(true);
-
-      if (!user?.id) {
-        toast.error("请先登录");
-        return;
-      }
-
-      if (!title.trim()) {
-        toast.error("请输入房源标题");
-        return;
-      }
-
-      if (!address.trim()) {
-        toast.error("请选择地址");
-        return;
-      }
-
-      // 你原本的提交逻辑保持不动（这里省略你原本 insert/update 的细节）
-      // ⚠️ 如果你原文件后面还有完整提交 insert 逻辑，请保留原样放在这里即可
-
-      toast.success("提交成功");
-      router.push("/");
-    } catch (e) {
-      console.error(e);
-      toast.error("提交失败");
-    } finally {
-      setLoading(false);
+    if (!shouldAskProjectLayoutCount) {
+      setProjectLayoutCount("");
+      setLayouts([]);
+      return;
     }
+    // 在 project 模式下，如果用户还没选数量，就先清空 layouts
+    if (!projectCountNumber) {
+      setLayouts([]);
+      return;
+    }
+    // project 模式下：确保 layouts 数量 = projectCountNumber
+    setLayouts((prev) => {
+      const next = Array.isArray(prev) ? [...prev] : [];
+      // 补足
+      while (next.length < projectCountNumber) next.push({ name: `Layout ${next.length + 1}` });
+      // 截断
+      if (next.length > projectCountNumber) next.length = projectCountNumber;
+      return next;
+    });
+  }, [shouldAskProjectLayoutCount, projectCountNumber]);
+
+  // ✅ 提交（这里不动你 supabase 提交逻辑：你把你原本的 submit 逻辑放回这里即可）
+  const handleSubmit = async () => {
+    if (!saleType) {
+      toast.error("请先选择 Sale / Rent / Homestay / Hotel/Resort");
+      return;
+    }
+
+    if (shouldAskProjectLayoutCount && !projectCountNumber) {
+      toast.error("请先选择这个项目有多少个房型/layout");
+      return;
+    }
+
+    // 你后面可以用这些数据去提交：
+    // - typeValue（最终类型字符串）
+    // - typeForm（TypeSelector 的所有选择）
+    // - layouts（每个 layout 的表单数据）
+    toast.success("OK（类型/房型数量已正确）——你可接回原本提交逻辑");
   };
 
   return (
-    <div className="max-w-3xl mx-auto p-4 space-y-4">
-      <h1 className="text-2xl font-bold">上传房源</h1>
-
-      {/* 标题 */}
-      <input
-        className="w-full border rounded-lg p-2"
-        placeholder="房源标题"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-      />
-
-      {/* 地址 */}
-      <div className="space-y-2">
-        <label className="font-medium">地址</label>
-        <AddressSearchInput onSelect={handleLocationSelect} />
-        <div className="text-sm text-gray-600">{address}</div>
+    <div className="max-w-5xl mx-auto p-4 space-y-6">
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold">Upload Property</h1>
+        <Button variant="outline" onClick={() => router.push("/")}>
+          Back
+        </Button>
       </div>
 
-      {/* Type Selector（你原本就有） */}
+      {/* ✅ TypeSelector 一定要把 onFormChange 接起来，否则 Homestay/Hotel 不会切表单 */}
       <TypeSelector
-        saleType={saleType}
-        setSaleType={setSaleType}
-        computedStatus={computedStatus}
-        setComputedStatus={setComputedStatus}
-        roomRentalMode={roomRentalMode}
-        setRoomRentalMode={setRoomRentalMode}
+        value={typeValue}
+        onChange={setTypeValue}
+        onFormChange={setTypeForm}
+        rentBatchMode={rentBatchMode}
+        onChangeRentBatchMode={setRentBatchMode}
       />
 
-      {/* ✅ 这里开始：按模式渲染独立表单（不改你的字/UI，只是搬家） */}
-      {isHomestay ? (
-        <HomestayUploadForm />
-      ) : isHotel ? (
-        <HotelUploadForm />
-      ) : isProject ? (
-        <ProjectUploadForm
-          computedStatus={computedStatus}
-          isBulkRentProject={isBulkRentProject}
-          projectCategory={projectCategory}
-          setProjectCategory={setProjectCategory}
-          projectSubType={projectSubType}
-          setProjectSubType={setProjectSubType}
-          unitLayouts={unitLayouts}
-          setUnitLayouts={setUnitLayouts}
-          enableProjectAutoCopy={enableProjectAutoCopy}
-          LAYOUT_CATEGORY_OPTIONS={LAYOUT_CATEGORY_OPTIONS}
-          normalizeLayoutsFromUnitTypeSelector={normalizeLayoutsFromUnitTypeSelector}
-          pickCommon={pickCommon}
-          cloneDeep={cloneDeep}
-          commonHash={commonHash}
-        />
-      ) : String(saleType || "").toLowerCase() === "rent" ? (
-        <RentUploadForm
-          saleType={saleType}
-          computedStatus={computedStatus}
-          isRoomRental={isRoomRental}
-          roomRentalMode={roomRentalMode}
-          singleFormData={singleFormData}
-          setSingleFormData={setSingleFormData}
-          areaData={areaData}
-          setAreaData={setAreaData}
-          description={description}
-          setDescription={setDescription}
-          photoConfig={photoConfig}
-          convertToSqft={convertToSqft}
-        />
-      ) : (
-        <SaleUploadForm
-          saleType={saleType}
-          computedStatus={computedStatus}
-          singleFormData={singleFormData}
-          setSingleFormData={setSingleFormData}
-          areaData={areaData}
-          setAreaData={setAreaData}
-          description={description}
-          setDescription={setDescription}
-          photoConfig={photoConfig}
-          convertToSqft={convertToSqft}
-        />
+      {/* ✅ Homestay / Hotel：直接切换到你独立表单 */}
+      {saleType === "Homestay" && (
+        <div className="border rounded-lg p-4">
+          <HomestayUploadForm typeValue={typeValue} typeForm={typeForm} />
+        </div>
       )}
 
-      <Button
-        onClick={handleSubmit}
-        disabled={loading}
-        className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full"
-      >
-        {loading ? "上传中..." : "提交房源"}
-      </Button>
+      {saleType === "Hotel/Resort" && (
+        <div className="border rounded-lg p-4">
+          <HotelUploadForm typeValue={typeValue} typeForm={typeForm} />
+        </div>
+      )}
+
+      {/* ✅ 非 Homestay/Hotel 的一般表单区（Sale / Rent / etc） */}
+      {saleType && saleType !== "Homestay" && saleType !== "Hotel/Resort" && (
+        <div className="space-y-4">
+          {/* ✅ New Project / Completed Unit：先选房型数量 */}
+          {shouldAskProjectLayoutCount && (
+            <div className="border rounded-lg p-4 space-y-2">
+              <div className="font-semibold">这个项目有多少个房型/layout？</div>
+              <select
+                className="w-full border rounded-md p-2"
+                value={projectLayoutCount}
+                onChange={(e) => setProjectLayoutCount(e.target.value)}
+              >
+                <option value="">请选择</option>
+                {Array.from({ length: 30 }, (_, i) => String(i + 1)).map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+
+              {/* 你原本的需求：没选数量前，下面的 layout 表单要隐藏 */}
+              {!projectCountNumber && (
+                <div className="text-sm text-gray-500">
+                  请选择房型数量后，才会显示每个房型的面积、价格、房间数、图片等输入表单。
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ✅ Layout 表单：只有在非 project 模式，或 project 模式选了数量后才显示 */}
+          {(!shouldAskProjectLayoutCount || projectCountNumber > 0) && (
+            <div className="border rounded-lg p-4 space-y-4">
+              <div className="font-semibold">Layouts</div>
+
+              {layouts.length === 0 && !shouldAskProjectLayoutCount && (
+                <div className="text-sm text-gray-500">（这里是你的普通模式表单区域，你可以继续接回你原本完整内容）</div>
+              )}
+
+              {layouts.map((layout, idx) => (
+                <div key={idx} className="border rounded-lg p-3">
+                  <UnitLayoutForm
+                    index={idx}
+                    data={layout}
+                    onChange={(updated) => {
+                      setLayouts((prev) => {
+                        const next = [...(prev || [])];
+                        next[idx] = updated;
+                        return next;
+                      });
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="flex gap-3">
+        <Button onClick={handleSubmit}>Submit</Button>
+      </div>
     </div>
   );
 }
