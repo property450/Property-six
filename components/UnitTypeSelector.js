@@ -2,7 +2,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { createEmptyLayout } from "../factories/layoutFactory";
 
 export default function UnitTypeSelector({
   saleType,
