@@ -1,3 +1,4 @@
+//pages/upload-property.js
 "use client";
 
 import { useState, useEffect, useRef } from "react";
