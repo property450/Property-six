@@ -15,6 +15,9 @@ import CarparkLevelSelector from "@/components/CarparkLevelSelector";
 import FacingSelector from "@/components/FacingSelector";
 import ImageUpload from "@/components/ImageUpload";
 
+// ✅ 关键：统一从 utils 导入（不要从 props 接）
+import { convertToSqft } from "@/utils/psfUtils";
+
 export default function RentUploadForm({
   // 原本的 state/props
   saleType,
@@ -31,7 +34,6 @@ export default function RentUploadForm({
   setDescription,
 
   photoConfig,
-  convertToSqft,
 }) {
   return (
     <div className="space-y-4">
