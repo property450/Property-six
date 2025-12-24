@@ -13,6 +13,7 @@ import FacilitiesSelector from "@/components/FacilitiesSelector";
 import TransitSelector from "@/components/TransitSelector";
 import BuildYearSelector from "@/components/BuildYearSelector";
 import ImageUpload from "@/components/ImageUpload";
+import { convertToSqft } from "@/utils/psfUtils";
 
 export default function SaleUploadForm({
   saleType,
