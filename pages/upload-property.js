@@ -102,6 +102,9 @@ export default function UploadProperty() {
 
   // ✅ TypeSelector 需要的「value」
   const [typeValue, setTypeValue] = useState("");
+  const [typeValue, setTypeValue] = useState("");
+  const [rentBatchMode, setRentBatchMode] = useState("no");
+
 
   // 基础信息
   const [title, setTitle] = useState("");
@@ -237,21 +240,17 @@ export default function UploadProperty() {
 
       {/* ✅ 修复：TypeSelector 正确接线 */}
       <TypeSelector
-        value={typeValue}
-        onChange={setTypeValue}
-        onFormChange={(form) => {
-          // form.saleType: Sale / Rent / Homestay / Hotel/Resort
-          // form.propertyStatus: New Project / Under Construction ...
-          setSaleType(form?.saleType || "");
-          setComputedStatus(form?.propertyStatus || "");
-          setRoomRentalMode(form?.roomRentalMode || "whole");
-          // TypeSelector 内部用 rentBatchMode 控制显示
-          // 你如果要保留它，就把它同步起来
-          if (form?.rentBatchMode) setRentBatchMode(form.rentBatchMode);
-        }}
-        rentBatchMode={rentBatchMode}
-        onChangeRentBatchMode={setRentBatchMode}
-      />
+  value={typeValue}
+  onChange={setTypeValue}
+  rentBatchMode={rentBatchMode}
+  onChangeRentBatchMode={setRentBatchMode}
+  onFormChange={(form) => {
+    setSaleType(form?.saleType || "");
+    setComputedStatus(form?.propertyStatus || "");
+    setRoomRentalMode(form?.roomRentalMode || "whole");
+  }}
+/>
+
 
       {/* ✅ 现在这些分支会正常触发渲染 */}
       {isHomestay ? (
