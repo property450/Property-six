@@ -4,44 +4,24 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import dynamic from "next/dynamic";
-import { supabase } from "../supabaseClient";
 import { toast } from "react-hot-toast";
 import { Button } from "@/components/ui/button";
+import { useUser } from "@supabase/auth-helpers-react";
 
 import TypeSelector from "@/components/TypeSelector";
 
-// ✅ 你新建的 3 个独立表单文件
+// Homestay / Hotel
+import HotelUploadForm from "@/components/hotel/HotelUploadForm";
+import HomestayUploadForm from "@/components/homestay/HomestayUploadForm";
+
+// ✅ 你新建的 3 个独立表单文件（你项目里存在才保留）
 import ProjectUploadForm from "@/components/forms/ProjectUploadForm";
 import RentUploadForm from "@/components/forms/RentUploadForm";
 import SaleUploadForm from "@/components/forms/SaleUploadForm";
 
-import { useUser } from "@supabase/auth-helpers-react";
-
-// ✅ 地址输入：client only
-const AddressSearchInput = dynamic(() => import("@/components/AddressSearchInput"), { ssr: false });
-
-/**
- * ✅ Homestay / Hotel：用 dynamic + “default 或 named export” 兼容
- * 这样就不会再出现 “Element type is invalid... got object”
- * 如果你的文件是 export default => 用 default
- * 如果你的文件是 export function HomestayUploadForm => 用 named
- * 两个都没有 => 返回一个空组件（不报错）
- */
-const HomestayUploadForm = dynamic(
-  () =>
-    import("@/components/homestay/HomestayUploadForm").then(
-      (m) => m.default || m.HomestayUploadForm || (() => null)
-    ),
-  { ssr: false }
-);
-
-const HotelUploadForm = dynamic(
-  () =>
-    import("@/components/hotel/HotelUploadForm").then(
-      (m) => m.default || m.HotelUploadForm || (() => null)
-    ),
-  { ssr: false }
-);
+const AddressSearchInput = dynamic(() => import("@/components/AddressSearchInput"), {
+  ssr: false,
+});
 
 // 批量 Rent 项目：统一 Category / Sub Type（你原本就有）
 const LAYOUT_CATEGORY_OPTIONS = {
@@ -116,24 +96,12 @@ const normalizeLayoutsFromUnitTypeSelector = (payload) => {
   return Array.from({ length: n }, () => ({}));
 };
 
-// ====== 面积转换（你原本就有） ======
-const convertToSqft = (val, unit) => {
-  const num = parseFloat(String(val || "").replace(/,/g, ""));
-  if (isNaN(num) || num <= 0) return 0;
-  const u = String(unit || "").toLowerCase();
-  if (u.includes("square meter") || u.includes("sq m") || u.includes("sqm")) return num * 10.7639;
-  if (u.includes("acre")) return num * 43560;
-  if (u.includes("hectare")) return num * 107639;
-  return num;
-};
-
 export default function UploadProperty() {
   const router = useRouter();
   const user = useUser();
 
-  // ✅ 只做 hydration 稳定（不提前 return，不会造成 hooks 错误）
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  // ✅ TypeSelector 需要的「value」
+  const [typeValue, setTypeValue] = useState("");
 
   // 基础信息
   const [title, setTitle] = useState("");
@@ -142,21 +110,22 @@ export default function UploadProperty() {
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
 
-  // ✅ TypeSelector 回传的完整表单对象（关键）
-  const [typeForm, setTypeForm] = useState(null);
-
-  // 主模式 / 状态（你页面其它逻辑会用到）
-  const [saleType, setSaleType] = useState("");
-  const [computedStatus, setComputedStatus] = useState("");
+  // ✅ 从 TypeSelector 的 onFormChange 回写出来的核心状态
+  const [saleType, setSaleType] = useState(""); // Sale / Rent / Homestay / Hotel/Resort
+  const [computedStatus, setComputedStatus] = useState(""); // propertyStatus（Sale 时）
 
   // Rent 专用
   const [roomRentalMode, setRoomRentalMode] = useState("whole"); // whole / room
-  const [rentBatchMode, setRentBatchMode] = useState("no"); // yes/no
+  const [rentBatchMode, setRentBatchMode] = useState("no"); // TypeSelector 里用到
 
   // 项目模式
   const [unitLayouts, setUnitLayouts] = useState([]);
   const [projectCategory, setProjectCategory] = useState("");
   const [projectSubType, setProjectSubType] = useState("");
+
+  // Homestay / Hotel 表单数据（避免你组件内 onChange 没接到）
+  const [homestayData, setHomestayData] = useState({});
+  const [hotelData, setHotelData] = useState({});
 
   // 单一表单（非项目）
   const [singleFormData, setSingleFormData] = useState({
@@ -195,59 +164,30 @@ export default function UploadProperty() {
     setLongitude(loc.lng || "");
   };
 
-  // ✅ 关键：每次 TypeSelector 改变，把核心字段同步到父层 state
-  useEffect(() => {
-    if (!typeForm) return;
-    setSaleType(typeForm.saleType || "");
-    setComputedStatus(typeForm.propertyStatus || "");
-    setRoomRentalMode(typeForm.roomRentalMode || "whole");
-    if (typeof typeForm.rentBatchMode === "string") setRentBatchMode(typeForm.rentBatchMode);
-  }, [typeForm]);
-
-  // 统一判定
+  // ✅ 统一判定（现在 saleType 是真的会变了）
   const saleTypeNorm = String(saleType || "").toLowerCase();
-  const isHomestay = saleTypeNorm.includes("homestay");
-  const isHotel = saleTypeNorm.includes("hotel");
+  const isHomestay = saleTypeNorm === "homestay";
+  const isHotel = saleTypeNorm === "hotel/resort";
 
   const isProject =
     computedStatus === "New Project / Under Construction" ||
     computedStatus === "Completed Unit / Developer Unit";
 
   const isBulkRentProject =
-    String(saleType || "").toLowerCase() === "rent" &&
-    computedStatus === "New Project / Under Construction" &&
-    rentBatchMode === "yes";
+    saleTypeNorm === "rent" && computedStatus === "New Project / Under Construction";
 
-  const isRoomRental =
-    String(saleType || "").toLowerCase() === "rent" &&
-    roomRentalMode === "room";
+  const isRoomRental = saleTypeNorm === "rent" && roomRentalMode === "room";
 
   // ✅ 只在 Sale + New Project / Under Construction 启用“Layout1 同步/脱钩”
-  const enableProjectAutoCopy =
-    String(saleType || "").toLowerCase() === "sale" &&
-    computedStatus === "New Project / Under Construction";
+  const enableProjectAutoCopy = saleTypeNorm === "sale" && computedStatus === "New Project / Under Construction";
 
   // 不再是项目类时清空 layouts（保留你原本行为）
   useEffect(() => {
     if (!isProject) setUnitLayouts([]);
   }, [isProject]);
 
-  // 生成 photoConfig（你原本就有）
-  const photoConfig = {
-    bedrooms: singleFormData.bedrooms || "",
-    bathrooms: singleFormData.bathrooms || "",
-    kitchens: singleFormData.kitchens || "",
-    livingRooms: singleFormData.livingRooms || "",
-    carpark: singleFormData.carpark || "",
-    extraSpaces: singleFormData.extraSpaces || [],
-    facilities: singleFormData.facilities || [],
-    furniture: singleFormData.furniture || [],
-    orientation: singleFormData.facing || "",
-    transit: singleFormData.transit || null,
-  };
-
   // -----------------------------
-  // 提交
+  // 提交（你原本完整逻辑放这里，不动）
   // -----------------------------
   const handleSubmit = async () => {
     try {
@@ -257,12 +197,10 @@ export default function UploadProperty() {
         toast.error("请先登录");
         return;
       }
-
       if (!title.trim()) {
         toast.error("请输入房源标题");
         return;
       }
-
       if (!address.trim()) {
         toast.error("请选择地址");
         return;
@@ -297,79 +235,73 @@ export default function UploadProperty() {
         <div className="text-sm text-gray-600">{address}</div>
       </div>
 
-      {/* ✅ TypeSelector：用你现在的新接口 */}
+      {/* ✅ 修复：TypeSelector 正确接线 */}
       <TypeSelector
-        value={typeForm?.finalType || ""} // 只是给 TypeSelector 内部对比用，不影响你原 UI
-        onChange={() => {}}
-        rentBatchMode={rentBatchMode}
-        onChangeRentBatchMode={(v) => setRentBatchMode(v)}
+        value={typeValue}
+        onChange={setTypeValue}
         onFormChange={(form) => {
-          // ✅ 关键：一定要 setTypeForm，父层才能拿到 saleType/propertyStatus
-          setTypeForm(form || null);
+          // form.saleType: Sale / Rent / Homestay / Hotel/Resort
+          // form.propertyStatus: New Project / Under Construction ...
+          setSaleType(form?.saleType || "");
+          setComputedStatus(form?.propertyStatus || "");
+          setRoomRentalMode(form?.roomRentalMode || "whole");
+          // TypeSelector 内部用 rentBatchMode 控制显示
+          // 你如果要保留它，就把它同步起来
+          if (form?.rentBatchMode) setRentBatchMode(form.rentBatchMode);
         }}
+        rentBatchMode={rentBatchMode}
+        onChangeRentBatchMode={setRentBatchMode}
       />
 
-      {/* ✅ 表单区：等 mounted 后再渲染，避免 hydration 问题（不提前 return，不会 hooks 错） */}
-      {mounted && (
-        <>
-          {isHomestay ? (
-            <HomestayUploadForm />
-          ) : isHotel ? (
-            <HotelUploadForm />
-          ) : isProject ? (
-            <ProjectUploadForm
-              computedStatus={computedStatus}
-              isBulkRentProject={isBulkRentProject}
-              projectCategory={projectCategory}
-              setProjectCategory={setProjectCategory}
-              projectSubType={projectSubType}
-              setProjectSubType={setProjectSubType}
-              unitLayouts={unitLayouts}
-              setUnitLayouts={setUnitLayouts}
-              enableProjectAutoCopy={enableProjectAutoCopy}
-              LAYOUT_CATEGORY_OPTIONS={LAYOUT_CATEGORY_OPTIONS}
-              normalizeLayoutsFromUnitTypeSelector={normalizeLayoutsFromUnitTypeSelector}
-              pickCommon={pickCommon}
-              cloneDeep={cloneDeep}
-              commonHash={commonHash}
-            />
-          ) : String(saleType || "").toLowerCase() === "rent" ? (
-            <RentUploadForm
-              saleType={saleType}
-              computedStatus={computedStatus}
-              isRoomRental={isRoomRental}
-              roomRentalMode={roomRentalMode}
-              singleFormData={singleFormData}
-              setSingleFormData={setSingleFormData}
-              areaData={areaData}
-              setAreaData={setAreaData}
-              description={description}
-              setDescription={setDescription}
-              photoConfig={photoConfig}
-              convertToSqft={convertToSqft}
-            />
-          ) : (
-            <SaleUploadForm
-              saleType={saleType}
-              computedStatus={computedStatus}
-              singleFormData={singleFormData}
-              setSingleFormData={setSingleFormData}
-              areaData={areaData}
-              setAreaData={setAreaData}
-              description={description}
-              setDescription={setDescription}
-              photoConfig={photoConfig}
-              convertToSqft={convertToSqft}
-            />
-          )}
-        </>
+      {/* ✅ 现在这些分支会正常触发渲染 */}
+      {isHomestay ? (
+        <HomestayUploadForm data={homestayData} onChange={setHomestayData} />
+      ) : isHotel ? (
+        <HotelUploadForm data={hotelData} onChange={setHotelData} />
+      ) : isProject ? (
+        <ProjectUploadForm
+          computedStatus={computedStatus}
+          isBulkRentProject={isBulkRentProject}
+          projectCategory={projectCategory}
+          setProjectCategory={setProjectCategory}
+          projectSubType={projectSubType}
+          setProjectSubType={setProjectSubType}
+          unitLayouts={unitLayouts}
+          setUnitLayouts={setUnitLayouts}
+          enableProjectAutoCopy={enableProjectAutoCopy}
+          LAYOUT_CATEGORY_OPTIONS={LAYOUT_CATEGORY_OPTIONS}
+          normalizeLayoutsFromUnitTypeSelector={normalizeLayoutsFromUnitTypeSelector}
+          pickCommon={pickCommon}
+          cloneDeep={cloneDeep}
+          commonHash={commonHash}
+        />
+      ) : saleTypeNorm === "rent" ? (
+        <RentUploadForm
+          saleType={saleType}
+          computedStatus={computedStatus}
+          isRoomRental={isRoomRental}
+          roomRentalMode={roomRentalMode}
+          singleFormData={singleFormData}
+          setSingleFormData={setSingleFormData}
+          areaData={areaData}
+          setAreaData={setAreaData}
+          description={description}
+          setDescription={setDescription}
+        />
+      ) : (
+        <SaleUploadForm
+          saleType={saleType}
+          computedStatus={computedStatus}
+          singleFormData={singleFormData}
+          setSingleFormData={setSingleFormData}
+          areaData={areaData}
+          setAreaData={setAreaData}
+          description={description}
+          setDescription={setDescription}
+        />
       )}
 
-      <Button
-        onClick={handleSubmit}
-        disabled={loading}
-        className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full"
-      >
+      <Button onClick={handleSubmit} disabled={loading} className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full">
         {loading ? "上传中..." : "提交房源"}
       </Button>
     </div>
