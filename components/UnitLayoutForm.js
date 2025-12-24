@@ -1,6 +1,7 @@
-//components/UnitLayoutForm.js
+// components/UnitLayoutForm.js
 "use client";
-import { useState, useEffect, useRef } from "react";
+
+import { useState, useRef, useEffect } from "react";
 
 import PriceInput from "./PriceInput";
 import CarparkCountSelector from "./CarparkCountSelector";
@@ -12,262 +13,311 @@ import FacilitiesSelector from "./FacilitiesSelector";
 import CarparkLevelSelector from "./CarparkLevelSelector";
 import RoomCountSelector from "./RoomCountSelector";
 import AreaSelector from "./AreaSelector";
-import ImageUpload from "./ImageUpload";
 import TransitSelector from "./TransitSelector";
+import FloorCountSelector from "./FloorCountSelector";
 
-import { CATEGORY_OPTIONS } from "../constants/propertyCategories";
-import { NEED_STOREYS_CATEGORY } from "../constants/propertyRules";
-import { parseSubtypeToArray, toArray } from "../utils/arrayUtils";
-import { getPsfText } from "../utils/psfUtils";
-import { normalizeTransitToSelector, normalizeTransitFromSelector } from "../utils/transitUtils";
-import { getPhotoLabelsFromConfig } from "../utils/imageLabelUtils";
-import useOutsideClick from "../hooks/useOutsideClick";
+import {
+  normalizeTransitToSelector,
+  normalizeTransitFromSelector,
+} from "@/utils/unitLayoutForm/transit";
+import { getAreaSqftFromAreaSelector } from "@/utils/unitLayoutForm/area";
+import {
+  CATEGORY_OPTIONS,
+  SUBTYPE_OPTIONS,
+  NEED_STOREYS_CATEGORY,
+} from "@/utils/unitLayoutForm/constants";
+import {
+  formatNumber,
+  parseNumber,
+  toCount,
+  toArray,
+  getName,
+  parseSubtypeToArray,
+  getPhotoLabelsFromConfig,
+} from "@/utils/unitLayoutForm/photoLabels";
 
-export default function UnitLayoutForm({ index, data, onChange }) {
+export default function UnitLayoutForm({
+  index,
+  data,
+  onChange,
+  projectCategory,
+  projectSubType,
+  lockCategory = false, // bulk rent 项目锁定类别
+  enableCommonCopy = false, // 是否启用 Layout1 同步/脱钩功能
+}) {
+  // ✅ 完全受控：不在这里存 state，直接用父组件传进来的 data
   const layout = data || {};
-  const unitDropdownRef = useRef(null);
+  const fileInputRef = useRef(null);
 
-  const [unitDropdownOpen, setUnitDropdownOpen] = useState(false);
-  useOutsideClick(unitDropdownRef, () => setUnitDropdownOpen(false), unitDropdownOpen);
-
-  // 交通 selector 的受控值（保持你原本思路：normalize）
-  const [transitValue, setTransitValue] = useState(() => normalizeTransitToSelector(layout));
-
-  useEffect(() => {
-    setTransitValue(normalizeTransitToSelector(layout));
-  }, [layout?.walkToTransit, layout?.transitLines, layout?.transitStations, layout?.transitNotes]);
-
+  // 统一更新：只负责把修改后的 layout 回传给父组件
   const updateLayout = (patch, meta) => {
     const updated = { ...layout, ...patch };
     onChange?.(updated, meta);
   };
 
-  const category = layout.category || "";
-  const subType = parseSubtypeToArray(layout.subType);
-  const isNeedStoreys = NEED_STOREYS_CATEGORY.has(category);
+  // ---------- 本表单内部使用 ----------
+  const propertyCategory =
+    lockCategory && projectCategory ? projectCategory : layout.propertyCategory || "";
+  const subType = lockCategory && projectSubType ? projectSubType : layout.subType || "";
 
-  const psfText = getPsfText(layout.area, layout.price);
+  const isNeedStoreys = NEED_STOREYS_CATEGORY.has(propertyCategory);
 
-  // 图片上传标签
-  const photoLabels = getPhotoLabelsFromConfig({
-    bedroomCount: layout.bedroomCount,
-    bathroomCount: layout.bathroomCount,
-    carparkCount: layout.carparkCount,
-    storeRoomCount: layout.storeRoomCount,
-    extraSpaces: toArray(layout.extraSpaces),
-    facilities: toArray(layout.facilities),
-    furniture: toArray(layout.furniture),
-    facing: toArray(layout.facing),
-  });
+  // Property Subtype（多选）
+  const subtypeArr = parseSubtypeToArray(layout.propertySubtype);
 
+  // PSF 计算（用 buildUp + land 的总 sqft）
+  const totalSqft = getAreaSqftFromAreaSelector(layout.area);
+  const priceLow = Number(parseNumber(layout.priceLow || layout.price || 0)) || 0;
+  const priceHigh = Number(parseNumber(layout.priceHigh || layout.price || 0)) || 0;
+
+  const lowPsf = totalSqft > 0 && priceLow > 0 ? priceLow / totalSqft : 0;
+  const highPsf = totalSqft > 0 && priceHigh > 0 ? priceHigh / totalSqft : 0;
+
+  const psfText =
+    lowPsf && highPsf
+      ? `每平方英尺: RM ${lowPsf.toLocaleString(undefined, {
+          maximumFractionDigits: 2,
+        })} ~ RM ${highPsf.toLocaleString(undefined, {
+          maximumFractionDigits: 2,
+        })}`
+      : "";
+
+  // ✅ 动态 photo config：由「卧室/浴室/厨房/客厅/车位 + 额外空间 + 家私」生成
+  const photoConfig = {
+    bedrooms: layout.bedrooms,
+    bathrooms: layout.bathrooms,
+    kitchens: layout.kitchens,
+    livingRooms: layout.livingRooms,
+    carpark: layout.carpark,
+    extraSpaces: layout.extraSpaces,
+    furniture: layout.furniture,
+  };
+
+  const photoLabels = getPhotoLabelsFromConfig(photoConfig);
+
+  // ✅ TransitSelector：统一格式，避免“选了又跳回请选择”
+  const transitValue = normalizeTransitToSelector(layout.transit);
+
+  // ========== render ==========
   return (
-    <div className="border rounded p-4 mb-4 bg-white">
-      <div className="flex items-center justify-between mb-2">
-        <div className="font-semibold text-lg">房型 {index + 1}</div>
-        <div className="text-sm text-gray-500">{layout.layoutTitle || ""}</div>
-      </div>
+    <div className="border rounded-lg p-4 space-y-4 bg-white">
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold text-lg">房型 {index + 1}</h3>
 
-      {/* Layout Title */}
-      <div className="mb-3">
-        <label className="font-semibold block mb-1">Layout 标题（可选）</label>
-        <input
-          className="w-full border rounded p-2"
-          value={layout.layoutTitle || ""}
-          onChange={(e) => updateLayout({ layoutTitle: e.target.value })}
-          placeholder="例如：Type A / 3R2B"
-        />
+        {/* Layout1 同步/脱钩开关（只在 enableCommonCopy 时显示，且 index>0 才有意义） */}
+        {enableCommonCopy && index > 0 && (
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={layout._inheritCommon !== false}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                updateLayout(
+                  { _inheritCommon: checked ? true : false },
+                  { inheritToggle: true }
+                );
+              }}
+            />
+            同步 Layout1（额外空间 / 家私 / 设施 / 公共交通）
+          </label>
+        )}
       </div>
 
       {/* Category */}
-      <div className="mb-3">
-        <label className="font-semibold block mb-1">Property Category</label>
+      <div>
+        <label className="font-medium">Property Category</label>
         <select
-          className="w-full border rounded p-2"
-          value={category}
-          onChange={(e) => updateLayout({ category: e.target.value }, { commonField: "category" })}
+          value={propertyCategory}
+          disabled={lockCategory}
+          onChange={(e) => {
+            const cat = e.target.value;
+            updateLayout({ propertyCategory: cat, subType: "" });
+          }}
+          className="mt-1 block w-full border rounded-lg p-2"
         >
-          <option value="">请选择</option>
-          {Object.keys(CATEGORY_OPTIONS).map((c) => (
-            <option key={c} value={c}>
-              {c}
+          <option value="">请选择类别</option>
+          {Object.keys(CATEGORY_OPTIONS).map((cat) => (
+            <option key={cat} value={cat}>
+              {cat}
             </option>
           ))}
         </select>
       </div>
 
       {/* SubType */}
-      <div className="mb-3" ref={unitDropdownRef}>
-        <label className="font-semibold block mb-1">Property SubType（可多选）</label>
+      {propertyCategory && CATEGORY_OPTIONS[propertyCategory] && (
+        <div>
+          <label className="font-medium">Sub Type</label>
+          <select
+            value={subType}
+            disabled={lockCategory}
+            onChange={(e) => updateLayout({ subType: e.target.value })}
+            className="mt-1 block w-full border rounded-lg p-2"
+          >
+            <option value="">请选择具体类型</option>
+            {CATEGORY_OPTIONS[propertyCategory].map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
-        <button
-          type="button"
-          className="w-full border rounded p-2 text-left"
-          onClick={() => setUnitDropdownOpen((v) => !v)}
-        >
-          {subType.length ? subType.join(", ") : "请选择（可多选）"}
-        </button>
-
-        {unitDropdownOpen && (
-          <div className="border rounded mt-2 p-2 max-h-56 overflow-auto bg-white">
-            {(CATEGORY_OPTIONS[category] || []).map((opt) => (
-              <label key={opt} className="flex items-center gap-2 py-1">
+      {/* Property Subtype（可多选） */}
+      <div>
+        <label className="font-medium">Property Subtype（可多选）</label>
+        <div className="flex flex-wrap gap-2 mt-2">
+          {SUBTYPE_OPTIONS.map((opt) => {
+            const checked = subtypeArr.includes(opt);
+            return (
+              <label
+                key={opt}
+                className={`px-3 py-1 rounded-full border cursor-pointer text-sm ${
+                  checked ? "bg-blue-50 border-blue-400" : "bg-white"
+                }`}
+              >
                 <input
                   type="checkbox"
-                  checked={subType.includes(opt)}
-                  onChange={() => {
-                    const next = subType.includes(opt)
-                      ? subType.filter((x) => x !== opt)
-                      : [...subType, opt];
-                    updateLayout({ subType: next }, { commonField: "subType" });
+                  className="mr-2"
+                  checked={checked}
+                  onChange={(e) => {
+                    const next = e.target.checked
+                      ? [...subtypeArr, opt]
+                      : subtypeArr.filter((x) => x !== opt);
+                    updateLayout({ propertySubtype: next });
                   }}
                 />
-                <span>{opt}</span>
+                {opt}
               </label>
-            ))}
-          </div>
-        )}
+            );
+          })}
+        </div>
       </div>
 
-      {/* Storeys */}
+      {/* 有多少层（只在某些类别显示） */}
       {isNeedStoreys && (
-        <div className="mb-3">
-          <label className="font-semibold block mb-1">楼层数 / Storeys</label>
-          <input
-            className="w-full border rounded p-2"
-            value={layout.storeys || ""}
-            onChange={(e) => updateLayout({ storeys: e.target.value }, { commonField: "storeys" })}
-            placeholder="例如：2"
+        <div>
+          <FloorCountSelector
+            value={layout.storeys}
+            onChange={(val) => updateLayout({ storeys: val })}
           />
         </div>
       )}
 
       {/* Area */}
-      <div className="mb-3">
-        <AreaSelector
-          value={layout.area}
-          onChange={(v) => updateLayout({ area: v })}
-        />
-        {psfText && (
-          <div className="text-sm mt-1 text-gray-700">{psfText}</div>
-        )}
-      </div>
+      <AreaSelector
+        initialValue={layout.area}
+        onChange={(val) => updateLayout({ area: val })}
+      />
 
       {/* Price */}
-      <div className="mb-3">
-        <PriceInput
-          value={layout.price}
-          onChange={(v) => updateLayout({ price: v })}
-        />
-      </div>
+      <PriceInput
+        value={layout.price}
+        onChange={(val) => updateLayout({ price: val })}
+        listingMode={layout.listingMode || "Sale"}
+        area={{
+          buildUp: 0,
+          land: 0,
+        }}
+      />
 
-      {/* Room counts */}
-      <div className="grid grid-cols-2 gap-3 mb-3">
-        <RoomCountSelector
-          label="房间数量 / Bedroom"
-          value={layout.bedroomCount}
-          onChange={(v) => updateLayout({ bedroomCount: v })}
-        />
-        <RoomCountSelector
-          label="浴室数量 / Bathroom"
-          value={layout.bathroomCount}
-          onChange={(v) => updateLayout({ bathroomCount: v })}
-        />
-        <CarparkCountSelector
-          value={layout.carparkCount}
-          onChange={(v) => updateLayout({ carparkCount: v })}
-        />
-        <RoomCountSelector
-          label="储藏室数量 / Store Room"
-          value={layout.storeRoomCount}
-          onChange={(v) => updateLayout({ storeRoomCount: v })}
-        />
-      </div>
+      {/* PSF 文本 */}
+      {psfText && (
+        <div className="text-sm text-gray-700 bg-gray-50 border rounded-lg p-2">
+          {psfText}
+        </div>
+      )}
 
-      {/* Carpark Level */}
-      <div className="mb-3">
-        <CarparkLevelSelector
-          value={layout.carparkLevel}
-          onChange={(v) => updateLayout({ carparkLevel: v })}
-        />
-      </div>
+      {/* Room Counts */}
+      <RoomCountSelector
+        value={{
+          bedrooms: layout.bedrooms,
+          bathrooms: layout.bathrooms,
+          kitchens: layout.kitchens,
+          livingRooms: layout.livingRooms,
+        }}
+        onChange={(patch) => updateLayout({ ...patch })}
+      />
 
-      {/* Extra spaces / furniture / facilities / facing */}
-      <div className="mb-3">
-        <ExtraSpacesSelector
-          value={layout.extraSpaces}
-          onChange={(v) => updateLayout({ extraSpaces: v }, { commonField: "extraSpaces" })}
-        />
-      </div>
+      {/* Carpark */}
+      <CarparkCountSelector
+        value={layout.carpark}
+        onChange={(val) => updateLayout({ carpark: val })}
+        mode="range"
+      />
 
-      <div className="mb-3">
-        <FurnitureSelector
-          value={layout.furniture}
-          onChange={(v) => updateLayout({ furniture: v }, { commonField: "furniture" })}
-        />
-      </div>
+      <CarparkLevelSelector
+        value={layout.carparkPosition}
+        onChange={(val) => updateLayout({ carparkPosition: val })}
+        mode="range"
+      />
 
-      <div className="mb-3">
-        <FacilitiesSelector
-          value={layout.facilities}
-          onChange={(v) => updateLayout({ facilities: v }, { commonField: "facilities" })}
-        />
-      </div>
+      {/* Facing */}
+      <FacingSelector
+        value={layout.facing}
+        onChange={(val) => updateLayout({ facing: val })}
+      />
 
-      <div className="mb-3">
-        <FacingSelector
-          value={layout.facing}
-          onChange={(v) => updateLayout({ facing: v }, { commonField: "facing" })}
-        />
-      </div>
+      {/* Extra Spaces */}
+      <ExtraSpacesSelector
+        value={layout.extraSpaces}
+        onChange={(val) =>
+          updateLayout({ extraSpaces: val }, { commonField: "extraSpaces" })
+        }
+      />
 
-      {/* Build year */}
-      <div className="mb-3">
-        <BuildYearSelector
-          value={layout.buildYear}
-          onChange={(v) => updateLayout({ buildYear: v })}
-        />
-      </div>
+      {/* Furniture */}
+      <FurnitureSelector
+        value={layout.furniture}
+        onChange={(val) =>
+          updateLayout({ furniture: val }, { commonField: "furniture" })
+        }
+      />
+
+      {/* Facilities */}
+      <FacilitiesSelector
+        value={layout.facilities}
+        onChange={(val) =>
+          updateLayout({ facilities: val }, { commonField: "facilities" })
+        }
+      />
 
       {/* Transit */}
-      <div className="mb-3">
-        <TransitSelector
-          value={transitValue}
-          onChange={(v) => {
-            setTransitValue(v);
-            const next = normalizeTransitFromSelector(layout, v);
-            updateLayout(next, { commonField: "walkToTransit" });
-          }}
-        />
-      </div>
+      <TransitSelector
+        value={transitValue}
+        onChange={(info) =>
+          updateLayout(
+            { transit: normalizeTransitFromSelector(info) },
+            { commonField: "transit" }
+          )
+        }
+      />
 
-      {/* Images */}
-      <div className="mb-3">
-        <ImageUpload
-          config={{
-            bedroomCount: layout.bedroomCount,
-            bathroomCount: layout.bathroomCount,
-            carparkCount: layout.carparkCount,
-            storeRoomCount: layout.storeRoomCount,
-            extraSpaces: layout.extraSpaces,
-            facilities: layout.facilities,
-            furniture: layout.furniture,
-            facing: layout.facing,
-            labels: photoLabels,
-          }}
-          images={layout.images}
-          setImages={(imgs) => updateLayout({ images: imgs })}
-        />
-      </div>
+      {/* Build year */}
+      <BuildYearSelector
+        value={layout.buildYear}
+        onChange={(val) => updateLayout({ buildYear: val })}
+        showQuarter={false}
+        label="完成年份"
+      />
 
-      {/* Description */}
-      <div className="mb-3">
-        <label className="font-semibold block mb-1">房源描述 / Description</label>
-        <textarea
-          className="w-full border rounded p-2 min-h-[90px]"
-          value={layout.description || ""}
-          onChange={(e) => updateLayout({ description: e.target.value })}
-          placeholder="写一些卖点..."
-        />
+      {/* Images（按 labels 动态生成） */}
+      <div className="space-y-2">
+        <label className="font-medium">房型照片</label>
+        <div className="grid grid-cols-2 gap-2">
+          {photoLabels.map((label) => (
+            <button
+              key={label}
+              type="button"
+              className="border rounded-lg p-2 text-left hover:bg-gray-50"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <input ref={fileInputRef} type="file" className="hidden" multiple />
       </div>
     </div>
   );
