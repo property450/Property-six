@@ -1,21 +1,23 @@
 // utils/psfUtils.js
 
+/** ✅ 单值换算：把某个面积值 + 单位，转换成 sqft */
+export function convertToSqft(val, unit) {
+  const num = parseFloat(String(val || "").replace(/,/g, ""));
+  if (isNaN(num) || num <= 0) return 0;
+
+  const u = String(unit || "").toLowerCase();
+
+  if (u.includes("square meter") || u.includes("sq m") || u.includes("sqm")) {
+    return num * 10.7639;
+  }
+  if (u.includes("acre")) return num * 43560;
+  if (u.includes("hectare")) return num * 107639;
+  return num; // 默认 sqft
+}
+
 /** 把 AreaSelector 返回的对象，转换成「总平方英尺」 */
 export function getAreaSqftFromAreaSelector(area) {
   if (!area) return 0;
-
-  const convertToSqFt = (val, unit) => {
-    const num = parseFloat(String(val || "").replace(/,/g, ""));
-    if (isNaN(num) || num <= 0) return 0;
-    const u = String(unit || "").toLowerCase();
-
-    if (u.includes("square meter") || u.includes("sq m") || u.includes("sqm")) {
-      return num * 10.7639;
-    }
-    if (u.includes("acre")) return num * 43560;
-    if (u.includes("hectare")) return num * 107639;
-    return num; // 默认 sqft
-  };
 
   const types = Array.isArray(area.types) ? area.types : [];
   const units = area.units || {};
@@ -23,7 +25,7 @@ export function getAreaSqftFromAreaSelector(area) {
 
   let total = 0;
   types.forEach((t) => {
-    total += convertToSqFt(values[t], units[t]);
+    total += convertToSqft(values[t], units[t]);
   });
 
   return total;
@@ -71,14 +73,10 @@ export function getPsfText(areaObj, priceValue) {
   if (!isFinite(lowPsf)) return "";
 
   if (Math.abs(highPsf - lowPsf) < 0.005) {
-    return `每平方英尺: RM ${lowPsf.toLocaleString(undefined, {
-      maximumFractionDigits: 2,
-    })}`;
+    return `每平方英尺: RM ${lowPsf.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
   }
 
-  return `每平方英尺: RM ${lowPsf.toLocaleString(undefined, {
-    maximumFractionDigits: 2,
-  })} ~ RM ${highPsf.toLocaleString(undefined, {
+  return `每平方英尺: RM ${lowPsf.toLocaleString(undefined, { maximumFractionDigits: 2 })} ~ RM ${highPsf.toLocaleString(undefined, {
     maximumFractionDigits: 2,
   })}`;
 }
