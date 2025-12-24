@@ -10,10 +10,8 @@ function createEmptyLayout() {
 }
 
 export default function UnitTypeSelector({
-  // 兼容：你可能传 saleType，也可能传 computedStatus
   saleType,
   computedStatus,
-
   unitLayouts,
   setUnitLayouts,
 }) {
@@ -23,19 +21,18 @@ export default function UnitTypeSelector({
     const s1 = String(saleType || "").toLowerCase();
     const s2 = String(computedStatus || "").toLowerCase();
 
-    // ✅ 兼容你的两套命名
-    const isProjectByStatus =
+    // ✅ 兼容旧命名 + 你现在实际在用的命名
+    const byStatus =
       s2 === "new project / under construction".toLowerCase() ||
       s2 === "completed unit / developer unit".toLowerCase();
 
-    const isProjectBySaleType =
+    const bySaleType =
       s1 === "new project (developer)".toLowerCase() ||
       s1 === "completed unit (developer)".toLowerCase();
 
-    return isProjectByStatus || isProjectBySaleType;
+    return byStatus || bySaleType;
   }, [saleType, computedStatus]);
 
-  // 初始化同步
   useEffect(() => {
     if (!shouldShow) return;
 
@@ -43,7 +40,6 @@ export default function UnitTypeSelector({
     const n = arr.length > 0 ? arr.length : 1;
     setCount(n);
 
-    // 确保每个 layout 都有 _uiId
     setUnitLayouts((prev) => {
       const p = Array.isArray(prev) ? prev : [];
       if (!p.length) return [createEmptyLayout()];
@@ -52,7 +48,6 @@ export default function UnitTypeSelector({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shouldShow]);
 
-  // 根据 count 增删 layouts
   useEffect(() => {
     if (!shouldShow) return;
 
