@@ -13,6 +13,8 @@ import FacilitiesSelector from "@/components/FacilitiesSelector";
 import TransitSelector from "@/components/TransitSelector";
 import BuildYearSelector from "@/components/BuildYearSelector";
 import ImageUpload from "@/components/ImageUpload";
+
+// ✅ 这里导入的 convertToSqft 现在在 psfUtils.js 里有导出了
 import { convertToSqft } from "@/utils/psfUtils";
 
 export default function SaleUploadForm({
@@ -29,7 +31,6 @@ export default function SaleUploadForm({
   setDescription,
 
   photoConfig,
-  convertToSqft,
 }) {
   return (
     <div className="space-y-4">
