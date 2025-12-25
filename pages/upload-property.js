@@ -22,7 +22,7 @@ const AddressSearchInput = dynamic(() => import("@/components/AddressSearchInput
   ssr: false,
 });
 
-// 你原本就有的工具
+// 你原本就有的工具（先保留，不乱动）
 const cloneDeep = (v) => JSON.parse(JSON.stringify(v || {}));
 const pickCommon = (l = {}) => ({
   extraSpaces: l.extraSpaces || [],
@@ -31,6 +31,13 @@ const pickCommon = (l = {}) => ({
   transit: l.transit || null,
 });
 const commonHash = (l) => JSON.stringify(pickCommon(l));
+
+// ✅ 生成空 layout（只在用户选择数量后才生成）
+function createEmptyLayout() {
+  return {
+    _uiId: `${Date.now()}_${Math.random().toString(16).slice(2)}`,
+  };
+}
 
 export default function UploadProperty() {
   const router = useRouter();
@@ -53,7 +60,8 @@ export default function UploadProperty() {
   // 顶层描述（你原本有）
   const [description, setDescription] = useState("");
 
-  // 项目模式：layouts + 统一锁定字段（bulk rent）
+  // ✅ 项目模式：Layout 数量 + layouts（重要：数量由用户选择触发）
+  const [projectLayoutCount, setProjectLayoutCount] = useState(0);
   const [unitLayouts, setUnitLayouts] = useState([]);
   const [projectCategory, setProjectCategory] = useState("");
   const [projectSubType, setProjectSubType] = useState("");
@@ -111,10 +119,35 @@ export default function UploadProperty() {
 
   const isRoomRental = saleTypeNorm === "rent" && roomRentalMode === "room";
 
-  // 不再是项目类就清空 layouts（保持你原本行为）
+  // ✅ 关键：离开项目模式就清空；进入项目模式先把数量归零（恢复你原本流程）
   useEffect(() => {
-    if (!isProject) setUnitLayouts([]);
+    if (!isProject) {
+      setProjectLayoutCount(0);
+      setUnitLayouts([]);
+      return;
+    }
+    // 进入 project 时也先归零，避免自动出现 1 个 layout（你说“改回来”的重点）
+    setProjectLayoutCount(0);
+    setUnitLayouts([]);
   }, [isProject]);
+
+  // ✅ 当用户选择了 projectLayoutCount 才生成 layouts
+  useEffect(() => {
+    if (!isProject) return;
+
+    setUnitLayouts((prev) => {
+      const count = Number(projectLayoutCount) || 0;
+      if (count <= 0) return [];
+
+      const arr = Array.isArray(prev) ? [...prev] : [];
+      if (arr.length < count) {
+        for (let i = arr.length; i < count; i++) arr.push(createEmptyLayout());
+      } else if (arr.length > count) {
+        arr.splice(count);
+      }
+      return arr;
+    });
+  }, [projectLayoutCount, isProject]);
 
   // 提交（你原本完整逻辑放这里即可）
   const handleSubmit = async () => {
@@ -147,7 +180,7 @@ export default function UploadProperty() {
         <div className="text-sm text-gray-600">{address}</div>
       </div>
 
-      {/* ✅ 修复关键：TypeSelector 正确接线（你原本缺的就是这一步） */}
+      {/* ✅ TypeSelector 正确接线（保持你当前这份写法） */}
       <TypeSelector
         value={typeValue}
         onChange={setTypeValue}
@@ -160,37 +193,34 @@ export default function UploadProperty() {
         }}
       />
 
-      {/* ✅ 1) Homestay / Hotel：共用同一表单（改回你的印象） */}
+      {/* ✅ Homestay / Hotel：共用同一表单（按你要求“改回来”） */}
       {isHomestay || isHotel ? (
         <HotelUploadForm listingMode={saleType} />
       ) : isProject ? (
-        /* ✅ 2) New Project / Completed Unit：显示房型数量 + 多个 layout 表单 */
         <div className="space-y-4">
-          <UnitTypeSelector
-            computedStatus={computedStatus}
-            saleType={saleType}
-            unitLayouts={unitLayouts}
-            setUnitLayouts={setUnitLayouts}
-          />
+          {/* ✅ 只显示一个：房型数量选择 */}
+          <UnitTypeSelector value={projectLayoutCount} onChange={setProjectLayoutCount} />
 
-          {unitLayouts.map((layout, idx) => (
-            <UnitLayoutForm
-              key={layout?._uiId || idx}
-              index={idx}
-              data={layout || {}}
-              onChange={(next) => {
-                setUnitLayouts((prev) => {
-                  const arr = Array.isArray(prev) ? [...prev] : [];
-                  arr[idx] = next;
-                  return arr;
-                });
-              }}
-              lockCategory={isBulkRentProject}
-              projectCategory={projectCategory}
-              projectSubType={projectSubType}
-              enableCommonCopy={enableProjectAutoCopy}
-            />
-          ))}
+          {/* ✅ 选了数量才出现表单（你原本就是这样） */}
+          {projectLayoutCount > 0 &&
+            unitLayouts.map((layout, idx) => (
+              <UnitLayoutForm
+                key={layout?._uiId || idx}
+                index={idx}
+                data={layout || {}}
+                onChange={(next) => {
+                  setUnitLayouts((prev) => {
+                    const arr = Array.isArray(prev) ? [...prev] : [];
+                    arr[idx] = next;
+                    return arr;
+                  });
+                }}
+                lockCategory={isBulkRentProject}
+                projectCategory={projectCategory}
+                projectSubType={projectSubType}
+                enableCommonCopy={enableProjectAutoCopy}
+              />
+            ))}
         </div>
       ) : saleTypeNorm === "rent" ? (
         <RentUploadForm
