@@ -1,4 +1,4 @@
-﻿// components/UnitLayoutForm.js
+// components/UnitLayoutForm.js
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -13,10 +13,10 @@ import FacilitiesSelector from "./FacilitiesSelector";
 import CarparkLevelSelector from "./CarparkLevelSelector";
 import RoomCountSelector from "./RoomCountSelector";
 import AreaSelector from "./AreaSelector";
-import ImageUpload from "./ImageUpload";
 import TransitSelector from "./TransitSelector";
+import FloorCountSelector from "./FloorCountSelector";
 
-// ================== Transit normalize ==================
+// ================== Transit value normalize (防止选择后又跳回“请选择”) ==================
 function toBool(v) {
   if (v === true || v === false) return v;
   const s = String(v ?? "").trim().toLowerCase();
@@ -41,6 +41,7 @@ function normalizeTransitToSelector(val) {
   return b === null ? null : { walkable: b };
 }
 
+// 存回 layout 的值：统一存对象 { walkable: boolean } 或 null
 function normalizeTransitFromSelector(val) {
   if (!val) return null;
 
@@ -72,41 +73,44 @@ function getAreaSqftFromAreaSelector(area) {
     if (u.includes("square meter") || u.includes("sq m") || u.includes("sqm")) {
       return num * 10.7639;
     }
-    if (u.includes("acre")) return num * 43560;
-    if (u.includes("hectare")) return num * 107639;
+    if (u.includes("acre")) {
+      return num * 43560;
+    }
+    if (u.includes("hectare")) {
+      return num * 107639;
+    }
     return num; // 默认 sqft
   };
 
-  const types = Array.isArray(area.types) ? area.types : [];
-  const units = area.units || {};
-  const values = area.values || {};
+  if (area.values && area.units) {
+    const buildUpSqft = convertToSqFt(area.values.buildUp, area.units.buildUp);
+    const landSqft = convertToSqFt(area.values.land, area.units.land);
+    return (buildUpSqft || 0) + (landSqft || 0);
+  }
 
-  let total = 0;
-  types.forEach((t) => {
-    total += convertToSqFt(values[t], units[t]);
-  });
+  if (typeof area === "object") {
+    const buildUp = Number(area.buildUp || 0);
+    const land = Number(area.land || 0);
+    return buildUp + land;
+  }
 
-  return total;
+  const num = parseFloat(String(area).replace(/,/g, ""));
+  return isNaN(num) ? 0 : num;
 }
 
-/** 统一解析价格范围：支持单值 / 区间对象 / 字符串 */
+/** 从 price 字段解析出 min / max */
 function getPriceRange(priceValue) {
   let minPrice = 0;
   let maxPrice = 0;
 
-  if (!priceValue) return { minPrice, maxPrice };
+  if (priceValue == null || priceValue === "") {
+    return { minPrice: 0, maxPrice: 0 };
+  }
 
-  if (typeof priceValue === "string") {
-    const s = priceValue.trim();
-    if (s.includes("~")) {
-      const [minStr, maxStr] = s.split("~").map((x) => x.trim().replace(/,/g, ""));
-      minPrice = Number(minStr) || 0;
-      maxPrice = Number(maxStr) || 0;
-    } else {
-      const num = Number(s.replace(/,/g, "")) || 0;
-      minPrice = num;
-      maxPrice = num;
-    }
+  if (typeof priceValue === "string" && priceValue.includes("-")) {
+    const [minStr, maxStr] = priceValue.split("-");
+    if (minStr) minPrice = Number(minStr) || 0;
+    if (maxStr) maxPrice = Number(maxStr) || 0;
   } else if (typeof priceValue === "object") {
     minPrice = Number(priceValue.min) || 0;
     maxPrice = Number(priceValue.max) || 0;
@@ -130,8 +134,6 @@ function getPsfText(areaObj, priceValue) {
   const lowPrice = minPrice > 0 ? minPrice : maxPrice;
   const highPrice = maxPrice > 0 ? maxPrice : minPrice;
 
-  if (!lowPrice) return "";
-
   const lowPsf = lowPrice / totalAreaSqft;
   const highPsf = highPrice > 0 ? highPrice / totalAreaSqft : lowPsf;
 
@@ -148,114 +150,6 @@ function getPsfText(areaObj, priceValue) {
   })} ~ RM ${highPsf.toLocaleString(undefined, {
     maximumFractionDigits: 2,
   })}`;
-}
-
-// ================== 小工具 ==================
-const formatNumber = (num) => {
-  if (num === "" || num === undefined || num === null) return "";
-  const str = String(num).replace(/,/g, "");
-  if (str === "") return "";
-  return Number(str).toLocaleString();
-};
-const parseNumber = (str) => String(str || "").replace(/,/g, "");
-
-// 把各种类型（字符串 / 数字）统一转成正整数
-function toCount(value) {
-  if (value === undefined || value === null || value === "") return 0;
-  const num = Number(String(value).replace(/,/g, "").trim());
-  if (!Number.isFinite(num) || num <= 0) return 0;
-  return Math.floor(num);
-}
-
-const toArray = (val) => {
-  if (!val) return [];
-  if (Array.isArray(val)) return val;
-  return [val];
-};
-
-const getName = (item) => {
-  if (!item) return "";
-  if (typeof item === "string") return item;
-  return item.label || item.value || item.name || "";
-};
-
-const parseSubtypeToArray = (val) => {
-  if (!val) return [];
-  if (Array.isArray(val)) return val;
-  return [String(val)];
-};
-
-// 根据 photoConfig 生成所有上传框的 label
-function getPhotoLabelsFromConfig(config) {
-  const safe = config || {};
-  let labels = [];
-
-  // 卧室
-  if (safe.bedrooms) {
-    const raw = String(safe.bedrooms).trim().toLowerCase();
-    if (raw === "studio") {
-      labels.push("Studio");
-    } else {
-      const num = toCount(safe.bedrooms);
-      for (let i = 1; i <= num; i++) labels.push(`卧室${i}`);
-    }
-  }
-
-  // 浴室
-  {
-    const num = toCount(safe.bathrooms);
-    for (let i = 1; i <= num; i++) labels.push(`浴室${i}`);
-  }
-
-  // 厨房
-  {
-    const num = toCount(safe.kitchens);
-    for (let i = 1; i <= num; i++) labels.push(`厨房${i}`);
-  }
-
-  // 客厅
-  {
-    const num = toCount(safe.livingRooms);
-    for (let i = 1; i <= num; i++) labels.push(`客厅${i}`);
-  }
-
-  // 车位
-  {
-    const num = toCount(safe.carpark);
-    for (let i = 1; i <= num; i++) labels.push(`车位${i}`);
-  }
-
-  // 额外空间
-  {
-    const arr = toArray(safe.extraSpaces);
-    arr.forEach((extra) => {
-      if (!extra) return;
-      const name = getName(extra);
-      if (!name) return;
-
-      const count = toCount(extra.count || 1) || 1;
-      if (count <= 1) labels.push(name);
-      else for (let i = 1; i <= count; i++) labels.push(`${name}${i}`);
-    });
-  }
-
-  // 家私
-  {
-    const arr = toArray(safe.furniture);
-    arr.forEach((item) => {
-      if (!item) return;
-      const name = getName(item);
-      if (!name) return;
-
-      const count = toCount(item.count || 1) || 1;
-      if (count <= 1) labels.push(name);
-      else for (let i = 1; i <= count; i++) labels.push(`${name}${i}`);
-    });
-  }
-
-  labels = [...new Set(labels)];
-  if (!labels.length) labels.push("房源照片");
-  return labels;
 }
 
 // ---------- Category / SubType 选项 ----------
@@ -323,8 +217,10 @@ const CATEGORY_OPTIONS = {
   ],
 };
 
+// 布局里的 Property Subtype（多选）
 const SUBTYPE_OPTIONS = ["Penthouse", "Duplex", "Triplex", "Dual Key"];
 
+// 哪些 Category 需要显示「有多少层」
 const NEED_STOREYS_CATEGORY = new Set([
   "Bungalow / Villa",
   "Business Property",
@@ -333,301 +229,468 @@ const NEED_STOREYS_CATEGORY = new Set([
   "Terrace / Link House",
 ]);
 
+// ---------- 工具 ----------
+const formatNumber = (num) => {
+  if (num === "" || num === undefined || num === null) return "";
+  const str = String(num).replace(/,/g, "");
+  if (str === "") return "";
+  return Number(str).toLocaleString();
+};
+
+const parseNumber = (str) => String(str || "").replace(/,/g, "");
+
+const toCount = (value) => {
+  if (value === undefined || value === null || value === "") return 0;
+  const num = Number(String(value).replace(/,/g, "").trim());
+  if (!Number.isFinite(num) || num <= 0) return 0;
+  return Math.floor(num);
+};
+
+const toArray = (val) => {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  return [val];
+};
+
+const getName = (item) => {
+  if (!item) return "";
+  if (typeof item === "string") return item;
+  return item.label || item.value || item.name || "";
+};
+
+// 把 propertySubtype 转成「数组」，兼容以前是字符串的情况
+const parseSubtypeToArray = (val) => {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  return [String(val)];
+};
+
+// 根据 photoConfig 生成所有上传框的 label
+function getPhotoLabelsFromConfig(config) {
+  const safe = config || {};
+  let labels = [];
+
+  // 卧室
+  if (safe.bedrooms) {
+    const raw = String(safe.bedrooms).trim().toLowerCase();
+    if (raw === "studio") {
+      labels.push("Studio");
+    } else {
+      const num = toCount(safe.bedrooms);
+      for (let i = 1; i <= num; i++) labels.push(`卧室${i}`);
+    }
+  }
+
+  // 浴室
+  {
+    const num = toCount(safe.bathrooms);
+    for (let i = 1; i <= num; i++) labels.push(`浴室${i}`);
+  }
+
+  // 厨房
+  {
+    const num = toCount(safe.kitchens);
+    for (let i = 1; i <= num; i++) labels.push(`厨房${i}`);
+  }
+
+  // 客厅
+  {
+    const num = toCount(safe.livingRooms);
+    for (let i = 1; i <= num; i++) labels.push(`客厅${i}`);
+  }
+
+  // 停车位
+  {
+    const v = safe.carpark;
+    if (v) {
+      if (typeof v === "number" || typeof v === "string") {
+        const num = toCount(v);
+        if (num > 0) labels.push("停车位");
+      }
+      if (typeof v === "object" && !Array.isArray(v)) {
+        const min = toCount(v.min);
+        const max = toCount(v.max);
+        if (min > 0 || max > 0) labels.push("停车位");
+      }
+    }
+  }
+
+  // 储藏室
+  {
+    const num = toCount(safe.store);
+    for (let i = 1; i <= num; i++) labels.push(`储藏室${i}`);
+  }
+
+  // 朝向
+  {
+    const arr = toArray(safe.orientation);
+    arr.forEach((item) => {
+      const n = getName(item);
+      if (n) labels.push(n);
+    });
+  }
+
+  // 设施
+  {
+    const arr = toArray(safe.facilities);
+    arr.forEach((item) => {
+      const n = getName(item);
+      if (n) labels.push(n);
+    });
+  }
+
+  // 额外空间
+  {
+    const arr = toArray(safe.extraSpaces);
+    arr.forEach((extra) => {
+      if (!extra) return;
+      const name = getName(extra);
+      if (!name) return;
+
+      const count = toCount(extra.count || 1) || 1;
+      if (count <= 1) {
+        labels.push(name);
+      } else {
+        for (let i = 1; i <= count; i++) labels.push(`${name}${i}`);
+      }
+    });
+  }
+
+  // 家私
+  {
+    const arr = toArray(safe.furniture);
+    arr.forEach((item) => {
+      if (!item) return;
+      const name = getName(item);
+      if (!name) return;
+
+      const count = toCount(item.count || 1) || 1;
+      if (count <= 1) {
+        labels.push(name);
+      } else {
+        for (let i = 1; i <= count; i++) labels.push(`${name}${i}`);
+      }
+    });
+  }
+
+  labels = [...new Set(labels)];
+  if (!labels.length) labels.push("房源照片");
+
+  return labels;
+}
+
+// ✅ 统一 select 样式（恢复你要的“原本模样”：白底 + 清晰边框 + placeholder 灰字）
+function getSelectClass(value, disabled = false) {
+  const base =
+    "w-full rounded-lg border px-3 py-2 outline-none focus:ring-2 focus:ring-blue-200";
+  if (disabled) return `${base} bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed`;
+  if (!value) return `${base} bg-white border-gray-300 text-gray-400`;
+  return `${base} bg-white border-gray-300 text-gray-900`;
+}
+
+// ================================
+// 组件主体
+// ================================
 export default function UnitLayoutForm({
   index,
   data,
   onChange,
-
-  // 项目（bulk rent）用到的锁定字段
+  projectCategory,
+  projectSubType,
   lockCategory = false,
-  projectCategory = "",
-  projectSubType = "",
-
-  // New Project 同步/脱钩开关
   enableCommonCopy = false,
 }) {
   const layout = data || {};
-  const updateLayout = (patch, meta) => {
-    const next = { ...layout, ...patch };
-    onChange?.(next, meta);
-  };
+  const fileInputRef = useRef(null);
 
-  // dropdown 控制
-  const [showCategory, setShowCategory] = useState(false);
+  // ✅ New Project：Layout2+ 是否跟随 Layout1（默认跟随）
+  const isInheritingCommon = index > 0 ? layout._inheritCommon !== false : false;
+
+  const projectType = layout.projectType; // UploadProperty 里已经传进来了
+  const rentMode = layout.rentMode; // "Sale" / "Rent" 之类
+
+  const isNewProject = projectType === "New Project / Under Construction";
+  const isCompletedProject = projectType === "Completed Unit / Developer Unit";
+
+  // 只有 Sale 的项目，需要显示年份；Rent / Homestay / Hotel 都不要
+  const showBuildYear = rentMode === "Sale" && (isNewProject || isCompletedProject);
+
+  // ⭐ 批量 Rent 的 Layout
+  const isBulkRent = layout.rentMode === "Rent";
+
+  // Category / SubType / SubtypeExtra / 层数
+  const [category, setCategory] = useState(
+    lockCategory ? projectCategory || layout.propertyCategory || "" : layout.propertyCategory || ""
+  );
+  const [subType, setSubType] = useState(
+    lockCategory ? projectSubType || layout.subType || "" : layout.subType || ""
+  );
+
+  // propertySubtype 多选数组
+  const [propertySubtype, setPropertySubtype] = useState(parseSubtypeToArray(layout.propertySubtype));
+
   const [showSubtype, setShowSubtype] = useState(false);
+  const [storeys, setStoreys] = useState(layout.storeys || "");
 
-  const categoryRef = useRef(null);
+  // Property Subtype 下拉开关
+  const [subtypeOpen, setSubtypeOpen] = useState(false);
   const subtypeRef = useRef(null);
 
-  // 外部点击收起下拉
-  useEffect(() => {
-    const handler = (e) => {
-      if (categoryRef.current && !categoryRef.current.contains(e.target)) {
-        setShowCategory(false);
-      }
-      if (subtypeRef.current && !subtypeRef.current.contains(e.target)) {
-        setShowSubtype(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    document.addEventListener("touchstart", handler);
-    return () => {
-      document.removeEventListener("mousedown", handler);
-      document.removeEventListener("touchstart", handler);
-    };
-  }, []);
+  // 房型单位数量
+  const [unitCountLocal, setUnitCountLocal] = useState(layout.unitCount ? String(layout.unitCount) : "");
+  const [unitDropdownOpen, setUnitDropdownOpen] = useState(false);
+  const unitCountRef = useRef(null);
 
-  // psf 文本
-  const psfText = getPsfText(layout.area, {
-    min: layout.priceLow,
-    max: layout.priceHigh,
-  });
+  // PSF 相关
+  const [areaForPsf, setAreaForPsf] = useState(layout.buildUp || {});
+  const [priceForPsf, setPriceForPsf] = useState(layout.price !== undefined ? layout.price : "");
 
-  // 图片 label
-  const photoLabels = getPhotoLabelsFromConfig({
-    bedrooms: layout.bedrooms,
-    bathrooms: layout.bathrooms,
-    kitchens: layout.kitchens,
-    livingRooms: layout.livingRooms,
-    carpark: layout.carpark,
-    extraSpaces: layout.extraSpaces,
-    furniture: layout.furniture,
-  });
-
-  // transit value normalize
-  const transitValue = normalizeTransitToSelector(layout.transit);
-
-  return (
-    <div className="w-full rounded-xl border border-white/10 bg-white/5 p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="text-white font-semibold">
-          房型 / Layout {index + 1}
-        </div>
-
-        {enableCommonCopy && index > 0 && (
-          <label className="text-white/80 text-sm flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={layout._inheritCommon !== false}
-              onChange={(e) => {
-                updateLayout(
-                  { _inheritCommon: e.target.checked },
-                  { inheritToggle: true }
-                );
-              }}
-            />
-            同步 Layout1（额外空间/家私/设施/公共交通）
-          </label>
-        )}
-      </div>
-
-      {/* Category */}
-      <div className="space-y-2" ref={categoryRef}>
-        <div className="text-white/80 text-sm">Property Category</div>
-
-        <button
-          type="button"
-          disabled={lockCategory}
-          onClick={() => setShowCategory((v) => !v)}
-          className="w-full text-left rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-white"
-        >
-          {layout.propertyCategory || "请选择"}
-        </button>
-
-        {showCategory && !lockCategory && (
-          <div className="mt-2 rounded-lg border border-white/10 bg-black/60 p-2 max-h-64 overflow-auto">
-            {Object.keys(CATEGORY_OPTIONS).map((catKey) => (
-              <div key={catKey} className="mb-2">
-                <div className="text-white/60 text-xs px-2 py-1">{catKey}</div>
-                {CATEGORY_OPTIONS[catKey].map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => {
-                      updateLayout({ propertyCategory: item, subType: "" });
-                      setShowCategory(false);
-                    }}
-                    className="w-full text-left px-2 py-2 rounded hover:bg-white/10 text-white"
-                  >
-                    {item}
-                  </button>
-                ))}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Subtype */}
-      <div className="space-y-2" ref={subtypeRef}>
-        <div className="text-white/80 text-sm">Property Subtype（可多选）</div>
-
-        <button
-          type="button"
-          disabled={lockCategory}
-          onClick={() => setShowSubtype((v) => !v)}
-          className="w-full text-left rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-white"
-        >
-          {parseSubtypeToArray(layout.subType).length
-            ? parseSubtypeToArray(layout.subType).join(", ")
-            : "请选择"}
-        </button>
-
-        {showSubtype && !lockCategory && (
-          <div className="mt-2 rounded-lg border border-white/10 bg-black/60 p-2">
-            {SUBTYPE_OPTIONS.map((opt) => {
-              const arr = parseSubtypeToArray(layout.subType);
-              const checked = arr.includes(opt);
-
-              return (
-                <label
-                  key={opt}
-                  className="flex items-center gap-2 px-2 py-2 rounded hover:bg-white/10 text-white cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={(e) => {
-                      const nextArr = e.target.checked
-                        ? [...arr, opt]
-                        : arr.filter((x) => x !== opt);
-                      updateLayout({ subType: nextArr });
-                    }}
-                  />
-                  <span>{opt}</span>
-                </label>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* 是否需要层数 */}
-      {NEED_STOREYS_CATEGORY.has(layout.propertyCategory) && (
-        <div className="space-y-1">
-          <div className="text-white/80 text-sm">层数</div>
-          <input
-            className="w-full border rounded-lg p-2"
-            value={layout.storeys || ""}
-            onChange={(e) => updateLayout({ storeys: e.target.value })}
-            placeholder="例如：2"
-          />
-        </div>
-      )}
-
-      {/* 面积 */}
-      <AreaSelector
-        initialValue={layout.area}
-        onChange={(v) => updateLayout({ area: v })}
-      />
-
-      {/* 价格区间 */}
-      <div className="space-y-1">
-        <div className="text-white/80 text-sm">价格范围 (RM)</div>
-        <div className="grid grid-cols-2 gap-2">
-          <PriceInput
-            value={layout.priceLow}
-            placeholder="最低价"
-            onChange={(v) => updateLayout({ priceLow: v })}
-          />
-          <PriceInput
-            value={layout.priceHigh}
-            placeholder="最高价"
-            onChange={(v) => updateLayout({ priceHigh: v })}
-          />
-        </div>
-
-        {psfText ? <div className="text-white/70 text-sm mt-2">{psfText}</div> : null}
-      </div>
-
-      {/* 房间/浴室/车位等 */}
-      <RoomCountSelector
-        value={{
-          bedrooms: layout.bedrooms,
-          bathrooms: layout.bathrooms,
-          kitchens: layout.kitchens,
-          livingRooms: layout.livingRooms,
-        }}
-        onChange={(patch) => updateLayout({ ...patch })}
-      />
-
-      <CarparkCountSelector
-        value={layout.carpark}
-        onChange={(v) => updateLayout({ carpark: v })}
-        mode="range"
-      />
-
-      <CarparkLevelSelector
-        value={layout.carparkPosition}
-        onChange={(v) => updateLayout({ carparkPosition: v })}
-        mode="range"
-      />
-
-      <ExtraSpacesSelector
-        value={layout.extraSpaces}
-        onChange={(v) =>
-          updateLayout({ extraSpaces: v }, { commonField: "extraSpaces" })
-        }
-      />
-
-      <FurnitureSelector
-        value={layout.furniture}
-        onChange={(v) =>
-          updateLayout({ furniture: v }, { commonField: "furniture" })
-        }
-      />
-
-      <FacilitiesSelector
-        value={layout.facilities}
-        onChange={(v) =>
-          updateLayout({ facilities: v }, { commonField: "facilities" })
-        }
-      />
-
-      <FacingSelector
-        value={layout.facing}
-        onChange={(v) => updateLayout({ facing: v })}
-      />
-
-      <BuildYearSelector
-        value={layout.buildYear}
-        onChange={(v) => updateLayout({ buildYear: v })}
-      />
-
-      <TransitSelector
-        value={transitValue}
-        onChange={(val) =>
-          updateLayout(
-            { transit: normalizeTransitFromSelector(val) },
-            { commonField: "transit" }
-          )
-        }
-      />
-
-      <ImageUpload
-        config={{
-          ...photoConfigForLayout(layout),
-          labels: photoLabels,
-        }}
-        images={layout.photos}
-        setImages={(updated) => updateLayout({ photos: updated })}
-      />
-    </div>
-  );
-}
-
-// 你原本可能有的 photoConfig helper（保持原样）
-function photoConfigForLayout(layout) {
-  return {
+  // 照片上传配置
+  const [photoConfig, setPhotoConfig] = useState({
     bedrooms: layout.bedrooms || "",
     bathrooms: layout.bathrooms || "",
     kitchens: layout.kitchens || "",
     livingRooms: layout.livingRooms || "",
     carpark: layout.carpark || "",
+    store: layout.store || "",
     extraSpaces: layout.extraSpaces || [],
-    facilities: layout.facilities || [],
     furniture: layout.furniture || [],
-    orientation: layout.facing || "",
-    transit: layout.transit || null,
+    facilities: layout.facilities || [],
+    orientation: layout.facing || [],
+  });
+
+  // layout.photos 里按 label 存图片
+  const photosByLabel = layout.photos || {};
+
+  // 同步外部传入的变化（包括 projectCategory / projectSubType）
+  useEffect(() => {
+    const cat = lockCategory ? projectCategory || layout.propertyCategory || "" : layout.propertyCategory || "";
+    const sub = lockCategory ? projectSubType || layout.subType || "" : layout.subType || "";
+
+    setCategory(cat);
+    setSubType(sub);
+    setPropertySubtype(parseSubtypeToArray(layout.propertySubtype));
+    setStoreys(layout.storeys || "");
+    setUnitCountLocal(layout.unitCount ? String(layout.unitCount) : "");
+  }, [
+    lockCategory,
+    projectCategory,
+    projectSubType,
+    layout.propertyCategory,
+    layout.subType,
+    layout.propertySubtype,
+    layout.storeys,
+    layout.unitCount,
+  ]);
+
+  // Apartment / Business / Industrial 时显示 propertySubtype
+  useEffect(() => {
+    const shouldShow =
+      category === "Apartment / Condo / Service Residence" ||
+      category === "Business Property" ||
+      category === "Industrial Property";
+    setShowSubtype(shouldShow);
+  }, [category]);
+
+  // 点击外面关闭两个下拉：单位数量 & Property Subtype
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (unitCountRef.current && !unitCountRef.current.contains(e.target)) {
+        setUnitDropdownOpen(false);
+      }
+      if (subtypeRef.current && !subtypeRef.current.contains(e.target)) {
+        setSubtypeOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // 更新 layout
+  const updateLayout = (patch, meta) => {
+    const updated = { ...layout, ...patch };
+    onChange && onChange(updated, meta);
   };
-}
+
+  const handleFieldChange = (field, value, meta) => {
+    updateLayout({ [field]: value }, meta);
+  };
+
+  const handleLayoutUpload = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    const newPhotos = [...(layout.layoutPhotos || []), ...files];
+    handleFieldChange("layoutPhotos", newPhotos);
+  };
+
+  // 照片上传
+  const handlePhotoChange = (e, label) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    const newImages = files.map((file) => ({
+      file,
+      url: URL.createObjectURL(file),
+      isCover: false,
+    }));
+
+    const current = photosByLabel[label] || [];
+    const updatedPhotos = {
+      ...photosByLabel,
+      [label]: [...current, ...newImages],
+    };
+    updateLayout({ photos: updatedPhotos });
+  };
+
+  const removePhoto = (label, index) => {
+    const current = photosByLabel[label] || [];
+    const updatedPhotos = {
+      ...photosByLabel,
+      [label]: current.filter((_, i) => i !== index),
+    };
+    updateLayout({ photos: updatedPhotos });
+  };
+
+  const setCover = (label, index) => {
+    const current = photosByLabel[label] || [];
+    const updatedPhotos = {
+      ...photosByLabel,
+      [label]: current.map((img, i) => ({
+        ...img,
+        isCover: i === index,
+      })),
+    };
+    updateLayout({ photos: updatedPhotos });
+  };
+
+  const psfText = getPsfText(areaForPsf, priceForPsf);
+
+  // 生成所有上传框 label
+  const uploadLabels = getPhotoLabelsFromConfig(photoConfig);
+
+  // 切换 Property Subtype 多选
+  const toggleSubtype = (item) => {
+    let next = [];
+    if (propertySubtype.includes(item)) {
+      next = propertySubtype.filter((v) => v !== item);
+    } else {
+      next = [...propertySubtype, item];
+    }
+    setPropertySubtype(next);
+    handleFieldChange("propertySubtype", next);
+  };
+
+  // 显示在「输入框」里的文字
+  const subtypeDisplayText =
+    propertySubtype.length === 0
+      ? "请选择 subtype（可多选）"
+      : propertySubtype.map((v) => `${v} ✅`).join("，");
+
+  return (
+    <div className="border rounded-lg p-4 shadow-sm bg-white">
+      {enableCommonCopy && index > 0 && (
+        <div className="mb-3 flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={isInheritingCommon}
+            onChange={(e) => {
+              updateLayout({ _inheritCommon: e.target.checked }, { inheritToggle: true });
+            }}
+          />
+          <span className="text-sm text-gray-700">同步 Layout 1（家私/设施/额外空间/公共交通）</span>
+        </div>
+      )}
+
+      <h3 className="font-semibold mb-3">Layout {index + 1}</h3>
+
+      {/* 上传 Layout 图纸 */}
+      <div className="mb-3">
+        <button
+          type="button"
+          className="mb-3 px-3 py-2 bg-gray-100 border rounded hover:bg-gray-200 w-full"
+          onClick={() => fileInputRef.current && fileInputRef.current.click()}
+        >
+          点击上传 Layout 图纸
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={handleLayoutUpload}
+        />
+      </div>
+
+      {/* Type 名称 */}
+      <input
+        type="text"
+        placeholder="输入 Type 名称"
+        value={layout.type || ""}
+        onChange={(e) => handleFieldChange("type", e.target.value)}
+        className="border p-2 rounded w-full mb-3"
+      />
+
+      {/* Property Category（单个 layout）——批量项目时隐藏 */}
+      {!lockCategory && (
+        <div className="mb-3">
+          <label className="block font-medium mb-1">Property Category</label>
+          <select
+            value={category}
+            onChange={(e) => {
+              const cat = e.target.value;
+              setCategory(cat);
+              setSubType("");
+              setPropertySubtype([]);
+              setStoreys("");
+              updateLayout({
+                propertyCategory: cat,
+                subType: "",
+                propertySubtype: [],
+                storeys: "",
+              });
+            }}
+            className={getSelectClass(category, false)}
+          >
+            <option value="">请选择类别</option>
+            {Object.keys(CATEGORY_OPTIONS).map((cat) => (
+              <option key={cat} value={cat}>
+                {cat}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Sub Type + 层数 + Property Subtype */}
+      {category && CATEGORY_OPTIONS[category] && (
+        <>
+          {/* Sub Type——批量项目时不在这里选 */}
+          {!lockCategory && (
+            <div className="mb-3">
+              <label className="block font-medium mb-1">Sub Type</label>
+              <select
+                value={subType}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSubType(val);
+                  handleFieldChange("subType", val);
+                }}
+                className={getSelectClass(subType, false)}
+              >
+                <option value="">请选择具体类型</option>
+                {CATEGORY_OPTIONS[category].map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {NEED_STOREYS_CATEGORY.has(category) && (
+            <div className="mb-3">
+              <FloorCountSelector
+                value={storeys}
+                onChange={(val) => {
+                  setStor
