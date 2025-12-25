@@ -693,4 +693,275 @@ export default function UnitLayoutForm({
               <FloorCountSelector
                 value={storeys}
                 onChange={(val) => {
-                  setStor
+                  setStoreys(val);
+                  handleFieldChange("storeys", val);
+                }}
+              />
+            </div>
+          )}
+
+          {showSubtype && (
+            <div className="mb-3 relative" ref={subtypeRef}>
+              <label className="block font-medium mb-1">Property Subtype</label>
+
+              {/* 显示区域（点击打开下拉） */}
+              <div
+                className="rounded-lg border border-gray-300 px-3 py-2 bg-white cursor-pointer"
+                onClick={() => setSubtypeOpen((prev) => !prev)}
+              >
+                {propertySubtype.length === 0 ? (
+                  <span className="text-gray-400">请选择 subtype（可多选）</span>
+                ) : (
+                  <span className="font-medium text-gray-900">{subtypeDisplayText}</span>
+                )}
+              </div>
+
+              {/* 下拉多选菜单 */}
+              {subtypeOpen && (
+                <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+                  {SUBTYPE_OPTIONS.map((opt) => {
+                    const selected = propertySubtype.includes(opt);
+                    return (
+                      <div
+                        key={opt}
+                        className={`px-3 py-2 flex justify-between items-center cursor-pointer hover:bg-gray-100 ${
+                          selected ? "bg-gray-50 font-semibold" : ""
+                        }`}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          toggleSubtype(opt);
+                        }}
+                      >
+                        <span className="text-gray-900">{opt}</span>
+                        {selected && <span className="text-green-600">✅</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* 这个房型有多少个单位？ */}
+      <div className="mb-3" ref={unitCountRef}>
+        <label className="block font-medium mb-1">这个房型有多少个单位？</label>
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="例如：120"
+            value={formatNumber(unitCountLocal)}
+            onChange={(e) => {
+              const raw = parseNumber(e.target.value);
+              if (!/^\d*$/.test(raw)) return;
+              setUnitCountLocal(raw);
+              handleFieldChange("unitCount", raw);
+            }}
+            onFocus={() => setUnitDropdownOpen(true)}
+            onClick={() => setUnitDropdownOpen(true)}
+            className="border p-2 rounded w-full"
+          />
+
+          {unitDropdownOpen && (
+            <ul className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+              <li className="px-3 py-2 text-gray-500 cursor-default select-none border-b">
+                从 1 ~ 1,000 中选择，或直接输入
+              </li>
+              {Array.from({ length: 1000 }, (_, i) => i + 1).map((num) => (
+                <li
+                  key={num}
+                  className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    const val = String(num);
+                    setUnitCountLocal(val);
+                    handleFieldChange("unitCount", val);
+                    setUnitDropdownOpen(false);
+                  }}
+                >
+                  {num.toLocaleString()}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      {/* 面积 */}
+      <AreaSelector
+        initialValue={areaForPsf || {}}
+        onChange={(val) => {
+          setAreaForPsf(val);
+          handleFieldChange("buildUp", val);
+        }}
+      />
+
+      {/* 价格 */}
+      <PriceInput
+        value={priceForPsf}
+        onChange={(val) => {
+          setPriceForPsf(val);
+          handleFieldChange("price", val);
+        }}
+        listingMode={isBulkRent ? "Rent" : undefined}
+        type={isBulkRent ? undefined : layout.projectType}
+      />
+
+      {/* 每平方英尺 */}
+      {psfText && <p className="text-sm text-gray-600 mt-1">{psfText}</p>}
+
+      {/* 房间数量 */}
+      <RoomCountSelector
+        value={{
+          bedrooms: photoConfig.bedrooms,
+          bathrooms: photoConfig.bathrooms,
+          kitchens: photoConfig.kitchens,
+          livingRooms: photoConfig.livingRooms,
+        }}
+        onChange={(patch) => {
+          setPhotoConfig((prev) => ({ ...prev, ...patch }));
+          updateLayout(patch);
+        }}
+      />
+
+      {/* 停车位数量 */}
+      <CarparkCountSelector
+        value={photoConfig.carpark}
+        onChange={(val) => {
+          setPhotoConfig((prev) => ({ ...prev, carpark: val }));
+          handleFieldChange("carpark", val);
+        }}
+        mode={
+          layout.projectType === "New Project / Under Construction" ||
+          layout.projectType === "Completed Unit / Developer Unit"
+            ? "range"
+            : "single"
+        }
+      />
+
+      {/* 额外空间 */}
+      <ExtraSpacesSelector
+        value={Array.isArray(layout.extraSpaces) ? layout.extraSpaces : []}
+        onChange={(val) => {
+          setPhotoConfig((prev) => ({ ...prev, extraSpaces: val }));
+          const cloned = Array.isArray(val) ? val.map((x) => ({ ...x })) : [];
+          handleFieldChange("extraSpaces", cloned, { commonField: "extraSpaces" });
+        }}
+      />
+
+      {/* 朝向 */}
+      <FacingSelector
+        value={photoConfig.orientation}
+        onChange={(val) => {
+          setPhotoConfig((prev) => ({ ...prev, orientation: val }));
+          handleFieldChange("facing", val);
+        }}
+      />
+
+      {/* 车位楼层 */}
+      <CarparkLevelSelector
+        value={layout.carparkPosition}
+        onChange={(val) => handleFieldChange("carparkPosition", val)}
+        mode="range"
+      />
+
+      {/* 家具 / 设施 */}
+      <FurnitureSelector
+        value={Array.isArray(layout.furniture) ? layout.furniture : []}
+        onChange={(val) => {
+          setPhotoConfig((prev) => ({ ...prev, furniture: val }));
+          const cloned = Array.isArray(val) ? val.map((x) => ({ ...x })) : [];
+          handleFieldChange("furniture", cloned, { commonField: "furniture" });
+        }}
+      />
+
+      <FacilitiesSelector
+        value={Array.isArray(layout.facilities) ? layout.facilities : []}
+        onChange={(val) => {
+          setPhotoConfig((prev) => ({ ...prev, facilities: val }));
+          const cloned = Array.isArray(val) ? val.map((x) => ({ ...x })) : [];
+          handleFieldChange("facilities", cloned, { commonField: "facilities" });
+        }}
+      />
+
+      {/* 交通信息（每个 layout 自己的） */}
+      <div className="mb-4">
+        <label className="font-medium">交通信息</label>
+        <TransitSelector
+          value={normalizeTransitToSelector(layout.transit)}
+          onChange={(val) => {
+            const normalized = normalizeTransitFromSelector(val);
+            handleFieldChange("transit", normalized, { commonField: "transit" });
+          }}
+        />
+      </div>
+
+      {/* 建成年份 + 季度 */}
+      {showBuildYear && (
+        <BuildYearSelector
+          value={layout.buildYear}
+          onChange={(val) => updateLayout({ buildYear: val })}
+          quarter={layout.quarter}
+          onQuarterChange={(val) => updateLayout({ quarter: val })}
+          showQuarter={isNewProject} // 新项目才显示季度
+          label={isNewProject ? "预计交付时间" : "完成年份"}
+        />
+      )}
+
+      {/* 每个 Layout 自己的房源描述 */}
+      <div className="mt-3 mb-3">
+        <label className="block font-medium mb-1">房源描述</label>
+        <textarea
+          value={layout.description || ""}
+          onChange={(e) => handleFieldChange("description", e.target.value)}
+          placeholder="请输入这个房型的详细描述..."
+          rows={3}
+          className="w-full border rounded-lg p-2 resize-y"
+        />
+      </div>
+
+      {/* 上传此 Layout 的照片 */}
+      <div className="mb-3">
+        <label className="block mb-1 font-medium">上传此 Layout 的照片</label>
+        <div className="space-y-4">
+          {uploadLabels.map((label) => (
+            <div key={label} className="space-y-2 border rounded p-2">
+              <p className="font-semibold">{label}</p>
+
+              <input type="file" multiple accept="image/*" onChange={(e) => handlePhotoChange(e, label)} />
+
+              <div className="grid grid-cols-3 gap-2">
+                {(photosByLabel[label] || []).map((img, index) => (
+                  <div key={img.url || index} className="relative">
+                    <img
+                      src={img.url}
+                      alt={`preview-${index}`}
+                      className={`w-full h-32 object-cover rounded ${img.isCover ? "border-4 border-green-500" : ""}`}
+                    />
+
+                    <button
+                      type="button"
+                      className="absolute top-1 right-1 bg-red-500 text-white text-xs px-1 rounded"
+                      onClick={() => removePhoto(label, index)}
+                    >
+                      X
+                    </button>
+
+                    <button
+                      type="button"
+                      className="absolute bottom-1 left-1 bg-black text-white text-xs px-1 rounded"
+                      onClick={() => setCover(label, index)}
+                    >
+                      {img.isCover ? "封面" : "设为封面"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
