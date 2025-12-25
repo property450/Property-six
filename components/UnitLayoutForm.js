@@ -16,370 +16,16 @@ import AreaSelector from "./AreaSelector";
 import TransitSelector from "./TransitSelector";
 import FloorCountSelector from "./FloorCountSelector";
 
-// ================== Transit value normalize (防止选择后又跳回“请选择”) ==================
-function toBool(v) {
-  if (v === true || v === false) return v;
-  const s = String(v ?? "").trim().toLowerCase();
-  if (s === "yes" || s === "y" || s === "true" || s === "1") return true;
-  if (s === "no" || s === "n" || s === "false" || s === "0") return false;
-  return null;
-}
+import BlueprintUploadSection from "@/components/unitlayout/BlueprintUploadSection";
+import UnitCountInput from "@/components/unitlayout/UnitCountInput";
+import PhotoUploadSection from "@/components/unitlayout/PhotoUploadSection";
 
-// 给 TransitSelector 的 value：尽量使用对象 { walkable: boolean }
-function normalizeTransitToSelector(val) {
-  if (!val) return null;
+import { CATEGORY_OPTIONS, SUBTYPE_OPTIONS, NEED_STOREYS_CATEGORY } from "@/constants/unitLayoutOptions";
+import { getPsfText } from "@/utils/psfUtils";
+import { normalizeTransitToSelector, normalizeTransitFromSelector } from "@/utils/transitUtils";
+import { getPhotoLabelsFromConfig } from "@/utils/photoLabelUtils";
 
-  if (typeof val === "object") {
-    if (typeof val.walkable === "boolean") return { walkable: val.walkable };
-    if (typeof val.value !== "undefined") {
-      const b = toBool(val.value);
-      return b === null ? null : { walkable: b };
-    }
-  }
-
-  const b = toBool(val);
-  return b === null ? null : { walkable: b };
-}
-
-// 存回 layout 的值：统一存对象 { walkable: boolean } 或 null
-function normalizeTransitFromSelector(val) {
-  if (!val) return null;
-
-  if (typeof val === "object") {
-    if (typeof val.walkable === "boolean") return { walkable: val.walkable };
-    if (typeof val.value !== "undefined") {
-      const b = toBool(val.value);
-      return b === null ? null : { walkable: b };
-    }
-    if (typeof val.target?.value !== "undefined") {
-      const b = toBool(val.target.value);
-      return b === null ? null : { walkable: b };
-    }
-  }
-
-  const b = toBool(val);
-  return b === null ? null : { walkable: b };
-}
-
-/** 把 AreaSelector 返回的对象，转换成「总平方英尺」 */
-function getAreaSqftFromAreaSelector(area) {
-  if (!area) return 0;
-
-  const convertToSqFt = (val, unit) => {
-    const num = parseFloat(String(val || "").replace(/,/g, ""));
-    if (isNaN(num) || num <= 0) return 0;
-    const u = String(unit || "").toLowerCase();
-
-    if (u.includes("square meter") || u.includes("sq m") || u.includes("sqm")) {
-      return num * 10.7639;
-    }
-    if (u.includes("acre")) {
-      return num * 43560;
-    }
-    if (u.includes("hectare")) {
-      return num * 107639;
-    }
-    return num; // 默认 sqft
-  };
-
-  if (area.values && area.units) {
-    const buildUpSqft = convertToSqFt(area.values.buildUp, area.units.buildUp);
-    const landSqft = convertToSqFt(area.values.land, area.units.land);
-    return (buildUpSqft || 0) + (landSqft || 0);
-  }
-
-  if (typeof area === "object") {
-    const buildUp = Number(area.buildUp || 0);
-    const land = Number(area.land || 0);
-    return buildUp + land;
-  }
-
-  const num = parseFloat(String(area).replace(/,/g, ""));
-  return isNaN(num) ? 0 : num;
-}
-
-/** 从 price 字段解析出 min / max */
-function getPriceRange(priceValue) {
-  let minPrice = 0;
-  let maxPrice = 0;
-
-  if (priceValue == null || priceValue === "") {
-    return { minPrice: 0, maxPrice: 0 };
-  }
-
-  if (typeof priceValue === "string" && priceValue.includes("-")) {
-    const [minStr, maxStr] = priceValue.split("-");
-    if (minStr) minPrice = Number(minStr) || 0;
-    if (maxStr) maxPrice = Number(maxStr) || 0;
-  } else if (typeof priceValue === "object") {
-    minPrice = Number(priceValue.min) || 0;
-    maxPrice = Number(priceValue.max) || 0;
-  } else {
-    const num = Number(priceValue) || 0;
-    minPrice = num;
-    maxPrice = num;
-  }
-
-  return { minPrice, maxPrice };
-}
-
-/** 生成「每平方英尺 RM xxx.xx ~ RM yyy.yy」 */
-function getPsfText(areaObj, priceValue) {
-  const totalAreaSqft = getAreaSqftFromAreaSelector(areaObj);
-  const { minPrice, maxPrice } = getPriceRange(priceValue);
-
-  if (!totalAreaSqft || totalAreaSqft <= 0) return "";
-  if (!minPrice && !maxPrice) return "";
-
-  const lowPrice = minPrice > 0 ? minPrice : maxPrice;
-  const highPrice = maxPrice > 0 ? maxPrice : minPrice;
-
-  const lowPsf = lowPrice / totalAreaSqft;
-  const highPsf = highPrice > 0 ? highPrice / totalAreaSqft : lowPsf;
-
-  if (!isFinite(lowPsf)) return "";
-
-  if (Math.abs(highPsf - lowPsf) < 0.005) {
-    return `每平方英尺: RM ${lowPsf.toLocaleString(undefined, {
-      maximumFractionDigits: 2,
-    })}`;
-  }
-
-  return `每平方英尺: RM ${lowPsf.toLocaleString(undefined, {
-    maximumFractionDigits: 2,
-  })} ~ RM ${highPsf.toLocaleString(undefined, {
-    maximumFractionDigits: 2,
-  })}`;
-}
-
-// ---------- Category / SubType 选项 ----------
-const CATEGORY_OPTIONS = {
-  "Bungalow / Villa": [
-    "Bungalow",
-    "Link Bungalow",
-    "Twin Villa",
-    "Zero-Lot Bungalow",
-    "Bungalow land",
-  ],
-  "Apartment / Condo / Service Residence": [
-    "Apartment",
-    "Condominium",
-    "Flat",
-    "Service Residence",
-  ],
-  "Semi-Detached House": ["Cluster House", "Semi-Detached House"],
-  "Terrace / Link House": ["Terraced House", "Townhouse"],
-  "Business Property": [
-    "Hotel / Resort",
-    "Hostel / Dormitory",
-    "Boutique Hotel",
-    "Office",
-    "Office Suite",
-    "Business Suite",
-    "Retail Shop",
-    "Retail Space",
-    "Retail Office",
-    "Shop",
-    "Shop / Office",
-    "Sofo",
-    "Soho",
-    "Sovo",
-    "Commercial Bungalow",
-    "Commercial Semi-Detached House",
-    "Mall / Commercial Complex",
-    "School / University",
-    "Hospital / Medical Centre",
-    "Mosque / Temple / Church",
-    "Government Office",
-    "Community Hall / Public Utilities",
-  ],
-  "Industrial Property": [
-    "Factory",
-    "Cluster Factory",
-    "Semi-D Factory",
-    "Detached Factory",
-    "Terrace Factory",
-    "Warehouse",
-    "Showroom cum Warehouse",
-    "Light Industrial",
-    "Heavy Industrial",
-  ],
-  Land: [
-    "Agricultural Land",
-    "Industrial Land",
-    "Commercial Land",
-    "Residential Land",
-    "Oil Palm Estate",
-    "Rubber Plantation",
-    "Fruit Orchard",
-    "Paddy Field",
-    "Vacant Agricultural Land",
-  ],
-};
-
-// 布局里的 Property Subtype（多选）
-const SUBTYPE_OPTIONS = ["Penthouse", "Duplex", "Triplex", "Dual Key"];
-
-// 哪些 Category 需要显示「有多少层」
-const NEED_STOREYS_CATEGORY = new Set([
-  "Bungalow / Villa",
-  "Business Property",
-  "Industrial Property",
-  "Semi-Detached House",
-  "Terrace / Link House",
-]);
-
-// ---------- 工具 ----------
-const formatNumber = (num) => {
-  if (num === "" || num === undefined || num === null) return "";
-  const str = String(num).replace(/,/g, "");
-  if (str === "") return "";
-  return Number(str).toLocaleString();
-};
-
-const parseNumber = (str) => String(str || "").replace(/,/g, "");
-
-const toCount = (value) => {
-  if (value === undefined || value === null || value === "") return 0;
-  const num = Number(String(value).replace(/,/g, "").trim());
-  if (!Number.isFinite(num) || num <= 0) return 0;
-  return Math.floor(num);
-};
-
-const toArray = (val) => {
-  if (!val) return [];
-  if (Array.isArray(val)) return val;
-  return [val];
-};
-
-const getName = (item) => {
-  if (!item) return "";
-  if (typeof item === "string") return item;
-  return item.label || item.value || item.name || "";
-};
-
-// 把 propertySubtype 转成「数组」，兼容以前是字符串的情况
-const parseSubtypeToArray = (val) => {
-  if (!val) return [];
-  if (Array.isArray(val)) return val;
-  return [String(val)];
-};
-
-// 根据 photoConfig 生成所有上传框的 label
-function getPhotoLabelsFromConfig(config) {
-  const safe = config || {};
-  let labels = [];
-
-  // 卧室
-  if (safe.bedrooms) {
-    const raw = String(safe.bedrooms).trim().toLowerCase();
-    if (raw === "studio") {
-      labels.push("Studio");
-    } else {
-      const num = toCount(safe.bedrooms);
-      for (let i = 1; i <= num; i++) labels.push(`卧室${i}`);
-    }
-  }
-
-  // 浴室
-  {
-    const num = toCount(safe.bathrooms);
-    for (let i = 1; i <= num; i++) labels.push(`浴室${i}`);
-  }
-
-  // 厨房
-  {
-    const num = toCount(safe.kitchens);
-    for (let i = 1; i <= num; i++) labels.push(`厨房${i}`);
-  }
-
-  // 客厅
-  {
-    const num = toCount(safe.livingRooms);
-    for (let i = 1; i <= num; i++) labels.push(`客厅${i}`);
-  }
-
-  // 停车位
-  {
-    const v = safe.carpark;
-    if (v) {
-      if (typeof v === "number" || typeof v === "string") {
-        const num = toCount(v);
-        if (num > 0) labels.push("停车位");
-      }
-      if (typeof v === "object" && !Array.isArray(v)) {
-        const min = toCount(v.min);
-        const max = toCount(v.max);
-        if (min > 0 || max > 0) labels.push("停车位");
-      }
-    }
-  }
-
-  // 储藏室
-  {
-    const num = toCount(safe.store);
-    for (let i = 1; i <= num; i++) labels.push(`储藏室${i}`);
-  }
-
-  // 朝向
-  {
-    const arr = toArray(safe.orientation);
-    arr.forEach((item) => {
-      const n = getName(item);
-      if (n) labels.push(n);
-    });
-  }
-
-  // 设施
-  {
-    const arr = toArray(safe.facilities);
-    arr.forEach((item) => {
-      const n = getName(item);
-      if (n) labels.push(n);
-    });
-  }
-
-  // 额外空间
-  {
-    const arr = toArray(safe.extraSpaces);
-    arr.forEach((extra) => {
-      if (!extra) return;
-      const name = getName(extra);
-      if (!name) return;
-
-      const count = toCount(extra.count || 1) || 1;
-      if (count <= 1) {
-        labels.push(name);
-      } else {
-        for (let i = 1; i <= count; i++) labels.push(`${name}${i}`);
-      }
-    });
-  }
-
-  // 家私
-  {
-    const arr = toArray(safe.furniture);
-    arr.forEach((item) => {
-      if (!item) return;
-      const name = getName(item);
-      if (!name) return;
-
-      const count = toCount(item.count || 1) || 1;
-      if (count <= 1) {
-        labels.push(name);
-      } else {
-        for (let i = 1; i <= count; i++) labels.push(`${name}${i}`);
-      }
-    });
-  }
-
-  labels = [...new Set(labels)];
-  if (!labels.length) labels.push("房源照片");
-
-  return labels;
-}
-
-// ✅ 统一 select 样式（恢复你要的“原本模样”：白底 + 清晰边框 + placeholder 灰字）
+// ✅ 统一 select 样式（保持你现在原本模样，不改）
 function getSelectClass(value, disabled = false) {
   const base =
     "w-full rounded-lg border px-3 py-2 outline-none focus:ring-2 focus:ring-blue-200";
@@ -388,9 +34,13 @@ function getSelectClass(value, disabled = false) {
   return `${base} bg-white border-gray-300 text-gray-900`;
 }
 
-// ================================
-// 组件主体
-// ================================
+// subtype 统一成数组（保留兼容）
+const parseSubtypeToArray = (val) => {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  return [String(val)];
+};
+
 export default function UnitLayoutForm({
   index,
   data,
@@ -406,8 +56,8 @@ export default function UnitLayoutForm({
   // ✅ New Project：Layout2+ 是否跟随 Layout1（默认跟随）
   const isInheritingCommon = index > 0 ? layout._inheritCommon !== false : false;
 
-  const projectType = layout.projectType; // UploadProperty 里已经传进来了
-  const rentMode = layout.rentMode; // "Sale" / "Rent" 之类
+  const projectType = layout.projectType;
+  const rentMode = layout.rentMode;
 
   const isNewProject = projectType === "New Project / Under Construction";
   const isCompletedProject = projectType === "Completed Unit / Developer Unit";
@@ -418,7 +68,7 @@ export default function UnitLayoutForm({
   // ⭐ 批量 Rent 的 Layout
   const isBulkRent = layout.rentMode === "Rent";
 
-  // Category / SubType / SubtypeExtra / 层数
+  // Category / SubType / 层数
   const [category, setCategory] = useState(
     lockCategory ? projectCategory || layout.propertyCategory || "" : layout.propertyCategory || ""
   );
@@ -428,7 +78,6 @@ export default function UnitLayoutForm({
 
   // propertySubtype 多选数组
   const [propertySubtype, setPropertySubtype] = useState(parseSubtypeToArray(layout.propertySubtype));
-
   const [showSubtype, setShowSubtype] = useState(false);
   const [storeys, setStoreys] = useState(layout.storeys || "");
 
@@ -459,7 +108,6 @@ export default function UnitLayoutForm({
     orientation: layout.facing || [],
   });
 
-  // layout.photos 里按 label 存图片
   const photosByLabel = layout.photos || {};
 
   // 同步外部传入的变化（包括 projectCategory / projectSubType）
@@ -495,18 +143,13 @@ export default function UnitLayoutForm({
   // 点击外面关闭两个下拉：单位数量 & Property Subtype
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (unitCountRef.current && !unitCountRef.current.contains(e.target)) {
-        setUnitDropdownOpen(false);
-      }
-      if (subtypeRef.current && !subtypeRef.current.contains(e.target)) {
-        setSubtypeOpen(false);
-      }
+      if (unitCountRef.current && !unitCountRef.current.contains(e.target)) setUnitDropdownOpen(false);
+      if (subtypeRef.current && !subtypeRef.current.contains(e.target)) setSubtypeOpen(false);
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // 更新 layout
   const updateLayout = (patch, meta) => {
     const updated = { ...layout, ...patch };
     onChange && onChange(updated, meta);
@@ -535,19 +178,13 @@ export default function UnitLayoutForm({
     }));
 
     const current = photosByLabel[label] || [];
-    const updatedPhotos = {
-      ...photosByLabel,
-      [label]: [...current, ...newImages],
-    };
+    const updatedPhotos = { ...photosByLabel, [label]: [...current, ...newImages] };
     updateLayout({ photos: updatedPhotos });
   };
 
   const removePhoto = (label, index) => {
     const current = photosByLabel[label] || [];
-    const updatedPhotos = {
-      ...photosByLabel,
-      [label]: current.filter((_, i) => i !== index),
-    };
+    const updatedPhotos = { ...photosByLabel, [label]: current.filter((_, i) => i !== index) };
     updateLayout({ photos: updatedPhotos });
   };
 
@@ -555,36 +192,24 @@ export default function UnitLayoutForm({
     const current = photosByLabel[label] || [];
     const updatedPhotos = {
       ...photosByLabel,
-      [label]: current.map((img, i) => ({
-        ...img,
-        isCover: i === index,
-      })),
+      [label]: current.map((img, i) => ({ ...img, isCover: i === index })),
     };
     updateLayout({ photos: updatedPhotos });
   };
 
   const psfText = getPsfText(areaForPsf, priceForPsf);
-
-  // 生成所有上传框 label
   const uploadLabels = getPhotoLabelsFromConfig(photoConfig);
 
-  // 切换 Property Subtype 多选
   const toggleSubtype = (item) => {
-    let next = [];
-    if (propertySubtype.includes(item)) {
-      next = propertySubtype.filter((v) => v !== item);
-    } else {
-      next = [...propertySubtype, item];
-    }
+    const next = propertySubtype.includes(item)
+      ? propertySubtype.filter((v) => v !== item)
+      : [...propertySubtype, item];
     setPropertySubtype(next);
     handleFieldChange("propertySubtype", next);
   };
 
-  // 显示在「输入框」里的文字
   const subtypeDisplayText =
-    propertySubtype.length === 0
-      ? "请选择 subtype（可多选）"
-      : propertySubtype.map((v) => `${v} ✅`).join("，");
+    propertySubtype.length === 0 ? "请选择 subtype（可多选）" : propertySubtype.map((v) => `${v} ✅`).join("，");
 
   return (
     <div className="border rounded-lg p-4 shadow-sm bg-white">
@@ -603,24 +228,7 @@ export default function UnitLayoutForm({
 
       <h3 className="font-semibold mb-3">Layout {index + 1}</h3>
 
-      {/* 上传 Layout 图纸 */}
-      <div className="mb-3">
-        <button
-          type="button"
-          className="mb-3 px-3 py-2 bg-gray-100 border rounded hover:bg-gray-200 w-full"
-          onClick={() => fileInputRef.current && fileInputRef.current.click()}
-        >
-          点击上传 Layout 图纸
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          className="hidden"
-          onChange={handleLayoutUpload}
-        />
-      </div>
+      <BlueprintUploadSection fileInputRef={fileInputRef} onUpload={handleLayoutUpload} />
 
       {/* Type 名称 */}
       <input
@@ -631,7 +239,7 @@ export default function UnitLayoutForm({
         className="border p-2 rounded w-full mb-3"
       />
 
-      {/* Property Category（单个 layout）——批量项目时隐藏 */}
+      {/* Property Category（单个 layout） */}
       {!lockCategory && (
         <div className="mb-3">
           <label className="block font-medium mb-1">Property Category</label>
@@ -643,12 +251,7 @@ export default function UnitLayoutForm({
               setSubType("");
               setPropertySubtype([]);
               setStoreys("");
-              updateLayout({
-                propertyCategory: cat,
-                subType: "",
-                propertySubtype: [],
-                storeys: "",
-              });
+              updateLayout({ propertyCategory: cat, subType: "", propertySubtype: [], storeys: "" });
             }}
             className={getSelectClass(category, false)}
           >
@@ -665,7 +268,6 @@ export default function UnitLayoutForm({
       {/* Sub Type + 层数 + Property Subtype */}
       {category && CATEGORY_OPTIONS[category] && (
         <>
-          {/* Sub Type——批量项目时不在这里选 */}
           {!lockCategory && (
             <div className="mb-3">
               <label className="block font-medium mb-1">Sub Type</label>
@@ -704,7 +306,6 @@ export default function UnitLayoutForm({
             <div className="mb-3 relative" ref={subtypeRef}>
               <label className="block font-medium mb-1">Property Subtype</label>
 
-              {/* 显示区域（点击打开下拉） */}
               <div
                 className="rounded-lg border border-gray-300 px-3 py-2 bg-white cursor-pointer"
                 onClick={() => setSubtypeOpen((prev) => !prev)}
@@ -716,7 +317,6 @@ export default function UnitLayoutForm({
                 )}
               </div>
 
-              {/* 下拉多选菜单 */}
               {subtypeOpen && (
                 <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
                   {SUBTYPE_OPTIONS.map((opt) => {
@@ -744,51 +344,15 @@ export default function UnitLayoutForm({
         </>
       )}
 
-      {/* 这个房型有多少个单位？ */}
-      <div className="mb-3" ref={unitCountRef}>
-        <label className="block font-medium mb-1">这个房型有多少个单位？</label>
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="例如：120"
-            value={formatNumber(unitCountLocal)}
-            onChange={(e) => {
-              const raw = parseNumber(e.target.value);
-              if (!/^\d*$/.test(raw)) return;
-              setUnitCountLocal(raw);
-              handleFieldChange("unitCount", raw);
-            }}
-            onFocus={() => setUnitDropdownOpen(true)}
-            onClick={() => setUnitDropdownOpen(true)}
-            className="border p-2 rounded w-full"
-          />
+      <UnitCountInput
+        unitCountRef={unitCountRef}
+        unitCountLocal={unitCountLocal}
+        setUnitCountLocal={setUnitCountLocal}
+        unitDropdownOpen={unitDropdownOpen}
+        setUnitDropdownOpen={setUnitDropdownOpen}
+        onCommit={(raw) => handleFieldChange("unitCount", raw)}
+      />
 
-          {unitDropdownOpen && (
-            <ul className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
-              <li className="px-3 py-2 text-gray-500 cursor-default select-none border-b">
-                从 1 ~ 1,000 中选择，或直接输入
-              </li>
-              {Array.from({ length: 1000 }, (_, i) => i + 1).map((num) => (
-                <li
-                  key={num}
-                  className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    const val = String(num);
-                    setUnitCountLocal(val);
-                    handleFieldChange("unitCount", val);
-                    setUnitDropdownOpen(false);
-                  }}
-                >
-                  {num.toLocaleString()}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-
-      {/* 面积 */}
       <AreaSelector
         initialValue={areaForPsf || {}}
         onChange={(val) => {
@@ -797,7 +361,6 @@ export default function UnitLayoutForm({
         }}
       />
 
-      {/* 价格 */}
       <PriceInput
         value={priceForPsf}
         onChange={(val) => {
@@ -808,10 +371,8 @@ export default function UnitLayoutForm({
         type={isBulkRent ? undefined : layout.projectType}
       />
 
-      {/* 每平方英尺 */}
       {psfText && <p className="text-sm text-gray-600 mt-1">{psfText}</p>}
 
-      {/* 房间数量 */}
       <RoomCountSelector
         value={{
           bedrooms: photoConfig.bedrooms,
@@ -825,7 +386,6 @@ export default function UnitLayoutForm({
         }}
       />
 
-      {/* 停车位数量 */}
       <CarparkCountSelector
         value={photoConfig.carpark}
         onChange={(val) => {
@@ -840,7 +400,6 @@ export default function UnitLayoutForm({
         }
       />
 
-      {/* 额外空间 */}
       <ExtraSpacesSelector
         value={Array.isArray(layout.extraSpaces) ? layout.extraSpaces : []}
         onChange={(val) => {
@@ -850,7 +409,6 @@ export default function UnitLayoutForm({
         }}
       />
 
-      {/* 朝向 */}
       <FacingSelector
         value={photoConfig.orientation}
         onChange={(val) => {
@@ -859,14 +417,12 @@ export default function UnitLayoutForm({
         }}
       />
 
-      {/* 车位楼层 */}
       <CarparkLevelSelector
         value={layout.carparkPosition}
         onChange={(val) => handleFieldChange("carparkPosition", val)}
         mode="range"
       />
 
-      {/* 家具 / 设施 */}
       <FurnitureSelector
         value={Array.isArray(layout.furniture) ? layout.furniture : []}
         onChange={(val) => {
@@ -885,7 +441,6 @@ export default function UnitLayoutForm({
         }}
       />
 
-      {/* 交通信息（每个 layout 自己的） */}
       <div className="mb-4">
         <label className="font-medium">交通信息</label>
         <TransitSelector
@@ -897,19 +452,17 @@ export default function UnitLayoutForm({
         />
       </div>
 
-      {/* 建成年份 + 季度 */}
       {showBuildYear && (
         <BuildYearSelector
           value={layout.buildYear}
           onChange={(val) => updateLayout({ buildYear: val })}
           quarter={layout.quarter}
           onQuarterChange={(val) => updateLayout({ quarter: val })}
-          showQuarter={isNewProject} // 新项目才显示季度
+          showQuarter={isNewProject}
           label={isNewProject ? "预计交付时间" : "完成年份"}
         />
       )}
 
-      {/* 每个 Layout 自己的房源描述 */}
       <div className="mt-3 mb-3">
         <label className="block font-medium mb-1">房源描述</label>
         <textarea
@@ -921,47 +474,13 @@ export default function UnitLayoutForm({
         />
       </div>
 
-      {/* 上传此 Layout 的照片 */}
-      <div className="mb-3">
-        <label className="block mb-1 font-medium">上传此 Layout 的照片</label>
-        <div className="space-y-4">
-          {uploadLabels.map((label) => (
-            <div key={label} className="space-y-2 border rounded p-2">
-              <p className="font-semibold">{label}</p>
-
-              <input type="file" multiple accept="image/*" onChange={(e) => handlePhotoChange(e, label)} />
-
-              <div className="grid grid-cols-3 gap-2">
-                {(photosByLabel[label] || []).map((img, index) => (
-                  <div key={img.url || index} className="relative">
-                    <img
-                      src={img.url}
-                      alt={`preview-${index}`}
-                      className={`w-full h-32 object-cover rounded ${img.isCover ? "border-4 border-green-500" : ""}`}
-                    />
-
-                    <button
-                      type="button"
-                      className="absolute top-1 right-1 bg-red-500 text-white text-xs px-1 rounded"
-                      onClick={() => removePhoto(label, index)}
-                    >
-                      X
-                    </button>
-
-                    <button
-                      type="button"
-                      className="absolute bottom-1 left-1 bg-black text-white text-xs px-1 rounded"
-                      onClick={() => setCover(label, index)}
-                    >
-                      {img.isCover ? "封面" : "设为封面"}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      <PhotoUploadSection
+        uploadLabels={uploadLabels}
+        photosByLabel={photosByLabel}
+        onPhotoChange={handlePhotoChange}
+        onRemovePhoto={removePhoto}
+        onSetCover={setCover}
+      />
     </div>
   );
 }
