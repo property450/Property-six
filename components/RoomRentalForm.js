@@ -22,13 +22,13 @@ const parseMoneyToNumber = (v) => {
   if (v === undefined || v === null) return 0;
   const raw = String(v)
     .replace(/rm/gi, "")
-    .replace(/[^\d.]/g, "") // 去掉逗号/空格等
+    .replace(/[^\d.]/g, "")
     .trim();
   const n = Number(raw);
   return Number.isFinite(n) ? n : 0;
 };
 
-// ✅ 从 AreaSelector 的 value 尽量取出「sqft」数值（兼容多种结构）
+// ✅ 从 AreaSelector 的 value 取出「sqft」数值（重点：尊重 types 选择 buildUp/land）
 const getAreaSqft = (areaVal) => {
   if (!areaVal) return 0;
 
@@ -39,21 +39,45 @@ const getAreaSqft = (areaVal) => {
     return Number.isFinite(n) && n > 0 ? n : 0;
   }
 
-  // 2) 你项目常见的 areaData 结构：
-  // { types: ["buildUp","land"], units: {buildUp:"Square Feet (sqft)"}, values:{buildUp:"400"} }
+  // 2) 常见结构：
+  // { types: ["buildUp","land"], units: {buildUp:"Square Feet (sqft)"}, values:{buildUp:"400", land:"1000"} }
   if (areaVal && typeof areaVal === "object") {
-    // 优先 buildUp，其次 land
     const values = areaVal.values;
     const units = areaVal.units;
+    const typesRaw = areaVal.types;
+
+    // ✅ 决定“本次用哪个 key 来算 PSF”
+    // - 如果只勾 land -> 用 land
+    // - 如果只勾 buildUp -> 用 buildUp
+    // - 如果两者都勾 -> 默认用 buildUp
+    const types = Array.isArray(typesRaw) ? typesRaw : [];
+    const hasBuildUp = types.includes("buildUp") || types.includes("builtUp");
+    const hasLand = types.includes("land");
+
+    const preferKey =
+      hasBuildUp && !hasLand
+        ? "buildUp"
+        : hasLand && !hasBuildUp
+        ? "land"
+        : hasBuildUp && hasLand
+        ? "buildUp"
+        : null;
 
     if (values && typeof values === "object") {
-      const pickKey = values.buildUp ? "buildUp" : values.land ? "land" : null;
-      if (pickKey) {
-        const sizeRaw = String(values[pickKey] || "").replace(/,/g, "").trim();
+      // ✅ 如果 types 能判断，就按 types 来
+      let key = preferKey;
+
+      // ✅ fallback：types 为空时才用“有值优先”
+      if (!key) {
+        key = values.buildUp ? "buildUp" : values.land ? "land" : null;
+      }
+
+      if (key) {
+        const sizeRaw = String(values[key] || "").replace(/,/g, "").trim();
         const sizeNum = Number(sizeRaw);
         if (!Number.isFinite(sizeNum) || sizeNum <= 0) return 0;
 
-        const unitStr = String((units && units[pickKey]) || "").toLowerCase();
+        const unitStr = String((units && units[key]) || "").toLowerCase();
 
         // sqm -> sqft
         if (unitStr.includes("sqm") || unitStr.includes("square meter") || unitStr.includes("sq m")) {
@@ -63,7 +87,7 @@ const getAreaSqft = (areaVal) => {
         if (unitStr.includes("acre")) {
           return sizeNum * 43560;
         }
-        // sqft（默认）
+        // sqft 默认
         return sizeNum;
       }
     }
@@ -133,10 +157,7 @@ const TENANCY_OPTIONS = ["1个月", "3个月", "6个月", "一年以下", "一�
 
 // ----------------- 默认值 -----------------
 const defaultValue = {
-  // ✅ 单个面积（保持你想要 “一个就够”）
   area: null,
-
-  // ✅ Rent：租金（不叫价格）
   rent: "",
 
   roomType: "",
@@ -380,7 +401,7 @@ function BedTypePicker({ value = [], onChange }) {
 export default function RoomRentalForm({ value, onChange, extraSection = null }) {
   const data = useMemo(() => ({ ...defaultValue, ...(value || {}) }), [value]);
 
-  // ✅ 兼容旧字段（你之前可能存过 builtUpArea/landArea/price）
+  // ✅ 兼容旧字段
   const normalizedArea = data.area ?? data.builtUpArea ?? data.landArea ?? null;
   const normalizedRent = data.rent ?? data.price ?? "";
 
@@ -389,7 +410,7 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
     onChange?.(next);
   };
 
-  // ✅ PSF 计算（RM / sq ft）
+  // ✅ PSF（RM / sq ft）—— 现在会根据你勾选 buildUp/land 正确切换
   const areaSqft = useMemo(() => getAreaSqft(normalizedArea), [normalizedArea]);
   const rentNum = useMemo(() => parseMoneyToNumber(normalizedRent), [normalizedRent]);
   const psf = useMemo(() => {
@@ -403,31 +424,21 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
 
   return (
     <div className="space-y-4 mt-4 border rounded-lg p-4 bg-white">
-      {/* ✅ 面积（一个就够） */}
+      {/* ✅ 面积（仍然只一个 AreaSelector，但它内部可选 buildUp/land） */}
       <div>
         <label className="block text-sm font-medium text-gray-700">面积</label>
         <AreaSelector
           value={normalizedArea}
-          onChange={(val) => {
-            patch({ area: val }); // 新数据统一写 area
-          }}
+          onChange={(val) => patch({ area: val })}
         />
       </div>
 
-      {/* ✅ 租金（不叫价格） */}
+      {/* ✅ 租金 + PSF */}
       <div>
         <label className="block text-sm font-medium text-gray-700">租金</label>
-        <PriceInput
-          value={normalizedRent}
-          onChange={(val) => {
-            patch({ rent: val }); // 新数据统一写 rent
-          }}
-        />
-        {/* ✅ PSF 显示（加回来） */}
+        <PriceInput value={normalizedRent} onChange={(val) => patch({ rent: val })} />
         {psf > 0 && (
-          <p className="text-sm text-gray-600 mt-1">
-            ≈ RM {psf.toFixed(2)} / sq ft
-          </p>
+          <p className="text-sm text-gray-600 mt-1">≈ RM {psf.toFixed(2)} / sq ft</p>
         )}
       </div>
 
@@ -534,7 +545,6 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
         </select>
       </div>
 
-      {/* 租金包括（多选） */}
       <MultiPick
         label="租金包括"
         options={RENT_INCLUDES_OPTIONS}
@@ -542,7 +552,6 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
         onChange={(rentIncludes) => patch({ rentIncludes })}
       />
 
-      {/* 清洁服务 */}
       <div>
         <label className="block text-sm font-medium text-gray-700">清洁服务</label>
         <select
@@ -559,7 +568,6 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
         </select>
       </div>
 
-      {/* 车位 */}
       <div>
         <label className="block text-sm font-medium text-gray-700">包括几个车位？</label>
         <select
@@ -582,7 +590,6 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
         </select>
       </div>
 
-      {/* 车位另租价格 */}
       {showCarparkRentPrice && (
         <div>
           <label className="block text-sm font-medium text-gray-700">一个车位大概多少钱？</label>
@@ -615,7 +622,6 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
         </div>
       )}
 
-      {/* 偏向种族（多选） */}
       <MultiPick
         label="偏向的种族"
         options={RACE_OPTIONS}
@@ -623,10 +629,8 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
         onChange={(preferredRaces) => patch({ preferredRaces })}
       />
 
-      {/* 你要放在这里的四个输入框（额外空间/家私/设施/步行到交通） */}
       {extraSection}
 
-      {/* 接受租期（多选） */}
       <MultiPick
         label="接受的租期"
         options={TENANCY_OPTIONS}
@@ -634,7 +638,6 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
         onChange={(acceptedTenancy) => patch({ acceptedTenancy })}
       />
 
-      {/* 入住日期 */}
       <div>
         <label className="block text-sm font-medium text-gray-700">几时开始可以入住？</label>
         <input
@@ -646,5 +649,4 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
         {availableText && <p className="text-sm text-gray-600 mt-1">{availableText}</p>}
       </div>
     </div>
-  );
-}
+ 
