@@ -25,11 +25,9 @@ function toPositiveInt(v) {
   return Math.floor(n);
 }
 
-// ✅ 从 TypeSelector 回传的 typeForm 里，尽可能“猜中”房间数量字段名
+// ✅ 兼容从 TypeSelector 回传的“房间数量”字段名
 function getRoomCountFromTypeForm(typeForm) {
   if (!typeForm) return 0;
-
-  // 常见字段名（你项目里可能叫其中一个）
   const candidates = [
     typeForm.roomCount,
     typeForm.roomsCount,
@@ -39,23 +37,33 @@ function getRoomCountFromTypeForm(typeForm) {
     typeForm.roomNumber,
     typeForm.selectedRoomCount,
   ];
-
   for (const c of candidates) {
     const n = toPositiveInt(c);
     if (n > 0) return n;
   }
-
-  // 如果你有 “是否只有一个房间” 这种字段
-  // （例如 yes/no 或 true/false），这里也兜底为 1
   const onlyOne =
     typeForm.onlyOneRoom === true ||
     typeForm.onlyOneRoom === "yes" ||
     typeForm.onlyOneRoom === "true" ||
     typeForm.isOnlyOneRoom === true;
-
   if (onlyOne) return 1;
-
   return 0;
+}
+
+// ✅ 每间房都要有自己的面积数据
+function makeDefaultAreaData() {
+  return {
+    types: ["buildUp", "land"],
+    values: { buildUp: "", land: "" },
+    units: { buildUp: "Square Feet (sqft)", land: "Square Feet (sqft)" },
+  };
+}
+
+// ✅ “第一间房 / 第二间房 …”
+const CN_NUM = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十"];
+function roomTitle(i) {
+  if (i < 10) return `第${CN_NUM[i]}间房`;
+  return `第${i + 1}间房`;
 }
 
 export default function RentUploadForm({
@@ -63,9 +71,9 @@ export default function RentUploadForm({
   computedStatus,
   isRoomRental,
 
+  // whole unit 用（保持你原本逻辑不动）
   singleFormData,
   setSingleFormData,
-
   areaData,
   setAreaData,
 
@@ -74,13 +82,18 @@ export default function RentUploadForm({
 
   photoConfig,
 
-  // ✅ 新增：从 upload-property 传进来（不影响你原本 UI）
+  // ✅ 从 upload-property.js 传进来（TypeSelector 的 form）
   typeForm,
 }) {
-  // ✅ 目标房间数量：来自你在 TypeSelector 里已经选好的那个数
   const targetRoomCount = useMemo(() => getRoomCountFromTypeForm(typeForm), [typeForm]);
 
-  // ✅ 多房表单数据（每个房一份，不互相覆盖）
+  /**
+   * ✅ 多房间：每一间房是一个对象：
+   * {
+   *   areaData: {...},
+   *   form: {...}   // RoomRentalForm + extraSpaces/furniture/facilities/transit/price 等
+   * }
+   */
   const [roomForms, setRoomForms] = useState([]);
 
   useEffect(() => {
@@ -91,94 +104,127 @@ export default function RentUploadForm({
 
     const n = toPositiveInt(targetRoomCount);
     if (n <= 0) {
-      setRoomForms([]); // 还没选数量就先不显示
+      setRoomForms([]);
       return;
     }
 
-    // 保留已填数据：从 6 改 5，不会丢前 5；从 5 改 6，新的一间是空的
+    // 保留已填数据：从 6 -> 5 保留前 5，从 5 -> 6 新增 1 间空的
     setRoomForms((prev) => {
-      const next = Array.from({ length: n }).map((_, i) => prev[i] || {});
-      return next;
+      const next = Array.from({ length: n }).map((_, idx) => {
+        return (
+          prev[idx] || {
+            areaData: makeDefaultAreaData(),
+            form: {
+              price: "", // 每间房自己的价格
+              extraSpaces: [],
+              furniture: [],
+              facilities: [],
+              transit: null,
+            },
+          }
+        );
+      });
+
+      // 保险：旧数据可能没有 areaData/form 时补齐
+      return next.map((x) => ({
+        areaData: x?.areaData || makeDefaultAreaData(),
+        form: x?.form || {},
+      }));
     });
   }, [isRoomRental, targetRoomCount]);
 
+  const patchRoom = (index, patch) => {
+    setRoomForms((prev) => {
+      const next = [...prev];
+      const cur = next[index] || { areaData: makeDefaultAreaData(), form: {} };
+      next[index] = { ...cur, ...patch };
+      return next;
+    });
+  };
+
+  const patchRoomForm = (index, patch) => {
+    setRoomForms((prev) => {
+      const next = [...prev];
+      const cur = next[index] || { areaData: makeDefaultAreaData(), form: {} };
+      next[index] = { ...cur, form: { ...(cur.form || {}), ...(patch || {}) } };
+      return next;
+    });
+  };
+
   return (
     <div className="space-y-4">
-      <AreaSelector initialValue={areaData} onChange={(val) => setAreaData(val)} />
-
-      <PriceInput
-        value={singleFormData.price}
-        onChange={(val) => setSingleFormData((p) => ({ ...p, price: val }))}
-        listingMode={saleType}
-        area={{
-          buildUp: convertToSqft(areaData.values.buildUp, areaData.units.buildUp),
-          land: convertToSqft(areaData.values.land, areaData.units.land),
-        }}
-      />
-
+      {/* ✅ 房间出租：每间房都有自己的 Area + Price + RoomRentalForm */}
       {isRoomRental ? (
         <>
-          {/* ✅ 这里完全保留你的设计：只是在“你已经选好数量”后，多渲染 N 个表单 */}
-          {roomForms.map((roomValue, index) => (
-            <RoomRentalForm
-              key={index}
-              value={roomValue}
-              onChange={(updated) => {
-                setRoomForms((prev) => {
-                  const next = [...prev];
-                  next[index] = updated;
-                  return next;
-                });
-              }}
-              extraSection={
-                <div className="space-y-3">
-                  <ExtraSpacesSelector
-                    value={roomValue.extraSpaces || []}
-                    onChange={(val) =>
-                      setRoomForms((prev) => {
-                        const next = [...prev];
-                        next[index] = { ...next[index], extraSpaces: val };
-                        return next;
-                      })
-                    }
-                  />
-                  <FurnitureSelector
-                    value={roomValue.furniture || []}
-                    onChange={(val) =>
-                      setRoomForms((prev) => {
-                        const next = [...prev];
-                        next[index] = { ...next[index], furniture: val };
-                        return next;
-                      })
-                    }
-                  />
-                  <FacilitiesSelector
-                    value={roomValue.facilities || []}
-                    onChange={(val) =>
-                      setRoomForms((prev) => {
-                        const next = [...prev];
-                        next[index] = { ...next[index], facilities: val };
-                        return next;
-                      })
-                    }
-                  />
-                  <TransitSelector
-                    value={roomValue.transit || null}
-                    onChange={(info) =>
-                      setRoomForms((prev) => {
-                        const next = [...prev];
-                        next[index] = { ...next[index], transit: info };
-                        return next;
-                      })
-                    }
-                  />
-                </div>
-              }
-            />
-          ))}
+          {roomForms.map((room, index) => {
+            const localArea = room.areaData || makeDefaultAreaData();
+            const localForm = room.form || {};
+
+            return (
+              <div key={index} className="space-y-4 border rounded-lg p-4 bg-white">
+                <div className="text-lg font-semibold">{roomTitle(index)}</div>
+
+                {/* ✅ 每间房自己的面积 */}
+                <AreaSelector
+                  initialValue={localArea}
+                  onChange={(val) => patchRoom(index, { areaData: val })}
+                />
+
+                {/* ✅ 每间房自己的价格 */}
+                <PriceInput
+                  value={localForm.price || ""}
+                  onChange={(val) => patchRoomForm(index, { price: val })}
+                  listingMode={saleType}
+                  area={{
+                    buildUp: convertToSqft(localArea.values?.buildUp, localArea.units?.buildUp),
+                    land: convertToSqft(localArea.values?.land, localArea.units?.land),
+                  }}
+                />
+
+                {/* ✅ 你原本的 RoomRentalForm + extraSection（完全保留写法） */}
+                <RoomRentalForm
+                  value={localForm}
+                  onChange={(nextForm) => patchRoomForm(index, nextForm)}
+                  extraSection={
+                    <div className="space-y-3">
+                      <ExtraSpacesSelector
+                        value={localForm.extraSpaces || []}
+                        onChange={(val) => patchRoomForm(index, { extraSpaces: val })}
+                      />
+                      <FurnitureSelector
+                        value={localForm.furniture || []}
+                        onChange={(val) => patchRoomForm(index, { furniture: val })}
+                      />
+                      <FacilitiesSelector
+                        value={localForm.facilities || []}
+                        onChange={(val) => patchRoomForm(index, { facilities: val })}
+                      />
+                      <TransitSelector
+                        value={localForm.transit || null}
+                        onChange={(info) => patchRoomForm(index, { transit: info })}
+                      />
+                    </div>
+                  }
+                />
+              </div>
+            );
+          })}
         </>
       ) : (
+        /* ✅ 整间出租：保持你原本设计/逻辑完全不动 */
         <>
+          <AreaSelector initialValue={areaData} onChange={(val) => setAreaData(val)} />
+
+          <PriceInput
+            value={singleFormData.price}
+            onChange={(val) => setSingleFormData((p) => ({ ...p, price: val }))}
+            listingMode={saleType}
+            area={{
+              buildUp: convertToSqft(areaData.values.buildUp, areaData.units.buildUp),
+              land: convertToSqft(areaData.values.land, areaData.units.land),
+            }}
+          />
+
           <RoomCountSelector
             value={{
               bedrooms: singleFormData.bedrooms,
@@ -233,6 +279,7 @@ export default function RentUploadForm({
         </>
       )}
 
+      {/* ✅ 描述 & 图片：你原本的保持不动 */}
       <div>
         <label className="block font-medium mb-1">房源描述</label>
         <textarea
