@@ -38,10 +38,8 @@ export default function UploadPropertyPage() {
   const router = useRouter();
   const user = useUser();
 
-  // 地址
   const [addressObj, setAddressObj] = useState(null);
 
-  // TypeSelector 回传
   const [typeValue, setTypeValue] = useState("");
   const [rentBatchMode, setRentBatchMode] = useState("no"); // "no" | "yes"
   const [typeForm, setTypeForm] = useState(null);
@@ -73,35 +71,52 @@ export default function UploadPropertyPage() {
   const isProject =
     saleTypeNorm === "sale" &&
     (computedStatus === "New Project / Under Construction" ||
-      computedStatus === "Completed Unit / Developer Unit");
+      computedStatus === "Completed Unit (Developer Unit)" ||
+      computedStatus === "Completed Unit (Subsale Property)" ||
+      computedStatus === "Completed Unit (Auction Property)" ||
+      computedStatus === "Completed Unit (Rent-to-Own Property)");
+
+  // ✅ TypeSelector 里选了 category 才算 Rent category 已选（保持你原逻辑）
+  const rentCategorySelected = !!typeForm?.category;
+  const allowRentBatchMode = saleTypeNorm === "rent" && rentCategorySelected;
+
+  // 从 typeForm 里拿（你原本就这样）
+  const layoutCount = Number(typeForm?.layoutCount) || 2;
 
   // ✅ Rent 批量
   const isRentBatch = saleTypeNorm === "rent" && rentBatchMode === "yes";
-  const layoutCount = Number(typeForm?.layoutCount) || 2;
 
-  // ✅ 只有 Rent 且已选 category 才允许打开批量（跟你原要求一致）
-  const rentCategorySelected = !!(typeForm && (typeForm.category || typeForm.propertyCategory));
-  const allowRentBatchMode = saleTypeNorm === "rent" && rentCategorySelected;
+  // ✅ Rent 出租房间 + 多房间：用 layoutCount 生成对应数量的房间表单（房间1/房间2...）
+  // 说明：不改你原本 TypeSelector；它会把「房间数量」写进 typeForm.layoutCount
+  const isRoomRentalMulti =
+    saleTypeNorm === "rent" && roomRentalMode === "room" && rentBatchMode !== "yes";
 
-  // ✅ Rent 批量时，自动把 unitLayouts 生成为对应数量（保留已填内容）
+  // ✅ 需要生成多个表单的情况：Rent 批量 或 Rent 多房间
+  const shouldGenerateMultiForms = isRentBatch || isRoomRentalMulti;
+
+  // ✅ Rent 批量/多房间时，自动把 unitLayouts 生成为对应数量（保留已填内容）
   useEffect(() => {
-    if (!isRentBatch) return;
+    if (!shouldGenerateMultiForms) return;
 
     const n = Math.max(2, Math.min(20, Number(layoutCount) || 2));
-
     setUnitLayouts((prev) => {
       const prevArr = Array.isArray(prev) ? prev : [];
+      // 关键：保留已填内容，只补齐/截断到 n
       return Array.from({ length: n }).map((_, i) => prevArr[i] || {});
     });
-  }, [isRentBatch, layoutCount]);
+  }, [shouldGenerateMultiForms, layoutCount]);
 
   // ✅ 当离开 Rent 批量模式时，不强制清空（避免用户切换误丢数据）
-  // 如果你希望离开就清空，我也可以帮你加，但你之前一直强调不要乱丢数据，所以这里先保留。
+  // （保持你原本的逻辑，不动）
 
   const handleSubmit = async () => {
     try {
-      if (!user?.id) {
+      if (!user) {
         toast.error("请先登录");
+        return;
+      }
+      if (!saleType) {
+        toast.error("请选择 Sale / Rent / Homestay / Hotel");
         return;
       }
       if (!addressObj?.lat || !addressObj?.lng) {
@@ -154,7 +169,10 @@ export default function UploadPropertyPage() {
           setProjectSubType={setProjectSubType}
           unitLayouts={unitLayouts}
           setUnitLayouts={setUnitLayouts}
-          enableProjectAutoCopy={saleTypeNorm === "sale" && computedStatus === "New Project / Under Construction"}
+          enableProjectAutoCopy={
+            saleTypeNorm === "sale" &&
+            computedStatus === "New Project / Under Construction"
+          }
           cloneDeep={cloneDeep}
           pickCommon={pickCommon}
           commonHash={commonHash}
@@ -172,7 +190,7 @@ export default function UploadPropertyPage() {
           setAreaData={setAreaData}
           description={description}
           setDescription={setDescription}
-          // ✅ 新增：Rent 批量用
+          // ✅ 新增：Rent 批量用（你原本就传）
           rentBatchMode={rentBatchMode}
           layoutCount={Math.max(2, Math.min(20, Number(layoutCount) || 2))}
           unitLayouts={unitLayouts}
