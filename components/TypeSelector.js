@@ -625,4 +625,30 @@ export default function TypeSelector({
                   <option key={n} value={n}>
                     {n}
                   </option>
+                ))}
+              </select>
+
+              {/* 可手动输入（带千分位显示） */}
+              <input
+                className="border rounded w-full p-2"
+                value={layoutCountInput}
+                onChange={(e) => setLayoutCountInput(addCommas(e.target.value))}
+                onBlur={() => {
+                  const n = clamp(toIntFromInput(layoutCountInput), 2, 20);
+                  setLayoutCountInput(addCommas(String(n)));
+                }}
+                inputMode="numeric"
+                placeholder="2 ~ 20"
+              />
+
+              <div className="text-xs text-gray-500">
+                当前：{layoutCount} 个屋型（输入会自动限制在 2～20）
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
     
