@@ -3,9 +3,20 @@
 
 import { useState, useEffect, useRef } from "react";
 import FloorCountSelector from "./FloorCountSelector";
-import TransitSelector from "./TransitSelector";
 
-const subtypeOptions = ["Penthouse", "Duplex", "Triplex", "Townhouse", "Loft", "Studio", "SOHO", "SOVO", "Serviced Apartment", "Cluster", "Other"];
+const subtypeOptions = [
+  "Penthouse",
+  "Duplex",
+  "Triplex",
+  "Townhouse",
+  "Loft",
+  "Studio",
+  "SOHO",
+  "SOVO",
+  "Serviced Apartment",
+  "Cluster",
+  "Other",
+];
 const tenureOptions = ["Freehold", "Leasehold", "Malay Reserved", "Bumi Lot", "Other"];
 
 const saleTypeOptions = ["Sale", "Rent", "Homestay", "Hotel / Resort"];
@@ -18,7 +29,15 @@ const propertyStatusOptions = [
 ];
 
 const affordableOptions = ["No", "Yes"];
-const affordableTypeOptions = ["PR1MA", "Rumah Selangorku", "Rumah Mampu Milik", "PPA1M", "RUMAWIP", "MyHome", "Other"];
+const affordableTypeOptions = [
+  "PR1MA",
+  "Rumah Selangorku",
+  "Rumah Mampu Milik",
+  "PPA1M",
+  "RUMAWIP",
+  "MyHome",
+  "Other",
+];
 
 const usageOptions = ["Residential", "Commercial", "Industrial", "Land", "Others"];
 
@@ -46,19 +65,8 @@ const categoryOptions = {
     "Hotel / Resort",
     "Other Commercial",
   ],
-  Industrial: [
-    "Factory",
-    "Warehouse",
-    "Industrial Land",
-    "Other Industrial",
-  ],
-  Land: [
-    "Residential Land",
-    "Commercial Land",
-    "Industrial Land",
-    "Agricultural Land",
-    "Other Land",
-  ],
+  Industrial: ["Factory", "Warehouse", "Industrial Land", "Other Industrial"],
+  Land: ["Residential Land", "Commercial Land", "Industrial Land", "Agricultural Land", "Other Land"],
   Others: ["Other"],
 };
 
@@ -88,8 +96,6 @@ const ROOM_RENTAL_ELIGIBLE_CATEGORIES = [
   "Serviced Apartment",
   "Other Residential",
 ];
-
-// 允许“房间出租”的 saleType
 const ROOM_RENTAL_ELIGIBLE_SALETYPE = ["Rent"];
 
 function normalizeSubtype(val) {
@@ -120,9 +126,9 @@ export default function TypeSelector({
   const [showSubtype, setShowSubtype] = useState(false);
   const [storeys, setStoreys] = useState("");
 
-  const [roomRentalMode, setRoomRentalMode] = useState("whole"); // whole / room
-  const [roomCountMode, setRoomCountMode] = useState("single"); // single / multiple
-  const [roomCount, setRoomCount] = useState("2"); // 2~10
+  const [roomRentalMode, setRoomRentalMode] = useState("whole");
+  const [roomCountMode, setRoomCountMode] = useState("single");
+  const [roomCount, setRoomCount] = useState("2");
 
   const subtypeRef = useRef(null);
   const didHydrateRef = useRef(false);
@@ -172,7 +178,20 @@ export default function TypeSelector({
     if (!shouldShow) setSubtype([]);
   }, [category]);
 
-  // when usage changes, reset category
+  // ✅ Rent 模式：不显示 usage，但为了 categoryOptions 能用，内部固定为 Residential
+  useEffect(() => {
+    if (saleType === "Rent") {
+      if (!usage) setUsage("Residential");
+      // Rent 不需要 propertyStatus
+      if (propertyStatus) setPropertyStatus("");
+      // Rent 不需要 Sale 才有的字段
+      if (affordable) setAffordable("");
+      if (affordableType) setAffordableType("");
+      if (tenure) setTenure("");
+    }
+  }, [saleType]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // when usage changes, reset category if mismatch (只对 Sale 有意义，Rent usage 固定 Residential)
   useEffect(() => {
     if (!usage) return;
     if (!categoryOptions[usage]?.includes(category)) {
@@ -180,15 +199,24 @@ export default function TypeSelector({
     }
   }, [usage]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // build finalType
+  // build finalType + emit
   useEffect(() => {
     const parts = [];
     if (saleType) parts.push(saleType);
+
+    // ✅ Rent 不显示 usage/status，但 finalType 仍可保留 usage（也可不加，你要更短我也能改）
     if (usage) parts.push(usage);
-    if (propertyStatus) parts.push(propertyStatus);
-    if (affordable) parts.push(affordable === "Yes" ? "Affordable" : "Not Affordable");
-    if (affordable === "Yes" && affordableType) parts.push(affordableType);
-    if (tenure) parts.push(tenure);
+
+    // ✅ Sale 才加入 propertyStatus
+    if (saleType === "Sale" && propertyStatus) parts.push(propertyStatus);
+
+    // Sale 才有 affordable/tenure
+    if (saleType === "Sale" && affordable) {
+      parts.push(affordable === "Yes" ? "Affordable" : "Not Affordable");
+      if (affordable === "Yes" && affordableType) parts.push(affordableType);
+    }
+    if (saleType === "Sale" && tenure) parts.push(tenure);
+
     if (category) parts.push(category);
 
     const t = parts.join(" / ");
@@ -197,13 +225,13 @@ export default function TypeSelector({
     const form = {
       saleType,
       usage,
-      propertyStatus,
-      affordable,
-      affordableType,
-      tenure,
+      propertyStatus: saleType === "Sale" ? propertyStatus : "",
+      affordable: saleType === "Sale" ? affordable : "",
+      affordableType: saleType === "Sale" ? affordableType : "",
+      tenure: saleType === "Sale" ? tenure : "",
       propertyCategory: category,
       subtype,
-      auctionDate,
+      auctionDate: saleType === "Sale" ? auctionDate : "",
       storeys,
       finalType: t,
       roomRentalMode,
@@ -231,11 +259,15 @@ export default function TypeSelector({
     onChange,
   ]);
 
-  const showPropertyStatus = saleType === "Sale" || saleType === "Rent";
+  // ✅ 显示条件：Rent 不显示 status/usage
+  const showPropertyStatus = saleType === "Sale";
   const showAffordable = saleType === "Sale";
   const showTenure = saleType === "Sale";
-  const showUsage = saleType === "Sale" || saleType === "Rent";
-  const showCategoryBlock = !!usage && (saleType === "Sale" || saleType === "Rent");
+  const showUsage = saleType === "Sale";
+
+  // ✅ Category：Sale 需要先选 usage；Rent 直接显示
+  const showCategoryBlock =
+    saleType === "Rent" ? true : !!usage && saleType === "Sale";
 
   const needStoreys = NEED_STOREYS_CATEGORY.includes(category);
   const canRoomRental =
@@ -283,7 +315,7 @@ export default function TypeSelector({
         </select>
       </div>
 
-      {/* Property Status */}
+      {/* Property Status (Sale only) */}
       {showPropertyStatus && (
         <div>
           <label className="block text-sm font-medium text-gray-700">Property Status</label>
@@ -318,7 +350,7 @@ export default function TypeSelector({
         </div>
       )}
 
-      {/* Affordable */}
+      {/* Affordable (Sale only) */}
       {showAffordable && (
         <div>
           <label className="block text-sm font-medium text-gray-700">Affordable Housing?</label>
@@ -359,7 +391,7 @@ export default function TypeSelector({
         </div>
       )}
 
-      {/* Tenure */}
+      {/* Tenure (Sale only) */}
       {showTenure && (
         <div>
           <label className="block text-sm font-medium text-gray-700">Tenure</label>
@@ -378,7 +410,7 @@ export default function TypeSelector({
         </div>
       )}
 
-      {/* Usage */}
+      {/* Usage (Sale only) */}
       {showUsage && (
         <div>
           <label className="block text-sm font-medium text-gray-700">Usage</label>
@@ -397,7 +429,7 @@ export default function TypeSelector({
         </div>
       )}
 
-      {/* Property Category */}
+      {/* Property Category (Sale: after usage; Rent: direct) */}
       {showCategoryBlock && (
         <div>
           <label className="block text-sm font-medium text-gray-700">Property Category</label>
@@ -417,9 +449,7 @@ export default function TypeSelector({
           {/* Subtype (multi) */}
           {showSubtype && (
             <div className="mt-2" ref={subtypeRef}>
-              <label className="block text-sm font-medium text-gray-700">
-                Property Subtype（可多选）
-              </label>
+              <label className="block text-sm font-medium text-gray-700">Property Subtype（可多选）</label>
               <div className="flex flex-wrap gap-2 mt-2">
                 {subtypeOptions.map((opt) => {
                   const checked = subtype.includes(opt);
@@ -463,8 +493,6 @@ export default function TypeSelector({
                 onChange={(e) => {
                   const v = e.target.value;
                   setRoomRentalMode(v);
-
-                  // reset room count options when switching
                   if (v !== "room") {
                     setRoomCountMode("single");
                     setRoomCount("2");
@@ -512,7 +540,7 @@ export default function TypeSelector({
         </div>
       )}
 
-      {/* ✅✅✅ 这里是唯一修改点：加上 !!category */}
+      {/* Rent batch toggle: Rent + selected category only */}
       {saleType === "Rent" && !!category && !hideBatchToggleBecauseRoomRental && (
         <div className="mt-2">
           <label className="block text-sm font-medium text-gray-700">需要批量操作吗？</label>
