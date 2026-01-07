@@ -381,13 +381,18 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
 
   // ✅ PSF：用 buildUp 优先；buildUp 没值时自动用 land
   const areaInfo = useMemo(() => getAreaSqft(data.area), [data.area]);
-  const rentNum = useMemo(() => parseMoneyToNumber(data.rent), [data.rent]);
 
-  const psf = useMemo(() => {
-    if (!areaInfo.usedSqft || areaInfo.usedSqft <= 0) return 0;
-    if (!rentNum || rentNum <= 0) return 0;
-    return rentNum / areaInfo.usedSqft;
-  }, [rentNum, areaInfo.usedSqft]);
+const effectiveSqft = useMemo(() => {
+  // ⭐⭐⭐ 核心修复：谁大用谁
+  return Math.max(areaInfo.buildUpSqft || 0, areaInfo.landSqft || 0);
+}, [areaInfo.buildUpSqft, areaInfo.landSqft]);
+
+const psf = useMemo(() => {
+  if (!effectiveSqft || effectiveSqft <= 0) return 0;
+  if (!rentNum || rentNum <= 0) return 0;
+  return rentNum / effectiveSqft;
+}, [rentNum, effectiveSqft]);
+
 
   const availableText = data.availableFrom ? `在 ${data.availableFrom} 就可以开始入住了` : "";
   const showCarparkRentPrice = data.carparkCount === "车位另租";
