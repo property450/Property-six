@@ -2,7 +2,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-
 import AreaSelector from "@/components/AreaSelector";
 
 // ----------------- 工具：数字格式化 -----------------
@@ -15,9 +14,9 @@ const formatNumber = (num) => {
   return n.toLocaleString();
 };
 
-const parseDigits = (str) => String(str || "").replace(/[^\d]/g, ""); // 只保留数字
+const parseDigits = (str) => String(str || "").replace(/[^\d]/g, "");
 
-// ✅ 把各种价格输入转成数字（"RM 50,000" / "50,000" / 50000）
+// ✅ 价格/租金 -> number
 const parseMoneyToNumber = (v) => {
   if (v === undefined || v === null) return 0;
   const raw = String(v)
@@ -28,81 +27,71 @@ const parseMoneyToNumber = (v) => {
   return Number.isFinite(n) ? n : 0;
 };
 
-// ✅ 从 AreaSelector 的 value 取 sqft（重点：尊重 types 选择 buildUp / land）
+// ✅ 从 AreaSelector 的 value 取 sqft（重点：Land 也能算 PSF）
+// 兼容你 upload-property.js 里 areaData 结构：
+// { types:["buildUp","land"], units:{buildUp:"Square Feet (sqft)"}, values:{buildUp:"", land:""} }
 const getAreaSqft = (areaVal) => {
   if (!areaVal) return 0;
 
-  // 1) 直接是数字/字符串
+  // 直接是数字/字符串
   if (typeof areaVal === "number") return areaVal > 0 ? areaVal : 0;
   if (typeof areaVal === "string") {
     const n = Number(areaVal.replace(/,/g, "").trim());
     return Number.isFinite(n) && n > 0 ? n : 0;
   }
 
-  // 2) 常见结构：
-  // { types: ["buildUp","land"], units: {buildUp:"Square Feet (sqft)"}, values:{buildUp:"400", land:"1000"} }
   if (areaVal && typeof areaVal === "object") {
-    const values = areaVal.values;
-    const units = areaVal.units;
-    const typesRaw = areaVal.types;
+    const values = areaVal.values || {};
+    const units = areaVal.units || {};
+    const types = Array.isArray(areaVal.types) ? areaVal.types : [];
 
-    const types = Array.isArray(typesRaw) ? typesRaw : [];
+    // 可能出现：types 永远同时有 buildUp+land，但 buildUp 没填、land 有填
+    // ✅ 修复策略：优先使用“被勾选且有值”的那一个
+    const buRaw = String(values.buildUp || values.builtUp || "").replace(/,/g, "").trim();
+    const landRaw = String(values.land || "").replace(/,/g, "").trim();
+
+    const buNum = Number(buRaw);
+    const landNum = Number(landRaw);
+
     const hasBuildUp = types.includes("buildUp") || types.includes("builtUp");
     const hasLand = types.includes("land");
 
-    // ✅ 根据勾选决定用哪个面积算 PSF
-    // - 只勾 land -> land
-    // - 只勾 buildUp -> buildUp
-    // - 两个都勾 -> 默认 buildUp
-    const preferKey =
-      hasBuildUp && !hasLand
-        ? "buildUp"
-        : hasLand && !hasBuildUp
-        ? "land"
-        : hasBuildUp && hasLand
-        ? "buildUp"
-        : null;
+    // ✅ 决定使用哪个 key
+    let key = null;
 
-    if (values && typeof values === "object") {
-      let key = preferKey;
-
-      // fallback：types 为空时才按“有值优先”
-      if (!key) key = values.buildUp ? "buildUp" : values.land ? "land" : null;
-
-      if (key) {
-        const sizeRaw = String(values[key] || "").replace(/,/g, "").trim();
-        const sizeNum = Number(sizeRaw);
-        if (!Number.isFinite(sizeNum) || sizeNum <= 0) return 0;
-
-        const unitStr = String((units && units[key]) || "").toLowerCase();
-
-        if (unitStr.includes("sqm") || unitStr.includes("square meter") || unitStr.includes("sq m")) {
-          return sizeNum * 10.7639;
-        }
-        if (unitStr.includes("acre")) {
-          return sizeNum * 43560;
-        }
-        return sizeNum; // sqft 默认
-      }
+    // 只勾 buildUp
+    if (hasBuildUp && !hasLand) key = "buildUp";
+    // 只勾 land
+    else if (hasLand && !hasBuildUp) key = "land";
+    // 两个都勾：优先 buildUp（但必须有值），否则用 land（只要有值）
+    else if (hasBuildUp && hasLand) {
+      if (Number.isFinite(buNum) && buNum > 0) key = "buildUp";
+      else if (Number.isFinite(landNum) && landNum > 0) key = "land";
+      else key = "buildUp"; // 两个都没填时无所谓
+    } else {
+      // types 异常/为空：按有值优先
+      if (Number.isFinite(buNum) && buNum > 0) key = "buildUp";
+      else if (Number.isFinite(landNum) && landNum > 0) key = "land";
     }
 
-    // 3) 其它结构： { unit:"sqft", value:"400" } / { size, unit }
-    const sizeAny =
-      areaVal.value ?? areaVal.size ?? areaVal.area ?? areaVal.areaSize ?? areaVal.areaValue;
+    if (!key) return 0;
 
-    if (sizeAny !== undefined && sizeAny !== null && sizeAny !== "") {
-      const sizeNum = Number(String(sizeAny).replace(/,/g, "").trim());
-      if (!Number.isFinite(sizeNum) || sizeNum <= 0) return 0;
+    const sizeRaw = String(values[key] || "").replace(/,/g, "").trim();
+    const sizeNum = Number(sizeRaw);
+    if (!Number.isFinite(sizeNum) || sizeNum <= 0) return 0;
 
-      const unitStr = String(areaVal.unit || areaVal.areaUnit || "").toLowerCase();
-      if (unitStr.includes("sqm") || unitStr.includes("square meter") || unitStr.includes("sq m")) {
-        return sizeNum * 10.7639;
-      }
-      if (unitStr.includes("acre")) {
-        return sizeNum * 43560;
-      }
-      return sizeNum;
+    const unitStr = String(units[key] || "").toLowerCase();
+
+    // sqm -> sqft
+    if (unitStr.includes("sqm") || unitStr.includes("square meter") || unitStr.includes("sq m")) {
+      return sizeNum * 10.7639;
     }
+    // acre -> sqft
+    if (unitStr.includes("acre")) {
+      return sizeNum * 43560;
+    }
+    // sqft 默认
+    return sizeNum;
   }
 
   return 0;
@@ -135,13 +124,7 @@ const RENT_INCLUDES_OPTIONS = [
   "包括电费但冷气/空调费不包",
 ];
 
-const CLEANING_OPTIONS = [
-  "每月一次",
-  "每两星期一次",
-  "每三星期一次",
-  "每个星期一次",
-  "没有清洁服务",
-];
+const CLEANING_OPTIONS = ["每月一次", "每两星期一次", "每三星期一次", "每个星期一次", "没有清洁服务"];
 
 const CARPARK_OPTIONS = ["1", "2", "3", "4", "5", "公共停车位", "没有车位", "车位另租"];
 const CARPARK_RENT_PRICE_PRESETS = ["50", "100", "150", "200"];
@@ -149,8 +132,17 @@ const CARPARK_RENT_PRICE_PRESETS = ["50", "100", "150", "200"];
 const RACE_OPTIONS = ["马来人", "印度人", "华人", "外国人"];
 const TENANCY_OPTIONS = ["1个月", "3个月", "6个月", "一年以下", "一年以上"];
 
+// ✅ 你原本那种“白色下拉建议”——我用常见租金档位（你不喜欢我可以换）
+const RENT_SUGGESTIONS = [
+  "500", "600", "700", "800", "900",
+  "1,000", "1,200", "1,500", "1,800", "2,000",
+  "2,200", "2,500", "2,800", "3,000", "3,500",
+  "4,000", "4,500", "5,000", "6,000", "8,000", "10,000",
+].map((x) => parseDigits(x));
+
 // ----------------- 默认值 -----------------
 const defaultValue = {
+  // ✅ 加回你需要的字段
   area: null,
   rent: "",
 
@@ -193,10 +185,7 @@ function MultiPick({ label, options, value = [], onChange }) {
     <div className="space-y-1" ref={boxRef}>
       <label className="block text-sm font-medium text-gray-700">{label}</label>
 
-      <div
-        className="w-full border rounded p-2 bg-white cursor-pointer"
-        onClick={() => setOpen((p) => !p)}
-      >
+      <div className="w-full border rounded p-2 bg-white cursor-pointer" onClick={() => setOpen((p) => !p)}>
         {value.length === 0 ? (
           <span className="text-gray-400">点击选择（可多选）</span>
         ) : (
@@ -261,24 +250,14 @@ function BedTypePicker({ value = [], onChange }) {
     onChange?.(next);
   };
 
-  const setCount = (t, count) => {
-    const next = value.map((x) => (x.type === t ? { ...x, count } : x));
-    onChange?.(next);
-  };
-
   const displayText =
     value.length === 0 ? "请选择床型（可多选）" : value.map((v) => `${v.type} ✅`).join("，");
 
   return (
     <div className="space-y-2" ref={boxRef}>
-      <label className="block text-sm font-medium text-gray-700">
-        请选择床型（可多选 + 数量）
-      </label>
+      <label className="block text-sm font-medium text-gray-700">请选择床型（可多选 + 数量）</label>
 
-      <div
-        className="w-full border rounded p-2 bg-white cursor-pointer"
-        onClick={() => setOpen((p) => !p)}
-      >
+      <div className="w-full border rounded p-2 bg-white cursor-pointer" onClick={() => setOpen((p) => !p)}>
         {value.length === 0 ? (
           <span className="text-gray-400">{displayText}</span>
         ) : (
@@ -313,13 +292,65 @@ function BedTypePicker({ value = [], onChange }) {
   );
 }
 
+// ----------------- 租金：一个输入框 + 白色下拉建议（恢复你原本设计） -----------------
+function RentInputWithSuggestions({ value, onChange }) {
+  const wrapRef = useRef(null);
+  const [open, setOpen] = useState(false);
+
+  const digits = parseDigits(value);
+  const display = digits ? formatNumber(digits) : "";
+
+  useEffect(() => {
+    const onDoc = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-medium text-gray-700">RM</span>
+        <input
+          type="text"
+          inputMode="numeric"
+          className="border rounded w-full p-2 bg-white"
+          placeholder="例如 2,500"
+          value={display}
+          onFocus={() => setOpen(true)}
+          onClick={() => setOpen(true)}
+          onChange={(e) => {
+            const raw = parseDigits(e.target.value);
+            onChange?.(raw);
+          }}
+        />
+      </div>
+
+      {open && (
+        <ul className="absolute z-20 mt-1 w-full bg-white border rounded shadow max-h-60 overflow-auto">
+          {RENT_SUGGESTIONS.map((s) => (
+            <li
+              key={s}
+              className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onChange?.(s);
+                setOpen(false);
+              }}
+            >
+              {formatNumber(s)}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 // ----------------- 主表单 -----------------
 export default function RoomRentalForm({ value, onChange, extraSection = null }) {
   const data = useMemo(() => ({ ...defaultValue, ...(value || {}) }), [value]);
-
-  // ✅ 兼容旧字段
-  const normalizedArea = data.area ?? data.builtUpArea ?? data.landArea ?? null;
-  const normalizedRentRaw = data.rent ?? data.price ?? "";
 
   const patch = (p) => {
     const next = { ...data, ...p };
@@ -327,8 +358,8 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
   };
 
   // ✅ PSF
-  const areaSqft = useMemo(() => getAreaSqft(normalizedArea), [normalizedArea]);
-  const rentNum = useMemo(() => parseMoneyToNumber(normalizedRentRaw), [normalizedRentRaw]);
+  const areaSqft = useMemo(() => getAreaSqft(data.area), [data.area]);
+  const rentNum = useMemo(() => parseMoneyToNumber(data.rent), [data.rent]);
   const psf = useMemo(() => {
     if (!areaSqft || areaSqft <= 0) return 0;
     if (!rentNum || rentNum <= 0) return 0;
@@ -338,59 +369,28 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
   const availableText = data.availableFrom ? `在 ${data.availableFrom} 就可以开始入住了` : "";
   const showCarparkRentPrice = data.carparkCount === "车位另租";
 
-  // ✅ 租金输入显示（千分位）
-  const rentDisplay = useMemo(() => {
-    const digits = parseDigits(normalizedRentRaw);
-    return digits ? formatNumber(digits) : "";
-  }, [normalizedRentRaw]);
-
   return (
     <div className="space-y-4 mt-4 border rounded-lg p-4 bg-white">
-      {/* 面积 */}
+      {/* ✅ 面积（加回） */}
       <div>
         <label className="block text-sm font-medium text-gray-700">面积</label>
-        <AreaSelector value={normalizedArea} onChange={(val) => patch({ area: val })} />
+        <AreaSelector value={data.area} onChange={(val) => patch({ area: val })} />
       </div>
 
-      {/* ✅ 租金（这版一定可点、可输入、可记住） */}
+      {/* ✅ 租金（加回你原本那种白色下拉建议） + PSF */}
       <div>
         <label className="block text-sm font-medium text-gray-700">租金</label>
-
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-700">RM</span>
-          <input
-            type="text"
-            inputMode="numeric"
-            className="border rounded w-full p-2 bg-white"
-            placeholder="例如 2,500"
-            value={rentDisplay}
-            onChange={(e) => {
-              const raw = parseDigits(e.target.value);
-              // 你不想限制长度可以删掉这行
-              if (raw.length > 10) return;
-              patch({ rent: raw });
-            }}
-          />
-        </div>
-
-        {psf > 0 && (
-          <p className="text-sm text-gray-600 mt-1">≈ RM {psf.toFixed(2)} / sq ft</p>
-        )}
+        <RentInputWithSuggestions value={data.rent} onChange={(rent) => patch({ rent })} />
+        {psf > 0 && <p className="text-sm text-gray-600 mt-1">≈ RM {psf.toFixed(2)} / sq ft</p>}
       </div>
 
       {/* 这是什么房？ */}
       <div>
         <label className="block text-sm font-medium text-gray-700">这是什么房？</label>
-        <select
-          className="border rounded w-full p-2"
-          value={data.roomType}
-          onChange={(e) => patch({ roomType: e.target.value })}
-        >
+        <select className="border rounded w-full p-2" value={data.roomType} onChange={(e) => patch({ roomType: e.target.value })}>
           <option value="">请选择</option>
           {ROOM_TYPE_OPTIONS.map((x) => (
-            <option key={x} value={x}>
-              {x}
-            </option>
+            <option key={x} value={x}>{x}</option>
           ))}
         </select>
       </div>
@@ -398,16 +398,10 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
       {/* 卫生间 */}
       <div>
         <label className="block text-sm font-medium text-gray-700">卫生间</label>
-        <select
-          className="border rounded w-full p-2"
-          value={data.bathroomType}
-          onChange={(e) => patch({ bathroomType: e.target.value })}
-        >
+        <select className="border rounded w-full p-2" value={data.bathroomType} onChange={(e) => patch({ bathroomType: e.target.value })}>
           <option value="">请选择</option>
           {BATHROOM_OPTIONS.map((x) => (
-            <option key={x} value={x}>
-              {x}
-            </option>
+            <option key={x} value={x}>{x}</option>
           ))}
         </select>
       </div>
@@ -418,16 +412,10 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
       {/* 独立/共用 */}
       <div>
         <label className="block text-sm font-medium text-gray-700">是独立房间还是共用房间？</label>
-        <select
-          className="border rounded w-full p-2"
-          value={data.roomPrivacy}
-          onChange={(e) => patch({ roomPrivacy: e.target.value })}
-        >
+        <select className="border rounded w-full p-2" value={data.roomPrivacy} onChange={(e) => patch({ roomPrivacy: e.target.value })}>
           <option value="">请选择</option>
           {ROOM_PRIVACY_OPTIONS.map((x) => (
-            <option key={x} value={x}>
-              {x}
-            </option>
+            <option key={x} value={x}>{x}</option>
           ))}
         </select>
       </div>
@@ -435,16 +423,10 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
       {/* 男女混住 */}
       <div>
         <label className="block text-sm font-medium text-gray-700">是否男女混住？</label>
-        <select
-          className="border rounded w-full p-2"
-          value={data.genderPolicy}
-          onChange={(e) => patch({ genderPolicy: e.target.value })}
-        >
+        <select className="border rounded w-full p-2" value={data.genderPolicy} onChange={(e) => patch({ genderPolicy: e.target.value })}>
           <option value="">请选择</option>
           {GENDER_OPTIONS.map((x) => (
-            <option key={x} value={x}>
-              {x}
-            </option>
+            <option key={x} value={x}>{x}</option>
           ))}
         </select>
       </div>
@@ -452,15 +434,9 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
       {/* 宠物 */}
       <div>
         <label className="block text-sm font-medium text-gray-700">是否允许宠物？</label>
-        <select
-          className="border rounded w-full p-2"
-          value={data.petAllowed}
-          onChange={(e) => patch({ petAllowed: e.target.value })}
-        >
+        <select className="border rounded w-full p-2" value={data.petAllowed} onChange={(e) => patch({ petAllowed: e.target.value })}>
           {YESNO_OPTIONS.map((x) => (
-            <option key={x.value} value={x.value}>
-              {x.label}
-            </option>
+            <option key={x.value} value={x.value}>{x.label}</option>
           ))}
         </select>
       </div>
@@ -468,20 +444,13 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
       {/* 允许烹饪 */}
       <div>
         <label className="block text-sm font-medium text-gray-700">是否允许烹饪？</label>
-        <select
-          className="border rounded w-full p-2"
-          value={data.cookingAllowed}
-          onChange={(e) => patch({ cookingAllowed: e.target.value })}
-        >
+        <select className="border rounded w-full p-2" value={data.cookingAllowed} onChange={(e) => patch({ cookingAllowed: e.target.value })}>
           {YESNO_OPTIONS.map((x) => (
-            <option key={x.value} value={x.value}>
-              {x.label}
-            </option>
+            <option key={x.value} value={x.value}>{x.label}</option>
           ))}
         </select>
       </div>
 
-      {/* 租金包括 */}
       <MultiPick
         label="租金包括"
         options={RENT_INCLUDES_OPTIONS}
@@ -492,16 +461,10 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
       {/* 清洁服务 */}
       <div>
         <label className="block text-sm font-medium text-gray-700">清洁服务</label>
-        <select
-          className="border rounded w-full p-2"
-          value={data.cleaningService}
-          onChange={(e) => patch({ cleaningService: e.target.value })}
-        >
+        <select className="border rounded w-full p-2" value={data.cleaningService} onChange={(e) => patch({ cleaningService: e.target.value })}>
           <option value="">请选择</option>
           {CLEANING_OPTIONS.map((x) => (
-            <option key={x} value={x}>
-              {x}
-            </option>
+            <option key={x} value={x}>{x}</option>
           ))}
         </select>
       </div>
@@ -522,9 +485,7 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
         >
           <option value="">请选择</option>
           {CARPARK_OPTIONS.map((x) => (
-            <option key={x} value={x}>
-              {x}
-            </option>
+            <option key={x} value={x}>{x}</option>
           ))}
         </select>
       </div>
@@ -541,9 +502,7 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
           >
             <option value="">请选择</option>
             {CARPARK_RENT_PRICE_PRESETS.map((x) => (
-              <option key={x} value={x}>
-                {formatNumber(x)}
-              </option>
+              <option key={x} value={x}>{formatNumber(x)}</option>
             ))}
           </select>
 
@@ -562,7 +521,6 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
         </div>
       )}
 
-      {/* 偏向种族 */}
       <MultiPick
         label="偏向的种族"
         options={RACE_OPTIONS}
@@ -570,10 +528,9 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
         onChange={(preferredRaces) => patch({ preferredRaces })}
       />
 
-      {/* 额外空间/家私/设施/步行到交通（你传进来的） */}
+      {/* 你要放在这里的四个输入框 */}
       {extraSection}
 
-      {/* 接受租期 */}
       <MultiPick
         label="接受的租期"
         options={TENANCY_OPTIONS}
