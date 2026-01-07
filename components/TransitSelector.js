@@ -1,6 +1,6 @@
 // components/TransitSelector.js
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Select from "react-select";
 import CreatableSelect from "react-select/creatable";
 
@@ -67,7 +67,7 @@ const transitData = {
   "BRT Sunway": [
     "Setia Jaya","Mentari","Sunway Lagoon","SunMed","SunU-Monash","South Quay-USJ1","USJ7"
   ],
-  "Custom": [] // 自定义
+  "Custom": []
 };
 
 const yesNoOptions = [
@@ -83,31 +83,45 @@ export default function TransitSelector({ value = null, onChange }) {
   const [selectedLines, setSelectedLines] = useState([]);
   const [selectedStations, setSelectedStations] = useState({});
 
-  // ✅ 外部 value 回填（用于：复制到其它 layout / 重新打开页面时显示已填数据）
+  // ✅ 关键：回填 value 时，禁止触发 emit（避免死循环）
+  const isHydratingRef = useRef(false);
+
+  // ✅ 外部 value 回填（复制到其它 layout / 重新打开页面时显示已填数据）
   useEffect(() => {
+    isHydratingRef.current = true;
+
     if (!value) {
       setNearTransit(null);
       setSelectedLines([]);
       setSelectedStations({});
+      // 下一拍再允许 emit
+      setTimeout(() => (isHydratingRef.current = false), 0);
       return;
     }
 
     const nextNear = value.nearTransit ?? null;
     const nextLines = Array.isArray(value.selectedLines) ? value.selectedLines : [];
-    const nextStations = value.selectedStations && typeof value.selectedStations === "object"
-      ? value.selectedStations
-      : {};
+    const nextStations =
+      value.selectedStations && typeof value.selectedStations === "object" ? value.selectedStations : {};
 
     setNearTransit(nextNear);
     setSelectedLines(nextLines);
-
-    // stations 这里保持你原本存的结构（通常是 { line: [{value,label}, ...] }）
     setSelectedStations(nextStations);
+
+    setTimeout(() => (isHydratingRef.current = false), 0);
   }, [value]);
 
-  // ✅ 向外 emit（保持你原本数据结构不变）
+  // ✅ 向外 emit（但回填时不 emit）
   useEffect(() => {
-    onChange?.({ nearTransit, selectedLines, selectedStations });
+    if (isHydratingRef.current) return;
+
+    // 如果全空，就传 null（避免父层一直写空对象）
+    const isEmpty =
+      !nearTransit && selectedLines.length === 0 && Object.keys(selectedStations || {}).length === 0;
+
+    onChange?.(
+      isEmpty ? null : { nearTransit, selectedLines, selectedStations }
+    );
   }, [nearTransit, selectedLines, selectedStations, onChange]);
 
   return (
