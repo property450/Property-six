@@ -649,4 +649,6 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
         {availableText && <p className="text-sm text-gray-600 mt-1">{availableText}</p>}
       </div>
     </div>
+  );
+}
  
