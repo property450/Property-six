@@ -3,7 +3,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-// ✅ 只保留 1 个面积选择器 + 租金输入
 import AreaSelector from "@/components/AreaSelector";
 import PriceInput from "@/components/PriceInput";
 
@@ -17,6 +16,79 @@ const formatNumber = (num) => {
   return n.toLocaleString();
 };
 const parseNumber = (str) => String(str || "").replace(/,/g, "");
+
+// ✅ 把各种价格输入（"RM 50,000" / "50,000" / 50000）转成数字
+const parseMoneyToNumber = (v) => {
+  if (v === undefined || v === null) return 0;
+  const raw = String(v)
+    .replace(/rm/gi, "")
+    .replace(/[^\d.]/g, "") // 去掉逗号/空格等
+    .trim();
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : 0;
+};
+
+// ✅ 从 AreaSelector 的 value 尽量取出「sqft」数值（兼容多种结构）
+const getAreaSqft = (areaVal) => {
+  if (!areaVal) return 0;
+
+  // 1) 直接是数字/字符串
+  if (typeof areaVal === "number") return areaVal > 0 ? areaVal : 0;
+  if (typeof areaVal === "string") {
+    const n = Number(areaVal.replace(/,/g, "").trim());
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }
+
+  // 2) 你项目常见的 areaData 结构：
+  // { types: ["buildUp","land"], units: {buildUp:"Square Feet (sqft)"}, values:{buildUp:"400"} }
+  if (areaVal && typeof areaVal === "object") {
+    // 优先 buildUp，其次 land
+    const values = areaVal.values;
+    const units = areaVal.units;
+
+    if (values && typeof values === "object") {
+      const pickKey = values.buildUp ? "buildUp" : values.land ? "land" : null;
+      if (pickKey) {
+        const sizeRaw = String(values[pickKey] || "").replace(/,/g, "").trim();
+        const sizeNum = Number(sizeRaw);
+        if (!Number.isFinite(sizeNum) || sizeNum <= 0) return 0;
+
+        const unitStr = String((units && units[pickKey]) || "").toLowerCase();
+
+        // sqm -> sqft
+        if (unitStr.includes("sqm") || unitStr.includes("square meter") || unitStr.includes("sq m")) {
+          return sizeNum * 10.7639;
+        }
+        // acres -> sqft
+        if (unitStr.includes("acre")) {
+          return sizeNum * 43560;
+        }
+        // sqft（默认）
+        return sizeNum;
+      }
+    }
+
+    // 3) 其它可能结构： { unit:"sqft", value:"400" } / { size, unit }
+    const sizeAny =
+      areaVal.value ?? areaVal.size ?? areaVal.area ?? areaVal.areaSize ?? areaVal.areaValue;
+
+    if (sizeAny !== undefined && sizeAny !== null && sizeAny !== "") {
+      const sizeNum = Number(String(sizeAny).replace(/,/g, "").trim());
+      if (!Number.isFinite(sizeNum) || sizeNum <= 0) return 0;
+
+      const unitStr = String(areaVal.unit || areaVal.areaUnit || "").toLowerCase();
+      if (unitStr.includes("sqm") || unitStr.includes("square meter") || unitStr.includes("sq m")) {
+        return sizeNum * 10.7639;
+      }
+      if (unitStr.includes("acre")) {
+        return sizeNum * 43560;
+      }
+      return sizeNum;
+    }
+  }
+
+  return 0;
+};
 
 // ----------------- 选项 -----------------
 const ROOM_TYPE_OPTIONS = ["大房", "中房", "单人房"];
@@ -61,17 +133,15 @@ const TENANCY_OPTIONS = ["1个月", "3个月", "6个月", "一年以下", "一�
 
 // ----------------- 默认值 -----------------
 const defaultValue = {
-  // ✅ 面积只保留一个
+  // ✅ 单个面积（保持你想要 “一个就够”）
   area: null,
 
-  // ✅ Rent 模式：租金（不叫价格）
+  // ✅ Rent：租金（不叫价格）
   rent: "",
 
   roomType: "",
   bathroomType: "",
-  bedTypes: [
-    // { type: "Queen Size", count: "1" }
-  ],
+  bedTypes: [],
   roomPrivacy: "",
   genderPolicy: "",
   petAllowed: "deny",
@@ -308,12 +378,9 @@ function BedTypePicker({ value = [], onChange }) {
 
 // ----------------- 主表单 -----------------
 export default function RoomRentalForm({ value, onChange, extraSection = null }) {
-  // ✅ 受控：内部只做一层镜像
   const data = useMemo(() => ({ ...defaultValue, ...(value || {}) }), [value]);
 
-  // ✅ 兼容旧字段（如果你之前已经存过 builtUpArea/landArea/price，不让用户数据丢）
-  // - area: 优先用 data.area，没有就用 builtUpArea / landArea
-  // - rent: 优先用 data.rent，没有就用 price
+  // ✅ 兼容旧字段（你之前可能存过 builtUpArea/landArea/price）
   const normalizedArea = data.area ?? data.builtUpArea ?? data.landArea ?? null;
   const normalizedRent = data.rent ?? data.price ?? "";
 
@@ -322,19 +389,27 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
     onChange?.(next);
   };
 
+  // ✅ PSF 计算（RM / sq ft）
+  const areaSqft = useMemo(() => getAreaSqft(normalizedArea), [normalizedArea]);
+  const rentNum = useMemo(() => parseMoneyToNumber(normalizedRent), [normalizedRent]);
+  const psf = useMemo(() => {
+    if (!areaSqft || areaSqft <= 0) return 0;
+    if (!rentNum || rentNum <= 0) return 0;
+    return rentNum / areaSqft;
+  }, [rentNum, areaSqft]);
+
   const availableText = data.availableFrom ? `在 ${data.availableFrom} 就可以开始入住了` : "";
   const showCarparkRentPrice = data.carparkCount === "车位另租";
 
   return (
     <div className="space-y-4 mt-4 border rounded-lg p-4 bg-white">
-      {/* ✅ 面积（只要一个） */}
+      {/* ✅ 面积（一个就够） */}
       <div>
         <label className="block text-sm font-medium text-gray-700">面积</label>
         <AreaSelector
           value={normalizedArea}
           onChange={(val) => {
-            // ✅ 统一写到 area，旧字段不再用（但上面仍兼容读取）
-            patch({ area: val });
+            patch({ area: val }); // 新数据统一写 area
           }}
         />
       </div>
@@ -345,10 +420,15 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
         <PriceInput
           value={normalizedRent}
           onChange={(val) => {
-            // ✅ 统一写到 rent，兼容旧 price
-            patch({ rent: val });
+            patch({ rent: val }); // 新数据统一写 rent
           }}
         />
+        {/* ✅ PSF 显示（加回来） */}
+        {psf > 0 && (
+          <p className="text-sm text-gray-600 mt-1">
+            ≈ RM {psf.toFixed(2)} / sq ft
+          </p>
+        )}
       </div>
 
       {/* 这是什么房？ */}
