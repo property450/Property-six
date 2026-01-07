@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef } from "react";
 import FloorCountSelector from "./FloorCountSelector";
 
+// ================== 选项常量 ==================
 const subtypeOptions = ["Penthouse", "Duplex", "Triplex", "Dual Key"];
 
 const homestayOptions = [
@@ -138,9 +139,9 @@ const saleTypeOptions = [
 
 const usageOptions = ["Residential", "Commercial", "Commercial Under HDA", "Industrial", "Agricultural"];
 
-// ---------- helpers ----------
-function addCommas(n) {
-  const s = String(n ?? "");
+// ================== helpers ==================
+function addCommas(v) {
+  const s = String(v ?? "");
   if (!s) return "";
   const raw = s.replace(/,/g, "").trim();
   if (!raw) return "";
@@ -148,14 +149,12 @@ function addCommas(n) {
   if (!digits) return "";
   return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
-
 function toIntFromInput(v) {
   const s = String(v ?? "").replace(/,/g, "").trim();
   const n = Number(s);
   if (!Number.isFinite(n)) return 0;
   return Math.floor(n);
 }
-
 function clamp(n, min, max) {
   if (!Number.isFinite(n)) return min;
   return Math.max(min, Math.min(max, n));
@@ -182,23 +181,44 @@ export default function TypeSelector({
   const [showSubtype, setShowSubtype] = useState(false);
   const [storeys, setStoreys] = useState("");
 
-  // 房间出租：whole / room
+  // Rent room rental
   const [roomRentalMode, setRoomRentalMode] = useState("whole");
-
-  // 是否只有一个房间：single / multi
   const [roomCountMode, setRoomCountMode] = useState("single");
   const [roomCount, setRoomCount] = useState("1");
 
-  // ✅ Rent 批量：Layout 数量（2~20，可输入 + 下拉建议）
-  const [layoutCountInput, setLayoutCountInput] = useState("2"); // 显示用（带逗号）
+  // Rent batch: layout count
+  const [layoutCountInput, setLayoutCountInput] = useState("2");
   const layoutCount = clamp(toIntFromInput(layoutCountInput), 2, 20);
+
+  // custom white suggestion panel
   const [showLayoutSuggest, setShowLayoutSuggest] = useState(false);
   const layoutInputRef = useRef(null);
 
+  // subtype dropdown
   const [subtypeOpen, setSubtypeOpen] = useState(false);
   const subtypeRef = useRef(null);
 
-  // 外部最终 type
+  // show subtype conditions
+  useEffect(() => {
+    const shouldShow =
+      category === "Apartment / Condo / Service Residence" ||
+      category === "Business Property" ||
+      category === "Industrial Property";
+    setShowSubtype(shouldShow);
+  }, [category]);
+
+  // close subtype dropdown on outside click
+  useEffect(() => {
+    const onDoc = (e) => {
+      if (subtypeRef.current && !subtypeRef.current.contains(e.target)) {
+        setSubtypeOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+
+  // push final "type" string to parent
   useEffect(() => {
     let newValue = "";
     if (saleType === "Homestay" || saleType === "Hotel/Resort") {
@@ -209,7 +229,7 @@ export default function TypeSelector({
     if (newValue !== value) onChange?.(newValue);
   }, [saleType, finalType, value, onChange]);
 
-  // 通知外部表单数据
+  // push form state to parent
   useEffect(() => {
     onFormChange?.({
       saleType,
@@ -227,10 +247,11 @@ export default function TypeSelector({
       roomRentalMode,
       roomCountMode,
       roomCount,
+      layoutCount,
+      layoutCountInput,
 
-      // ✅ 关键：把 layoutCount 传出去给 upload-property 用
-      layoutCount, // number
-      layoutCountInput, // string（显示用）
+      // ✅ 兼容你 upload-property.js 之前用的字段名
+      propertyCategory: category,
     });
   }, [
     saleType,
@@ -253,30 +274,13 @@ export default function TypeSelector({
     onFormChange,
   ]);
 
-  // 点击空白关 subtype 下拉
-  useEffect(() => {
-    const onDoc = (e) => {
-      if (subtypeRef.current && !subtypeRef.current.contains(e.target)) setSubtypeOpen(false);
-    };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, []);
-
-  // 什么时候显示 subtype
-  useEffect(() => {
-    const shouldShow =
-      category === "Apartment / Condo / Service Residence" ||
-      category === "Business Property" ||
-      category === "Industrial Property";
-    setShowSubtype(shouldShow);
-  }, [category]);
-
   const isProjectStatus =
-    propertyStatus === "New Project / Under Construction" || propertyStatus === "Completed Unit / Developer Unit";
+    propertyStatus === "New Project / Under Construction" ||
+    propertyStatus === "Completed Unit / Developer Unit";
 
-  // Rent 批量 yes 时隐藏 category block（batch 会在每个 layout 表单里选 category）
   const showCategoryBlock =
-    (saleType === "Rent" && rentBatchMode !== "yes") || (saleType === "Sale" && !isProjectStatus);
+    (saleType === "Rent" && rentBatchMode !== "yes") ||
+    (saleType === "Sale" && !isProjectStatus);
 
   const needStoreysForSale =
     ["Subsale / Secondary Market", "Auction Property", "Rent-to-Own Scheme"].includes(propertyStatus) &&
@@ -289,7 +293,6 @@ export default function TypeSelector({
   const showRoomRentalToggle =
     saleType === "Rent" && ROOM_RENTAL_ELIGIBLE_CATEGORIES.has(category) && rentBatchMode !== "yes";
 
-  // 房间出租模式下隐藏“需要批量操作吗？”
   const hideBatchToggleBecauseRoomRental = saleType === "Rent" && showRoomRentalToggle && roomRentalMode === "room";
 
   const resetAll = () => {
@@ -312,6 +315,7 @@ export default function TypeSelector({
 
     onChangeRentBatchMode?.("no");
     setLayoutCountInput("2");
+    setShowLayoutSuggest(false);
   };
 
   const toggleSubtype = (item) => {
@@ -584,8 +588,8 @@ export default function TypeSelector({
         </>
       )}
 
-      {/* ✅ Rent：批量操作开关 */}
-      {saleType === "Rent" && !!category && !(saleType === "Rent" && roomRentalMode === "room") && (
+      {/* ✅ Rent：批量操作开关 + Layout 数量 */}
+      {saleType === "Rent" && !!category && !hideBatchToggleBecauseRoomRental && (
         <div className="mt-2 space-y-2">
           <label className="block text-sm font-medium text-gray-700">需要批量操作吗？</label>
           <select
@@ -595,75 +599,63 @@ export default function TypeSelector({
               const v = e.target.value;
               onChangeRentBatchMode?.(v);
 
-              if (v === "yes") setLayoutCountInput("2");
+              if (v === "yes") {
+                setLayoutCountInput("2");
+                setShowLayoutSuggest(false);
+              } else {
+                setShowLayoutSuggest(false);
+              }
             }}
           >
             <option value="no">否，只是单一房源</option>
             <option value="yes">是，这个项目有多个房型</option>
           </select>
 
-          {/* ✅ 单一输入框 + 下拉建议（datalist） */}
           {rentBatchMode === "yes" && (
-  <div className="space-y-2">
-    <label className="block text-sm font-medium text-gray-700">
-      这个项目有多少个屋型 / Layout 数量
-    </label>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">这个项目有多少个屋型 / Layout 数量</label>
 
-    <div className="relative">
-      <input
-        ref={layoutInputRef}
-        className="border rounded w-full p-2 bg-white"
-        value={layoutCountInput}
-        onChange={(e) => {
-          setLayoutCountInput(addCommas(e.target.value));
-          setShowLayoutSuggest(true);
-        }}
-        onFocus={() => setShowLayoutSuggest(true)}
-        onBlur={() => {
-          // 让点击建议项先执行（所以延迟关闭）
-          setTimeout(() => setShowLayoutSuggest(false), 120);
+              <div className="relative">
+                <input
+                  ref={layoutInputRef}
+                  className="border rounded w-full p-2 bg-white"
+                  value={layoutCountInput}
+                  onChange={(e) => {
+                    setLayoutCountInput(addCommas(e.target.value));
+                    setShowLayoutSuggest(true);
+                  }}
+                  onFocus={() => setShowLayoutSuggest(true)}
+                  onBlur={() => {
+                    setTimeout(() => setShowLayoutSuggest(false), 120);
+                    const n = clamp(toIntFromInput(layoutCountInput), 2, 20);
+                    setLayoutCountInput(addCommas(String(n)));
+                  }}
+                  inputMode="numeric"
+                  placeholder="2 ~ 20"
+                />
 
-          const n = clamp(toIntFromInput(layoutCountInput), 2, 20);
-          setLayoutCountInput(addCommas(String(n)));
-        }}
-        inputMode="numeric"
-        placeholder="2 ~ 20"
-      />
+                {showLayoutSuggest && (
+                  <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-auto">
+                    {Array.from({ length: 19 }, (_, i) => i + 2).map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        className="w-full text-left px-3 py-2 hover:bg-gray-100"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setLayoutCountInput(String(n));
+                          setShowLayoutSuggest(false);
+                          requestAnimationFrame(() => layoutInputRef.current?.focus());
+                        }}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-      {showLayoutSuggest && (
-        <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-auto">
-          {Array.from({ length: 19 }, (_, i) => i + 2)
-            .filter((n) => {
-              // 简单过滤：输入了数字就只显示匹配前缀（例如输入 1 显示 10~19 但我们范围到20，所以会显示 10~19）
-              const raw = String(layoutCountInput || "").replace(/,/g, "").trim();
-              if (!raw) return true;
-              return String(n).startsWith(raw);
-            })
-            .map((n) => (
-              <button
-                key={n}
-                type="button"
-                className="w-full text-left px-3 py-2 hover:bg-gray-100"
-                onMouseDown={(e) => {
-                  // 防止 blur 抢先触发
-                  e.preventDefault();
-                  setLayoutCountInput(String(n)); // 2~20 不需要逗号
-                  setShowLayoutSuggest(false);
-
-                  // 让输入框保持 focus（体验更像白色下拉）
-                  requestAnimationFrame(() => layoutInputRef.current?.focus());
-                }}
-              >
-                {n}
-              </button>
-            ))}
-        </div>
-      )}
-    </div>
-
-    <div className="text-xs text-gray-500">
-      当前：{layoutCount} 个屋型（自动限制 2～20）
-    </div>
+              <div className="text-xs text-gray-500">当前：{layoutCount} 个屋型（自动限制 2～20）</div>
             </div>
           )}
         </div>
