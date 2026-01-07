@@ -251,7 +251,8 @@ export default function UploadProperty() {
           setAreaData={setAreaData}
           description={description}
           setDescription={setDescription}
-        />
+          typeForm={typeForm}   // ✅ 只新增这一行：把你在 TypeSelector 里选的“房间数量”传下去
+/>
       ) : (
         <SaleUploadForm
           saleType={saleType}
