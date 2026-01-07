@@ -138,6 +138,30 @@ const saleTypeOptions = [
 
 const usageOptions = ["Residential", "Commercial", "Commercial Under HDA", "Industrial", "Agricultural"];
 
+// ---------- helpers ----------
+function addCommas(n) {
+  const s = String(n ?? "");
+  if (!s) return "";
+  const raw = s.replace(/,/g, "").trim();
+  if (!raw) return "";
+  // keep digits only
+  const digits = raw.replace(/[^\d]/g, "");
+  if (!digits) return "";
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+function toIntFromInput(v) {
+  const s = String(v ?? "").replace(/,/g, "").trim();
+  const n = Number(s);
+  if (!Number.isFinite(n)) return 0;
+  return Math.floor(n);
+}
+
+function clamp(n, min, max) {
+  if (!Number.isFinite(n)) return min;
+  return Math.max(min, Math.min(max, n));
+}
+
 export default function TypeSelector({
   value,
   onChange,
@@ -164,47 +188,14 @@ export default function TypeSelector({
 
   // 是否只有一个房间：single / multi
   const [roomCountMode, setRoomCountMode] = useState("single");
-  const [roomCount, setRoomCount] = useState("1"); // ✅ 修正：single 默认就应是 1
+  const [roomCount, setRoomCount] = useState("1");
+
+  // ✅ Rent 批量：Layout 数量（2~20，可输入）
+  const [layoutCountInput, setLayoutCountInput] = useState("2"); // 带逗号显示
+  const layoutCount = clamp(toIntFromInput(layoutCountInput), 2, 20);
 
   const [subtypeOpen, setSubtypeOpen] = useState(false);
   const subtypeRef = useRef(null);
-
-  // ✅ 新增：外部 value 反向同步（避免编辑/返回时选择显示空）
-  const didHydrateRef = useRef(false);
-  useEffect(() => {
-    if (didHydrateRef.current) return;
-    if (!value || typeof value !== "string") return;
-
-    const raw = value.trim();
-    if (!raw) return;
-
-    // Homestay - xxx / Hotel/Resort - xxx
-    if (raw.startsWith("Homestay")) {
-      setSaleType("Homestay");
-      const parts = raw.split(" - ");
-      setFinalType(parts[1] ? parts.slice(1).join(" - ") : "");
-      didHydrateRef.current = true;
-      return;
-    }
-    if (raw.startsWith("Hotel/Resort")) {
-      setSaleType("Hotel/Resort");
-      const parts = raw.split(" - ");
-      setFinalType(parts[1] ? parts.slice(1).join(" - ") : "");
-      didHydrateRef.current = true;
-      return;
-    }
-
-    // 普通：如果 value 就是 Sale/Rent
-    if (["Sale", "Rent"].includes(raw)) {
-      setSaleType(raw);
-      didHydrateRef.current = true;
-      return;
-    }
-
-    // 其它情况：当成 finalType
-    setFinalType(raw);
-    didHydrateRef.current = true;
-  }, [value]);
 
   // 外部最终 type
   useEffect(() => {
@@ -235,6 +226,10 @@ export default function TypeSelector({
       roomRentalMode,
       roomCountMode,
       roomCount,
+
+      // ✅ 关键：把 layoutCount 传出去给 upload-property 用
+      layoutCount, // number
+      layoutCountInput, // string（显示用）
     });
   }, [
     saleType,
@@ -252,6 +247,8 @@ export default function TypeSelector({
     roomRentalMode,
     roomCountMode,
     roomCount,
+    layoutCount,
+    layoutCountInput,
     onFormChange,
   ]);
 
@@ -276,6 +273,7 @@ export default function TypeSelector({
   const isProjectStatus =
     propertyStatus === "New Project / Under Construction" || propertyStatus === "Completed Unit / Developer Unit";
 
+  // ✅ 原逻辑：Rent 批量 yes 时隐藏 category block（因为 batch 会在每个 layout 表单里选 category）
   const showCategoryBlock =
     (saleType === "Rent" && rentBatchMode !== "yes") || (saleType === "Sale" && !isProjectStatus);
 
@@ -290,7 +288,9 @@ export default function TypeSelector({
   const showRoomRentalToggle =
     saleType === "Rent" && ROOM_RENTAL_ELIGIBLE_CATEGORIES.has(category) && rentBatchMode !== "yes";
 
-  // 切换 saleType 时重置
+  // 房间出租模式下隐藏“需要批量操作吗？”
+  const hideBatchToggleBecauseRoomRental = saleType === "Rent" && showRoomRentalToggle && roomRentalMode === "room";
+
   const resetAll = () => {
     setUsage("");
     setPropertyStatus("");
@@ -307,9 +307,11 @@ export default function TypeSelector({
 
     setRoomRentalMode("whole");
     setRoomCountMode("single");
-    setRoomCount("1"); // ✅ 修正：single 默认 1
+    setRoomCount("1");
 
+    // ✅ reset batch
     onChangeRentBatchMode?.("no");
+    setLayoutCountInput("2");
   };
 
   const toggleSubtype = (item) => {
@@ -318,9 +320,6 @@ export default function TypeSelector({
 
   const subtypeDisplayText =
     subtype.length === 0 ? "请选择 subtype（可多选）" : subtype.map((v) => `${v} ✅`).join("，");
-
-  // 房间出租模式下隐藏“需要批量操作吗？”
-  const hideBatchToggleBecauseRoomRental = saleType === "Rent" && showRoomRentalToggle && roomRentalMode === "room";
 
   return (
     <div className="space-y-4">
@@ -457,6 +456,7 @@ export default function TypeSelector({
         </>
       )}
 
+      {/* ✅ Category block（Rent 批量 yes 时会隐藏，符合你的 batch 逻辑） */}
       {showCategoryBlock && saleType !== "Homestay" && saleType !== "Hotel/Resort" && (
         <>
           <div>
@@ -474,7 +474,12 @@ export default function TypeSelector({
 
                 setRoomRentalMode("whole");
                 setRoomCountMode("single");
-                setRoomCount("1"); // ✅ 修正：single 统一为 1（避免残留）
+                setRoomCount("1");
+
+                // ✅ 当换 category 时，如果之前是 batch，也先重置 batch（避免 UI 冲突）
+                // 你如果不想重置 batch，把下面两行删掉即可
+                // onChangeRentBatchMode?.("no");
+                // setLayoutCountInput("2");
               }}
             >
               <option value="">请选择类别</option>
@@ -506,10 +511,7 @@ export default function TypeSelector({
             <div className="relative" ref={subtypeRef}>
               <label className="block font-medium">Property Subtype</label>
 
-              <div
-                className="w-full border rounded p-2 bg-white cursor-pointer"
-                onClick={() => setSubtypeOpen((p) => !p)}
-              >
+              <div className="w-full border rounded p-2 bg-white cursor-pointer" onClick={() => setSubtypeOpen((p) => !p)}>
                 {subtype.length === 0 ? (
                   <span className="text-gray-400">请选择 subtype（可多选）</span>
                 ) : (
@@ -542,6 +544,7 @@ export default function TypeSelector({
             </div>
           )}
 
+          {/* 房间出租（仅 rentBatchMode != yes 时出现） */}
           {showRoomRentalToggle && (
             <div className="mt-2 space-y-2">
               <label className="block text-sm font-medium text-gray-700">是否只是出租房间？</label>
@@ -560,15 +563,8 @@ export default function TypeSelector({
                       onChange={(e) => {
                         const mode = e.target.value;
                         setRoomCountMode(mode);
-
-                        // ✅ 关键修复：互斥状态要同步清掉/设置数量
-                        if (mode === "single") {
-                          // 只有一个房间 → 数量必须=1（否则外部仍会以 6 来渲染）
-                          setRoomCount("1");
-                        } else {
-                          // 多个房间 → 默认最小=2
-                          setRoomCount("2");
-                        }
+                        if (mode === "single") setRoomCount("1");
+                        else setRoomCount("2");
                       }}
                     >
                       <option value="single">是的，只有一个房间</option>
@@ -579,11 +575,7 @@ export default function TypeSelector({
                   {roomCountMode === "multi" && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700">选择房间数量</label>
-                      <select
-                        className="border rounded w-full p-2"
-                        value={roomCount}
-                        onChange={(e) => setRoomCount(e.target.value)}
-                      >
+                      <select className="border rounded w-full p-2" value={roomCount} onChange={(e) => setRoomCount(e.target.value)}>
                         {Array.from({ length: 9 }, (_, i) => String(i + 2)).map((n) => (
                           <option key={n} value={n}>
                             {n}
@@ -599,19 +591,38 @@ export default function TypeSelector({
         </>
       )}
 
+      {/* ✅ Rent：批量操作开关（你原本位置保持） */}
       {saleType === "Rent" && !!category && !hideBatchToggleBecauseRoomRental && (
-        <div className="mt-2">
+        <div className="mt-2 space-y-2">
           <label className="block text-sm font-medium text-gray-700">需要批量操作吗？</label>
           <select
             className="border rounded w-full p-2"
             value={rentBatchMode}
-            onChange={(e) => onChangeRentBatchMode?.(e.target.value)}
+            onChange={(e) => {
+              const v = e.target.value;
+              onChangeRentBatchMode?.(v);
+
+              // ✅ 当切换到 yes，给默认 layoutCount=2
+              if (v === "yes") setLayoutCountInput("2");
+            }}
           >
             <option value="no">否，只是单一房源</option>
             <option value="yes">是，这个项目有多个房型</option>
           </select>
-        </div>
-      )}
-    </div>
-  );
-}
+
+          {/* ✅ 关键：选了批量 yes 后，显示“屋型数量 / Layout 数量” */}
+          {rentBatchMode === "yes" && (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">这个项目有多少个屋型 / Layout 数量</label>
+
+              {/* 下拉 2~20 */}
+              <select
+                className="border rounded w-full p-2"
+                value={String(layoutCount)}
+                onChange={(e) => setLayoutCountInput(addCommas(e.target.value))}
+              >
+                {Array.from({ length: 19 }, (_, i) => String(i + 2)).map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+    
