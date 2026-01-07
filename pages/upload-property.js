@@ -9,21 +9,6 @@ import { toast } from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 
 import TypeSelector from "@/components/TypeSelector";
-import UnitTypeSelector from "@/components/UnitTypeSelector";
-import UnitLayoutForm from "@/components/UnitLayoutForm";
-
-import AreaSelector from "@/components/AreaSelector";
-import PriceInput from "@/components/PriceInput";
-import RoomCountSelector from "@/components/RoomCountSelector";
-import CarparkCountSelector from "@/components/CarparkCountSelector";
-import ExtraSpacesSelector from "@/components/ExtraSpacesSelector";
-import FacingSelector from "@/components/FacingSelector";
-import CarparkLevelSelector from "@/components/CarparkLevelSelector";
-import FacilitiesSelector from "@/components/FacilitiesSelector";
-import FurnitureSelector from "@/components/FurnitureSelector";
-import BuildYearSelector from "@/components/BuildYearSelector";
-import ImageUpload from "@/components/ImageUpload";
-import TransitSelector from "@/components/TransitSelector";
 
 import HotelUploadForm from "@/components/hotel/HotelUploadForm";
 import HomestayUploadForm from "@/components/homestay/HomestayUploadForm";
@@ -38,7 +23,7 @@ const AddressSearchInput = dynamic(() => import("@/components/AddressSearchInput
   ssr: false,
 });
 
-// ---------- utils ----------
+// ---------- 你原本就有的工具（保持不改） ----------
 const cloneDeep = (obj) => JSON.parse(JSON.stringify(obj || {}));
 
 const pickCommon = (l) => ({
@@ -49,41 +34,29 @@ const pickCommon = (l) => ({
 });
 const commonHash = (l) => JSON.stringify(pickCommon(l));
 
-// ---------- convert helpers ----------
-const convertToSqft = (val, unit) => {
-  const num = parseFloat(String(val || "").replace(/,/g, ""));
-  if (isNaN(num) || num <= 0) return 0;
-  const u = String(unit || "").toLowerCase();
-  if (u.includes("square meter") || u.includes("sq m") || u.includes("sqm")) return num * 10.7639;
-  if (u.includes("acre")) return num * 43560;
-  if (u.includes("hectare")) return num * 107639;
-  return num;
-};
-
 export default function UploadPropertyPage() {
   const router = useRouter();
   const user = useUser();
 
+  // 地址
   const [addressObj, setAddressObj] = useState(null);
 
-  // 主模式 / 状态
+  // TypeSelector 回传
   const [typeValue, setTypeValue] = useState("");
-  const [rentBatchMode, setRentBatchMode] = useState("no");
-  const [saleType, setSaleType] = useState("");
-  const [computedStatus, setComputedStatus] = useState("");
-
-  // ✅ 保存 TypeSelector 整包
+  const [rentBatchMode, setRentBatchMode] = useState("no"); // "no" | "yes"
   const [typeForm, setTypeForm] = useState(null);
 
-  // Rent 专用
-  const [roomRentalMode, setRoomRentalMode] = useState("whole"); // whole / room
+  // 从 typeForm 里拿
+  const [saleType, setSaleType] = useState("");
+  const [computedStatus, setComputedStatus] = useState("");
+  const [roomRentalMode, setRoomRentalMode] = useState("whole");
 
-  // 项目模式
-  const [unitLayouts, setUnitLayouts] = useState([]);
+  // 项目（Sale 用）
   const [projectCategory, setProjectCategory] = useState("");
   const [projectSubType, setProjectSubType] = useState("");
+  const [unitLayouts, setUnitLayouts] = useState([]); // ✅ Rent 批量也复用这个数组来存每个屋型表单数据
 
-  // 单一表单（非项目）
+  // 单一表单（Rent 单房 / Sale 非项目）
   const [singleFormData, setSingleFormData] = useState({});
   const [areaData, setAreaData] = useState({
     types: ["buildUp", "land"],
@@ -93,53 +66,37 @@ export default function UploadPropertyPage() {
   const [description, setDescription] = useState("");
 
   const saleTypeNorm = String(saleType || "").toLowerCase();
+  const isHomestay = saleTypeNorm.includes("homestay");
+  const isHotel = saleTypeNorm.includes("hotel");
 
-  const isHomestay = saleTypeNorm === "homestay";
-  const isHotel = saleTypeNorm === "hotel/resort";
-
+  // ✅ 关键：isProject 只允许 Sale 才成立（彻底杜绝 Rent 进入 ProjectUploadForm）
   const isProject =
-    computedStatus === "New Project / Under Construction" ||
-    computedStatus === "Completed Unit / Developer Unit";
+    saleTypeNorm === "sale" &&
+    (computedStatus === "New Project / Under Construction" ||
+      computedStatus === "Completed Unit / Developer Unit");
 
-  // ✅ Rent 批量操作
+  // ✅ Rent 批量
   const isRentBatch = saleTypeNorm === "rent" && rentBatchMode === "yes";
-  const isProjectLike = isProject || isRentBatch;
+  const layoutCount = Number(typeForm?.layoutCount) || 2;
 
-  const isBulkRentProject = isRentBatch;
-
-  const enableProjectAutoCopy =
-    saleTypeNorm === "sale" && computedStatus === "New Project / Under Construction";
-
-  const isRoomRental = saleTypeNorm === "rent" && roomRentalMode === "room";
-
-  // ✅ 兼容旧字段名：propertyCategory / category
+  // ✅ 只有 Rent 且已选 category 才允许打开批量（跟你原要求一致）
   const rentCategorySelected = !!(typeForm && (typeForm.category || typeForm.propertyCategory));
   const allowRentBatchMode = saleTypeNorm === "rent" && rentCategorySelected;
 
-  // 不再是项目式表单时清空 layouts
-  useEffect(() => {
-    if (!isProjectLike) setUnitLayouts([]);
-  }, [isProjectLike]);
-
-  // ✅ Rent 模式下还没选 category，就强制回到 no
-  useEffect(() => {
-    if (saleTypeNorm === "rent" && !rentCategorySelected) {
-      setRentBatchMode("no");
-    }
-  }, [saleTypeNorm, rentCategorySelected]);
-
-  // ✅ 关键：Rent 批量时，根据 layoutCount 自动生成 N 个 unitLayouts
+  // ✅ Rent 批量时，自动把 unitLayouts 生成为对应数量（保留已填内容）
   useEffect(() => {
     if (!isRentBatch) return;
 
-    const n = Number(typeForm?.layoutCount);
-    if (!Number.isFinite(n) || n < 2) return;
+    const n = Math.max(2, Math.min(20, Number(layoutCount) || 2));
 
     setUnitLayouts((prev) => {
       const prevArr = Array.isArray(prev) ? prev : [];
-      return Array.from({ length: n }).map((_, i) => prevArr[i] || { title: `Layout ${i + 1}` });
+      return Array.from({ length: n }).map((_, i) => prevArr[i] || {});
     });
-  }, [isRentBatch, typeForm?.layoutCount]);
+  }, [isRentBatch, layoutCount]);
+
+  // ✅ 当离开 Rent 批量模式时，不强制清空（避免用户切换误丢数据）
+  // 如果你希望离开就清空，我也可以帮你加，但你之前一直强调不要乱丢数据，所以这里先保留。
 
   const handleSubmit = async () => {
     try {
@@ -152,7 +109,7 @@ export default function UploadPropertyPage() {
         return;
       }
 
-      // 这里保持你原本 submit 逻辑（你现在文件里后面还有完整提交逻辑的话，照旧放回即可）
+      // 这里保留你原本 submit（你项目应该还有完整 insert 逻辑）
       toast.success("提交成功");
       router.push("/");
     } catch (e) {
@@ -183,38 +140,43 @@ export default function UploadPropertyPage() {
         }}
       />
 
-      {/* ✅ 按模式渲染（保持你的结构，只新增 Rent 批量走 ProjectUploadForm） */}
+      {/* ✅ 模式渲染：Rent 永远不会进 ProjectUploadForm */}
       {isHomestay ? (
-        <HotelUploadForm />
+        <HomestayUploadForm />
       ) : isHotel ? (
         <HotelUploadForm />
-      ) : isProjectLike ? (
+      ) : isProject ? (
         <ProjectUploadForm
-          computedStatus={isRentBatch ? "New Project / Under Construction" : computedStatus}
-          isBulkRentProject={isBulkRentProject}
+          computedStatus={computedStatus}
           projectCategory={projectCategory}
           setProjectCategory={setProjectCategory}
           projectSubType={projectSubType}
           setProjectSubType={setProjectSubType}
           unitLayouts={unitLayouts}
           setUnitLayouts={setUnitLayouts}
-          enableProjectAutoCopy={enableProjectAutoCopy}
+          enableProjectAutoCopy={saleTypeNorm === "sale" && computedStatus === "New Project / Under Construction"}
           cloneDeep={cloneDeep}
           pickCommon={pickCommon}
           commonHash={commonHash}
         />
       ) : saleTypeNorm === "rent" ? (
         <RentUploadForm
+          // ✅ 原本就有的
           saleType={saleType}
           computedStatus={computedStatus}
-          isRoomRental={isRoomRental}
           roomRentalMode={roomRentalMode}
+          isRoomRental={roomRentalMode === "room"}
           singleFormData={singleFormData}
           setSingleFormData={setSingleFormData}
           areaData={areaData}
           setAreaData={setAreaData}
           description={description}
           setDescription={setDescription}
+          // ✅ 新增：Rent 批量用
+          rentBatchMode={rentBatchMode}
+          layoutCount={Math.max(2, Math.min(20, Number(layoutCount) || 2))}
+          unitLayouts={unitLayouts}
+          setUnitLayouts={setUnitLayouts}
         />
       ) : (
         <SaleUploadForm
@@ -229,7 +191,12 @@ export default function UploadPropertyPage() {
         />
       )}
 
-      <Button onClick={handleSubmit}>提交</Button>
+      <Button
+        onClick={handleSubmit}
+        className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full"
+      >
+        提交房源
+      </Button>
     </div>
   );
 }
