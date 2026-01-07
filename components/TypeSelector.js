@@ -15,21 +15,19 @@ const homestayOptions = [
   "Farmstay / Kampung Stay",
   "Hostel / Guesthouse",
   "Capsule / Pod Stay",
-  "Glamping / Camping",
-  "Chalet / Cabin",
+  "Cultural / Heritage Homestay",
+  "Monthly Rental Stay",
 ];
 
 const hotelResortOptions = [
-  "Beach Resort",
-  "Island Resort",
-  "Mountain Resort",
-  "Luxury Resort",
   "Budget Hotel",
+  "2-Star Hotel",
+  "3-Star Hotel",
+  "4-Star Hotel",
+  "5-Star / Luxury Hotel",
   "Business Hotel",
   "Boutique Hotel",
-  "5-Star Hotel",
-  "4-Star Hotel",
-  "3-Star Hotel",
+  "Resort",
   "Serviced Apartment Hotel",
   "Convention Hotel",
   "Spa / Hot Spring Hotel",
@@ -56,15 +54,18 @@ const categoryOptions = {
     "Retail Space",
     "Retail Office",
     "Shop",
-    "Shop Office",
-    "Shop Lot",
-    "Showroom",
-    "Warehouse (Commercial)",
-    "Restaurant",
-    "Cafe",
-    "Food Court",
-    "Petrol Station",
-    "Other Business",
+    "Shop / Office",
+    "Sofo",
+    "Soho",
+    "Sovo",
+    "Commercial Bungalow",
+    "Commercial Semi-Detached House",
+    "Mall / Commercial Complex",
+    "School / University",
+    "Hospital / Medical Centre",
+    "Mosque / Temple / Church",
+    "Government Office",
+    "Community Hall / Public Utilities",
   ],
   "Industrial Property": [
     "Factory",
@@ -82,24 +83,60 @@ const categoryOptions = {
     "Industrial Land",
     "Commercial Land",
     "Residential Land",
-    "Malay Reserved Land",
-    "Bumi Lot Land",
-    "Orchard Land",
-    "Plantation Land",
-    "Other Land",
+    "Oil Palm Estate",
+    "Rubber Plantation",
+    "Fruit Orchard",
+    "Paddy Field",
+    "Vacant Agricultural Land",
   ],
-  Others: ["Other"],
 };
 
-const usageOptions = ["Residential", "Commercial", "Industrial", "Land", "Others"];
+const NEED_STOREYS_CATEGORY = new Set([
+  "Bungalow / Villa",
+  "Semi-Detached House",
+  "Terrace / Link House",
+  "Business Property",
+  "Industrial Property",
+]);
+
+const ROOM_RENTAL_ELIGIBLE_CATEGORIES = new Set([
+  "Bungalow / Villa",
+  "Apartment / Condo / Service Residence",
+  "Semi-Detached House",
+  "Terrace / Link House",
+]);
+
+const affordableOptions = [
+  "Rumah Mampu Milik",
+  "PPR",
+  "PR1MA",
+  "Rumah Selangorku",
+  "Rumah WIP (Wilayah Persekutuan)",
+  "Rumah Mampu Milik Johor (RMMJ)",
+  "Rumah Mesra Rakyat",
+  "Rumah Idaman (Selangor)",
+];
+
+const tenureOptions = [
+  "Freehold",
+  "Leasehold",
+  "Bumi Lot",
+  "Malay Reserved Land",
+  "Private Lease Scheme",
+  "State Lease Land",
+  "Strata Leasehold",
+  "Perpetual Lease",
+];
 
 const saleTypeOptions = [
-  "Subsale / Secondary Market",
   "New Project / Under Construction",
   "Completed Unit / Developer Unit",
+  "Subsale / Secondary Market",
   "Auction Property",
-  "Rent-to-Own",
+  "Rent-to-Own Scheme",
 ];
+
+const usageOptions = ["Residential", "Commercial", "Commercial Under HDA", "Industrial", "Agricultural"];
 
 export default function TypeSelector({
   value,
@@ -111,106 +148,181 @@ export default function TypeSelector({
   const [saleType, setSaleType] = useState("");
   const [usage, setUsage] = useState("");
   const [propertyStatus, setPropertyStatus] = useState("");
-
-  const [homestayType, setHomestayType] = useState("");
-  const [hotelType, setHotelType] = useState("");
-
+  const [affordable, setAffordable] = useState("");
+  const [affordableType, setAffordableType] = useState("");
+  const [tenure, setTenure] = useState("");
   const [category, setCategory] = useState("");
   const [finalType, setFinalType] = useState("");
-  const [subtype, setSubtype] = useState([]);
 
+  const [subtype, setSubtype] = useState([]);
+  const [auctionDate, setAuctionDate] = useState("");
+  const [showSubtype, setShowSubtype] = useState(false);
   const [storeys, setStoreys] = useState("");
 
-  const [subtypeOpen, setSubtypeOpen] = useState(false);
-
+  // 房间出租：whole / room
   const [roomRentalMode, setRoomRentalMode] = useState("whole");
+
+  // 是否只有一个房间：single / multi
   const [roomCountMode, setRoomCountMode] = useState("single");
   const [roomCount, setRoomCount] = useState("2");
 
+  const [subtypeOpen, setSubtypeOpen] = useState(false);
   const subtypeRef = useRef(null);
 
-  const resetAll = () => {
-    setUsage("");
-    setPropertyStatus("");
-    setHomestayType("");
-    setHotelType("");
-    setCategory("");
-    setFinalType("");
-    setSubtype([]);
-    setStoreys("");
-    setSubtypeOpen(false);
-    setRoomRentalMode("whole");
-    setRoomCountMode("single");
-    setRoomCount("2");
-  };
-
-  // 根据 category 自动判断是否需要显示 “Subtype 多选按钮区域”
-  // （你原本就有，但现在页面用的是 Sub Type 下拉，不会影响）
+  // ✅ 新增：外部 value 反向同步（避免编辑/返回时选择显示空）
+  // 支持： "Sale" / "Rent" / "Homestay" / "Hotel/Resort"
+  // 以及： "Homestay - XXX" / "Hotel/Resort - XXX"
+  const didHydrateRef = useRef(false);
   useEffect(() => {
-    const shouldShow = false;
-    if (!shouldShow) {
-      setSubtypeOpen(false);
+    if (didHydrateRef.current) return;
+    if (!value || typeof value !== "string") return;
+
+    const raw = value.trim();
+    if (!raw) return;
+
+    // Homestay - xxx / Hotel/Resort - xxx
+    if (raw.startsWith("Homestay")) {
+      setSaleType("Homestay");
+      const parts = raw.split(" - ");
+      setFinalType(parts[1] ? parts.slice(1).join(" - ") : "");
+      didHydrateRef.current = true;
+      return;
     }
+    if (raw.startsWith("Hotel/Resort")) {
+      setSaleType("Hotel/Resort");
+      const parts = raw.split(" - ");
+      setFinalType(parts[1] ? parts.slice(1).join(" - ") : "");
+      didHydrateRef.current = true;
+      return;
+    }
+
+    // 普通：如果 value 就是 Sale/Rent（或其它你未来扩展）
+    if (["Sale", "Rent"].includes(raw)) {
+      setSaleType(raw);
+      didHydrateRef.current = true;
+      return;
+    }
+
+    // 其它情况：当成 finalType（保持不乱动你逻辑）
+    setFinalType(raw);
+    didHydrateRef.current = true;
+  }, [value]);
+
+  // 外部最终 type
+  useEffect(() => {
+    let newValue = "";
+    if (saleType === "Homestay" || saleType === "Hotel/Resort") {
+      newValue = finalType ? `${saleType} - ${finalType}` : saleType;
+    } else {
+      newValue = finalType || saleType || "";
+    }
+    if (newValue !== value) onChange?.(newValue);
+  }, [saleType, finalType, value, onChange]);
+
+  // 通知外部表单数据
+  useEffect(() => {
+    onFormChange?.({
+      saleType,
+      usage,
+      propertyStatus,
+      affordable,
+      affordableType,
+      tenure,
+      category,
+      finalType,
+      subtype,
+      auctionDate,
+      storeys,
+      rentBatchMode,
+      roomRentalMode,
+      roomCountMode,
+      roomCount,
+    });
+  }, [
+    saleType,
+    usage,
+    propertyStatus,
+    affordable,
+    affordableType,
+    tenure,
+    category,
+    finalType,
+    subtype,
+    auctionDate,
+    storeys,
+    rentBatchMode,
+    roomRentalMode,
+    roomCountMode,
+    roomCount,
+    onFormChange,
+  ]);
+
+  // 点击空白关 subtype 下拉
+  useEffect(() => {
+    const onDoc = (e) => {
+      if (subtypeRef.current && !subtypeRef.current.contains(e.target)) setSubtypeOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+
+  // 什么时候显示 subtype
+  useEffect(() => {
+    const shouldShow =
+      category === "Apartment / Condo / Service Residence" ||
+      category === "Business Property" ||
+      category === "Industrial Property";
+    setShowSubtype(shouldShow);
   }, [category]);
 
   const isProjectStatus =
     propertyStatus === "New Project / Under Construction" || propertyStatus === "Completed Unit / Developer Unit";
 
-  // ✅ 你原本逻辑：Rent 且非批量（no）才显示 Category（批量 yes 时 Category 在 layout 里选）
   const showCategoryBlock =
     (saleType === "Rent" && rentBatchMode !== "yes") || (saleType === "Sale" && !isProjectStatus);
 
   const needStoreysForSale =
-    ["Subsale / Secondary Market", "Auction Property"].includes(propertyStatus);
+    ["Subsale / Secondary Market", "Auction Property", "Rent-to-Own Scheme"].includes(propertyStatus) &&
+    NEED_STOREYS_CATEGORY.has(category);
 
-  const showStoreys =
-    saleType === "Sale" && needStoreysForSale && ["Bungalow / Villa", "Semi-Detached House", "Terrace / Link House"].includes(category);
+  const needStoreysForRent = saleType === "Rent" && rentBatchMode !== "yes" && NEED_STOREYS_CATEGORY.has(category);
 
-  const showRoomRentalToggle = saleType === "Rent";
+  const showStoreys = needStoreysForSale || needStoreysForRent;
+
+  const showRoomRentalToggle =
+    saleType === "Rent" && ROOM_RENTAL_ELIGIBLE_CATEGORIES.has(category) && rentBatchMode !== "yes";
+
+  // 切换 saleType 时重置
+  const resetAll = () => {
+    setUsage("");
+    setPropertyStatus("");
+    setAffordable("");
+    setAffordableType("");
+    setTenure("");
+    setCategory("");
+    setFinalType("");
+    setSubtype([]);
+    setAuctionDate("");
+    setStoreys("");
+    setShowSubtype(false);
+    setSubtypeOpen(false);
+
+    setRoomRentalMode("whole");
+    setRoomCountMode("single");
+    setRoomCount("2");
+
+    onChangeRentBatchMode?.("no");
+  };
+
+  const toggleSubtype = (item) => {
+    setSubtype((prev) => (prev.includes(item) ? prev.filter((v) => v !== item) : [...prev, item]));
+  };
 
   const subtypeDisplayText =
     subtype.length === 0 ? "请选择 subtype（可多选）" : subtype.map((v) => `${v} ✅`).join("，");
 
   // 房间出租模式下隐藏“需要批量操作吗？”
   const hideBatchToggleBecauseRoomRental = saleType === "Rent" && showRoomRentalToggle && roomRentalMode === "room";
-
-  // 把选择内容回传给父组件（你原本就有）
-  useEffect(() => {
-    if (!saleType) return;
-
-    const form = {
-      saleType,
-      usage,
-      propertyStatus,
-      homestayType,
-      hotelType,
-      propertyCategory: category,
-      finalType,
-      subtype,
-      storeys,
-      roomRentalMode,
-      roomCountMode,
-      roomCount,
-    };
-
-    onFormChange?.(form);
-    onChange?.(form);
-  }, [
-    saleType,
-    usage,
-    propertyStatus,
-    homestayType,
-    hotelType,
-    category,
-    finalType,
-    subtype,
-    storeys,
-    roomRentalMode,
-    roomCountMode,
-    roomCount,
-    onFormChange,
-    onChange,
-  ]);
 
   return (
     <div className="space-y-4">
@@ -235,9 +347,9 @@ export default function TypeSelector({
 
       {saleType === "Homestay" && (
         <div>
-          <label className="block font-medium">Homestay type</label>
-          <select className="w-full border rounded p-2" value={homestayType} onChange={(e) => setHomestayType(e.target.value)}>
-            <option value="">请选择</option>
+          <label className="block font-medium">Homestay Type</label>
+          <select className="w-full border rounded p-2" value={finalType} onChange={(e) => setFinalType(e.target.value)}>
+            <option value="">请选择 Homestay 类型</option>
             {homestayOptions.map((opt) => (
               <option key={opt} value={opt}>
                 {opt}
@@ -249,9 +361,9 @@ export default function TypeSelector({
 
       {saleType === "Hotel/Resort" && (
         <div>
-          <label className="block font-medium">Hotel/Resort type</label>
-          <select className="w-full border rounded p-2" value={hotelType} onChange={(e) => setHotelType(e.target.value)}>
-            <option value="">请选择</option>
+          <label className="block font-medium">Hotel / Resort Type</label>
+          <select className="w-full border rounded p-2" value={finalType} onChange={(e) => setFinalType(e.target.value)}>
+            <option value="">请选择 Hotel/Resort 类型</option>
             {hotelResortOptions.map((opt) => (
               <option key={opt} value={opt}>
                 {opt}
@@ -261,7 +373,6 @@ export default function TypeSelector({
         </div>
       )}
 
-      {/* ✅ Rent 不需要 Usage / Property Status，你原本就已经是 Sale 才显示 */}
       {saleType === "Sale" && (
         <>
           <div>
@@ -294,10 +405,60 @@ export default function TypeSelector({
               ))}
             </select>
           </div>
+
+          {propertyStatus === "Auction Property" && (
+            <div>
+              <label className="block font-medium">Auction Date</label>
+              <input
+                type="date"
+                className="w-full border rounded p-2"
+                value={auctionDate}
+                onChange={(e) => setAuctionDate(e.target.value)}
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="block font-medium">Affordable Housing</label>
+            <select className="w-full border rounded p-2" value={affordable} onChange={(e) => setAffordable(e.target.value)}>
+              <option value="">是否属于政府可负担房屋计划？</option>
+              <option value="Yes">是</option>
+              <option value="No">否</option>
+            </select>
+          </div>
+
+          {affordable === "Yes" && (
+            <div>
+              <label className="block font-medium">Affordable Housing Type</label>
+              <select
+                className="w-full border rounded p-2"
+                value={affordableType}
+                onChange={(e) => setAffordableType(e.target.value)}
+              >
+                <option value="">请选择</option>
+                {affordableOptions.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div>
+            <label className="block font-medium">Tenure Type</label>
+            <select className="w-full border rounded p-2" value={tenure} onChange={(e) => setTenure(e.target.value)}>
+              <option value="">请选择</option>
+              {tenureOptions.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </div>
         </>
       )}
 
-      {/* ✅ 你要的 “原本那套” Category + Sub Type 下拉 */}
       {showCategoryBlock && saleType !== "Homestay" && saleType !== "Hotel/Resort" && (
         <>
           <div>
@@ -330,11 +491,7 @@ export default function TypeSelector({
           {category && categoryOptions[category] && (
             <div>
               <label className="block font-medium">Sub Type</label>
-              <select
-                className="w-full border rounded p-2"
-                value={finalType}
-                onChange={(e) => setFinalType(e.target.value)}
-              >
+              <select className="w-full border rounded p-2" value={finalType} onChange={(e) => setFinalType(e.target.value)}>
                 <option value="">请选择具体类型</option>
                 {categoryOptions[category].map((item) => (
                   <option key={item} value={item}>
@@ -345,70 +502,86 @@ export default function TypeSelector({
             </div>
           )}
 
-          {showStoreys && (
-            <FloorCountSelector
-              value={storeys}
-              onChange={(val) => setStoreys(val)}
-            />
-          )}
-        </>
-      )}
+          {showStoreys && <FloorCountSelector value={storeys} onChange={(val) => setStoreys(val)} />}
 
-      {/* Rent：房间出租模式（你原本逻辑保留） */}
-      {saleType === "Rent" && showRoomRentalToggle && (
-        <div className="mt-2">
-          <label className="block text-sm font-medium text-gray-700">Rent Mode</label>
-          <select
-            className="border rounded w-full p-2"
-            value={roomRentalMode}
-            onChange={(e) => {
-              const v = e.target.value;
-              setRoomRentalMode(v);
+          {showSubtype && (
+            <div className="relative" ref={subtypeRef}>
+              <label className="block font-medium">Property Subtype</label>
 
-              if (v !== "room") {
-                setRoomCountMode("single");
-                setRoomCount("2");
-              }
-            }}
-          >
-            <option value="whole">Whole Unit</option>
-            <option value="room">Room Rental</option>
-          </select>
-
-          {roomRentalMode === "room" && (
-            <div className="mt-2 space-y-2">
-              <label className="block text-sm font-medium text-gray-700">房间数量模式</label>
-              <select
-                className="border rounded w-full p-2"
-                value={roomCountMode}
-                onChange={(e) => setRoomCountMode(e.target.value)}
+              <div
+                className="w-full border rounded p-2 bg-white cursor-pointer"
+                onClick={() => setSubtypeOpen((p) => !p)}
               >
-                <option value="single">单一房间出租</option>
-                <option value="multiple">多个房间出租</option>
-              </select>
+                {subtype.length === 0 ? (
+                  <span className="text-gray-400">请选择 subtype（可多选）</span>
+                ) : (
+                  <span className="font-medium">{subtypeDisplayText}</span>
+                )}
+              </div>
 
-              {roomCountMode === "multiple" && (
-                <div className="mt-2">
-                  <label className="block text-sm font-medium text-gray-700">房间数量</label>
-                  <select
-                    className="border rounded w-full p-2"
-                    value={roomCount}
-                    onChange={(e) => setRoomCount(e.target.value)}
-                  >
-                    {Array.from({ length: 9 }, (_, i) => String(i + 2)).map((n) => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
-                    ))}
-                  </select>
+              {subtypeOpen && (
+                <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+                  {subtypeOptions.map((opt) => {
+                    const selected = subtype.includes(opt);
+                    return (
+                      <div
+                        key={opt}
+                        className={`px-3 py-2 flex justify-between items-center cursor-pointer hover:bg-gray-100 ${
+                          selected ? "bg-gray-50 font-semibold" : ""
+                        }`}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          toggleSubtype(opt);
+                        }}
+                      >
+                        <span>{opt}</span>
+                        {selected && <span className="text-green-600">✅</span>}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
           )}
-        </div>
+
+          {showRoomRentalToggle && (
+            <div className="mt-2 space-y-2">
+              <label className="block text-sm font-medium text-gray-700">是否只是出租房间？</label>
+              <select className="border rounded w-full p-2" value={roomRentalMode} onChange={(e) => setRoomRentalMode(e.target.value)}>
+                <option value="whole">不是，要出租整间</option>
+                <option value="room">是的，只出租房间</option>
+              </select>
+
+              {roomRentalMode === "room" && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">是否只有一个房间？</label>
+                    <select className="border rounded w-full p-2" value={roomCountMode} onChange={(e) => setRoomCountMode(e.target.value)}>
+                      <option value="single">是的，只有一个房间</option>
+                      <option value="multi">不是，有多个房间</option>
+                    </select>
+                  </div>
+
+                  {roomCountMode === "multi" && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">选择房间数量</label>
+                      <select className="border rounded w-full p-2" value={roomCount} onChange={(e) => setRoomCount(e.target.value)}>
+                        {Array.from({ length: 9 }, (_, i) => String(i + 2)).map((n) => (
+                          <option key={n} value={n}>
+                            {n}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </>
       )}
 
-      {/* ✅✅✅ 关键修复：Rent 的批量选择框必须“先选了 Property Category”才出现 */}
+      {/* ✅ 这里是唯一修改：加上 !!category，必须选了 Property Category 才显示批量操作 */}
       {saleType === "Rent" && !!category && !hideBatchToggleBecauseRoomRental && (
         <div className="mt-2">
           <label className="block text-sm font-medium text-gray-700">需要批量操作吗？</label>
