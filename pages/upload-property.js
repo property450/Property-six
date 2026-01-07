@@ -50,12 +50,11 @@ const pickCommon = (l = {}) => ({
   extraSpaces: l.extraSpaces || [],
   furniture: l.furniture || [],
   facilities: l.facilities || [],
-  // ✅ 用 ?? 更稳，避免把合法空结构当成 null（不改你逻辑，只更稳）
   transit: l.transit ?? null,
 });
 const commonHash = (l) => JSON.stringify(pickCommon(l));
 
-// ---------- convert helpers (你原本就有) ----------
+// ---------- convert helpers ----------
 const convertToSqft = (val, unit) => {
   const num = parseFloat(String(val || "").replace(/,/g, ""));
   if (isNaN(num) || num <= 0) return 0;
@@ -85,8 +84,7 @@ export default function UploadProperty() {
   const [saleType, setSaleType] = useState("");
   const [computedStatus, setComputedStatus] = useState("");
 
-  // ✅ 新增：把 TypeSelector 回传的 form 整包存起来
-  // 目的：读到 TypeSelector 内部的 propertyCategory（你截图里的那个）
+  // ✅ TypeSelector form 整包（拿 propertyCategory 等）
   const [typeForm, setTypeForm] = useState(null);
 
   // Rent 专用
@@ -149,16 +147,15 @@ export default function UploadProperty() {
   const isRoomRental = saleTypeNorm === "rent" && roomRentalMode === "room";
 
   // ✅ Rent：只有选了 Property Category 才允许出现/切换「需要批量操作吗？」
-  // TypeSelector 内部通常会把 propertyCategory 放在 form.propertyCategory（你的截图就是这项）
   const rentCategorySelected = !!(typeForm && typeForm.propertyCategory);
   const allowRentBatchMode = saleTypeNorm === "rent" && rentCategorySelected;
 
-  // 不再是项目类时清空 layouts（你原本行为保留）
+  // 不再是项目类时清空 layouts
   useEffect(() => {
     if (!isProject) setUnitLayouts([]);
   }, [isProject]);
 
-  // ✅ 如果 Rent 模式下还没选 category，就强制回到 no（避免状态乱）
+  // ✅ Rent 没选 category 就强制回 no
   useEffect(() => {
     if (saleTypeNorm === "rent" && !rentCategorySelected) {
       setRentBatchMode("no");
@@ -205,28 +202,25 @@ export default function UploadProperty() {
         <div className="text-sm text-gray-600">{address}</div>
       </div>
 
-      {/* ✅ TypeSelector：Rent 批量模式改为「必须先选 Property Category」 */}
+      {/* ✅ TypeSelector：Rent 批量模式必须先选 Property Category */}
       <TypeSelector
         value={typeValue}
         onChange={setTypeValue}
-        // ✅ 关键：没选 category 时，传给 TypeSelector 的 rentBatchMode 永远是 "no"
         rentBatchMode={allowRentBatchMode ? rentBatchMode : "no"}
-        // ✅ 关键：没选 category 时，禁止切换（用户点了也没反应，等他先选 category）
         onChangeRentBatchMode={(val) => {
           if (!allowRentBatchMode) return;
           setRentBatchMode(val);
         }}
         onFormChange={(form) => {
-          setTypeForm(form || null); // ✅ 保存整包，拿 propertyCategory
+          setTypeForm(form || null);
           setSaleType(form?.saleType || "");
           setComputedStatus(form?.propertyStatus || "");
           setRoomRentalMode(form?.roomRentalMode || "whole");
         }}
       />
 
-      {/* ✅ 这里开始：按模式渲染独立表单（保持你原逻辑） */}
+      {/* ✅ 这里开始：按模式渲染独立表单 */}
       {isHomestay ? (
-        // 你说的“Homestay 跟 Hotel/Resort 共用同一个表单”
         <HotelUploadForm />
       ) : isHotel ? (
         <HotelUploadForm />
@@ -241,7 +235,6 @@ export default function UploadProperty() {
           unitLayouts={unitLayouts}
           setUnitLayouts={setUnitLayouts}
           enableProjectAutoCopy={enableProjectAutoCopy}
-          // 下面这些你原本就有的工具继续传（保持不变）
           cloneDeep={cloneDeep}
           pickCommon={pickCommon}
           commonHash={commonHash}
