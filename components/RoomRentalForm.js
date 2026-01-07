@@ -382,10 +382,13 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
   // ✅ PSF：用 buildUp 优先；buildUp 没值时自动用 land
   const areaInfo = useMemo(() => getAreaSqft(data.area), [data.area]);
 
+// ✅ PSF 面积：Build up + Land（严格按你的规则）
 const effectiveSqft = useMemo(() => {
-  // ⭐⭐⭐ 核心修复：谁大用谁
-  return Math.max(areaInfo.buildUpSqft || 0, areaInfo.landSqft || 0);
+  const buildUp = Number(areaInfo.buildUpSqft || 0);
+  const land = Number(areaInfo.landSqft || 0);
+  return buildUp + land;
 }, [areaInfo.buildUpSqft, areaInfo.landSqft]);
+
 
 const psf = useMemo(() => {
   if (!effectiveSqft || effectiveSqft <= 0) return 0;
