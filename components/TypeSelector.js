@@ -143,6 +143,7 @@ export default function TypeSelector({
   onChange,
   onFormChange,
   rentBatchMode = "no",
+  rentBatchEnabled, // ✅ 新增
   onChangeRentBatchMode,
 }) {
   const [saleType, setSaleType] = useState("");
@@ -581,19 +582,16 @@ export default function TypeSelector({
         </>
       )}
 
-      {saleType === "Rent" && !hideBatchToggleBecauseRoomRental && (
-        <div className="mt-2">
-          <label className="block text-sm font-medium text-gray-700">需要批量操作吗？</label>
-          <select
-            className="border rounded w-full p-2"
-            value={rentBatchMode}
-            onChange={(e) => onChangeRentBatchMode?.(e.target.value)}
-          >
-            <option value="no">否，只是单一房源</option>
-            <option value="yes">是，这个项目有多个房型</option>
-          </select>
-        </div>
-      )}
-    </div>
-  );
-}
+      {saleType === "Rent" && rentBatchEnabled ? (
+  <div className="mt-3">
+    <label className="font-medium">需要批量操作吗？</label>
+    <select
+      className="w-full border rounded-lg p-2"
+      value={rentBatchMode}
+      onChange={(e) => onChangeRentBatchMode?.(e.target.value)}
+    >
+      <option value="no">否，只是单一房源</option>
+      <option value="yes">是，需要批量操作</option>
+    </select>
+  </div>
+) : null}
