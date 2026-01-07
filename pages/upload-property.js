@@ -156,12 +156,6 @@ export default function UploadProperty() {
   }, [isProject]);
 
   // ✅ Rent 没选 category 就强制回 no
-  useEffect(() => {
-    if (saleTypeNorm === "rent" && !rentCategorySelected) {
-      setRentBatchMode("no");
-    }
-  }, [saleTypeNorm, rentCategorySelected]);
-
   const handleSubmit = async () => {
     try {
       if (!user?.id) {
@@ -204,20 +198,17 @@ export default function UploadProperty() {
 
       {/* ✅ TypeSelector：Rent 批量模式必须先选 Property Category */}
       <TypeSelector
-        value={typeValue}
-        onChange={setTypeValue}
-        rentBatchMode={allowRentBatchMode ? rentBatchMode : "no"}
-        onChangeRentBatchMode={(val) => {
-          if (!allowRentBatchMode) return;
-          setRentBatchMode(val);
-        }}
-        onFormChange={(form) => {
-          setTypeForm(form || null);
-          setSaleType(form?.saleType || "");
-          setComputedStatus(form?.propertyStatus || "");
-          setRoomRentalMode(form?.roomRentalMode || "whole");
-        }}
-      />
+  value={typeValue}
+  onChange={setTypeValue}
+  rentBatchMode={rentBatchMode}                 // ✅ 不再强制变回 "no"
+  onChangeRentBatchMode={setRentBatchMode}      // ✅ 不再挡住点击
+  onFormChange={(form) => {
+    setTypeForm(form || null);
+    setSaleType(form?.saleType || "");
+    setComputedStatus(form?.propertyStatus || "");
+    setRoomRentalMode(form?.roomRentalMode || "whole");
+  }}
+/>
 
       {/* ✅ 这里开始：按模式渲染独立表单 */}
       {isHomestay ? (
