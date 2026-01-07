@@ -665,5 +665,9 @@ export default function TypeSelector({
       当前：{layoutCount} 个屋型（自动限制 2～20）
     </div>
   </div>
-)}
+      )}
+    </div>
+  );
+}
+
 
