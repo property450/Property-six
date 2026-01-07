@@ -3,6 +3,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
+// ✅ 加回：每个房间表单都要有 Built-up / Land / Price
+import AreaSelector from "@/components/AreaSelector";
+import PriceInput from "@/components/PriceInput";
+
 // ----------------- 工具：数字格式化 -----------------
 const formatNumber = (num) => {
   if (num === "" || num === undefined || num === null) return "";
@@ -57,6 +61,11 @@ const TENANCY_OPTIONS = ["1个月", "3个月", "6个月", "一年以下", "一�
 
 // ----------------- 默认值 -----------------
 const defaultValue = {
+  // ✅ 加回：每个房间表单都必须有
+  builtUpArea: null,
+  landArea: null,
+  price: "",
+
   roomType: "",
   bathroomType: "",
   bedTypes: [
@@ -328,6 +337,43 @@ export default function RoomRentalForm({
 
   return (
     <div className="space-y-4 mt-4 border rounded-lg p-4 bg-white">
+
+      {/* ================= ✅ 加回：面积 & 价格（每个房间都必须有） ================= */}
+      <div className="space-y-4">
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            建筑面积 (Built-up Area)
+          </label>
+          <AreaSelector
+            value={data.builtUpArea || null}
+            onChange={(val) => patch({ builtUpArea: val })}
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            土地面积 (Land Area)
+          </label>
+          <AreaSelector
+            value={data.landArea || null}
+            onChange={(val) => patch({ landArea: val })}
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            租金 (Rent Price)
+          </label>
+          <PriceInput
+            value={data.price || ""}
+            onChange={(val) => patch({ price: val })}
+          />
+        </div>
+
+      </div>
+      {/* ================= /面积 & 价格 ================= */}
+
       {/* 这是什么房？ */}
       <div>
         <label className="block text-sm font-medium text-gray-700">这是什么房？</label>
