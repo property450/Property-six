@@ -1,7 +1,7 @@
 // components/forms/RentUploadForm.js
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import AreaSelector from "@/components/AreaSelector";
 import PriceInput from "@/components/PriceInput";
@@ -19,6 +19,45 @@ import ImageUpload from "@/components/ImageUpload";
 
 import { convertToSqft } from "@/utils/psfUtils";
 
+function toPositiveInt(v) {
+  const n = Number(String(v ?? "").trim());
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.floor(n);
+}
+
+// ✅ 从 TypeSelector 回传的 typeForm 里，尽可能“猜中”房间数量字段名
+function getRoomCountFromTypeForm(typeForm) {
+  if (!typeForm) return 0;
+
+  // 常见字段名（你项目里可能叫其中一个）
+  const candidates = [
+    typeForm.roomCount,
+    typeForm.roomsCount,
+    typeForm.roomQuantity,
+    typeForm.roomsQuantity,
+    typeForm.numberOfRooms,
+    typeForm.roomNumber,
+    typeForm.selectedRoomCount,
+  ];
+
+  for (const c of candidates) {
+    const n = toPositiveInt(c);
+    if (n > 0) return n;
+  }
+
+  // 如果你有 “是否只有一个房间” 这种字段
+  // （例如 yes/no 或 true/false），这里也兜底为 1
+  const onlyOne =
+    typeForm.onlyOneRoom === true ||
+    typeForm.onlyOneRoom === "yes" ||
+    typeForm.onlyOneRoom === "true" ||
+    typeForm.isOnlyOneRoom === true;
+
+  if (onlyOne) return 1;
+
+  return 0;
+}
+
 export default function RentUploadForm({
   saleType,
   computedStatus,
@@ -34,37 +73,37 @@ export default function RentUploadForm({
   setDescription,
 
   photoConfig,
+
+  // ✅ 新增：从 upload-property 传进来（不影响你原本 UI）
+  typeForm,
 }) {
-  // ✅ 新增（只为 Room Rental 多房）
-  const [roomCount, setRoomCount] = useState(0);
+  // ✅ 目标房间数量：来自你在 TypeSelector 里已经选好的那个数
+  const targetRoomCount = useMemo(() => getRoomCountFromTypeForm(typeForm), [typeForm]);
+
+  // ✅ 多房表单数据（每个房一份，不互相覆盖）
   const [roomForms, setRoomForms] = useState([]);
 
-  // ✅ 当选择房间数量后，生成对应数量的 RoomRentalForm
   useEffect(() => {
     if (!isRoomRental) {
       setRoomForms([]);
-      setRoomCount(0);
       return;
     }
 
-    const n = Number(roomCount || 0);
-    if (!Number.isFinite(n) || n <= 0) {
-      setRoomForms([]);
+    const n = toPositiveInt(targetRoomCount);
+    if (n <= 0) {
+      setRoomForms([]); // 还没选数量就先不显示
       return;
     }
 
-    // 保留已填写的数据
+    // 保留已填数据：从 6 改 5，不会丢前 5；从 5 改 6，新的一间是空的
     setRoomForms((prev) => {
-      const next = Array.from({ length: n }).map((_, idx) => {
-        return prev[idx] ? prev[idx] : {};
-      });
+      const next = Array.from({ length: n }).map((_, i) => prev[i] || {});
       return next;
     });
-  }, [isRoomRental, roomCount]);
+  }, [isRoomRental, targetRoomCount]);
 
   return (
     <div className="space-y-4">
-      {/* ===== 原本的 Area / Price（不动） ===== */}
       <AreaSelector initialValue={areaData} onChange={(val) => setAreaData(val)} />
 
       <PriceInput
@@ -77,80 +116,68 @@ export default function RentUploadForm({
         }}
       />
 
-      {/* ===== 房间出租 ===== */}
       {isRoomRental ? (
         <>
-          {/* ✅ 你原本就有的「选择房间数量」 */}
-          <RoomCountSelector
-            label="选择房间数量"
-            value={roomCount}
-            onChange={setRoomCount}
-          />
-
-          {/* ✅ 核心修复：根据数量 render 多个 RoomRentalForm */}
+          {/* ✅ 这里完全保留你的设计：只是在“你已经选好数量”后，多渲染 N 个表单 */}
           {roomForms.map((roomValue, index) => (
-            <div key={index} className="space-y-2">
-              <div className="font-semibold">房间 {index + 1}</div>
-
-              <RoomRentalForm
-                value={roomValue}
-                onChange={(updated) => {
-                  setRoomForms((prev) => {
-                    const next = [...prev];
-                    next[index] = updated;
-                    return next;
-                  });
-                }}
-                extraSection={
-                  <div className="space-y-3">
-                    <ExtraSpacesSelector
-                      value={roomValue.extraSpaces || []}
-                      onChange={(val) =>
-                        setRoomForms((prev) => {
-                          const next = [...prev];
-                          next[index] = { ...next[index], extraSpaces: val };
-                          return next;
-                        })
-                      }
-                    />
-                    <FurnitureSelector
-                      value={roomValue.furniture || []}
-                      onChange={(val) =>
-                        setRoomForms((prev) => {
-                          const next = [...prev];
-                          next[index] = { ...next[index], furniture: val };
-                          return next;
-                        })
-                      }
-                    />
-                    <FacilitiesSelector
-                      value={roomValue.facilities || []}
-                      onChange={(val) =>
-                        setRoomForms((prev) => {
-                          const next = [...prev];
-                          next[index] = { ...next[index], facilities: val };
-                          return next;
-                        })
-                      }
-                    />
-                    <TransitSelector
-                      value={roomValue.transit || null}
-                      onChange={(info) =>
-                        setRoomForms((prev) => {
-                          const next = [...prev];
-                          next[index] = { ...next[index], transit: info };
-                          return next;
-                        })
-                      }
-                    />
-                  </div>
-                }
-              />
-            </div>
+            <RoomRentalForm
+              key={index}
+              value={roomValue}
+              onChange={(updated) => {
+                setRoomForms((prev) => {
+                  const next = [...prev];
+                  next[index] = updated;
+                  return next;
+                });
+              }}
+              extraSection={
+                <div className="space-y-3">
+                  <ExtraSpacesSelector
+                    value={roomValue.extraSpaces || []}
+                    onChange={(val) =>
+                      setRoomForms((prev) => {
+                        const next = [...prev];
+                        next[index] = { ...next[index], extraSpaces: val };
+                        return next;
+                      })
+                    }
+                  />
+                  <FurnitureSelector
+                    value={roomValue.furniture || []}
+                    onChange={(val) =>
+                      setRoomForms((prev) => {
+                        const next = [...prev];
+                        next[index] = { ...next[index], furniture: val };
+                        return next;
+                      })
+                    }
+                  />
+                  <FacilitiesSelector
+                    value={roomValue.facilities || []}
+                    onChange={(val) =>
+                      setRoomForms((prev) => {
+                        const next = [...prev];
+                        next[index] = { ...next[index], facilities: val };
+                        return next;
+                      })
+                    }
+                  />
+                  <TransitSelector
+                    value={roomValue.transit || null}
+                    onChange={(info) =>
+                      setRoomForms((prev) => {
+                        const next = [...prev];
+                        next[index] = { ...next[index], transit: info };
+                        return next;
+                      })
+                    }
+                  />
+                </div>
+              }
+            />
           ))}
         </>
       ) : (
-        /* ===== 原本的整间出租（完全不动） ===== */
         <>
           <RoomCountSelector
             value={{
@@ -175,9 +202,7 @@ export default function RentUploadForm({
 
           <CarparkLevelSelector
             value={singleFormData.carparkPosition}
-            onChange={(val) =>
-              setSingleFormData((p) => ({ ...p, carparkPosition: val }))
-            }
+            onChange={(val) => setSingleFormData((p) => ({ ...p, carparkPosition: val }))}
             mode="range"
           />
 
@@ -188,35 +213,26 @@ export default function RentUploadForm({
 
           <ExtraSpacesSelector
             value={singleFormData.extraSpaces}
-            onChange={(val) =>
-              setSingleFormData((p) => ({ ...p, extraSpaces: val }))
-            }
+            onChange={(val) => setSingleFormData((p) => ({ ...p, extraSpaces: val }))}
           />
 
           <FurnitureSelector
             value={singleFormData.furniture}
-            onChange={(val) =>
-              setSingleFormData((p) => ({ ...p, furniture: val }))
-            }
+            onChange={(val) => setSingleFormData((p) => ({ ...p, furniture: val }))}
           />
 
           <FacilitiesSelector
             value={singleFormData.facilities}
-            onChange={(val) =>
-              setSingleFormData((p) => ({ ...p, facilities: val }))
-            }
+            onChange={(val) => setSingleFormData((p) => ({ ...p, facilities: val }))}
           />
 
           <TransitSelector
             value={singleFormData.transit || null}
-            onChange={(info) =>
-              setSingleFormData((p) => ({ ...p, transit: info }))
-            }
+            onChange={(info) => setSingleFormData((p) => ({ ...p, transit: info }))}
           />
         </>
       )}
 
-      {/* ===== 描述 / 图片（不动） ===== */}
       <div>
         <label className="block font-medium mb-1">房源描述</label>
         <textarea
@@ -231,9 +247,7 @@ export default function RentUploadForm({
       <ImageUpload
         config={photoConfig}
         images={singleFormData.photos}
-        setImages={(updated) =>
-          setSingleFormData((p) => ({ ...p, photos: updated }))
-        }
+        setImages={(updated) => setSingleFormData((p) => ({ ...p, photos: updated }))}
       />
     </div>
   );
