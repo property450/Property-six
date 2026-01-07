@@ -664,10 +664,10 @@ export default function TypeSelector({
     <div className="text-xs text-gray-500">
       当前：{layoutCount} 个屋型（自动限制 2～20）
     </div>
-  </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
 }
-
-
