@@ -144,7 +144,6 @@ function addCommas(n) {
   if (!s) return "";
   const raw = s.replace(/,/g, "").trim();
   if (!raw) return "";
-  // keep digits only
   const digits = raw.replace(/[^\d]/g, "");
   if (!digits) return "";
   return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -190,8 +189,8 @@ export default function TypeSelector({
   const [roomCountMode, setRoomCountMode] = useState("single");
   const [roomCount, setRoomCount] = useState("1");
 
-  // ✅ Rent 批量：Layout 数量（2~20，可输入）
-  const [layoutCountInput, setLayoutCountInput] = useState("2"); // 带逗号显示
+  // ✅ Rent 批量：Layout 数量（2~20，可输入 + 下拉建议）
+  const [layoutCountInput, setLayoutCountInput] = useState("2"); // 显示用（带逗号）
   const layoutCount = clamp(toIntFromInput(layoutCountInput), 2, 20);
 
   const [subtypeOpen, setSubtypeOpen] = useState(false);
@@ -273,7 +272,7 @@ export default function TypeSelector({
   const isProjectStatus =
     propertyStatus === "New Project / Under Construction" || propertyStatus === "Completed Unit / Developer Unit";
 
-  // ✅ 原逻辑：Rent 批量 yes 时隐藏 category block（因为 batch 会在每个 layout 表单里选 category）
+  // Rent 批量 yes 时隐藏 category block（batch 会在每个 layout 表单里选 category）
   const showCategoryBlock =
     (saleType === "Rent" && rentBatchMode !== "yes") || (saleType === "Sale" && !isProjectStatus);
 
@@ -309,7 +308,6 @@ export default function TypeSelector({
     setRoomCountMode("single");
     setRoomCount("1");
 
-    // ✅ reset batch
     onChangeRentBatchMode?.("no");
     setLayoutCountInput("2");
   };
@@ -456,7 +454,6 @@ export default function TypeSelector({
         </>
       )}
 
-      {/* ✅ Category block（Rent 批量 yes 时会隐藏，符合你的 batch 逻辑） */}
       {showCategoryBlock && saleType !== "Homestay" && saleType !== "Hotel/Resort" && (
         <>
           <div>
@@ -475,11 +472,6 @@ export default function TypeSelector({
                 setRoomRentalMode("whole");
                 setRoomCountMode("single");
                 setRoomCount("1");
-
-                // ✅ 当换 category 时，如果之前是 batch，也先重置 batch（避免 UI 冲突）
-                // 你如果不想重置 batch，把下面两行删掉即可
-                // onChangeRentBatchMode?.("no");
-                // setLayoutCountInput("2");
               }}
             >
               <option value="">请选择类别</option>
@@ -544,7 +536,6 @@ export default function TypeSelector({
             </div>
           )}
 
-          {/* 房间出租（仅 rentBatchMode != yes 时出现） */}
           {showRoomRentalToggle && (
             <div className="mt-2 space-y-2">
               <label className="block text-sm font-medium text-gray-700">是否只是出租房间？</label>
@@ -591,8 +582,8 @@ export default function TypeSelector({
         </>
       )}
 
-      {/* ✅ Rent：批量操作开关（你原本位置保持） */}
-      {saleType === "Rent" && !!category && !hideBatchToggleBecauseRoomRental && (
+      {/* ✅ Rent：批量操作开关 */}
+      {saleType === "Rent" && !!category && !(saleType === "Rent" && roomRentalMode === "room") && (
         <div className="mt-2 space-y-2">
           <label className="block text-sm font-medium text-gray-700">需要批量操作吗？</label>
           <select
@@ -602,7 +593,6 @@ export default function TypeSelector({
               const v = e.target.value;
               onChangeRentBatchMode?.(v);
 
-              // ✅ 当切换到 yes，给默认 layoutCount=2
               if (v === "yes") setLayoutCountInput("2");
             }}
           >
@@ -610,27 +600,14 @@ export default function TypeSelector({
             <option value="yes">是，这个项目有多个房型</option>
           </select>
 
-          {/* ✅ 关键：选了批量 yes 后，显示“屋型数量 / Layout 数量” */}
+          {/* ✅ 单一输入框 + 下拉建议（datalist） */}
           {rentBatchMode === "yes" && (
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">这个项目有多少个屋型 / Layout 数量</label>
 
-              {/* 下拉 2~20 */}
-              <select
-                className="border rounded w-full p-2"
-                value={String(layoutCount)}
-                onChange={(e) => setLayoutCountInput(addCommas(e.target.value))}
-              >
-                {Array.from({ length: 19 }, (_, i) => String(i + 2)).map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-
-              {/* 可手动输入（带千分位显示） */}
               <input
                 className="border rounded w-full p-2"
+                list="layoutCountSuggestions"
                 value={layoutCountInput}
                 onChange={(e) => setLayoutCountInput(addCommas(e.target.value))}
                 onBlur={() => {
@@ -641,9 +618,13 @@ export default function TypeSelector({
                 placeholder="2 ~ 20"
               />
 
-              <div className="text-xs text-gray-500">
-                当前：{layoutCount} 个屋型（输入会自动限制在 2～20）
-              </div>
+              <datalist id="layoutCountSuggestions">
+                {Array.from({ length: 19 }, (_, i) => String(i + 2)).map((n) => (
+                  <option key={n} value={n} />
+                ))}
+              </datalist>
+
+              <div className="text-xs text-gray-500">当前：{layoutCount} 个屋型（自动限制 2～20）</div>
             </div>
           )}
         </div>
@@ -651,4 +632,3 @@ export default function TypeSelector({
     </div>
   );
 }
-    
