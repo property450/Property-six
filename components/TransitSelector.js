@@ -1,10 +1,9 @@
-// components/TransitSelector.js
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Select from "react-select";
 import CreatableSelect from "react-select/creatable";
 
-// 🚉 所有路线和站点数据
+// 🚉 所有路线和站点数据（保持你原本）
 const transitData = {
   "KTM Seremban Line": [
     "Batu Caves","Taman Wahyu","Kampung Batu","Batu Kentonmen","Sentul",
@@ -83,61 +82,63 @@ export default function TransitSelector({ value = null, onChange }) {
   const [selectedLines, setSelectedLines] = useState([]);
   const [selectedStations, setSelectedStations] = useState({});
 
-  // ✅ 关键：回填 value 时，禁止触发 emit（避免死循环）
-  const isHydratingRef = useRef(false);
-
-  // ✅ 外部 value 回填（复制到其它 layout / 重新打开页面时显示已填数据）
+  // ✅ 只负责回填（不 emit）
   useEffect(() => {
-    isHydratingRef.current = true;
-
     if (!value) {
       setNearTransit(null);
       setSelectedLines([]);
       setSelectedStations({});
-      // 下一拍再允许 emit
-      setTimeout(() => (isHydratingRef.current = false), 0);
       return;
     }
-
-    const nextNear = value.nearTransit ?? null;
-    const nextLines = Array.isArray(value.selectedLines) ? value.selectedLines : [];
-    const nextStations =
-      value.selectedStations && typeof value.selectedStations === "object" ? value.selectedStations : {};
-
-    setNearTransit(nextNear);
-    setSelectedLines(nextLines);
-    setSelectedStations(nextStations);
-
-    setTimeout(() => (isHydratingRef.current = false), 0);
+    setNearTransit(value.nearTransit ?? null);
+    setSelectedLines(Array.isArray(value.selectedLines) ? value.selectedLines : []);
+    setSelectedStations(
+      value.selectedStations && typeof value.selectedStations === "object" ? value.selectedStations : {}
+    );
   }, [value]);
 
-  // ✅ 向外 emit（但回填时不 emit）
-  useEffect(() => {
-    if (isHydratingRef.current) return;
+  // ✅ 统一 emit：只在“用户操作”时调用
+  const emit = (nextNear, nextLines, nextStations) => {
+    const empty =
+      !nextNear && (!nextLines || nextLines.length === 0) && (!nextStations || Object.keys(nextStations).length === 0);
+    onChange?.(empty ? null : { nearTransit: nextNear, selectedLines: nextLines, selectedStations: nextStations });
+  };
 
-    // 如果全空，就传 null（避免父层一直写空对象）
-    const isEmpty =
-      !nearTransit && selectedLines.length === 0 && Object.keys(selectedStations || {}).length === 0;
-
-    onChange?.(
-      isEmpty ? null : { nearTransit, selectedLines, selectedStations }
-    );
-  }, [nearTransit, selectedLines, selectedStations, onChange]);
+  // ✅ react-select 菜单层：放到 body，避免挡住后面表单点不到
+  const selectCommonProps = useMemo(() => {
+    const isBrowser = typeof window !== "undefined" && typeof document !== "undefined";
+    return {
+      menuPortalTarget: isBrowser ? document.body : undefined,
+      menuPosition: "fixed",
+      closeMenuOnSelect: true,
+      blurInputOnSelect: true,
+      styles: {
+        menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+      },
+    };
+  }, []);
 
   return (
     <div className="space-y-4">
       <label className="font-medium">你的产业步行能到达公共交通吗？</label>
+
       <Select
+        {...selectCommonProps}
         options={yesNoOptions}
         value={yesNoOptions.find((x) => x.value === nearTransit) || null}
         onChange={(opt) => {
           const v = opt?.value ?? null;
+
+          // 更新本地
           setNearTransit(v);
 
-          // 选 no 就清空路线/站点（更符合逻辑）
+          // 选 no 就清空路线/站点
           if (v !== "yes") {
             setSelectedLines([]);
             setSelectedStations({});
+            emit(v, [], {});
+          } else {
+            emit(v, selectedLines, selectedStations);
           }
         }}
         placeholder="请选择..."
@@ -147,6 +148,7 @@ export default function TransitSelector({ value = null, onChange }) {
         <div>
           <label className="font-medium">请选择路线 (可多选)</label>
           <Select
+            {...selectCommonProps}
             isMulti
             options={Object.keys(transitData).map((line) => ({ value: line, label: line }))}
             value={toOptArr(selectedLines)}
@@ -154,14 +156,14 @@ export default function TransitSelector({ value = null, onChange }) {
               const lines = (opts || []).map((o) => o.value);
               setSelectedLines(lines);
 
-              // 如果路线减少了，把已不存在路线的站点移除
-              setSelectedStations((prev) => {
-                const next = {};
-                lines.forEach((l) => {
-                  if (prev[l]) next[l] = prev[l];
-                });
-                return next;
+              // 移除不存在路线的站点
+              const nextStations = {};
+              lines.forEach((l) => {
+                if (selectedStations[l]) nextStations[l] = selectedStations[l];
               });
+              setSelectedStations(nextStations);
+
+              emit(nearTransit, lines, nextStations);
             }}
             placeholder="选择路线..."
           />
@@ -174,14 +176,14 @@ export default function TransitSelector({ value = null, onChange }) {
             <div key={line}>
               <label className="font-medium">请输入自定义站点</label>
               <CreatableSelect
+                {...selectCommonProps}
                 isMulti
                 value={selectedStations[line] || []}
-                onChange={(vals) =>
-                  setSelectedStations((prev) => ({
-                    ...prev,
-                    [line]: vals || [],
-                  }))
-                }
+                onChange={(vals) => {
+                  const nextStations = { ...selectedStations, [line]: vals || [] };
+                  setSelectedStations(nextStations);
+                  emit(nearTransit, selectedLines, nextStations);
+                }}
                 placeholder="输入站点名称..."
               />
             </div>
@@ -189,15 +191,15 @@ export default function TransitSelector({ value = null, onChange }) {
             <div key={line}>
               <label className="font-medium">{line} - 请选择站点</label>
               <Select
+                {...selectCommonProps}
                 isMulti
                 options={transitData[line].map((s) => toOpt(s))}
                 value={selectedStations[line] || []}
-                onChange={(vals) =>
-                  setSelectedStations((prev) => ({
-                    ...prev,
-                    [line]: vals || [],
-                  }))
-                }
+                onChange={(vals) => {
+                  const nextStations = { ...selectedStations, [line]: vals || [] };
+                  setSelectedStations(nextStations);
+                  emit(nearTransit, selectedLines, nextStations);
+                }}
                 placeholder="选择站点..."
               />
             </div>
