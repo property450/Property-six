@@ -192,6 +192,8 @@ export default function TypeSelector({
   // ✅ Rent 批量：Layout 数量（2~20，可输入 + 下拉建议）
   const [layoutCountInput, setLayoutCountInput] = useState("2"); // 显示用（带逗号）
   const layoutCount = clamp(toIntFromInput(layoutCountInput), 2, 20);
+  const [showLayoutSuggest, setShowLayoutSuggest] = useState(false);
+  const layoutInputRef = useRef(null);
 
   const [subtypeOpen, setSubtypeOpen] = useState(false);
   const subtypeRef = useRef(null);
@@ -602,33 +604,66 @@ export default function TypeSelector({
 
           {/* ✅ 单一输入框 + 下拉建议（datalist） */}
           {rentBatchMode === "yes" && (
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">这个项目有多少个屋型 / Layout 数量</label>
+  <div className="space-y-2">
+    <label className="block text-sm font-medium text-gray-700">
+      这个项目有多少个屋型 / Layout 数量
+    </label>
 
-              <input
-                className="border rounded w-full p-2"
-                list="layoutCountSuggestions"
-                value={layoutCountInput}
-                onChange={(e) => setLayoutCountInput(addCommas(e.target.value))}
-                onBlur={() => {
-                  const n = clamp(toIntFromInput(layoutCountInput), 2, 20);
-                  setLayoutCountInput(addCommas(String(n)));
+    <div className="relative">
+      <input
+        ref={layoutInputRef}
+        className="border rounded w-full p-2 bg-white"
+        value={layoutCountInput}
+        onChange={(e) => {
+          setLayoutCountInput(addCommas(e.target.value));
+          setShowLayoutSuggest(true);
+        }}
+        onFocus={() => setShowLayoutSuggest(true)}
+        onBlur={() => {
+          // 让点击建议项先执行（所以延迟关闭）
+          setTimeout(() => setShowLayoutSuggest(false), 120);
+
+          const n = clamp(toIntFromInput(layoutCountInput), 2, 20);
+          setLayoutCountInput(addCommas(String(n)));
+        }}
+        inputMode="numeric"
+        placeholder="2 ~ 20"
+      />
+
+      {showLayoutSuggest && (
+        <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-auto">
+          {Array.from({ length: 19 }, (_, i) => i + 2)
+            .filter((n) => {
+              // 简单过滤：输入了数字就只显示匹配前缀（例如输入 1 显示 10~19 但我们范围到20，所以会显示 10~19）
+              const raw = String(layoutCountInput || "").replace(/,/g, "").trim();
+              if (!raw) return true;
+              return String(n).startsWith(raw);
+            })
+            .map((n) => (
+              <button
+                key={n}
+                type="button"
+                className="w-full text-left px-3 py-2 hover:bg-gray-100"
+                onMouseDown={(e) => {
+                  // 防止 blur 抢先触发
+                  e.preventDefault();
+                  setLayoutCountInput(String(n)); // 2~20 不需要逗号
+                  setShowLayoutSuggest(false);
+
+                  // 让输入框保持 focus（体验更像白色下拉）
+                  requestAnimationFrame(() => layoutInputRef.current?.focus());
                 }}
-                inputMode="numeric"
-                placeholder="2 ~ 20"
-              />
-
-              <datalist id="layoutCountSuggestions">
-                {Array.from({ length: 19 }, (_, i) => String(i + 2)).map((n) => (
-                  <option key={n} value={n} />
-                ))}
-              </datalist>
-
-              <div className="text-xs text-gray-500">当前：{layoutCount} 个屋型（自动限制 2～20）</div>
-            </div>
-          )}
+              >
+                {n}
+              </button>
+            ))}
         </div>
       )}
     </div>
-  );
-}
+
+    <div className="text-xs text-gray-500">
+      当前：{layoutCount} 个屋型（自动限制 2～20）
+    </div>
+  </div>
+)}
+
