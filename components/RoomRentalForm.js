@@ -381,21 +381,20 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
 
   // ✅ PSF：用 buildUp 优先；buildUp 没值时自动用 land
   const areaInfo = useMemo(() => getAreaSqft(data.area), [data.area]);
+  const rentNum = useMemo(() => parseMoneyToNumber(data.rent), [data.rent]);
 
-// ✅ PSF 面积：Build up + Land（严格按你的规则）
-const effectiveSqft = useMemo(() => {
-  const buildUp = Number(areaInfo.buildUpSqft || 0);
-  const land = Number(areaInfo.landSqft || 0);
-  return buildUp + land;
-}, [areaInfo.buildUpSqft, areaInfo.landSqft]);
+  // ✅✅✅ 这里是唯一改动：把 Math.max 改成 buildUp + land
+  const effectiveSqft = useMemo(() => {
+    const buildUp = Number(areaInfo.buildUpSqft || 0);
+    const land = Number(areaInfo.landSqft || 0);
+    return buildUp + land;
+  }, [areaInfo.buildUpSqft, areaInfo.landSqft]);
 
-
-const psf = useMemo(() => {
-  if (!effectiveSqft || effectiveSqft <= 0) return 0;
-  if (!rentNum || rentNum <= 0) return 0;
-  return rentNum / effectiveSqft;
-}, [rentNum, effectiveSqft]);
-
+  const psf = useMemo(() => {
+    if (!effectiveSqft || effectiveSqft <= 0) return 0;
+    if (!rentNum || rentNum <= 0) return 0;
+    return rentNum / effectiveSqft;
+  }, [rentNum, effectiveSqft]);
 
   const availableText = data.availableFrom ? `在 ${data.availableFrom} 就可以开始入住了` : "";
   const showCarparkRentPrice = data.carparkCount === "车位另租";
