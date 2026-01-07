@@ -164,14 +164,12 @@ export default function TypeSelector({
 
   // 是否只有一个房间：single / multi
   const [roomCountMode, setRoomCountMode] = useState("single");
-  const [roomCount, setRoomCount] = useState("2");
+  const [roomCount, setRoomCount] = useState("1"); // ✅ 修正：single 默认就应是 1
 
   const [subtypeOpen, setSubtypeOpen] = useState(false);
   const subtypeRef = useRef(null);
 
   // ✅ 新增：外部 value 反向同步（避免编辑/返回时选择显示空）
-  // 支持： "Sale" / "Rent" / "Homestay" / "Hotel/Resort"
-  // 以及： "Homestay - XXX" / "Hotel/Resort - XXX"
   const didHydrateRef = useRef(false);
   useEffect(() => {
     if (didHydrateRef.current) return;
@@ -196,14 +194,14 @@ export default function TypeSelector({
       return;
     }
 
-    // 普通：如果 value 就是 Sale/Rent（或其它你未来扩展）
+    // 普通：如果 value 就是 Sale/Rent
     if (["Sale", "Rent"].includes(raw)) {
       setSaleType(raw);
       didHydrateRef.current = true;
       return;
     }
 
-    // 其它情况：当成 finalType（保持不乱动你逻辑）
+    // 其它情况：当成 finalType
     setFinalType(raw);
     didHydrateRef.current = true;
   }, [value]);
@@ -309,7 +307,7 @@ export default function TypeSelector({
 
     setRoomRentalMode("whole");
     setRoomCountMode("single");
-    setRoomCount("2");
+    setRoomCount("1"); // ✅ 修正：single 默认 1
 
     onChangeRentBatchMode?.("no");
   };
@@ -476,7 +474,7 @@ export default function TypeSelector({
 
                 setRoomRentalMode("whole");
                 setRoomCountMode("single");
-                setRoomCount("2");
+                setRoomCount("1"); // ✅ 修正：single 统一为 1（避免残留）
               }}
             >
               <option value="">请选择类别</option>
@@ -556,7 +554,23 @@ export default function TypeSelector({
                 <>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">是否只有一个房间？</label>
-                    <select className="border rounded w-full p-2" value={roomCountMode} onChange={(e) => setRoomCountMode(e.target.value)}>
+                    <select
+                      className="border rounded w-full p-2"
+                      value={roomCountMode}
+                      onChange={(e) => {
+                        const mode = e.target.value;
+                        setRoomCountMode(mode);
+
+                        // ✅ 关键修复：互斥状态要同步清掉/设置数量
+                        if (mode === "single") {
+                          // 只有一个房间 → 数量必须=1（否则外部仍会以 6 来渲染）
+                          setRoomCount("1");
+                        } else {
+                          // 多个房间 → 默认最小=2
+                          setRoomCount("2");
+                        }
+                      }}
+                    >
                       <option value="single">是的，只有一个房间</option>
                       <option value="multi">不是，有多个房间</option>
                     </select>
@@ -565,7 +579,11 @@ export default function TypeSelector({
                   {roomCountMode === "multi" && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700">选择房间数量</label>
-                      <select className="border rounded w-full p-2" value={roomCount} onChange={(e) => setRoomCount(e.target.value)}>
+                      <select
+                        className="border rounded w-full p-2"
+                        value={roomCount}
+                        onChange={(e) => setRoomCount(e.target.value)}
+                      >
                         {Array.from({ length: 9 }, (_, i) => String(i + 2)).map((n) => (
                           <option key={n} value={n}>
                             {n}
@@ -581,7 +599,6 @@ export default function TypeSelector({
         </>
       )}
 
-      {/* ✅ 这里是唯一修改：加上 !!category，必须选了 Property Category 才显示批量操作 */}
       {saleType === "Rent" && !!category && !hideBatchToggleBecauseRoomRental && (
         <div className="mt-2">
           <label className="block text-sm font-medium text-gray-700">需要批量操作吗？</label>
