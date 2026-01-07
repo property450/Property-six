@@ -1,7 +1,7 @@
 // pages/upload-property.js
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import dynamic from "next/dynamic";
 import { supabase } from "../supabaseClient";
@@ -50,7 +50,8 @@ const pickCommon = (l = {}) => ({
   extraSpaces: l.extraSpaces || [],
   furniture: l.furniture || [],
   facilities: l.facilities || [],
-  transit: l.transit || null,
+  // ✅ 用 ?? 更稳，避免把合法空结构当成 null（不改你逻辑，只更稳）
+  transit: l.transit ?? null,
 });
 const commonHash = (l) => JSON.stringify(pickCommon(l));
 
@@ -83,6 +84,10 @@ export default function UploadProperty() {
   const [rentBatchMode, setRentBatchMode] = useState("no");
   const [saleType, setSaleType] = useState("");
   const [computedStatus, setComputedStatus] = useState("");
+
+  // ✅ 新增：把 TypeSelector 回传的 form 整包存起来
+  // 目的：读到 TypeSelector 内部的 propertyCategory（你截图里的那个）
+  const [typeForm, setTypeForm] = useState(null);
 
   // Rent 专用
   const [roomRentalMode, setRoomRentalMode] = useState("whole"); // whole / room
@@ -143,10 +148,22 @@ export default function UploadProperty() {
 
   const isRoomRental = saleTypeNorm === "rent" && roomRentalMode === "room";
 
+  // ✅ Rent：只有选了 Property Category 才允许出现/切换「需要批量操作吗？」
+  // TypeSelector 内部通常会把 propertyCategory 放在 form.propertyCategory（你的截图就是这项）
+  const rentCategorySelected = !!(typeForm && typeForm.propertyCategory);
+  const allowRentBatchMode = saleTypeNorm === "rent" && rentCategorySelected;
+
   // 不再是项目类时清空 layouts（你原本行为保留）
   useEffect(() => {
     if (!isProject) setUnitLayouts([]);
   }, [isProject]);
+
+  // ✅ 如果 Rent 模式下还没选 category，就强制回到 no（避免状态乱）
+  useEffect(() => {
+    if (saleTypeNorm === "rent" && !rentCategorySelected) {
+      setRentBatchMode("no");
+    }
+  }, [saleTypeNorm, rentCategorySelected]);
 
   const handleSubmit = async () => {
     try {
@@ -188,13 +205,19 @@ export default function UploadProperty() {
         <div className="text-sm text-gray-600">{address}</div>
       </div>
 
-      {/* ✅ 关键修复：TypeSelector 用正确接口接线（否则 New Project / Completed Unit 永远不会进入项目模式） */}
+      {/* ✅ TypeSelector：Rent 批量模式改为「必须先选 Property Category」 */}
       <TypeSelector
         value={typeValue}
         onChange={setTypeValue}
-        rentBatchMode={rentBatchMode}
-        onChangeRentBatchMode={setRentBatchMode}
+        // ✅ 关键：没选 category 时，传给 TypeSelector 的 rentBatchMode 永远是 "no"
+        rentBatchMode={allowRentBatchMode ? rentBatchMode : "no"}
+        // ✅ 关键：没选 category 时，禁止切换（用户点了也没反应，等他先选 category）
+        onChangeRentBatchMode={(val) => {
+          if (!allowRentBatchMode) return;
+          setRentBatchMode(val);
+        }}
         onFormChange={(form) => {
+          setTypeForm(form || null); // ✅ 保存整包，拿 propertyCategory
           setSaleType(form?.saleType || "");
           setComputedStatus(form?.propertyStatus || "");
           setRoomRentalMode(form?.roomRentalMode || "whole");
