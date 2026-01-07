@@ -25,9 +25,52 @@ function toPositiveInt(v) {
   return Math.floor(n);
 }
 
-// ✅ 兼容从 TypeSelector 回传的“房间数量”字段名
+// ✅ 更强的“只有一个房间”识别（TypeSelector 很可能不会清空 roomCount）
+function isTruthyFlag(v) {
+  const s = String(v ?? "").trim().toLowerCase();
+  return v === true || s === "true" || s === "yes" || s === "y" || s === "1";
+}
+function isFalsyFlag(v) {
+  const s = String(v ?? "").trim().toLowerCase();
+  return v === false || s === "false" || s === "no" || s === "n" || s === "0";
+}
+
+// ✅ 从 typeForm 里读“是否只有一个房间”
+function getOnlyOneFromTypeForm(typeForm) {
+  if (!typeForm) return null;
+
+  // 常见字段名（多加几个，避免你那边命名不同）
+  const candidates = [
+    typeForm.onlyOneRoom,
+    typeForm.isOnlyOneRoom,
+    typeForm.singleRoom,
+    typeForm.isSingleRoom,
+    typeForm.oneRoomOnly,
+    typeForm.isOneRoomOnly,
+    typeForm.onlyOne,
+  ];
+
+  for (const c of candidates) {
+    if (isTruthyFlag(c)) return true;
+    if (isFalsyFlag(c)) return false;
+  }
+
+  // 有些 UI 会存成中文/句子
+  const txt =
+    String(typeForm.onlyOneRoomText || typeForm.roomOnlyText || typeForm.roomModeText || "")
+      .trim()
+      .toLowerCase();
+
+  if (txt.includes("只有一个") || txt.includes("only one") || txt.includes("single")) return true;
+  if (txt.includes("多个") || txt.includes("many") || txt.includes("multiple")) return false;
+
+  return null;
+}
+
+// ✅ 从 typeForm 里读“房间数量”
 function getRoomCountFromTypeForm(typeForm) {
   if (!typeForm) return 0;
+
   const candidates = [
     typeForm.roomCount,
     typeForm.roomsCount,
@@ -36,21 +79,18 @@ function getRoomCountFromTypeForm(typeForm) {
     typeForm.numberOfRooms,
     typeForm.roomNumber,
     typeForm.selectedRoomCount,
+    typeForm.totalRooms,
+    typeForm.rooms,
   ];
+
   for (const c of candidates) {
     const n = toPositiveInt(c);
     if (n > 0) return n;
   }
-  const onlyOne =
-    typeForm.onlyOneRoom === true ||
-    typeForm.onlyOneRoom === "yes" ||
-    typeForm.onlyOneRoom === "true" ||
-    typeForm.isOnlyOneRoom === true;
-  if (onlyOne) return 1;
+
   return 0;
 }
 
-// ✅ 每间房都要有自己的面积数据
 function makeDefaultAreaData() {
   return {
     types: ["buildUp", "land"],
@@ -59,7 +99,6 @@ function makeDefaultAreaData() {
   };
 }
 
-// ✅ “第一间房 / 第二间房 …”
 const CN_NUM = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十"];
 function roomTitle(i) {
   if (i < 10) return `第${CN_NUM[i]}间房`;
@@ -71,7 +110,6 @@ export default function RentUploadForm({
   computedStatus,
   isRoomRental,
 
-  // whole unit 用（保持你原本逻辑不动）
   singleFormData,
   setSingleFormData,
   areaData,
@@ -85,15 +123,15 @@ export default function RentUploadForm({
   // ✅ 从 upload-property.js 传进来（TypeSelector 的 form）
   typeForm,
 }) {
-  const targetRoomCount = useMemo(() => getRoomCountFromTypeForm(typeForm), [typeForm]);
+  // ✅ 关键：只要侦测到“只有一个房间”，就强制 count=1
+  const onlyOne = useMemo(() => getOnlyOneFromTypeForm(typeForm), [typeForm]);
+  const rawCount = useMemo(() => getRoomCountFromTypeForm(typeForm), [typeForm]);
 
-  /**
-   * ✅ 多房间：每一间房是一个对象：
-   * {
-   *   areaData: {...},
-   *   form: {...}   // RoomRentalForm + extraSpaces/furniture/facilities/transit/price 等
-   * }
-   */
+  const targetRoomCount = useMemo(() => {
+    if (onlyOne === true) return 1;
+    return rawCount; // onlyOne === false 或 null 时，才用数量
+  }, [onlyOne, rawCount]);
+
   const [roomForms, setRoomForms] = useState([]);
 
   useEffect(() => {
@@ -108,14 +146,31 @@ export default function RentUploadForm({
       return;
     }
 
-    // 保留已填数据：从 6 -> 5 保留前 5，从 5 -> 6 新增 1 间空的
     setRoomForms((prev) => {
+      // ✅ 切换到“只有一个房间”时：保留第一间，丢掉其它
+      if (n === 1) {
+        const first = prev?.[0];
+        return [
+          first || {
+            areaData: makeDefaultAreaData(),
+            form: {
+              price: "",
+              extraSpaces: [],
+              furniture: [],
+              facilities: [],
+              transit: null,
+            },
+          },
+        ];
+      }
+
+      // 多房：保留已有，缺的补空
       const next = Array.from({ length: n }).map((_, idx) => {
         return (
           prev[idx] || {
             areaData: makeDefaultAreaData(),
             form: {
-              price: "", // 每间房自己的价格
+              price: "",
               extraSpaces: [],
               furniture: [],
               facilities: [],
@@ -125,7 +180,7 @@ export default function RentUploadForm({
         );
       });
 
-      // 保险：旧数据可能没有 areaData/form 时补齐
+      // 保险：旧数据结构不完整时补齐
       return next.map((x) => ({
         areaData: x?.areaData || makeDefaultAreaData(),
         form: x?.form || {},
@@ -164,13 +219,11 @@ export default function RentUploadForm({
               <div key={index} className="space-y-4 border rounded-lg p-4 bg-white">
                 <div className="text-lg font-semibold">{roomTitle(index)}</div>
 
-                {/* ✅ 每间房自己的面积 */}
                 <AreaSelector
                   initialValue={localArea}
                   onChange={(val) => patchRoom(index, { areaData: val })}
                 />
 
-                {/* ✅ 每间房自己的价格 */}
                 <PriceInput
                   value={localForm.price || ""}
                   onChange={(val) => patchRoomForm(index, { price: val })}
@@ -181,7 +234,6 @@ export default function RentUploadForm({
                   }}
                 />
 
-                {/* ✅ 你原本的 RoomRentalForm + extraSection（完全保留写法） */}
                 <RoomRentalForm
                   value={localForm}
                   onChange={(nextForm) => patchRoomForm(index, nextForm)}
@@ -211,8 +263,8 @@ export default function RentUploadForm({
           })}
         </>
       ) : (
-        /* ✅ 整间出租：保持你原本设计/逻辑完全不动 */
         <>
+          {/* ✅ 整间出租：保持你原本的完全不动 */}
           <AreaSelector initialValue={areaData} onChange={(val) => setAreaData(val)} />
 
           <PriceInput
@@ -279,7 +331,6 @@ export default function RentUploadForm({
         </>
       )}
 
-      {/* ✅ 描述 & 图片：你原本的保持不动 */}
       <div>
         <label className="block font-medium mb-1">房源描述</label>
         <textarea
