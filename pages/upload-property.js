@@ -39,7 +39,13 @@ const AddressSearchInput = dynamic(() => import("@/components/AddressSearchInput
 });
 
 // ---------- utils ----------
-const cloneDeep = (v) => JSON.parse(JSON.stringify(v || {}));
+const cloneDeep = (v) => {
+  try {
+    if (typeof structuredClone === "function") return structuredClone(v);
+  } catch (_) {}
+  return JSON.parse(JSON.stringify(v ?? null));
+};
+
 const pickCommon = (l = {}) => ({
   extraSpaces: l.extraSpaces || [],
   furniture: l.furniture || [],
