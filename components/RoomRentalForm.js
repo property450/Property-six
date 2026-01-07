@@ -16,7 +16,6 @@ const formatNumber = (num) => {
 
 const parseDigits = (str) => String(str || "").replace(/[^\d]/g, "");
 
-// ✅ 价格/租金 -> number
 const parseMoneyToNumber = (v) => {
   if (v === undefined || v === null) return 0;
   const raw = String(v)
@@ -27,74 +26,116 @@ const parseMoneyToNumber = (v) => {
   return Number.isFinite(n) ? n : 0;
 };
 
-// ✅ 从 AreaSelector 的 value 取 sqft（重点：Land 也能算 PSF）
-// 兼容你 upload-property.js 里 areaData 结构：
-// { types:["buildUp","land"], units:{buildUp:"Square Feet (sqft)"}, values:{buildUp:"", land:""} }
+// ✅ 从任意字符串里抓「第一段数字」
+const extractFirstNumber = (v) => {
+  if (v === undefined || v === null) return 0;
+  const s = String(v);
+  const m = s.match(/[\d,.]+/); // 例如 "1,200 sqft" -> "1,200"
+  if (!m) return 0;
+  const n = Number(m[0].replace(/,/g, ""));
+  return Number.isFinite(n) ? n : 0;
+};
+
+// ✅ 单位换算成 sqft（默认 sqft）
+const toSqft = (sizeNum, unitStr) => {
+  const u = String(unitStr || "").toLowerCase();
+  if (!Number.isFinite(sizeNum) || sizeNum <= 0) return 0;
+
+  // sqm -> sqft
+  if (u.includes("sqm") || u.includes("square meter") || u.includes("sq m")) return sizeNum * 10.7639;
+  // acre -> sqft
+  if (u.includes("acre")) return sizeNum * 43560;
+
+  // sqft default
+  return sizeNum;
+};
+
+// ✅ 极度兼容：同时解析 buildUp & land，然后按规则选用哪个进 PSF
 const getAreaSqft = (areaVal) => {
-  if (!areaVal) return 0;
+  if (!areaVal) return { usedSqft: 0, buildUpSqft: 0, landSqft: 0, usedKey: "" };
 
-  // 直接是数字/字符串
-  if (typeof areaVal === "number") return areaVal > 0 ? areaVal : 0;
+  // 直接数字/字符串（当成 buildUp）
+  if (typeof areaVal === "number") {
+    const s = areaVal > 0 ? areaVal : 0;
+    return { usedSqft: s, buildUpSqft: s, landSqft: 0, usedKey: "buildUp" };
+  }
   if (typeof areaVal === "string") {
-    const n = Number(areaVal.replace(/,/g, "").trim());
-    return Number.isFinite(n) && n > 0 ? n : 0;
+    const s = extractFirstNumber(areaVal);
+    return { usedSqft: s, buildUpSqft: s, landSqft: 0, usedKey: "buildUp" };
   }
 
-  if (areaVal && typeof areaVal === "object") {
-    const values = areaVal.values || {};
-    const units = areaVal.units || {};
-    const types = Array.isArray(areaVal.types) ? areaVal.types : [];
+  // 统一入口（你 upload-property.js 的 areaData 就是这种）
+  const values = (areaVal.values && typeof areaVal.values === "object") ? areaVal.values : {};
+  const units = (areaVal.units && typeof areaVal.units === "object") ? areaVal.units : {};
 
-    // 可能出现：types 永远同时有 buildUp+land，但 buildUp 没填、land 有填
-    // ✅ 修复策略：优先使用“被勾选且有值”的那一个
-    const buRaw = String(values.buildUp || values.builtUp || "").replace(/,/g, "").trim();
-    const landRaw = String(values.land || "").replace(/,/g, "").trim();
+  // 兼容各种 key 名
+  const buildUpKeys = ["buildUp", "builtUp", "built_up", "build_up", "buildUpArea", "builtUpArea", "bua"];
+  const landKeys = ["land", "landArea", "land_area", "landSize", "land_size"];
 
-    const buNum = Number(buRaw);
-    const landNum = Number(landRaw);
-
-    const hasBuildUp = types.includes("buildUp") || types.includes("builtUp");
-    const hasLand = types.includes("land");
-
-    // ✅ 决定使用哪个 key
-    let key = null;
-
-    // 只勾 buildUp
-    if (hasBuildUp && !hasLand) key = "buildUp";
-    // 只勾 land
-    else if (hasLand && !hasBuildUp) key = "land";
-    // 两个都勾：优先 buildUp（但必须有值），否则用 land（只要有值）
-    else if (hasBuildUp && hasLand) {
-      if (Number.isFinite(buNum) && buNum > 0) key = "buildUp";
-      else if (Number.isFinite(landNum) && landNum > 0) key = "land";
-      else key = "buildUp"; // 两个都没填时无所谓
-    } else {
-      // types 异常/为空：按有值优先
-      if (Number.isFinite(buNum) && buNum > 0) key = "buildUp";
-      else if (Number.isFinite(landNum) && landNum > 0) key = "land";
+  const pickValueByKeys = (obj, keys) => {
+    for (const k of keys) {
+      if (obj && Object.prototype.hasOwnProperty.call(obj, k)) return obj[k];
     }
+    return undefined;
+  };
 
-    if (!key) return 0;
-
-    const sizeRaw = String(values[key] || "").replace(/,/g, "").trim();
-    const sizeNum = Number(sizeRaw);
-    if (!Number.isFinite(sizeNum) || sizeNum <= 0) return 0;
-
-    const unitStr = String(units[key] || "").toLowerCase();
-
-    // sqm -> sqft
-    if (unitStr.includes("sqm") || unitStr.includes("square meter") || unitStr.includes("sq m")) {
-      return sizeNum * 10.7639;
+  const pickUnitByKeys = (obj, keys) => {
+    for (const k of keys) {
+      if (obj && Object.prototype.hasOwnProperty.call(obj, k)) return obj[k];
     }
-    // acre -> sqft
-    if (unitStr.includes("acre")) {
-      return sizeNum * 43560;
-    }
-    // sqft 默认
-    return sizeNum;
+    return "";
+  };
+
+  // 先从 values/units 取
+  const buRaw = pickValueByKeys(values, buildUpKeys);
+  const landRaw = pickValueByKeys(values, landKeys);
+
+  const buUnit = pickUnitByKeys(units, buildUpKeys) || units.buildUp || units.builtUp || "";
+  const landUnit = pickUnitByKeys(units, landKeys) || units.land || "";
+
+  const buNum = extractFirstNumber(buRaw);
+  const landNum = extractFirstNumber(landRaw);
+
+  const buildUpSqft = toSqft(buNum, buUnit);
+  const landSqft = toSqft(landNum, landUnit);
+
+  // ✅ 规则：buildUp 有值优先；否则 land
+  let usedSqft = 0;
+  let usedKey = "";
+  if (buildUpSqft > 0) {
+    usedSqft = buildUpSqft;
+    usedKey = "buildUp";
+  } else if (landSqft > 0) {
+    usedSqft = landSqft;
+    usedKey = "land";
   }
 
-  return 0;
+  // 额外兜底：有些 AreaSelector 不是 values/units 结构
+  if (!usedSqft) {
+    // 例如 { buildUp: { value, unit }, land: { value, unit } }
+    const buObj = areaVal.buildUp || areaVal.builtUp || areaVal.buildUpArea;
+    const landObj = areaVal.land || areaVal.landArea;
+
+    const bu2 = buObj ? toSqft(extractFirstNumber(buObj.value ?? buObj.size ?? buObj), buObj.unit ?? "") : 0;
+    const land2 = landObj ? toSqft(extractFirstNumber(landObj.value ?? landObj.size ?? landObj), landObj.unit ?? "") : 0;
+
+    if (bu2 > 0) {
+      usedSqft = bu2;
+      usedKey = "buildUp";
+    } else if (land2 > 0) {
+      usedSqft = land2;
+      usedKey = "land";
+    }
+
+    return {
+      usedSqft,
+      buildUpSqft: buildUpSqft || bu2,
+      landSqft: landSqft || land2,
+      usedKey,
+    };
+  }
+
+  return { usedSqft, buildUpSqft, landSqft, usedKey };
 };
 
 // ----------------- 选项 -----------------
@@ -107,23 +148,9 @@ const YESNO_OPTIONS = [
   { value: "deny", label: "不允许" },
 ];
 
-const BED_TYPE_OPTIONS = [
-  "King Size",
-  "Queen Size",
-  "Super Single Size",
-  "Single Size",
-  "上下床",
-  "没有提供床",
-];
+const BED_TYPE_OPTIONS = ["King Size", "Queen Size", "Super Single Size", "Single Size", "上下床", "没有提供床"];
 
-const RENT_INCLUDES_OPTIONS = [
-  "包括电费",
-  "包括水费",
-  "包括沥水机",
-  "包括管理费",
-  "包括电费但冷气/空调费不包",
-];
-
+const RENT_INCLUDES_OPTIONS = ["包括电费", "包括水费", "包括沥水机", "包括管理费", "包括电费但冷气/空调费不包"];
 const CLEANING_OPTIONS = ["每月一次", "每两星期一次", "每三星期一次", "每个星期一次", "没有清洁服务"];
 
 const CARPARK_OPTIONS = ["1", "2", "3", "4", "5", "公共停车位", "没有车位", "车位另租"];
@@ -132,17 +159,16 @@ const CARPARK_RENT_PRICE_PRESETS = ["50", "100", "150", "200"];
 const RACE_OPTIONS = ["马来人", "印度人", "华人", "外国人"];
 const TENANCY_OPTIONS = ["1个月", "3个月", "6个月", "一年以下", "一年以上"];
 
-// ✅ 你原本那种“白色下拉建议”——我用常见租金档位（你不喜欢我可以换）
+// ✅ 白色下拉建议（你要换成你原本那组也可以）
 const RENT_SUGGESTIONS = [
-  "500", "600", "700", "800", "900",
-  "1,000", "1,200", "1,500", "1,800", "2,000",
-  "2,200", "2,500", "2,800", "3,000", "3,500",
-  "4,000", "4,500", "5,000", "6,000", "8,000", "10,000",
+  "500","600","700","800","900",
+  "1,000","1,200","1,500","1,800","2,000",
+  "2,200","2,500","2,800","3,000","3,500",
+  "4,000","4,500","5,000","6,000","8,000","10,000",
 ].map((x) => parseDigits(x));
 
 // ----------------- 默认值 -----------------
 const defaultValue = {
-  // ✅ 加回你需要的字段
   area: null,
   rent: "",
 
@@ -162,7 +188,7 @@ const defaultValue = {
   availableFrom: "",
 };
 
-// ----------------- 多选下拉（✅ + 点击空白收起） -----------------
+// ----------------- 多选下拉（点击空白收起） -----------------
 function MultiPick({ label, options, value = [], onChange }) {
   const [open, setOpen] = useState(false);
   const boxRef = useRef(null);
@@ -219,7 +245,7 @@ function MultiPick({ label, options, value = [], onChange }) {
   );
 }
 
-// ----------------- 床型：多选 + 数量 -----------------
+// ----------------- 床型（保持你现有逻辑，没乱改） -----------------
 function BedTypePicker({ value = [], onChange }) {
   const [open, setOpen] = useState(false);
   const boxRef = useRef(null);
@@ -244,7 +270,6 @@ function BedTypePicker({ value = [], onChange }) {
     }
 
     const base = isNoBedSelected ? value.filter((x) => x.type !== "没有提供床") : value;
-
     const exists = base.some((x) => x.type === t);
     const next = exists ? base.filter((x) => x.type !== t) : [...base, { type: t, count: "" }];
     onChange?.(next);
@@ -292,7 +317,7 @@ function BedTypePicker({ value = [], onChange }) {
   );
 }
 
-// ----------------- 租金：一个输入框 + 白色下拉建议（恢复你原本设计） -----------------
+// ----------------- 租金：一个输入框 + 白色下拉建议（恢复你要的） -----------------
 function RentInputWithSuggestions({ value, onChange }) {
   const wrapRef = useRef(null);
   const [open, setOpen] = useState(false);
@@ -320,10 +345,7 @@ function RentInputWithSuggestions({ value, onChange }) {
           value={display}
           onFocus={() => setOpen(true)}
           onClick={() => setOpen(true)}
-          onChange={(e) => {
-            const raw = parseDigits(e.target.value);
-            onChange?.(raw);
-          }}
+          onChange={(e) => onChange?.(parseDigits(e.target.value))}
         />
       </div>
 
@@ -357,37 +379,47 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
     onChange?.(next);
   };
 
-  // ✅ PSF
-  const areaSqft = useMemo(() => getAreaSqft(data.area), [data.area]);
+  // ✅ PSF：用 buildUp 优先；buildUp 没值时自动用 land
+  const areaInfo = useMemo(() => getAreaSqft(data.area), [data.area]);
   const rentNum = useMemo(() => parseMoneyToNumber(data.rent), [data.rent]);
+
   const psf = useMemo(() => {
-    if (!areaSqft || areaSqft <= 0) return 0;
+    if (!areaInfo.usedSqft || areaInfo.usedSqft <= 0) return 0;
     if (!rentNum || rentNum <= 0) return 0;
-    return rentNum / areaSqft;
-  }, [rentNum, areaSqft]);
+    return rentNum / areaInfo.usedSqft;
+  }, [rentNum, areaInfo.usedSqft]);
 
   const availableText = data.availableFrom ? `在 ${data.availableFrom} 就可以开始入住了` : "";
   const showCarparkRentPrice = data.carparkCount === "车位另租";
 
   return (
     <div className="space-y-4 mt-4 border rounded-lg p-4 bg-white">
-      {/* ✅ 面积（加回） */}
+      {/* 面积 */}
       <div>
         <label className="block text-sm font-medium text-gray-700">面积</label>
         <AreaSelector value={data.area} onChange={(val) => patch({ area: val })} />
       </div>
 
-      {/* ✅ 租金（加回你原本那种白色下拉建议） + PSF */}
+      {/* 租金 + PSF */}
       <div>
         <label className="block text-sm font-medium text-gray-700">租金</label>
         <RentInputWithSuggestions value={data.rent} onChange={(rent) => patch({ rent })} />
-        {psf > 0 && <p className="text-sm text-gray-600 mt-1">≈ RM {psf.toFixed(2)} / sq ft</p>}
+
+        {psf > 0 && (
+          <p className="text-sm text-gray-600 mt-1">
+            ≈ RM {psf.toFixed(2)} / sq ft
+          </p>
+        )}
       </div>
 
       {/* 这是什么房？ */}
       <div>
         <label className="block text-sm font-medium text-gray-700">这是什么房？</label>
-        <select className="border rounded w-full p-2" value={data.roomType} onChange={(e) => patch({ roomType: e.target.value })}>
+        <select
+          className="border rounded w-full p-2"
+          value={data.roomType}
+          onChange={(e) => patch({ roomType: e.target.value })}
+        >
           <option value="">请选择</option>
           {ROOM_TYPE_OPTIONS.map((x) => (
             <option key={x} value={x}>{x}</option>
@@ -398,7 +430,11 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
       {/* 卫生间 */}
       <div>
         <label className="block text-sm font-medium text-gray-700">卫生间</label>
-        <select className="border rounded w-full p-2" value={data.bathroomType} onChange={(e) => patch({ bathroomType: e.target.value })}>
+        <select
+          className="border rounded w-full p-2"
+          value={data.bathroomType}
+          onChange={(e) => patch({ bathroomType: e.target.value })}
+        >
           <option value="">请选择</option>
           {BATHROOM_OPTIONS.map((x) => (
             <option key={x} value={x}>{x}</option>
@@ -412,7 +448,11 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
       {/* 独立/共用 */}
       <div>
         <label className="block text-sm font-medium text-gray-700">是独立房间还是共用房间？</label>
-        <select className="border rounded w-full p-2" value={data.roomPrivacy} onChange={(e) => patch({ roomPrivacy: e.target.value })}>
+        <select
+          className="border rounded w-full p-2"
+          value={data.roomPrivacy}
+          onChange={(e) => patch({ roomPrivacy: e.target.value })}
+        >
           <option value="">请选择</option>
           {ROOM_PRIVACY_OPTIONS.map((x) => (
             <option key={x} value={x}>{x}</option>
@@ -423,7 +463,11 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
       {/* 男女混住 */}
       <div>
         <label className="block text-sm font-medium text-gray-700">是否男女混住？</label>
-        <select className="border rounded w-full p-2" value={data.genderPolicy} onChange={(e) => patch({ genderPolicy: e.target.value })}>
+        <select
+          className="border rounded w-full p-2"
+          value={data.genderPolicy}
+          onChange={(e) => patch({ genderPolicy: e.target.value })}
+        >
           <option value="">请选择</option>
           {GENDER_OPTIONS.map((x) => (
             <option key={x} value={x}>{x}</option>
@@ -434,7 +478,11 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
       {/* 宠物 */}
       <div>
         <label className="block text-sm font-medium text-gray-700">是否允许宠物？</label>
-        <select className="border rounded w-full p-2" value={data.petAllowed} onChange={(e) => patch({ petAllowed: e.target.value })}>
+        <select
+          className="border rounded w-full p-2"
+          value={data.petAllowed}
+          onChange={(e) => patch({ petAllowed: e.target.value })}
+        >
           {YESNO_OPTIONS.map((x) => (
             <option key={x.value} value={x.value}>{x.label}</option>
           ))}
@@ -444,7 +492,11 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
       {/* 允许烹饪 */}
       <div>
         <label className="block text-sm font-medium text-gray-700">是否允许烹饪？</label>
-        <select className="border rounded w-full p-2" value={data.cookingAllowed} onChange={(e) => patch({ cookingAllowed: e.target.value })}>
+        <select
+          className="border rounded w-full p-2"
+          value={data.cookingAllowed}
+          onChange={(e) => patch({ cookingAllowed: e.target.value })}
+        >
           {YESNO_OPTIONS.map((x) => (
             <option key={x.value} value={x.value}>{x.label}</option>
           ))}
@@ -461,7 +513,11 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
       {/* 清洁服务 */}
       <div>
         <label className="block text-sm font-medium text-gray-700">清洁服务</label>
-        <select className="border rounded w-full p-2" value={data.cleaningService} onChange={(e) => patch({ cleaningService: e.target.value })}>
+        <select
+          className="border rounded w-full p-2"
+          value={data.cleaningService}
+          onChange={(e) => patch({ cleaningService: e.target.value })}
+        >
           <option value="">请选择</option>
           {CLEANING_OPTIONS.map((x) => (
             <option key={x} value={x}>{x}</option>
@@ -490,7 +546,6 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
         </select>
       </div>
 
-      {/* 车位另租价格 */}
       {showCarparkRentPrice && (
         <div>
           <label className="block text-sm font-medium text-gray-700">一个车位大概多少钱？</label>
