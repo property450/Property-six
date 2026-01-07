@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-// ✅ 加回：每个房间表单都要有 Built-up / Land / Price
+// ✅ 只保留 1 个面积选择器 + 租金输入
 import AreaSelector from "@/components/AreaSelector";
 import PriceInput from "@/components/PriceInput";
 
@@ -61,10 +61,11 @@ const TENANCY_OPTIONS = ["1个月", "3个月", "6个月", "一年以下", "一�
 
 // ----------------- 默认值 -----------------
 const defaultValue = {
-  // ✅ 加回：每个房间表单都必须有
-  builtUpArea: null,
-  landArea: null,
-  price: "",
+  // ✅ 面积只保留一个
+  area: null,
+
+  // ✅ Rent 模式：租金（不叫价格）
+  rent: "",
 
   roomType: "",
   bathroomType: "",
@@ -74,14 +75,14 @@ const defaultValue = {
   roomPrivacy: "",
   genderPolicy: "",
   petAllowed: "deny",
-  cookingAllowed: "deny", // ✅ 你刚新增的
-  rentIncludes: [], // 多选✅
+  cookingAllowed: "deny",
+  rentIncludes: [],
   cleaningService: "",
   carparkCount: "",
-  carparkRentPrice: "", // 当 carparkCount === "车位另租"
-  preferredRaces: [], // 多选✅
-  acceptedTenancy: [], // 多选✅
-  availableFrom: "", // yyyy-mm-dd
+  carparkRentPrice: "",
+  preferredRaces: [],
+  acceptedTenancy: [],
+  availableFrom: "",
 };
 
 // ----------------- 多选下拉（✅ + 点击空白收起） -----------------
@@ -161,7 +162,6 @@ function BedTypePicker({ value = [], onChange }) {
   const isNoBedSelected = hasType("没有提供床");
 
   const toggleType = (t) => {
-    // ✅ 选“没有提供床” → 清空其它，只保留它
     if (t === "没有提供床") {
       const next = isNoBedSelected ? [] : [{ type: "没有提供床", count: "" }];
       onChange?.(next);
@@ -169,7 +169,6 @@ function BedTypePicker({ value = [], onChange }) {
       return;
     }
 
-    // ✅ 选其它床型时，如果当前有“没有提供床”，先移除它
     const base = isNoBedSelected ? value.filter((x) => x.type !== "没有提供床") : value;
 
     const exists = base.some((x) => x.type === t);
@@ -207,9 +206,7 @@ function BedTypePicker({ value = [], onChange }) {
   };
 
   const displayText =
-    value.length === 0
-      ? "请选择床型（可多选）"
-      : value.map((v) => `${v.type} ✅`).join("，");
+    value.length === 0 ? "请选择床型（可多选）" : value.map((v) => `${v.type} ✅`).join("，");
 
   return (
     <div className="space-y-2" ref={boxRef}>
@@ -217,7 +214,6 @@ function BedTypePicker({ value = [], onChange }) {
         请选择床型（可多选 + 数量）
       </label>
 
-      {/* 下拉显示框 */}
       <div
         className="w-full border rounded p-2 bg-white cursor-pointer"
         onClick={() => setOpen((p) => !p)}
@@ -229,12 +225,11 @@ function BedTypePicker({ value = [], onChange }) {
         )}
       </div>
 
-      {/* 下拉菜单 */}
       {open && (
         <div className="border rounded bg-white shadow max-h-60 overflow-auto">
           {BED_TYPE_OPTIONS.map((t) => {
             const selected = hasType(t);
-            const disabled = isNoBedSelected && t !== "没有提供床"; // ✅ 选了“没有提供床”时其它选项不可选
+            const disabled = isNoBedSelected && t !== "没有提供床";
             return (
               <div
                 key={t}
@@ -254,7 +249,6 @@ function BedTypePicker({ value = [], onChange }) {
         </div>
       )}
 
-      {/* 数量区域：有“没有提供床”时不显示数量 */}
       {!isNoBedSelected && value.length > 0 && (
         <div className="space-y-3">
           {value.map((item) => {
@@ -313,66 +307,49 @@ function BedTypePicker({ value = [], onChange }) {
 }
 
 // ----------------- 主表单 -----------------
-export default function RoomRentalForm({
-  value,
-  onChange,
-  // ✅ 你要把 “额外空间 / 家私 / 设施 / 步行到交通” 放在“偏向种族”下面：
-  // 直接从 upload-property.js 传进来一段 JSX
-  extraSection = null,
-}) {
-  // ✅ 受控：内部只做一层镜像，真正数据永远来自 props.value
+export default function RoomRentalForm({ value, onChange, extraSection = null }) {
+  // ✅ 受控：内部只做一层镜像
   const data = useMemo(() => ({ ...defaultValue, ...(value || {}) }), [value]);
 
-  // ✅ 统一更新函数
+  // ✅ 兼容旧字段（如果你之前已经存过 builtUpArea/landArea/price，不让用户数据丢）
+  // - area: 优先用 data.area，没有就用 builtUpArea / landArea
+  // - rent: 优先用 data.rent，没有就用 price
+  const normalizedArea = data.area ?? data.builtUpArea ?? data.landArea ?? null;
+  const normalizedRent = data.rent ?? data.price ?? "";
+
   const patch = (p) => {
     const next = { ...data, ...p };
     onChange?.(next);
   };
 
-  const availableText = data.availableFrom
-    ? `在 ${data.availableFrom} 就可以开始入住了`
-    : "";
-
+  const availableText = data.availableFrom ? `在 ${data.availableFrom} 就可以开始入住了` : "";
   const showCarparkRentPrice = data.carparkCount === "车位另租";
 
   return (
     <div className="space-y-4 mt-4 border rounded-lg p-4 bg-white">
-
-      {/* ================= ✅ 加回：面积 & 价格（每个房间都必须有） ================= */}
-      <div className="space-y-4">
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            建筑面积 (Built-up Area)
-          </label>
-          <AreaSelector
-            value={data.builtUpArea || null}
-            onChange={(val) => patch({ builtUpArea: val })}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            土地面积 (Land Area)
-          </label>
-          <AreaSelector
-            value={data.landArea || null}
-            onChange={(val) => patch({ landArea: val })}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            租金 (Rent Price)
-          </label>
-          <PriceInput
-            value={data.price || ""}
-            onChange={(val) => patch({ price: val })}
-          />
-        </div>
-
+      {/* ✅ 面积（只要一个） */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700">面积</label>
+        <AreaSelector
+          value={normalizedArea}
+          onChange={(val) => {
+            // ✅ 统一写到 area，旧字段不再用（但上面仍兼容读取）
+            patch({ area: val });
+          }}
+        />
       </div>
-      {/* ================= /面积 & 价格 ================= */}
+
+      {/* ✅ 租金（不叫价格） */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700">租金</label>
+        <PriceInput
+          value={normalizedRent}
+          onChange={(val) => {
+            // ✅ 统一写到 rent，兼容旧 price
+            patch({ rent: val });
+          }}
+        />
+      </div>
 
       {/* 这是什么房？ */}
       <div>
@@ -409,10 +386,7 @@ export default function RoomRentalForm({
       </div>
 
       {/* 床型（多选+数量） */}
-      <BedTypePicker
-        value={data.bedTypes}
-        onChange={(bedTypes) => patch({ bedTypes })}
-      />
+      <BedTypePicker value={data.bedTypes} onChange={(bedTypes) => patch({ bedTypes })} />
 
       {/* 独立/共用 */}
       <div>
@@ -464,7 +438,7 @@ export default function RoomRentalForm({
         </select>
       </div>
 
-      {/* ✅ 允许烹饪（新增） */}
+      {/* 允许烹饪 */}
       <div>
         <label className="block text-sm font-medium text-gray-700">是否允许烹饪？</label>
         <select
@@ -480,7 +454,7 @@ export default function RoomRentalForm({
         </select>
       </div>
 
-      {/* 租金包括（多选✅） */}
+      {/* 租金包括（多选） */}
       <MultiPick
         label="租金包括"
         options={RENT_INCLUDES_OPTIONS}
@@ -561,7 +535,7 @@ export default function RoomRentalForm({
         </div>
       )}
 
-      {/* 偏向种族（多选✅） */}
+      {/* 偏向种族（多选） */}
       <MultiPick
         label="偏向的种族"
         options={RACE_OPTIONS}
@@ -569,10 +543,10 @@ export default function RoomRentalForm({
         onChange={(preferredRaces) => patch({ preferredRaces })}
       />
 
-      {/* ✅ 你要放在这里的四个输入框（额外空间/家私/设施/步行到交通） */}
+      {/* 你要放在这里的四个输入框（额外空间/家私/设施/步行到交通） */}
       {extraSection}
 
-      {/* 接受租期（多选✅） */}
+      {/* 接受租期（多选） */}
       <MultiPick
         label="接受的租期"
         options={TENANCY_OPTIONS}
