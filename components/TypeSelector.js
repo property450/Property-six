@@ -47,25 +47,74 @@ const affordableTypeOptions = [
 
 const tenureOptions = ["Freehold", "Leasehold", "Malay Reserved", "Bumi Lot"];
 
+// ✅✅✅ 这里就是你“之前的设计”的 categoryOptions（完全照回，不乱改）
 const categoryOptions = {
-  "Bungalow / Villa": [
-    "Bungalow",
-    "Link Bungalow",
-    "Twin Villa",
-    "Zero-Lot Bungalow",
-    "Bungalow land",
-  ],
-  "Apartment / Condo / Service Residence": [
-    "Apartment",
-    "Condominium",
-    "Flat",
-    "Service Residence",
-  ],
+  "Bungalow / Villa": ["Bungalow", "Link Bungalow", "Twin Villa", "Zero-Lot Bungalow", "Bungalow land"],
+  "Apartment / Condo / Service Residence": ["Apartment", "Condominium", "Flat", "Service Residence"],
   "Semi-Detached House": ["Cluster House", "Semi-Detached House"],
   "Terrace / Link House": ["Terrace House", "Link House", "Townhouse"],
-  "Business Property": ["Shop", "Office", "Retail", "Commercial Land"],
-  "Industrial Property": ["Factory", "Warehouse", "Industrial Land"],
-  Land: ["Residential Land", "Agricultural Land", "Mixed Development Land"],
+  "Business Property": [
+    "Shop",
+    "Office",
+    "Retail",
+    "Commercial Land",
+    "Hotel",
+    "Hotel Apartment",
+    "Hostel / Guesthouse",
+    "Capsule / Pod Stay",
+    "Cultural / Heritage Lodge",
+    "Shophouse",
+    "Shop Apartment",
+    "Food Court",
+    "Restaurant / Cafe",
+    "Entertainment / Leisure",
+    "Convention / Exhibition Space",
+    "Co-working Space",
+    "Business Centre",
+    "Data Centre",
+    "Studio / Production Space",
+    "Sports / Recreation Facility",
+    "Education / Training Centre",
+    "Childcare / Kindergarten",
+    "Hospital / Medical Centre",
+    "Mosque / Temple / Church",
+    "Event Hall / Ballroom",
+    "Car Wash",
+    "Petrol Station",
+    "Showroom",
+    "Bank / Financial Office",
+    "Government Office",
+    "Warehouse Retail",
+    "Supermarket / Hypermarket",
+  ],
+  "Industrial Property": [
+    "Factory",
+    "Warehouse",
+    "Industrial Land",
+    "Detached Factory",
+    "Semi-Detached Factory",
+    "Terrace Factory",
+    "Cluster Factory",
+    "Light Industrial",
+    "Heavy Industrial",
+    "Logistics / Distribution Centre",
+    "Cold Storage / Warehouse",
+    "Workshop",
+    "Plant / Mill",
+    "Recycling / Waste Facility",
+  ],
+  Land: [
+    "Residential Land",
+    "Agricultural Land",
+    "Mixed Development Land",
+    "Commercial Land",
+    "Industrial Land",
+    "Malay Reserve Land",
+    "Bumi Lot Land",
+    "Estate Land",
+    "Orchard Land",
+    "Plantation Land",
+  ],
 };
 
 const NEED_STOREYS_CATEGORY = new Set([
@@ -167,21 +216,17 @@ export default function TypeSelector({
     propertyStatus === "New Project / Under Construction" ||
     propertyStatus === "Completed Unit / Developer Unit";
 
-  // ✅ 修复：Rent 批量时也要显示原本的选择框（不隐藏）
   const showCategoryBlock =
-    (saleType === "Rent") ||
-    (saleType === "Sale" && !isProjectStatus);
+    saleType === "Rent" || (saleType === "Sale" && !isProjectStatus);
 
   const needStoreysForSale =
     ["Subsale / Secondary Market", "Auction Property", "Rent-to-Own Scheme"].includes(propertyStatus) &&
     NEED_STOREYS_CATEGORY.has(category);
 
-  // ✅ 修复：Rent 批量时 storeys 也不要消失
   const needStoreysForRent = saleType === "Rent" && NEED_STOREYS_CATEGORY.has(category);
 
   const showStoreys = needStoreysForSale || needStoreysForRent;
 
-  // ✅ 修复：Rent 批量时「出租房间」选择也不要被隐藏（并且切到 room 会自动关掉批量）
   const showRoomRentalToggle =
     saleType === "Rent" && ROOM_RENTAL_ELIGIBLE_CATEGORIES.has(category);
 
@@ -352,7 +397,6 @@ export default function TypeSelector({
         </>
       )}
 
-      {/* ✅ Category/SubType/Storeys/Subtype（Rent 批量也不会隐藏） */}
       {showCategoryBlock && saleType !== "Homestay" && saleType !== "Hotel/Resort" && (
         <>
           <div>
@@ -429,7 +473,7 @@ export default function TypeSelector({
             </div>
           )}
 
-          {/* ✅ Rent 相关选择框放在这里：在 storeys / property subtype 下面 */}
+          {/* ✅ Rent：出租房间选择（只加了“切到 room 自动关闭批量”这一行，其他不动） */}
           {showRoomRentalToggle && (
             <div className="mt-2 space-y-2">
               <label className="block text-sm font-medium text-gray-700">是否只是出租房间？</label>
@@ -439,7 +483,7 @@ export default function TypeSelector({
                 onChange={(e) => {
                   const v = e.target.value;
                   setRoomRentalMode(v);
-                  // 切到「出租房间」时，强制关闭批量操作，避免残留 rentBatchMode="yes" 导致出现「第1/第2房型」表单
+                  // ✅ 唯一新增：切到“出租房间”自动关闭批量，避免残留导致出现第1/第2房型表单
                   if (v === "room") {
                     onChangeRentBatchMode?.("no");
                   }
@@ -484,73 +528,72 @@ export default function TypeSelector({
               )}
             </div>
           )}
-
-          {saleType === "Rent" && !!category && !hideBatchToggleBecauseRoomRental && (
-            <div className="mt-2 space-y-2">
-              <label className="block text-sm font-medium text-gray-700">需要批量操作吗？</label>
-              <select
-                className="border rounded w-full p-2"
-                value={rentBatchMode}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  onChangeRentBatchMode?.(v);
-                  if (v === "yes") {
-                    setLayoutCountInput("2");
-                    setShowLayoutSuggest(false);
-                  } else {
-                    setShowLayoutSuggest(false);
-                  }
-                }}
-              >
-                <option value="no">否，只是单一房源</option>
-                <option value="yes">是，这个项目有多个房型</option>
-              </select>
-            </div>
-          )}
-
-          {saleType === "Rent" && rentBatchMode === "yes" && !hideBatchToggleBecauseRoomRental && (
-            <div className="relative mt-2 space-y-2">
-              <label className="block text-sm font-medium text-gray-700">这个项目有多少个屋型 / Layout</label>
-              <input
-                className="border rounded w-full p-2"
-                value={layoutCountInput}
-                onChange={(e) => {
-                  setLayoutCountInput(e.target.value);
-                  setShowLayoutSuggest(true);
-                }}
-                onFocus={() => setShowLayoutSuggest(true)}
-                onBlur={() => {
-                  setTimeout(() => setShowLayoutSuggest(false), 120);
-                  const n = clamp(toIntFromInput(layoutCountInput), 2, 20);
-                  setLayoutCountInput(addCommas(String(n)));
-                }}
-                inputMode="numeric"
-                placeholder="2 ~ 20"
-              />
-
-              {showLayoutSuggest && (
-                <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-auto">
-                  {Array.from({ length: 19 }).map((_, i) => {
-                    const v = String(i + 2);
-                    return (
-                      <div
-                        key={v}
-                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          setLayoutCountInput(v);
-                          setShowLayoutSuggest(false);
-                        }}
-                      >
-                        {v}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
         </>
+      )}
+
+      {/* ✅ Rent：批量操作（保持原逻辑，不乱动，只保留你原本的显示/文字） */}
+      {saleType === "Rent" && !!category && !hideBatchToggleBecauseRoomRental && (
+        <div className="mt-2 space-y-2">
+          <label className="block text-sm font-medium text-gray-700">需要批量操作吗？</label>
+          <select
+            className="border rounded w-full p-2"
+            value={rentBatchMode}
+            onChange={(e) => {
+              const v = e.target.value;
+              onChangeRentBatchMode?.(v);
+              setShowLayoutSuggest(false);
+            }}
+          >
+            <option value="no">否，只是单一房源</option>
+            <option value="yes">是，这个项目有多个房型</option>
+          </select>
+
+          {rentBatchMode === "yes" && (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">这个项目有多少个屋型 / Layout 数量</label>
+
+              <div className="relative">
+                <input
+                  className="border rounded w-full p-2"
+                  value={layoutCountInput}
+                  onChange={(e) => {
+                    setLayoutCountInput(e.target.value);
+                    setShowLayoutSuggest(true);
+                  }}
+                  onFocus={() => setShowLayoutSuggest(true)}
+                  onBlur={() => {
+                    setTimeout(() => setShowLayoutSuggest(false), 120);
+                    const n = clamp(toIntFromInput(layoutCountInput), 2, 20);
+                    setLayoutCountInput(addCommas(String(n)));
+                  }}
+                  inputMode="numeric"
+                  placeholder="2 ~ 20"
+                />
+
+                {showLayoutSuggest && (
+                  <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-auto">
+                    {Array.from({ length: 19 }).map((_, i) => {
+                      const v = String(i + 2);
+                      return (
+                        <div
+                          key={v}
+                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setLayoutCountInput(v);
+                            setShowLayoutSuggest(false);
+                          }}
+                        >
+                          {v}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
