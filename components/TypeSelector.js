@@ -187,10 +187,9 @@ export default function TypeSelector({
   const [roomCountMode, setRoomCountMode] = useState("single");
   const [roomCount, setRoomCount] = useState("1");
 
-  // layout count（Rent 批量 + Sale Completed Unit 复用同一个输入）
+  // Rent batch: layout count（✅只用于 Rent 批量，范围保持 2~20）
   const [layoutCountInput, setLayoutCountInput] = useState("2");
   const [showLayoutSuggest, setShowLayoutSuggest] = useState(false);
-
   const layoutCount = clamp(toIntFromInput(layoutCountInput), 2, 20);
 
   const subtypeRef = useRef(null);
@@ -223,28 +222,24 @@ export default function TypeSelector({
 
   const subtypeDisplayText = subtype.join(", ");
 
-  // ✅ Sale Project statuses（New Project / Completed Unit Developer Unit）
   const isProjectStatus =
     propertyStatus === "New Project / Under Construction" ||
     propertyStatus === "Completed Unit / Developer Unit";
 
-  // ✅✅✅ 关键修复：
-  // New Project 本来 ProjectUploadForm 已经有 Layout 数量 -> TypeSelector 不要再显示，避免重复
-  // 只在 Completed Unit / Developer Unit 才在 TypeSelector 显示 Layout 数量
-  const showSaleLayoutCountHere =
-    saleType === "Sale" && propertyStatus === "Completed Unit / Developer Unit";
-
-  const showCategoryBlock = saleType === "Rent" || (saleType === "Sale" && !isProjectStatus);
+  const showCategoryBlock =
+    saleType === "Rent" || (saleType === "Sale" && !isProjectStatus);
 
   const needStoreysForSale =
     ["Subsale / Secondary Market", "Auction Property", "Rent-to-Own Scheme"].includes(propertyStatus) &&
     NEED_STOREYS_CATEGORY.has(category);
 
-  const needStoreysForRent = saleType === "Rent" && NEED_STOREYS_CATEGORY.has(category);
+  const needStoreysForRent =
+    saleType === "Rent" && NEED_STOREYS_CATEGORY.has(category);
 
   const showStoreys = needStoreysForSale || needStoreysForRent;
 
-  const showRoomRentalToggle = saleType === "Rent" && ROOM_RENTAL_ELIGIBLE_CATEGORIES.has(category);
+  const showRoomRentalToggle =
+    saleType === "Rent" && ROOM_RENTAL_ELIGIBLE_CATEGORIES.has(category);
 
   const hideBatchToggleBecauseRoomRental =
     saleType === "Rent" && showRoomRentalToggle && roomRentalMode === "room";
@@ -265,6 +260,7 @@ export default function TypeSelector({
     setRoomCountMode("single");
     setRoomCount("1");
 
+    // Rent batch 的默认仍然是 2（你的原设定）
     setLayoutCountInput("2");
     setShowLayoutSuggest(false);
 
@@ -289,6 +285,7 @@ export default function TypeSelector({
       roomCountMode,
       roomCount: Number(roomCount) || 1,
 
+      // ✅只给 Rent batch 使用
       layoutCount,
     });
   }, [
@@ -426,55 +423,6 @@ export default function TypeSelector({
               ))}
             </select>
           </div>
-
-          {/* ✅✅✅ 只在 Completed Unit / Developer Unit 显示，避免 New Project 出现两个 */}
-          {showSaleLayoutCountHere && (
-            <div className="mt-2 space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                这个项目有多少个屋型 / Layout 数量
-              </label>
-
-              <div className="relative">
-                <input
-                  className="border rounded w-full p-2"
-                  value={layoutCountInput}
-                  onChange={(e) => {
-                    setLayoutCountInput(e.target.value);
-                    setShowLayoutSuggest(true);
-                  }}
-                  onFocus={() => setShowLayoutSuggest(true)}
-                  onBlur={() => {
-                    setTimeout(() => setShowLayoutSuggest(false), 120);
-                    const n = clamp(toIntFromInput(layoutCountInput), 2, 20);
-                    setLayoutCountInput(addCommas(String(n)));
-                  }}
-                  inputMode="numeric"
-                  placeholder="2 ~ 20"
-                />
-
-                {showLayoutSuggest && (
-                  <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-auto">
-                    {Array.from({ length: 19 }).map((_, i) => {
-                      const v = String(i + 2);
-                      return (
-                        <div
-                          key={v}
-                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            setLayoutCountInput(v);
-                            setShowLayoutSuggest(false);
-                          }}
-                        >
-                          {v}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
         </>
       )}
 
@@ -561,7 +509,7 @@ export default function TypeSelector({
             </div>
           )}
 
-          {/* ✅ Rent：出租房间选择（只加了“切到 room 自动关闭批量”这一行，其他不动） */}
+          {/* ✅ Rent：出租房间选择（保持你原逻辑） */}
           {showRoomRentalToggle && (
             <div className="mt-2 space-y-2">
               <label className="block text-sm font-medium text-gray-700">是否只是出租房间？</label>
@@ -571,9 +519,7 @@ export default function TypeSelector({
                 onChange={(e) => {
                   const v = e.target.value;
                   setRoomRentalMode(v);
-                  if (v === "room") {
-                    onChangeRentBatchMode?.("no");
-                  }
+                  if (v === "room") onChangeRentBatchMode?.("no");
                 }}
               >
                 <option value="whole">不是，要出租整间</option>
@@ -622,7 +568,7 @@ export default function TypeSelector({
         </>
       )}
 
-      {/* ✅ Rent：批量操作（保持原逻辑，不乱动） */}
+      {/* ✅ Rent：批量操作（2~20 保持不变） */}
       {saleType === "Rent" && !!category && !hideBatchToggleBecauseRoomRental && (
         <div className="mt-2 space-y-2">
           <label className="block text-sm font-medium text-gray-700">需要批量操作吗？</label>
@@ -690,4 +636,5 @@ export default function TypeSelector({
       )}
     </div>
   );
-}
+                                               }
+                  
