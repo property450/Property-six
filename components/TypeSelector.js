@@ -5,9 +5,34 @@ import { useState, useEffect, useRef } from "react";
 import FloorCountSelector from "./FloorCountSelector";
 
 // ================== 选项常量 ==================
-const subtypeOptions = ["Penthouse", "Duplex", "Studio", "Loft", "SoHo", "SoVo", "SoFo", "Serviced Apartment (Homestay)", "Condominium", "Apartment", "Flat", "Townhouse", "Link House", "Terrace House", "Semi-Detached House", "Bungalow", "Villa", "Cluster House", "Zero-Lot Bungalow", "Link Bungalow", "Bungalow land", "Twin Villa", "Shop", "Office", "Retail", "Commercial Land", "Factory", "Warehouse", "Industrial Land", "Agricultural Land", "Residential Land", "Mixed Development Land", "Leasehold", "Freehold"];
+const subtypeOptions = ["Penthouse", "Duplex", "Triplex", "Dual Key"];
+
+const homestayOptions = [
+  "Entire Place",
+  "Private Room",
+  "Shared Room",
+  "Serviced Apartment (Homestay)",
+];
+
+const hotelOptions = [
+  "Single Room",
+  "Double Room",
+  "Twin Room",
+  "Family Room",
+  "Suite",
+  "Villa",
+  "Resort Room",
+];
 
 const usageOptions = ["Residential", "Commercial", "Industrial", "Land"];
+
+const saleTypeOptions = [
+  "New Project / Under Construction",
+  "Completed Unit / Developer Unit",
+  "Subsale / Secondary Market",
+  "Auction Property",
+  "Rent-to-Own Scheme",
+];
 
 const affordableTypeOptions = [
   "Rumah Mampu Milik",
@@ -23,8 +48,19 @@ const affordableTypeOptions = [
 const tenureOptions = ["Freehold", "Leasehold", "Malay Reserved", "Bumi Lot"];
 
 const categoryOptions = {
-  "Bungalow / Villa": ["Bungalow", "Link Bungalow", "Twin Villa", "Zero-Lot Bungalow", "Bungalow land"],
-  "Apartment / Condo / Service Residence": ["Apartment", "Condominium", "Flat", "Service Residence"],
+  "Bungalow / Villa": [
+    "Bungalow",
+    "Link Bungalow",
+    "Twin Villa",
+    "Zero-Lot Bungalow",
+    "Bungalow land",
+  ],
+  "Apartment / Condo / Service Residence": [
+    "Apartment",
+    "Condominium",
+    "Flat",
+    "Service Residence",
+  ],
   "Semi-Detached House": ["Cluster House", "Semi-Detached House"],
   "Terrace / Link House": ["Terrace House", "Link House", "Townhouse"],
   "Business Property": ["Shop", "Office", "Retail", "Commercial Land"],
@@ -47,6 +83,24 @@ const ROOM_RENTAL_ELIGIBLE_CATEGORIES = new Set([
   "Bungalow / Villa",
 ]);
 
+function addCommas(s) {
+  const n = String(s ?? "").replace(/,/g, "").trim();
+  if (!n) return "";
+  if (!/^\d+$/.test(n)) return s;
+  return n.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+function toIntFromInput(v) {
+  const s = String(v ?? "").replace(/,/g, "").trim();
+  const n = Number(s);
+  if (!Number.isFinite(n)) return 0;
+  return Math.floor(n);
+}
+
+function clamp(n, min, max) {
+  return Math.max(min, Math.min(max, n));
+}
+
 export default function TypeSelector({
   value,
   onChange,
@@ -62,34 +116,25 @@ export default function TypeSelector({
   const [tenure, setTenure] = useState("");
   const [category, setCategory] = useState("");
   const [finalType, setFinalType] = useState("");
+
   const [subtype, setSubtype] = useState([]);
   const [auctionDate, setAuctionDate] = useState("");
+  const [showSubtype, setShowSubtype] = useState(false);
   const [storeys, setStoreys] = useState("");
 
-  // Rent: room rental
-  const [roomRentalMode, setRoomRentalMode] = useState("whole"); // whole | room
-  const [roomCountMode, setRoomCountMode] = useState("single"); // single | multi
+  // Rent room rental
+  const [roomRentalMode, setRoomRentalMode] = useState("whole");
+  const [roomCountMode, setRoomCountMode] = useState("single");
   const [roomCount, setRoomCount] = useState("1");
 
   // Rent batch: layout count
   const [layoutCountInput, setLayoutCountInput] = useState("2");
-
-  const [showSubtype, setShowSubtype] = useState(false);
-  const [subtypeOpen, setSubtypeOpen] = useState(false);
-  const subtypeRef = useRef(null);
-
   const [showLayoutSuggest, setShowLayoutSuggest] = useState(false);
-  const layoutInputRef = useRef(null);
-
-  const toIntFromInput = (v) => {
-    const s = String(v ?? "").replace(/,/g, "").trim();
-    const n = Number(s);
-    if (!Number.isFinite(n)) return 0;
-    return Math.floor(n);
-  };
-  const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 
   const layoutCount = clamp(toIntFromInput(layoutCountInput), 2, 20);
+
+  const subtypeRef = useRef(null);
+  const [subtypeOpen, setSubtypeOpen] = useState(false);
 
   useEffect(() => {
     const shouldShow =
@@ -109,8 +154,64 @@ export default function TypeSelector({
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
 
+  const toggleSubtype = (opt) => {
+    setSubtype((prev) => {
+      if (prev.includes(opt)) return prev.filter((x) => x !== opt);
+      return [...prev, opt];
+    });
+  };
+
+  const subtypeDisplayText = subtype.join(", ");
+
+  const isProjectStatus =
+    propertyStatus === "New Project / Under Construction" ||
+    propertyStatus === "Completed Unit / Developer Unit";
+
+  // ✅ 修复：Rent 批量时也要显示原本的选择框（不隐藏）
+  const showCategoryBlock =
+    (saleType === "Rent") ||
+    (saleType === "Sale" && !isProjectStatus);
+
+  const needStoreysForSale =
+    ["Subsale / Secondary Market", "Auction Property", "Rent-to-Own Scheme"].includes(propertyStatus) &&
+    NEED_STOREYS_CATEGORY.has(category);
+
+  // ✅ 修复：Rent 批量时 storeys 也不要消失
+  const needStoreysForRent = saleType === "Rent" && NEED_STOREYS_CATEGORY.has(category);
+
+  const showStoreys = needStoreysForSale || needStoreysForRent;
+
+  // ✅ 修复：Rent 批量时「出租房间」选择也不要被隐藏（并且切到 room 会自动关掉批量）
+  const showRoomRentalToggle =
+    saleType === "Rent" && ROOM_RENTAL_ELIGIBLE_CATEGORIES.has(category);
+
+  const hideBatchToggleBecauseRoomRental =
+    saleType === "Rent" && showRoomRentalToggle && roomRentalMode === "room";
+
+  const resetAll = () => {
+    setUsage("");
+    setPropertyStatus("");
+    setAffordable("");
+    setAffordableType("");
+    setTenure("");
+    setCategory("");
+    setFinalType("");
+    setSubtype([]);
+    setAuctionDate("");
+    setStoreys("");
+
+    setRoomRentalMode("whole");
+    setRoomCountMode("single");
+    setRoomCount("1");
+
+    setLayoutCountInput("2");
+    setShowLayoutSuggest(false);
+
+    onChangeRentBatchMode?.("no");
+  };
+
   useEffect(() => {
-    const form = {
+    onFormChange?.({
       saleType,
       usage,
       propertyStatus,
@@ -128,9 +229,7 @@ export default function TypeSelector({
       roomCount: Number(roomCount) || 1,
 
       layoutCount,
-    };
-
-    onFormChange?.(form);
+    });
   }, [
     saleType,
     usage,
@@ -150,27 +249,6 @@ export default function TypeSelector({
     onFormChange,
   ]);
 
-  const isProjectStatus =
-    propertyStatus === "New Project / Under Construction" ||
-    propertyStatus === "Completed Unit / Developer Unit";
-
-  const showCategoryBlock =
-    (saleType === "Rent") ||
-    (saleType === "Sale" && !isProjectStatus);
-
-  const needStoreysForSale =
-    ["Subsale / Secondary Market", "Auction Property", "Rent-to-Own Scheme"].includes(propertyStatus) &&
-    NEED_STOREYS_CATEGORY.has(category);
-
-  const needStoreysForRent = saleType === "Rent" && NEED_STOREYS_CATEGORY.has(category);
-  const showStoreys = needStoreysForSale || needStoreysForRent;
-
-  const showRoomRentalToggle =
-    saleType === "Rent" && ROOM_RENTAL_ELIGIBLE_CATEGORIES.has(category);
-
-  const hideBatchToggleBecauseRoomRental =
-    saleType === "Rent" && showRoomRentalToggle && roomRentalMode === "room";
-
   return (
     <div className="space-y-4">
       <div>
@@ -178,7 +256,11 @@ export default function TypeSelector({
         <select
           className="w-full border rounded p-2"
           value={saleType}
-          onChange={(e) => setSaleType(e.target.value)}
+          onChange={(e) => {
+            const next = e.target.value;
+            setSaleType(next);
+            resetAll();
+          }}
         >
           <option value="">请选择</option>
           <option value="Sale">Sale</option>
@@ -213,11 +295,11 @@ export default function TypeSelector({
               }}
             >
               <option value="">请选择</option>
-              <option value="New Project / Under Construction">New Project / Under Construction</option>
-              <option value="Completed Unit / Developer Unit">Completed Unit / Developer Unit</option>
-              <option value="Subsale / Secondary Market">Subsale / Secondary Market</option>
-              <option value="Auction Property">Auction Property</option>
-              <option value="Rent-to-Own Scheme">Rent-to-Own Scheme</option>
+              {saleTypeOptions.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -245,11 +327,7 @@ export default function TypeSelector({
           {affordable === "Yes" && (
             <div>
               <label className="block font-medium">Affordable Housing Type</label>
-              <select
-                className="w-full border rounded p-2"
-                value={affordableType}
-                onChange={(e) => setAffordableType(e.target.value)}
-              >
+              <select className="w-full border rounded p-2" value={affordableType} onChange={(e) => setAffordableType(e.target.value)}>
                 <option value="">请选择</option>
                 {affordableTypeOptions.map((t) => (
                   <option key={t} value={t}>
@@ -262,11 +340,7 @@ export default function TypeSelector({
 
           <div>
             <label className="block font-medium">Tenure Type</label>
-            <select
-              className="w-full border rounded p-2"
-              value={tenure}
-              onChange={(e) => setTenure(e.target.value)}
-            >
+            <select className="w-full border rounded p-2" value={tenure} onChange={(e) => setTenure(e.target.value)}>
               <option value="">请选择</option>
               {tenureOptions.map((t) => (
                 <option key={t} value={t}>
@@ -278,8 +352,84 @@ export default function TypeSelector({
         </>
       )}
 
-      {saleType === "Rent" && (
+      {/* ✅ Category/SubType/Storeys/Subtype（Rent 批量也不会隐藏） */}
+      {showCategoryBlock && saleType !== "Homestay" && saleType !== "Hotel/Resort" && (
         <>
+          <div>
+            <label className="block font-medium">Property Category</label>
+            <select
+              className="w-full border rounded p-2"
+              value={category}
+              onChange={(e) => {
+                const cat = e.target.value;
+                setCategory(cat);
+                setFinalType("");
+                setSubtype([]);
+              }}
+            >
+              <option value="">请选择</option>
+              {Object.keys(categoryOptions).map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {category && categoryOptions[category] && (
+            <div>
+              <label className="block font-medium">Sub Type</label>
+              <select className="w-full border rounded p-2" value={finalType} onChange={(e) => setFinalType(e.target.value)}>
+                <option value="">请选择具体类型</option>
+                {categoryOptions[category].map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {showStoreys && <FloorCountSelector value={storeys} onChange={(val) => setStoreys(val)} />}
+
+          {showSubtype && (
+            <div className="relative" ref={subtypeRef}>
+              <label className="block font-medium">Property Subtype</label>
+
+              <div className="w-full border rounded p-2 bg-white cursor-pointer" onClick={() => setSubtypeOpen((p) => !p)}>
+                {subtype.length === 0 ? (
+                  <span className="text-gray-400">请选择 subtype（可多选）</span>
+                ) : (
+                  <span className="font-medium">{subtypeDisplayText}</span>
+                )}
+              </div>
+
+              {subtypeOpen && (
+                <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+                  {subtypeOptions.map((opt) => {
+                    const selected = subtype.includes(opt);
+                    return (
+                      <div
+                        key={opt}
+                        className={`px-3 py-2 flex justify-between items-center cursor-pointer hover:bg-gray-100 ${
+                          selected ? "bg-gray-50 font-semibold" : ""
+                        }`}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          toggleSubtype(opt);
+                        }}
+                      >
+                        <span>{opt}</span>
+                        {selected && <span className="text-green-600">✅</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ✅ Rent 相关选择框放在这里：在 storeys / property subtype 下面 */}
           {showRoomRentalToggle && (
             <div className="mt-2 space-y-2">
               <label className="block text-sm font-medium text-gray-700">是否只是出租房间？</label>
@@ -289,7 +439,7 @@ export default function TypeSelector({
                 onChange={(e) => {
                   const v = e.target.value;
                   setRoomRentalMode(v);
-                  // ✅ 进入「出租房间」时强制关闭批量操作（避免残留 rentBatchMode="yes" 导致渲染出第1/第2房型表单）
+                  // 切到「出租房间」时，强制关闭批量操作，避免残留 rentBatchMode="yes" 导致出现「第1/第2房型」表单
                   if (v === "room") {
                     onChangeRentBatchMode?.("no");
                   }
@@ -341,122 +491,59 @@ export default function TypeSelector({
               <select
                 className="border rounded w-full p-2"
                 value={rentBatchMode}
-                onChange={(e) => onChangeRentBatchMode?.(e.target.value)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  onChangeRentBatchMode?.(v);
+                  if (v === "yes") {
+                    setLayoutCountInput("2");
+                    setShowLayoutSuggest(false);
+                  } else {
+                    setShowLayoutSuggest(false);
+                  }
+                }}
               >
-                <option value="no">否</option>
-                <option value="yes">是</option>
+                <option value="no">否，只是单一房源</option>
+                <option value="yes">是，这个项目有多个房型</option>
               </select>
             </div>
           )}
 
           {saleType === "Rent" && rentBatchMode === "yes" && !hideBatchToggleBecauseRoomRental && (
             <div className="relative mt-2 space-y-2">
-              <label className="block text-sm font-medium text-gray-700">这个项目有多少个房型 / Layout</label>
+              <label className="block text-sm font-medium text-gray-700">这个项目有多少个屋型 / Layout</label>
               <input
-                ref={layoutInputRef}
                 className="border rounded w-full p-2"
                 value={layoutCountInput}
-                onChange={(e) => setLayoutCountInput(e.target.value)}
+                onChange={(e) => {
+                  setLayoutCountInput(e.target.value);
+                  setShowLayoutSuggest(true);
+                }}
                 onFocus={() => setShowLayoutSuggest(true)}
-                onBlur={() => setTimeout(() => setShowLayoutSuggest(false), 150)}
+                onBlur={() => {
+                  setTimeout(() => setShowLayoutSuggest(false), 120);
+                  const n = clamp(toIntFromInput(layoutCountInput), 2, 20);
+                  setLayoutCountInput(addCommas(String(n)));
+                }}
+                inputMode="numeric"
                 placeholder="2 ~ 20"
               />
 
               {showLayoutSuggest && (
-                <div className="absolute z-50 mt-1 w-full border rounded bg-white shadow p-2 max-h-56 overflow-auto">
+                <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-auto">
                   {Array.from({ length: 19 }).map((_, i) => {
                     const v = String(i + 2);
                     return (
                       <div
                         key={v}
-                        className="px-2 py-1 hover:bg-gray-100 cursor-pointer rounded"
-                        onMouseDown={() => setLayoutCountInput(v)}
+                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setLayoutCountInput(v);
+                          setShowLayoutSuggest(false);
+                        }}
                       >
                         {v}
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-        </>
-      )}
-
-      {showCategoryBlock && saleType !== "Homestay" && saleType !== "Hotel/Resort" && (
-        <>
-          <div>
-            <label className="block font-medium">Property Category</label>
-            <select
-              className="w-full border rounded p-2"
-              value={category}
-              onChange={(e) => {
-                const cat = e.target.value;
-                setCategory(cat);
-                setFinalType("");
-                setSubtype([]);
-              }}
-            >
-              <option value="">请选择</option>
-              {Object.keys(categoryOptions).map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {category && categoryOptions[category] && (
-            <div>
-              <label className="block font-medium">Sub Type</label>
-              <select
-                className="w-full border rounded p-2"
-                value={finalType}
-                onChange={(e) => setFinalType(e.target.value)}
-              >
-                <option value="">请选择具体类型</option>
-                {categoryOptions[category].map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {showStoreys && (
-            <FloorCountSelector value={storeys} onChange={(val) => setStoreys(val)} />
-          )}
-
-          {showSubtype && (
-            <div className="relative" ref={subtypeRef}>
-              <label className="block font-medium">Property Subtype</label>
-
-              <div
-                className="w-full border rounded p-2 bg-white cursor-pointer"
-                onClick={() => setSubtypeOpen((v) => !v)}
-              >
-                {subtype.length > 0 ? subtype.join(", ") : "请选择 subtype（可多选）"}
-              </div>
-
-              {subtypeOpen && (
-                <div className="absolute z-50 mt-1 w-full max-h-64 overflow-auto border rounded bg-white p-2 shadow">
-                  {subtypeOptions.map((opt) => {
-                    const checked = subtype.includes(opt);
-                    return (
-                      <label key={opt} className="flex items-center gap-2 py-1">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => {
-                            setSubtype((prev) => {
-                              if (prev.includes(opt)) return prev.filter((x) => x !== opt);
-                              return [...prev, opt];
-                            });
-                          }}
-                        />
-                        <span>{opt}</span>
-                      </label>
                     );
                   })}
                 </div>
