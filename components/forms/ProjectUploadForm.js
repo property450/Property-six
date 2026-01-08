@@ -25,7 +25,6 @@ export default function ProjectUploadForm({
 
   enableProjectAutoCopy,
 
-  // 这些来自 upload-property.js 的常量/函数（你原本就有）
   LAYOUT_CATEGORY_OPTIONS = {},
 
   pickCommon = (l = {}) => ({
@@ -35,82 +34,66 @@ export default function ProjectUploadForm({
     transit: l.transit || null,
   }),
   cloneDeep = (v) => JSON.parse(JSON.stringify(v || {})),
-  commonHash = (l) => JSON.stringify({
-    extraSpaces: l?.extraSpaces || [],
-    furniture: l?.furniture || [],
-    facilities: l?.facilities || [],
-    transit: l?.transit || null,
-  }),
+  commonHash = (l) =>
+    JSON.stringify({
+      extraSpaces: l?.extraSpaces || [],
+      furniture: l?.furniture || [],
+      facilities: l?.facilities || [],
+      transit: l?.transit || null,
+    }),
 }) {
-  // ✅ 房型数量：来自 unitLayouts 长度（受控）
-  const layoutCount = useMemo(() => {
-    const arr = Array.isArray(unitLayouts) ? unitLayouts : [];
-    return arr.length;
-  }, [unitLayouts]);
+  /**
+   * ✅ 关键修复：
+   * layoutCount 不再从 unitLayouts.length 推导
+   * 而是独立 state，默认空白
+   */
+  const [layoutCount, setLayoutCount] = useState("");
 
-  // ✅ Bulk rent：统一 Category/SubType（保持你原本逻辑）
+  /**
+   * ✅ 切换 New Project / Completed Unit 时
+   * 重置 layout 数量 & 表单，避免残留
+   */
+  useEffect(() => {
+    setLayoutCount("");
+    setUnitLayouts([]);
+  }, [computedStatus, setUnitLayouts]);
+
   const categoryOptionsKeys = useMemo(
     () => Object.keys(LAYOUT_CATEGORY_OPTIONS || {}),
     [LAYOUT_CATEGORY_OPTIONS]
   );
 
-  // ✅ 选数量 -> 生成 layouts（不再依赖 normalizeLayoutsFromUnitTypeSelector）
+  /**
+   * ✅ 用户真的选了数量，才生成 layouts
+   * 范围：1 ~ 200
+   */
   const handleCountChange = (count) => {
-    const n = Number(count) || 0;
+    const n = Number(count);
+
+    setLayoutCount(count);
+
+    if (!Number.isFinite(n) || n <= 0) {
+      setUnitLayouts([]);
+      return;
+    }
 
     setUnitLayouts((prev) => {
       const oldList = Array.isArray(prev) ? prev : [];
       const next = [...oldList];
 
-      // 调整长度
-      if (n <= 0) return [];
       if (next.length < n) {
-        for (let i = next.length; i < n; i++) next.push(createEmptyLayout());
+        for (let i = next.length; i < n; i++) {
+          next.push(createEmptyLayout());
+        }
       } else if (next.length > n) {
         next.splice(n);
       }
 
-      // bulk rent：强制写入项目 category/subType
-      const merged = next.map((oldItem, idx) => {
-        const withProjectType =
-          isBulkRentProject && projectCategory
-            ? {
-                propertyCategory: projectCategory,
-                subType: projectSubType || oldItem?.subType || "",
-              }
-            : {};
-
-        // ✅ index0 永远不继承
-        // ✅ index>0 默认继承 true（除非旧的已经脱钩）
-        const inherit =
-          idx === 0
-            ? false
-            : typeof oldItem?._inheritCommon === "boolean"
-            ? oldItem._inheritCommon
-            : true;
-
-        return {
-          ...(oldItem || {}),
-          ...withProjectType,
-          _inheritCommon: inherit,
-        };
-      });
-
-      // ✅ 新增 layouts 时：立刻复制一次 layout0 的 common 给仍继承的
-      if (enableProjectAutoCopy && merged.length > 1) {
-        const common0 = pickCommon(merged[0] || {});
-        return merged.map((l, idx) => {
-          if (idx === 0) return l;
-          if (l._inheritCommon === false) return l;
-          return { ...l, ...cloneDeep(common0) };
-        });
-      }
-
-      return merged;
+      return next;
     });
   };
 
-  // ✅ 如果 bulk rent 选了 category/subType，确保同步到已有 layouts（你原本就这样做）
+  // bulk rent：同步 category / subtype（原逻辑不动）
   useEffect(() => {
     if (!isBulkRentProject) return;
     if (!projectCategory) return;
@@ -126,7 +109,7 @@ export default function ProjectUploadForm({
 
   return (
     <>
-      {/* Bulk Rent 项目：统一 Category/SubType（保持你原本 UI/逻辑） */}
+      {/* Bulk Rent 项目（你原本逻辑） */}
       {isBulkRentProject && (
         <div className="space-y-3 border rounded-lg p-3 bg-gray-50">
           <div>
@@ -138,7 +121,6 @@ export default function ProjectUploadForm({
                 setProjectCategory(cat);
                 setProjectSubType("");
 
-                // 同步到已存在 layouts（不破坏其它字段）
                 setUnitLayouts((prev) =>
                   (Array.isArray(prev) ? prev : []).map((l) => ({
                     ...(l || {}),
@@ -188,11 +170,16 @@ export default function ProjectUploadForm({
         </div>
       )}
 
-      {/* ✅ New Project / Completed Unit：房型数量（现在只用 count，不会再报 normalizeLayoutsFromUnitTypeSelector） */}
-      <UnitTypeSelector value={layoutCount} onChange={handleCountChange} />
+      {/* ✅ New Project / Completed Unit：Layout 数量（1 ~ 200，默认请选择） */}
+      <UnitTypeSelector
+        value={layoutCount}
+        onChange={handleCountChange}
+        min={1}
+        max={200}
+      />
 
-      {/* 渲染 layouts（保留你原本 UnitLayoutForm 的同步/脱钩逻辑） */}
-      {layoutCount > 0 && (
+      {/* Layout 表单 */}
+      {Number(layoutCount) > 0 && (
         <div className="space-y-4 mt-4">
           {(Array.isArray(unitLayouts) ? unitLayouts : []).map((layout, index) => (
             <UnitLayoutForm
@@ -211,7 +198,6 @@ export default function ProjectUploadForm({
                   const prevLayout = base[index] || {};
                   const updatedLayout = { ...prevLayout, ...updated };
 
-                  // 初始化 inherit flag
                   if (index === 0) updatedLayout._inheritCommon = false;
                   if (index > 0 && typeof updatedLayout._inheritCommon !== "boolean") {
                     updatedLayout._inheritCommon =
@@ -220,14 +206,21 @@ export default function ProjectUploadForm({
                         : true;
                   }
 
-                  const commonKeys = new Set(["extraSpaces", "furniture", "facilities", "transit"]);
+                  const commonKeys = new Set([
+                    "extraSpaces",
+                    "furniture",
+                    "facilities",
+                    "transit",
+                  ]);
 
-                  // 子 layout 改 common -> 脱钩
-                  if (enableProjectAutoCopy && meta?.commonField && commonKeys.has(meta.commonField)) {
+                  if (
+                    enableProjectAutoCopy &&
+                    meta?.commonField &&
+                    commonKeys.has(meta.commonField)
+                  ) {
                     if (index > 0) updatedLayout._inheritCommon = false;
                   }
 
-                  // 勾回“同步 Layout1”时：立刻把 Layout1 的 common 复制回来
                   if (enableProjectAutoCopy && meta?.inheritToggle && index > 0) {
                     if (updatedLayout._inheritCommon !== false) {
                       const common0 = pickCommon(base[0] || {});
@@ -235,25 +228,20 @@ export default function ProjectUploadForm({
                     }
                   }
 
-                  // 兜底：index>0 改了 common 就脱钩
                   if (enableProjectAutoCopy && index > 0) {
-                    const prevH = commonHash(prevLayout);
-                    const nextH = commonHash(updatedLayout);
-                    if (prevH !== nextH) updatedLayout._inheritCommon = false;
+                    if (commonHash(prevLayout) !== commonHash(updatedLayout)) {
+                      updatedLayout._inheritCommon = false;
+                    }
                   }
 
                   next[index] = updatedLayout;
 
-                  // index==0：改了 common，就同步到仍继承的 layout
                   if (enableProjectAutoCopy && index === 0) {
-                    const prevH = commonHash(prevLayout);
-                    const nextH = commonHash(updatedLayout);
-                    if (prevH !== nextH) {
+                    if (commonHash(prevLayout) !== commonHash(updatedLayout)) {
                       const common0 = pickCommon(updatedLayout);
                       for (let i = 1; i < next.length; i++) {
-                        const li = next[i] || {};
-                        if (li._inheritCommon !== false) {
-                          next[i] = { ...li, ...cloneDeep(common0) };
+                        if (next[i]?._inheritCommon !== false) {
+                          next[i] = { ...next[i], ...cloneDeep(common0) };
                         }
                       }
                     }
