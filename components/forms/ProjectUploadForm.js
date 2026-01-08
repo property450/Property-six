@@ -4,7 +4,9 @@
 import { useEffect, useMemo, useState } from "react";
 import UnitTypeSelector from "@/components/UnitTypeSelector";
 import UnitLayoutForm from "@/components/UnitLayoutForm";
+import BuildYearSelector from "@/components/BuildYearSelector";
 
+/* ===== 工具 ===== */
 function createEmptyLayout() {
   return {
     _uiId: `${Date.now()}_${Math.random().toString(16).slice(2)}`,
@@ -12,7 +14,13 @@ function createEmptyLayout() {
 }
 
 export default function ProjectUploadForm({
+  saleType,
   computedStatus,
+
+  // 项目级年份（由 upload-property.js 传入 singleFormData）
+  singleFormData,
+  setSingleFormData,
+
   isBulkRentProject,
 
   projectCategory,
@@ -42,34 +50,16 @@ export default function ProjectUploadForm({
       transit: l?.transit || null,
     }),
 }) {
-  /**
-   * ✅ 关键修复：
-   * layoutCount 不再从 unitLayouts.length 推导
-   * 而是独立 state，默认空白
-   */
+  /* ===== Layout 数量（不自动默认） ===== */
   const [layoutCount, setLayoutCount] = useState("");
 
-  /**
-   * ✅ 切换 New Project / Completed Unit 时
-   * 重置 layout 数量 & 表单，避免残留
-   */
   useEffect(() => {
     setLayoutCount("");
     setUnitLayouts([]);
   }, [computedStatus, setUnitLayouts]);
 
-  const categoryOptionsKeys = useMemo(
-    () => Object.keys(LAYOUT_CATEGORY_OPTIONS || {}),
-    [LAYOUT_CATEGORY_OPTIONS]
-  );
-
-  /**
-   * ✅ 用户真的选了数量，才生成 layouts
-   * 范围：1 ~ 200
-   */
   const handleCountChange = (count) => {
     const n = Number(count);
-
     setLayoutCount(count);
 
     if (!Number.isFinite(n) || n <= 0) {
@@ -78,8 +68,8 @@ export default function ProjectUploadForm({
     }
 
     setUnitLayouts((prev) => {
-      const oldList = Array.isArray(prev) ? prev : [];
-      const next = [...oldList];
+      const old = Array.isArray(prev) ? prev : [];
+      const next = [...old];
 
       if (next.length < n) {
         for (let i = next.length; i < n; i++) {
@@ -88,89 +78,56 @@ export default function ProjectUploadForm({
       } else if (next.length > n) {
         next.splice(n);
       }
-
       return next;
     });
   };
 
-  // bulk rent：同步 category / subtype（原逻辑不动）
-  useEffect(() => {
-    if (!isBulkRentProject) return;
-    if (!projectCategory) return;
+  /* ===== 是否 New Project ===== */
+  const isNewProject =
+    saleType === "Sale" &&
+    computedStatus === "New Project / Under Construction";
 
-    setUnitLayouts((prev) =>
-      (Array.isArray(prev) ? prev : []).map((l) => ({
-        ...(l || {}),
-        propertyCategory: projectCategory,
-        subType: projectSubType || "",
-      }))
-    );
-  }, [isBulkRentProject, projectCategory, projectSubType, setUnitLayouts]);
+  /* ===== 是否 Completed / Subsale / Auction / RTO ===== */
+  const isCompletedLike =
+    saleType === "Sale" &&
+    [
+      "Completed Unit / Developer Unit",
+      "Subsale / Secondary Market",
+      "Auction Property",
+      "Rent-to-Own Scheme",
+    ].includes(computedStatus);
 
   return (
-    <>
-      {/* Bulk Rent 项目（你原本逻辑） */}
-      {isBulkRentProject && (
-        <div className="space-y-3 border rounded-lg p-3 bg-gray-50">
-          <div>
-            <label className="font-medium">Property Category（整个项目）</label>
-            <select
-              value={projectCategory}
-              onChange={(e) => {
-                const cat = e.target.value;
-                setProjectCategory(cat);
-                setProjectSubType("");
+    <div className="space-y-4">
+      {/* ===== 年份选择（项目级） ===== */}
 
-                setUnitLayouts((prev) =>
-                  (Array.isArray(prev) ? prev : []).map((l) => ({
-                    ...(l || {}),
-                    propertyCategory: cat,
-                    subType: "",
-                  }))
-                );
-              }}
-              className="mt-1 block w-full border rounded-lg p-2"
-            >
-              <option value="">请选择类别</option>
-              {categoryOptionsKeys.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {projectCategory && LAYOUT_CATEGORY_OPTIONS?.[projectCategory] && (
-            <div>
-              <label className="font-medium">Sub Type（整个项目）</label>
-              <select
-                value={projectSubType}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setProjectSubType(val);
-
-                  setUnitLayouts((prev) =>
-                    (Array.isArray(prev) ? prev : []).map((l) => ({
-                      ...(l || {}),
-                      subType: val,
-                    }))
-                  );
-                }}
-                className="mt-1 block w-full border rounded-lg p-2"
-              >
-                <option value="">请选择具体类型</option>
-                {LAYOUT_CATEGORY_OPTIONS[projectCategory].map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-        </div>
+      {isNewProject && (
+        <BuildYearSelector
+          value={singleFormData?.buildYear}
+          onChange={(val) =>
+            setSingleFormData((p) => ({ ...p, buildYear: val }))
+          }
+          quarter={singleFormData?.quarter}
+          onQuarterChange={(val) =>
+            setSingleFormData((p) => ({ ...p, quarter: val }))
+          }
+          showQuarter
+          label="预计完成年份"
+        />
       )}
 
-      {/* ✅ New Project / Completed Unit：Layout 数量（1 ~ 200，默认请选择） */}
+      {isCompletedLike && (
+        <BuildYearSelector
+          value={singleFormData?.buildYear}
+          onChange={(val) =>
+            setSingleFormData((p) => ({ ...p, buildYear: val }))
+          }
+          showQuarter={false}
+          label="完成年份"
+        />
+      )}
+
+      {/* ===== Layout 数量 ===== */}
       <UnitTypeSelector
         value={layoutCount}
         onChange={handleCountChange}
@@ -178,82 +135,100 @@ export default function ProjectUploadForm({
         max={200}
       />
 
-      {/* Layout 表单 */}
+      {/* ===== Layout 表单 ===== */}
       {Number(layoutCount) > 0 && (
         <div className="space-y-4 mt-4">
-          {(Array.isArray(unitLayouts) ? unitLayouts : []).map((layout, index) => (
-            <UnitLayoutForm
-              key={layout?._uiId || index}
-              index={index}
-              data={layout}
-              projectCategory={projectCategory}
-              projectSubType={projectSubType}
-              lockCategory={isBulkRentProject}
-              enableCommonCopy={enableProjectAutoCopy}
-              onChange={(updated, meta) => {
-                setUnitLayouts((prev) => {
-                  const base = Array.isArray(prev) ? prev : [];
-                  const next = [...base];
+          {(Array.isArray(unitLayouts) ? unitLayouts : []).map(
+            (layout, index) => (
+              <UnitLayoutForm
+                key={layout?._uiId || index}
+                index={index}
+                data={layout}
+                projectCategory={projectCategory}
+                projectSubType={projectSubType}
+                lockCategory={isBulkRentProject}
+                enableCommonCopy={enableProjectAutoCopy}
+                onChange={(updated, meta) => {
+                  setUnitLayouts((prev) => {
+                    const base = Array.isArray(prev) ? prev : [];
+                    const next = [...base];
 
-                  const prevLayout = base[index] || {};
-                  const updatedLayout = { ...prevLayout, ...updated };
+                    const prevLayout = base[index] || {};
+                    const updatedLayout = {
+                      ...prevLayout,
+                      ...updated,
+                    };
 
-                  if (index === 0) updatedLayout._inheritCommon = false;
-                  if (index > 0 && typeof updatedLayout._inheritCommon !== "boolean") {
-                    updatedLayout._inheritCommon =
-                      typeof prevLayout._inheritCommon === "boolean"
-                        ? prevLayout._inheritCommon
-                        : true;
-                  }
-
-                  const commonKeys = new Set([
-                    "extraSpaces",
-                    "furniture",
-                    "facilities",
-                    "transit",
-                  ]);
-
-                  if (
-                    enableProjectAutoCopy &&
-                    meta?.commonField &&
-                    commonKeys.has(meta.commonField)
-                  ) {
-                    if (index > 0) updatedLayout._inheritCommon = false;
-                  }
-
-                  if (enableProjectAutoCopy && meta?.inheritToggle && index > 0) {
-                    if (updatedLayout._inheritCommon !== false) {
-                      const common0 = pickCommon(base[0] || {});
-                      Object.assign(updatedLayout, cloneDeep(common0));
+                    // ===== 以下保持你原本的复制 / 脱钩逻辑 =====
+                    if (index === 0) updatedLayout._inheritCommon = false;
+                    if (
+                      index > 0 &&
+                      typeof updatedLayout._inheritCommon !== "boolean"
+                    ) {
+                      updatedLayout._inheritCommon =
+                        typeof prevLayout._inheritCommon === "boolean"
+                          ? prevLayout._inheritCommon
+                          : true;
                     }
-                  }
 
-                  if (enableProjectAutoCopy && index > 0) {
-                    if (commonHash(prevLayout) !== commonHash(updatedLayout)) {
-                      updatedLayout._inheritCommon = false;
+                    const commonKeys = new Set([
+                      "extraSpaces",
+                      "furniture",
+                      "facilities",
+                      "transit",
+                    ]);
+
+                    if (
+                      enableProjectAutoCopy &&
+                      meta?.commonField &&
+                      commonKeys.has(meta.commonField)
+                    ) {
+                      if (index > 0) updatedLayout._inheritCommon = false;
                     }
-                  }
 
-                  next[index] = updatedLayout;
+                    if (enableProjectAutoCopy && meta?.inheritToggle && index > 0) {
+                      if (updatedLayout._inheritCommon !== false) {
+                        const common0 = pickCommon(base[0] || {});
+                        Object.assign(updatedLayout, cloneDeep(common0));
+                      }
+                    }
 
-                  if (enableProjectAutoCopy && index === 0) {
-                    if (commonHash(prevLayout) !== commonHash(updatedLayout)) {
-                      const common0 = pickCommon(updatedLayout);
-                      for (let i = 1; i < next.length; i++) {
-                        if (next[i]?._inheritCommon !== false) {
-                          next[i] = { ...next[i], ...cloneDeep(common0) };
+                    if (enableProjectAutoCopy && index > 0) {
+                      if (
+                        commonHash(prevLayout) !==
+                        commonHash(updatedLayout)
+                      ) {
+                        updatedLayout._inheritCommon = false;
+                      }
+                    }
+
+                    next[index] = updatedLayout;
+
+                    if (enableProjectAutoCopy && index === 0) {
+                      if (
+                        commonHash(prevLayout) !==
+                        commonHash(updatedLayout)
+                      ) {
+                        const common0 = pickCommon(updatedLayout);
+                        for (let i = 1; i < next.length; i++) {
+                          if (next[i]?._inheritCommon !== false) {
+                            next[i] = {
+                              ...next[i],
+                              ...cloneDeep(common0),
+                            };
+                          }
                         }
                       }
                     }
-                  }
 
-                  return next;
-                });
-              }}
-            />
-          ))}
+                    return next;
+                  });
+                }}
+              />
+            )
+          )}
         </div>
       )}
-    </>
+    </div>
   );
 }
