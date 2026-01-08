@@ -49,8 +49,19 @@ const tenureOptions = ["Freehold", "Leasehold", "Malay Reserved", "Bumi Lot"];
 
 // ✅✅✅ 这里就是你“之前的设计”的 categoryOptions（完全照回，不乱改）
 const categoryOptions = {
-  "Bungalow / Villa": ["Bungalow", "Link Bungalow", "Twin Villa", "Zero-Lot Bungalow", "Bungalow land"],
-  "Apartment / Condo / Service Residence": ["Apartment", "Condominium", "Flat", "Service Residence"],
+  "Bungalow / Villa": [
+    "Bungalow",
+    "Link Bungalow",
+    "Twin Villa",
+    "Zero-Lot Bungalow",
+    "Bungalow land",
+  ],
+  "Apartment / Condo / Service Residence": [
+    "Apartment",
+    "Condominium",
+    "Flat",
+    "Service Residence",
+  ],
   "Semi-Detached House": ["Cluster House", "Semi-Detached House"],
   "Terrace / Link House": ["Terrace House", "Link House", "Townhouse"],
   "Business Property": [
@@ -176,7 +187,7 @@ export default function TypeSelector({
   const [roomCountMode, setRoomCountMode] = useState("single");
   const [roomCount, setRoomCount] = useState("1");
 
-  // Rent batch: layout count
+  // Rent batch: layout count (✅ 这里也给 Sale Project 复用，不改你原本的 UI)
   const [layoutCountInput, setLayoutCountInput] = useState("2");
   const [showLayoutSuggest, setShowLayoutSuggest] = useState(false);
 
@@ -212,12 +223,15 @@ export default function TypeSelector({
 
   const subtypeDisplayText = subtype.join(", ");
 
+  // ✅ Sale Project statuses（New Project / Completed Unit Developer Unit）
   const isProjectStatus =
     propertyStatus === "New Project / Under Construction" ||
     propertyStatus === "Completed Unit / Developer Unit";
 
-  const showCategoryBlock =
-    saleType === "Rent" || (saleType === "Sale" && !isProjectStatus);
+  // ✅ 你要的：Sale 模式下 New Project / Completed Unit 都要有 layout 数量
+  const isSaleProject = saleType === "Sale" && isProjectStatus;
+
+  const showCategoryBlock = saleType === "Rent" || (saleType === "Sale" && !isProjectStatus);
 
   const needStoreysForSale =
     ["Subsale / Secondary Market", "Auction Property", "Rent-to-Own Scheme"].includes(propertyStatus) &&
@@ -227,8 +241,7 @@ export default function TypeSelector({
 
   const showStoreys = needStoreysForSale || needStoreysForRent;
 
-  const showRoomRentalToggle =
-    saleType === "Rent" && ROOM_RENTAL_ELIGIBLE_CATEGORIES.has(category);
+  const showRoomRentalToggle = saleType === "Rent" && ROOM_RENTAL_ELIGIBLE_CATEGORIES.has(category);
 
   const hideBatchToggleBecauseRoomRental =
     saleType === "Rent" && showRoomRentalToggle && roomRentalMode === "room";
@@ -394,6 +407,53 @@ export default function TypeSelector({
               ))}
             </select>
           </div>
+
+          {/* ✅✅✅ 关键新增：Sale 模式（New Project / Completed Unit Developer Unit）也显示 Layout 数量 */}
+          {isSaleProject && (
+            <div className="mt-2 space-y-2">
+              <label className="block text-sm font-medium text-gray-700">这个项目有多少个屋型 / Layout 数量</label>
+
+              <div className="relative">
+                <input
+                  className="border rounded w-full p-2"
+                  value={layoutCountInput}
+                  onChange={(e) => {
+                    setLayoutCountInput(e.target.value);
+                    setShowLayoutSuggest(true);
+                  }}
+                  onFocus={() => setShowLayoutSuggest(true)}
+                  onBlur={() => {
+                    setTimeout(() => setShowLayoutSuggest(false), 120);
+                    const n = clamp(toIntFromInput(layoutCountInput), 2, 20);
+                    setLayoutCountInput(addCommas(String(n)));
+                  }}
+                  inputMode="numeric"
+                  placeholder="2 ~ 20"
+                />
+
+                {showLayoutSuggest && (
+                  <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-auto">
+                    {Array.from({ length: 19 }).map((_, i) => {
+                      const v = String(i + 2);
+                      return (
+                        <div
+                          key={v}
+                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setLayoutCountInput(v);
+                            setShowLayoutSuggest(false);
+                          }}
+                        >
+                          {v}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </>
       )}
 
@@ -563,38 +623,4 @@ export default function TypeSelector({
                   onFocus={() => setShowLayoutSuggest(true)}
                   onBlur={() => {
                     setTimeout(() => setShowLayoutSuggest(false), 120);
-                    const n = clamp(toIntFromInput(layoutCountInput), 2, 20);
-                    setLayoutCountInput(addCommas(String(n)));
-                  }}
-                  inputMode="numeric"
-                  placeholder="2 ~ 20"
-                />
-
-                {showLayoutSuggest && (
-                  <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-auto">
-                    {Array.from({ length: 19 }).map((_, i) => {
-                      const v = String(i + 2);
-                      return (
-                        <div
-                          key={v}
-                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            setLayoutCountInput(v);
-                            setShowLayoutSuggest(false);
-                          }}
-                        >
-                          {v}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
+               
