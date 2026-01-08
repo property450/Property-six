@@ -4,7 +4,6 @@
 import { useEffect, useMemo, useState } from "react";
 import UnitTypeSelector from "@/components/UnitTypeSelector";
 import UnitLayoutForm from "@/components/UnitLayoutForm";
-import BuildYearSelector from "@/components/BuildYearSelector";
 
 function createEmptyLayout() {
   return {
@@ -16,7 +15,7 @@ export default function ProjectUploadForm({
   saleType,
   computedStatus,
 
-  // ✅ 项目级年份存在 singleFormData
+  // ✅ 保留 props（不动你原本传参/结构），但不再在这里显示年份，避免重复
   singleFormData,
   setSingleFormData,
 
@@ -133,44 +132,8 @@ export default function ProjectUploadForm({
     );
   }, [isBulkRentProject, projectCategory, projectSubType, setUnitLayouts]);
 
-  // ✅ 年份显示规则（按你要求）
-  const isNewProject =
-    saleType === "Sale" &&
-    computedStatus === "New Project / Under Construction";
-
-  const isCompletedLike =
-    saleType === "Sale" &&
-    [
-      "Completed Unit / Developer Unit",
-      "Subsale / Secondary Market",
-      "Auction Property",
-      "Rent-to-Own Scheme",
-    ].includes(computedStatus);
-
   return (
     <>
-      {/* ✅✅✅ 项目级：预计完成年份 + 季度（New Project） */}
-      {isNewProject && (
-        <BuildYearSelector
-          value={singleFormData?.buildYear}
-          onChange={(val) => setSingleFormData((p) => ({ ...p, buildYear: val }))}
-          quarter={singleFormData?.quarter}
-          onQuarterChange={(val) => setSingleFormData((p) => ({ ...p, quarter: val }))}
-          showQuarter
-          label="预计完成年份"
-        />
-      )}
-
-      {/* ✅✅✅ 项目级：完成年份（Completed / Subsale / Auction / RTO） */}
-      {isCompletedLike && (
-        <BuildYearSelector
-          value={singleFormData?.buildYear}
-          onChange={(val) => setSingleFormData((p) => ({ ...p, buildYear: val }))}
-          showQuarter={false}
-          label="完成年份"
-        />
-      )}
-
       {/* Bulk Rent 项目：保留你的 UI */}
       {isBulkRentProject && (
         <div className="space-y-3 border rounded-lg p-3 bg-gray-50">
@@ -233,12 +196,7 @@ export default function ProjectUploadForm({
       )}
 
       {/* ✅ Layout 数量（1~200 由 UnitTypeSelector 控制） */}
-      <UnitTypeSelector
-        value={layoutCount}
-        onChange={handleCountChange}
-        min={1}
-        max={200}
-      />
+      <UnitTypeSelector value={layoutCount} onChange={handleCountChange} min={1} max={200} />
 
       {/* layouts */}
       {Number(layoutCount) > 0 && (
@@ -248,8 +206,6 @@ export default function ProjectUploadForm({
               key={layout?._uiId || index}
               index={index}
               data={layout}
-              saleType={saleType}                 // ✅ 新增：给 UnitLayoutForm 判断停车位范围用
-              computedStatus={computedStatus}     // ✅ 新增：给 UnitLayoutForm 判断停车位范围用
               projectCategory={projectCategory}
               projectSubType={projectSubType}
               lockCategory={isBulkRentProject}
