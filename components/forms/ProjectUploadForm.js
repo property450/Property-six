@@ -206,6 +206,8 @@ export default function ProjectUploadForm({
               key={layout?._uiId || index}
               index={index}
               data={layout}
+              saleType={saleType}               // ✅ 加回这行
+              computedStatus={computedStatus}
               projectCategory={projectCategory}
               projectSubType={projectSubType}
               lockCategory={isBulkRentProject}
