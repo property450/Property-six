@@ -233,7 +233,12 @@ export default function ProjectUploadForm({
       )}
 
       {/* ✅ Layout 数量（1~200 由 UnitTypeSelector 控制） */}
-      <UnitTypeSelector value={layoutCount} onChange={handleCountChange} min={1} max={200} />
+      <UnitTypeSelector
+        value={layoutCount}
+        onChange={handleCountChange}
+        min={1}
+        max={200}
+      />
 
       {/* layouts */}
       {Number(layoutCount) > 0 && (
@@ -243,6 +248,8 @@ export default function ProjectUploadForm({
               key={layout?._uiId || index}
               index={index}
               data={layout}
+              saleType={saleType}                 // ✅ 新增：给 UnitLayoutForm 判断停车位范围用
+              computedStatus={computedStatus}     // ✅ 新增：给 UnitLayoutForm 判断停车位范围用
               projectCategory={projectCategory}
               projectSubType={projectSubType}
               lockCategory={isBulkRentProject}
