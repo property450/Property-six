@@ -68,9 +68,6 @@ export default function UploadPropertyPage() {
     [
       "New Project / Under Construction",
       "Completed Unit / Developer Unit",
-      "Subsale / Secondary Market",
-      "Auction Property",
-      "Rent-to-Own Scheme",
     ].includes(computedStatus);
 
   const rentCategorySelected = !!(typeForm && (typeForm.category || typeForm.propertyCategory));
