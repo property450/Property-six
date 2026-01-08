@@ -1,7 +1,7 @@
 // pages/upload-property.js
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import dynamic from "next/dynamic";
 import { supabase } from "../supabaseClient";
@@ -87,6 +87,7 @@ export default function UploadPropertyPage() {
         : 1
       : 1;
 
+  // ✅ Rent Batch：根据 layoutCount 生成 unitLayouts（你原本就有）
   useEffect(() => {
     if (!isRentBatch) return;
 
@@ -97,6 +98,7 @@ export default function UploadPropertyPage() {
     });
   }, [isRentBatch, batchLayoutCount]);
 
+  // ✅ Rent：出租房间 + 非 batch 时，单房间不需要 unitLayouts（你原本就有）
   useEffect(() => {
     if (saleTypeNorm !== "rent") return;
     if (roomRentalMode !== "room") return;
@@ -106,6 +108,31 @@ export default function UploadPropertyPage() {
       setUnitLayouts([]);
     }
   }, [saleTypeNorm, roomRentalMode, isRentBatch, roomLayoutCount]);
+
+  // ✅✅✅【新增：Completed Unit / Developer Unit】也要像 New Project 那样生成对应数量的上传表单
+  // 注意：你的 TypeSelector Sale status 文案是 "Completed Unit / Developer Unit"
+  const isSaleCompletedUnit = saleTypeNorm === "sale" && computedStatus === "Completed Unit / Developer Unit";
+
+  // 离开 Completed Unit 时，避免残留把别的模式搞乱
+  const prevSaleCompletedRef = useRef(false);
+
+  useEffect(() => {
+    // 如果刚从 Completed Unit 离开：清掉由 Completed Unit 产生的 layouts，避免残留
+    if (prevSaleCompletedRef.current && !isSaleCompletedUnit) {
+      setUnitLayouts([]);
+    }
+    prevSaleCompletedRef.current = isSaleCompletedUnit;
+  }, [isSaleCompletedUnit]);
+
+  useEffect(() => {
+    if (!isSaleCompletedUnit) return;
+
+    const n = Math.max(2, Math.min(20, Number.isFinite(rawLayoutCount) ? rawLayoutCount : 2));
+    setUnitLayouts((prev) => {
+      const prevArr = Array.isArray(prev) ? prev : [];
+      return Array.from({ length: n }).map((_, i) => prevArr[i] || {});
+    });
+  }, [isSaleCompletedUnit, rawLayoutCount]);
 
   const handleSubmit = async () => {
     try {
