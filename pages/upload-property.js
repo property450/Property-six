@@ -77,10 +77,16 @@ export default function UploadPropertyPage() {
   const rawLayoutCount = Number(typeForm?.layoutCount);
 
   // ✅ 批量：最少 2（原样）
-  const batchLayoutCount = Math.max(2, Math.min(20, Number.isFinite(rawLayoutCount) ? rawLayoutCount : 2));
+  const batchLayoutCount = Math.max(
+    2,
+    Math.min(20, Number.isFinite(rawLayoutCount) ? rawLayoutCount : 2)
+  );
 
-  // ✅ 房间出租：允许 1（关键修复）
-  const roomLayoutCount = Math.max(1, Math.min(20, Number.isFinite(rawLayoutCount) ? rawLayoutCount : 1));
+  // ✅ 房间出租：允许 1
+  const roomLayoutCount = Math.max(
+    1,
+    Math.min(20, Number.isFinite(rawLayoutCount) ? rawLayoutCount : 1)
+  );
 
   const isRentBatch = saleTypeNorm === "rent" && rentBatchMode === "yes";
 
@@ -94,6 +100,17 @@ export default function UploadPropertyPage() {
       return Array.from({ length: n }).map((_, i) => prevArr[i] || {});
     });
   }, [isRentBatch, batchLayoutCount]);
+
+  // ✅✅✅ 保险修复：回到单房间时清空 unitLayouts，避免残留导致继续渲染多个房间表单
+  useEffect(() => {
+    if (saleTypeNorm !== "rent") return;
+    if (roomRentalMode !== "room") return;
+    if (isRentBatch) return;
+
+    if (roomLayoutCount <= 1) {
+      setUnitLayouts([]);
+    }
+  }, [saleTypeNorm, roomRentalMode, isRentBatch, roomLayoutCount]);
 
   const handleSubmit = async () => {
     try {
@@ -165,7 +182,7 @@ export default function UploadPropertyPage() {
           description={description}
           setDescription={setDescription}
           rentBatchMode={rentBatchMode}
-          // ✅ 关键：批量用 batchLayoutCount；房间出租用 roomLayoutCount
+          // ✅ 批量用 batchLayoutCount；房间出租用 roomLayoutCount
           layoutCount={isRentBatch ? batchLayoutCount : roomLayoutCount}
           unitLayouts={unitLayouts}
           setUnitLayouts={setUnitLayouts}
