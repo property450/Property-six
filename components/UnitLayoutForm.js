@@ -49,6 +49,10 @@ export default function UnitLayoutForm({
   projectSubType,
   lockCategory = false,
   enableCommonCopy = false,
+
+  // ✅ 新增：从 ProjectUploadForm 传入（只用于判断停车位范围，不动其它逻辑）
+  saleType,
+  computedStatus,
 }) {
   const layout = data || {};
   const fileInputRef = useRef(null);
@@ -56,17 +60,18 @@ export default function UnitLayoutForm({
   // ✅ New Project：Layout2+ 是否跟随 Layout1（默认跟随）
   const isInheritingCommon = index > 0 ? layout._inheritCommon !== false : false;
 
-  const projectType = layout.projectType;
-  const rentMode = layout.rentMode;
+  // ✅ 关键：不要依赖 layout.projectType（很多时候为空）
+  const effectiveProjectType = layout.projectType || computedStatus || "";
+  const effectiveRentMode = layout.rentMode || saleType || "";
 
-  const isNewProject = projectType === "New Project / Under Construction";
-  const isCompletedProject = projectType === "Completed Unit / Developer Unit";
+  const isNewProject = effectiveProjectType === "New Project / Under Construction";
+  const isCompletedProject = effectiveProjectType === "Completed Unit / Developer Unit";
 
   // 只有 Sale 的项目，需要显示年份；Rent / Homestay / Hotel 都不要
-  const showBuildYear = rentMode === "Sale" && (isNewProject || isCompletedProject);
+  const showBuildYear = effectiveRentMode === "Sale" && (isNewProject || isCompletedProject);
 
   // ⭐ 批量 Rent 的 Layout
-  const isBulkRent = layout.rentMode === "Rent";
+  const isBulkRent = effectiveRentMode === "Rent";
 
   // Category / SubType / 层数
   const [category, setCategory] = useState(
@@ -368,7 +373,7 @@ export default function UnitLayoutForm({
           handleFieldChange("price", val);
         }}
         listingMode={isBulkRent ? "Rent" : undefined}
-        type={isBulkRent ? undefined : layout.projectType}
+        type={isBulkRent ? undefined : effectiveProjectType}
       />
 
       {psfText && <p className="text-sm text-gray-600 mt-1">{psfText}</p>}
@@ -386,18 +391,14 @@ export default function UnitLayoutForm({
         }}
       />
 
+      {/* ✅✅✅ 关键：New Project / Completed Unit 一定切 range（用 effectiveProjectType 判断） */}
       <CarparkCountSelector
         value={photoConfig.carpark}
         onChange={(val) => {
           setPhotoConfig((prev) => ({ ...prev, carpark: val }));
           handleFieldChange("carpark", val);
         }}
-        mode={
-          layout.projectType === "New Project / Under Construction" ||
-          layout.projectType === "Completed Unit / Developer Unit"
-            ? "range"
-            : "single"
-        }
+        mode={isNewProject || isCompletedProject ? "range" : "single"}
       />
 
       <ExtraSpacesSelector
