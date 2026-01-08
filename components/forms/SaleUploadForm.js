@@ -17,6 +17,19 @@ import ImageUpload from "@/components/ImageUpload";
 // ✅ 这里导入的 convertToSqft 现在在 psfUtils.js 里有导出了
 import { convertToSqft } from "@/utils/psfUtils";
 
+function toNumber(v) {
+  const n = Number(String(v ?? "").replace(/,/g, "").trim());
+  return Number.isFinite(n) ? n : 0;
+}
+
+function formatMoney(n) {
+  if (!Number.isFinite(n) || n <= 0) return "";
+  return n.toLocaleString("en-MY", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
 export default function SaleUploadForm({
   saleType,
   computedStatus,
@@ -32,6 +45,36 @@ export default function SaleUploadForm({
 
   photoConfig,
 }) {
+  // ===== PSF 计算：让 Subsale / Auction / Rent-to-Own 也有 PSF（跟你之前设计一致）=====
+  const buildUpSqft = convertToSqft(
+    areaData?.values?.buildUp,
+    areaData?.units?.buildUp
+  );
+
+  const landSqft = convertToSqft(
+    areaData?.values?.land,
+    areaData?.units?.land
+  );
+
+  // 优先 build up，没有才用 land
+  const areaSqft = buildUpSqft || landSqft;
+
+  // 你当前主用单价字段：singleFormData.price
+  const priceSingle = toNumber(singleFormData?.price);
+
+  // 预留（如果你未来有区间价，这里也能直接显示 range PSF）
+  const priceMin = toNumber(singleFormData?.priceMin);
+  const priceMax = toNumber(singleFormData?.priceMax);
+
+  const psfSingle =
+    areaSqft > 0 && priceSingle > 0 ? priceSingle / areaSqft : 0;
+
+  const psfMin = areaSqft > 0 && priceMin > 0 ? priceMin / areaSqft : 0;
+  const psfMax = areaSqft > 0 && priceMax > 0 ? priceMax / areaSqft : 0;
+
+  const showPsfRange = psfMin > 0 && psfMax > 0;
+  const showPsfSingle = !showPsfRange && psfSingle > 0;
+
   return (
     <div className="space-y-4">
       <AreaSelector initialValue={areaData} onChange={(val) => setAreaData(val)} />
@@ -45,6 +88,19 @@ export default function SaleUploadForm({
           land: convertToSqft(areaData.values.land, areaData.units.land),
         }}
       />
+
+      {/* ✅✅✅ PSF 显示：全部 Sale 模式都能看到（Subsale/Auction/RTO 也有） */}
+      {showPsfRange && (
+        <div className="text-sm text-gray-600 mt-1">
+          每平方英尺: RM {formatMoney(psfMin)} ~ RM {formatMoney(psfMax)}
+        </div>
+      )}
+
+      {showPsfSingle && (
+        <div className="text-sm text-gray-600 mt-1">
+          每平方英尺: RM {formatMoney(psfSingle)}
+        </div>
+      )}
 
       <RoomCountSelector
         value={{
