@@ -73,13 +73,12 @@ export default function UploadPropertyPage() {
   const rentCategorySelected = !!(typeForm && (typeForm.category || typeForm.propertyCategory));
   const allowRentBatchMode = saleTypeNorm === "rent" && rentCategorySelected;
 
-  const isRentBatch = saleTypeNorm === "rent" && rentBatchMode === "yes";
+  // ✅✅✅ 关键：房间出租时不允许进入 batch
+  const isRentBatch = saleTypeNorm === "rent" && rentBatchMode === "yes" && roomRentalMode !== "room";
 
-  // ✅ 批量：Layout 数量（TypeSelector 的 layoutCount，固定 2~20）
   const rawLayoutCount = Number(typeForm?.layoutCount);
   const batchLayoutCount = Math.max(2, Math.min(20, Number.isFinite(rawLayoutCount) ? rawLayoutCount : 2));
 
-  // ✅✅✅ 房间出租：用 TypeSelector 的 roomCount / roomCountMode（单房间=1，多房间=2~20）
   const rawRoomCount = Number(typeForm?.roomCount);
   const roomLayoutCount =
     roomRentalMode === "room"
@@ -88,7 +87,6 @@ export default function UploadPropertyPage() {
         : 1
       : 1;
 
-  // ✅ 批量时才生成 unitLayouts（原样）
   useEffect(() => {
     if (!isRentBatch) return;
 
@@ -99,7 +97,6 @@ export default function UploadPropertyPage() {
     });
   }, [isRentBatch, batchLayoutCount]);
 
-  // ✅ 保险：Rent + 房间出租（非批量）时，如果回到单房间，必须清空 unitLayouts，避免残留继续渲染「房间1/房间2」
   useEffect(() => {
     if (saleTypeNorm !== "rent") return;
     if (roomRentalMode !== "room") return;
@@ -159,9 +156,7 @@ export default function UploadPropertyPage() {
           setProjectSubType={setProjectSubType}
           unitLayouts={unitLayouts}
           setUnitLayouts={setUnitLayouts}
-          enableProjectAutoCopy={
-            saleTypeNorm === "sale" && computedStatus === "New Project / Under Construction"
-          }
+          enableProjectAutoCopy={saleTypeNorm === "sale" && computedStatus === "New Project / Under Construction"}
           cloneDeep={cloneDeep}
           pickCommon={pickCommon}
           commonHash={commonHash}
@@ -179,7 +174,6 @@ export default function UploadPropertyPage() {
           description={description}
           setDescription={setDescription}
           rentBatchMode={rentBatchMode}
-          // ✅✅✅ 批量用 batchLayoutCount；房间出租用 roomLayoutCount（这就是修复点）
           layoutCount={isRentBatch ? batchLayoutCount : roomLayoutCount}
           unitLayouts={unitLayouts}
           setUnitLayouts={setUnitLayouts}
@@ -197,10 +191,7 @@ export default function UploadPropertyPage() {
         />
       )}
 
-      <Button
-        onClick={handleSubmit}
-        className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full"
-      >
+      <Button onClick={handleSubmit} className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full">
         提交房源
       </Button>
     </div>
