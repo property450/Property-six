@@ -187,7 +187,7 @@ export default function TypeSelector({
   const [roomCountMode, setRoomCountMode] = useState("single");
   const [roomCount, setRoomCount] = useState("1");
 
-  // Rent batch: layout count (✅ 这里也给 Sale Project 复用，不改你原本的 UI)
+  // layout count（Rent 批量 + Sale Completed Unit 复用同一个输入）
   const [layoutCountInput, setLayoutCountInput] = useState("2");
   const [showLayoutSuggest, setShowLayoutSuggest] = useState(false);
 
@@ -228,8 +228,11 @@ export default function TypeSelector({
     propertyStatus === "New Project / Under Construction" ||
     propertyStatus === "Completed Unit / Developer Unit";
 
-  // ✅ 你要的：Sale 模式下 New Project / Completed Unit 都要有 layout 数量
-  const isSaleProject = saleType === "Sale" && isProjectStatus;
+  // ✅✅✅ 关键修复：
+  // New Project 本来 ProjectUploadForm 已经有 Layout 数量 -> TypeSelector 不要再显示，避免重复
+  // 只在 Completed Unit / Developer Unit 才在 TypeSelector 显示 Layout 数量
+  const showSaleLayoutCountHere =
+    saleType === "Sale" && propertyStatus === "Completed Unit / Developer Unit";
 
   const showCategoryBlock = saleType === "Rent" || (saleType === "Sale" && !isProjectStatus);
 
@@ -332,7 +335,11 @@ export default function TypeSelector({
         <>
           <div>
             <label className="block font-medium">Property Usage</label>
-            <select className="w-full border rounded p-2" value={usage} onChange={(e) => setUsage(e.target.value)}>
+            <select
+              className="w-full border rounded p-2"
+              value={usage}
+              onChange={(e) => setUsage(e.target.value)}
+            >
               <option value="">请选择用途</option>
               {usageOptions.map((u) => (
                 <option key={u} value={u}>
@@ -375,7 +382,11 @@ export default function TypeSelector({
 
           <div>
             <label className="block font-medium">Affordable Housing</label>
-            <select className="w-full border rounded p-2" value={affordable} onChange={(e) => setAffordable(e.target.value)}>
+            <select
+              className="w-full border rounded p-2"
+              value={affordable}
+              onChange={(e) => setAffordable(e.target.value)}
+            >
               <option value="">是否属于政府可负担房屋计划？</option>
               <option value="Yes">是</option>
               <option value="No">否</option>
@@ -385,7 +396,11 @@ export default function TypeSelector({
           {affordable === "Yes" && (
             <div>
               <label className="block font-medium">Affordable Housing Type</label>
-              <select className="w-full border rounded p-2" value={affordableType} onChange={(e) => setAffordableType(e.target.value)}>
+              <select
+                className="w-full border rounded p-2"
+                value={affordableType}
+                onChange={(e) => setAffordableType(e.target.value)}
+              >
                 <option value="">请选择</option>
                 {affordableTypeOptions.map((t) => (
                   <option key={t} value={t}>
@@ -398,7 +413,11 @@ export default function TypeSelector({
 
           <div>
             <label className="block font-medium">Tenure Type</label>
-            <select className="w-full border rounded p-2" value={tenure} onChange={(e) => setTenure(e.target.value)}>
+            <select
+              className="w-full border rounded p-2"
+              value={tenure}
+              onChange={(e) => setTenure(e.target.value)}
+            >
               <option value="">请选择</option>
               {tenureOptions.map((t) => (
                 <option key={t} value={t}>
@@ -408,10 +427,12 @@ export default function TypeSelector({
             </select>
           </div>
 
-          {/* ✅✅✅ 关键新增：Sale 模式（New Project / Completed Unit Developer Unit）也显示 Layout 数量 */}
-          {isSaleProject && (
+          {/* ✅✅✅ 只在 Completed Unit / Developer Unit 显示，避免 New Project 出现两个 */}
+          {showSaleLayoutCountHere && (
             <div className="mt-2 space-y-2">
-              <label className="block text-sm font-medium text-gray-700">这个项目有多少个屋型 / Layout 数量</label>
+              <label className="block text-sm font-medium text-gray-700">
+                这个项目有多少个屋型 / Layout 数量
+              </label>
 
               <div className="relative">
                 <input
@@ -483,7 +504,11 @@ export default function TypeSelector({
           {category && categoryOptions[category] && (
             <div>
               <label className="block font-medium">Sub Type</label>
-              <select className="w-full border rounded p-2" value={finalType} onChange={(e) => setFinalType(e.target.value)}>
+              <select
+                className="w-full border rounded p-2"
+                value={finalType}
+                onChange={(e) => setFinalType(e.target.value)}
+              >
                 <option value="">请选择具体类型</option>
                 {categoryOptions[category].map((item) => (
                   <option key={item} value={item}>
@@ -500,7 +525,10 @@ export default function TypeSelector({
             <div className="relative" ref={subtypeRef}>
               <label className="block font-medium">Property Subtype</label>
 
-              <div className="w-full border rounded p-2 bg-white cursor-pointer" onClick={() => setSubtypeOpen((p) => !p)}>
+              <div
+                className="w-full border rounded p-2 bg-white cursor-pointer"
+                onClick={() => setSubtypeOpen((p) => !p)}
+              >
                 {subtype.length === 0 ? (
                   <span className="text-gray-400">请选择 subtype（可多选）</span>
                 ) : (
@@ -543,7 +571,6 @@ export default function TypeSelector({
                 onChange={(e) => {
                   const v = e.target.value;
                   setRoomRentalMode(v);
-                  // ✅ 唯一新增：切到“出租房间”自动关闭批量，避免残留导致出现第1/第2房型表单
                   if (v === "room") {
                     onChangeRentBatchMode?.("no");
                   }
@@ -575,7 +602,11 @@ export default function TypeSelector({
                   {roomCountMode === "multi" && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700">选择房间数量</label>
-                      <select className="border rounded w-full p-2" value={roomCount} onChange={(e) => setRoomCount(e.target.value)}>
+                      <select
+                        className="border rounded w-full p-2"
+                        value={roomCount}
+                        onChange={(e) => setRoomCount(e.target.value)}
+                      >
                         {Array.from({ length: 19 }, (_, i) => String(i + 2)).map((n) => (
                           <option key={n} value={n}>
                             {n}
@@ -591,7 +622,7 @@ export default function TypeSelector({
         </>
       )}
 
-      {/* ✅ Rent：批量操作（保持原逻辑，不乱动，只保留你原本的显示/文字） */}
+      {/* ✅ Rent：批量操作（保持原逻辑，不乱动） */}
       {saleType === "Rent" && !!category && !hideBatchToggleBecauseRoomRental && (
         <div className="mt-2 space-y-2">
           <label className="block text-sm font-medium text-gray-700">需要批量操作吗？</label>
@@ -610,7 +641,9 @@ export default function TypeSelector({
 
           {rentBatchMode === "yes" && (
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">这个项目有多少个屋型 / Layout 数量</label>
+              <label className="block text-sm font-medium text-gray-700">
+                这个项目有多少个屋型 / Layout 数量
+              </label>
 
               <div className="relative">
                 <input
