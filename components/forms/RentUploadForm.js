@@ -1,6 +1,8 @@
 // components/forms/RentUploadForm.js
 "use client";
 
+import { useEffect } from "react";
+
 import AreaSelector from "@/components/AreaSelector";
 import PriceInput from "@/components/PriceInput";
 import RoomRentalForm from "@/components/RoomRentalForm";
@@ -46,6 +48,37 @@ export default function RentUploadForm({
       return arr;
     });
   };
+
+  // =========================================================
+  // ✅✅✅ 关键修复：房间出租（非批量）时同步 / 清空 unitLayouts
+  // 规则：
+  // - 只有「房间出租 + 房间数量 > 1」才需要 unitLayouts
+  // - 一旦回到 1（或不是房间出租），必须清空 unitLayouts，避免继续渲染 房间1/房间2
+  // =========================================================
+  const roomCount = Math.max(1, Math.min(20, Number(layoutCount) || 1));
+
+  useEffect(() => {
+    // 批量模式不动（保持你原本逻辑）
+    if (isBatch) return;
+
+    // 不是房间出租：不需要多房间数组
+    if (!isRoomRental) {
+      setUnitLayouts?.([]);
+      return;
+    }
+
+    // 房间出租但只有 1：强制清空，确保不会出现 房间1/房间2
+    if (roomCount <= 1) {
+      setUnitLayouts?.([]);
+      return;
+    }
+
+    // 房间出租且 >1：保证 unitLayouts 长度正确（不足补空对象，多余截断）
+    setUnitLayouts?.((prev) => {
+      const prevArr = Array.isArray(prev) ? prev : [];
+      return Array.from({ length: roomCount }).map((_, i) => prevArr[i] || {});
+    });
+  }, [isBatch, isRoomRental, roomCount, setUnitLayouts]);
 
   /* =========================================================
      ✅ 批量模式（保持你原本的，完全不动）
@@ -133,9 +166,8 @@ export default function RentUploadForm({
      ✅ 非批量模式
      ========================================================= */
 
-  // ✅ 关键：只有 layoutCount > 1 才算“多个房间”
-  const roomCount = Math.max(1, Math.min(20, Number(layoutCount) || 1));
-  const isMultiRoom = isRoomRental && roomCount > 1;
+  // ✅ 多房间成立条件：房间出租 + roomCount>1 + unitLayouts 已经被同步到对应长度
+  const isMultiRoom = isRoomRental && roomCount > 1 && Array.isArray(unitLayouts) && unitLayouts.length === roomCount;
 
   return (
     <div className="space-y-6">
@@ -158,7 +190,7 @@ export default function RentUploadForm({
             })}
           </div>
         ) : (
-          // ✅ 单房间：只显示一个 RoomRentalForm（保持你原来的行为）
+          // ✅ 单房间：只显示一个 RoomRentalForm
           <RoomRentalForm
             value={singleFormData}
             onChange={(next) => setSingleFormData((p) => ({ ...p, ...next }))}
