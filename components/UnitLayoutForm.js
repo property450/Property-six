@@ -29,10 +29,15 @@ import { getPhotoLabelsFromConfig } from "@/utils/photoLabelUtils";
 function getSelectClass(value, disabled = false) {
   const base =
     "w-full rounded-lg border px-3 py-2 outline-none focus:ring-2 focus:ring-blue-200";
+
+  // disabled 维持你原本灰掉的感觉（不改逻辑）
   if (disabled) return `${base} bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed`;
-  if (!value) return `${base} bg-white border-gray-300 text-gray-400`;
+
+  // ✅ 关键：空值也不要用 text-gray-400（不然下拉选项会一起变浅）
+  // 让它跟 subsale 的 select 一样深色
   return `${base} bg-white border-gray-300 text-gray-900`;
 }
+
 
 // subtype 统一成数组（保留兼容）
 const parseSubtypeToArray = (val) => {
