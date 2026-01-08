@@ -278,9 +278,7 @@ export default function TypeSelector({
     propertyStatus === "New Project / Under Construction" ||
     propertyStatus === "Completed Unit / Developer Unit";
 
-  const showCategoryBlock =
-    (saleType === "Rent" && rentBatchMode !== "yes") ||
-    (saleType === "Sale" && !isProjectStatus);
+  const showCategoryBlock = (saleType === "Rent") || (saleType === "Sale" && !isProjectStatus);
 
   const needStoreysForSale =
     ["Subsale / Secondary Market", "Auction Property", "Rent-to-Own Scheme"].includes(propertyStatus) &&
