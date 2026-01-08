@@ -73,22 +73,20 @@ export default function UploadPropertyPage() {
   const rentCategorySelected = !!(typeForm && (typeForm.category || typeForm.propertyCategory));
   const allowRentBatchMode = saleTypeNorm === "rent" && rentCategorySelected;
 
-  // ✅ 原始数量（TypeSelector 有填才会有）
-  const rawLayoutCount = Number(typeForm?.layoutCount);
-
-  // ✅ 批量：最少 2（原样）
-  const batchLayoutCount = Math.max(
-    2,
-    Math.min(20, Number.isFinite(rawLayoutCount) ? rawLayoutCount : 2)
-  );
-
-  // ✅ 房间出租：允许 1
-  const roomLayoutCount = Math.max(
-    1,
-    Math.min(20, Number.isFinite(rawLayoutCount) ? rawLayoutCount : 1)
-  );
-
   const isRentBatch = saleTypeNorm === "rent" && rentBatchMode === "yes";
+
+  // ✅ 批量：Layout 数量（TypeSelector 的 layoutCount，固定 2~20）
+  const rawLayoutCount = Number(typeForm?.layoutCount);
+  const batchLayoutCount = Math.max(2, Math.min(20, Number.isFinite(rawLayoutCount) ? rawLayoutCount : 2));
+
+  // ✅✅✅ 房间出租：用 TypeSelector 的 roomCount / roomCountMode（单房间=1，多房间=2~20）
+  const rawRoomCount = Number(typeForm?.roomCount);
+  const roomLayoutCount =
+    roomRentalMode === "room"
+      ? typeForm?.roomCountMode === "multi"
+        ? Math.max(2, Math.min(20, Number.isFinite(rawRoomCount) ? rawRoomCount : 2))
+        : 1
+      : 1;
 
   // ✅ 批量时才生成 unitLayouts（原样）
   useEffect(() => {
@@ -101,7 +99,7 @@ export default function UploadPropertyPage() {
     });
   }, [isRentBatch, batchLayoutCount]);
 
-  // ✅✅✅ 保险修复：回到单房间时清空 unitLayouts，避免残留导致继续渲染多个房间表单
+  // ✅ 保险：Rent + 房间出租（非批量）时，如果回到单房间，必须清空 unitLayouts，避免残留继续渲染「房间1/房间2」
   useEffect(() => {
     if (saleTypeNorm !== "rent") return;
     if (roomRentalMode !== "room") return;
@@ -162,8 +160,7 @@ export default function UploadPropertyPage() {
           unitLayouts={unitLayouts}
           setUnitLayouts={setUnitLayouts}
           enableProjectAutoCopy={
-            saleTypeNorm === "sale" &&
-            computedStatus === "New Project / Under Construction"
+            saleTypeNorm === "sale" && computedStatus === "New Project / Under Construction"
           }
           cloneDeep={cloneDeep}
           pickCommon={pickCommon}
@@ -182,7 +179,7 @@ export default function UploadPropertyPage() {
           description={description}
           setDescription={setDescription}
           rentBatchMode={rentBatchMode}
-          // ✅ 批量用 batchLayoutCount；房间出租用 roomLayoutCount
+          // ✅✅✅ 批量用 batchLayoutCount；房间出租用 roomLayoutCount（这就是修复点）
           layoutCount={isRentBatch ? batchLayoutCount : roomLayoutCount}
           unitLayouts={unitLayouts}
           setUnitLayouts={setUnitLayouts}
