@@ -1,6 +1,8 @@
 // components/forms/SaleUploadForm.js
 "use client";
 
+import { useRef } from "react"; // 🔧 NEW
+
 import AreaSelector from "@/components/AreaSelector";
 import PriceInput from "@/components/PriceInput";
 import RoomCountSelector from "@/components/RoomCountSelector";
@@ -14,7 +16,7 @@ import TransitSelector from "@/components/TransitSelector";
 import BuildYearSelector from "@/components/BuildYearSelector";
 import ImageUpload from "@/components/ImageUpload";
 
-// ✅ 你现有的工具函数
+// ✅ 你现有的工具函数（完全不动）
 import { convertToSqft } from "@/utils/psfUtils";
 
 /* ================= 工具函数（不改你原设计） ================= */
@@ -46,7 +48,7 @@ export default function SaleUploadForm({
 
   photoConfig,
 }) {
-  /* ================= PSF 计算（已修正为你要的逻辑） ================= */
+  /* ================= PSF 计算（完全保留） ================= */
 
   const buildUpSqft = convertToSqft(
     areaData?.values?.buildUp,
@@ -58,20 +60,11 @@ export default function SaleUploadForm({
     areaData?.units?.land
   );
 
-  /**
-   * ✅ PSF 面积逻辑（重点）
-   * - 两个都有 → 相加
-   * - 只有一个 → 用那个
-   * - 都没有 → 0
-   */
   const areaSqft =
     (buildUpSqft > 0 ? buildUpSqft : 0) +
     (landSqft > 0 ? landSqft : 0);
 
-  // 单价（你现在用的字段）
   const priceSingle = toNumber(singleFormData?.price);
-
-  // 预留区间价（不破坏你以后扩展）
   const priceMin = toNumber(singleFormData?.priceMin);
   const priceMax = toNumber(singleFormData?.priceMax);
 
@@ -87,8 +80,42 @@ export default function SaleUploadForm({
   const showPsfRange = psfMin > 0 && psfMax > 0;
   const showPsfSingle = !showPsfRange && psfSingle > 0;
 
+  /* ================= 🔧 NEW：Layout 图纸上传（只加，不影响 PSF） ================= */
+  const layoutBlueprintInputRef = useRef(null);
+
+  const handleLayoutBlueprintUpload = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    setSingleFormData((prev) => {
+      const cur = Array.isArray(prev.layoutBlueprintFiles)
+        ? prev.layoutBlueprintFiles
+        : [];
+      return { ...prev, layoutBlueprintFiles: [...cur, ...files] };
+    });
+
+    e.target.value = "";
+  };
+
   return (
     <div className="space-y-4">
+      {/* 🔧 NEW：点击上传 Layout 图纸（Subsale / Auction / RTO 也有） */}
+      <input
+        ref={layoutBlueprintInputRef}
+        type="file"
+        accept="image/*,.pdf"
+        multiple
+        onChange={handleLayoutBlueprintUpload}
+        className="hidden"
+      />
+
+      <div
+        className="w-full border rounded-lg p-3 bg-gray-50 cursor-pointer text-center"
+        onClick={() => layoutBlueprintInputRef.current?.click()}
+      >
+        点击上传 Layout 图纸
+      </div>
+
       <AreaSelector
         initialValue={areaData}
         onChange={(val) => setAreaData(val)}
@@ -106,7 +133,7 @@ export default function SaleUploadForm({
         }}
       />
 
-      {/* ✅ PSF 显示（所有 Sale 模式一致） */}
+      {/* ✅ PSF 显示（完全不动） */}
       {showPsfRange && (
         <div className="text-sm text-gray-600 mt-1">
           每平方英尺: RM {formatMoney(psfMin)} ~ RM {formatMoney(psfMax)}
