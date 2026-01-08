@@ -63,12 +63,14 @@ export default function UploadPropertyPage() {
   const isHotel = saleTypeNorm.includes("hotel");
 
   const isProject =
-    saleTypeNorm === "sale" &&
-    (computedStatus === "New Project / Under Construction" ||
-      computedStatus === "Completed Unit (Developer Unit)" ||
-      computedStatus === "Completed Unit (Subsale Property)" ||
-      computedStatus === "Completed Unit (Auction Property)" ||
-      computedStatus === "Completed Unit (Rent-to-Own Property)");
+  saleTypeNorm === "sale" &&
+  (computedStatus === "New Project / Under Construction" ||
+    // ✅ 兼容两种 Completed Unit 文案（括号版 + 斜杠版）
+    computedStatus === "Completed Unit / Developer Unit" ||
+    computedStatus === "Completed Unit (Developer Unit)" ||
+    computedStatus === "Completed Unit (Subsale Property)" ||
+    computedStatus === "Completed Unit (Auction Property)" ||
+    computedStatus === "Completed Unit (Rent-to-Own Property)");
 
   const rentCategorySelected = !!(typeForm && (typeForm.category || typeForm.propertyCategory));
   const allowRentBatchMode = saleTypeNorm === "rent" && rentCategorySelected;
