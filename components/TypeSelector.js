@@ -154,7 +154,6 @@ export default function TypeSelector({
     propertyStatus === "New Project / Under Construction" ||
     propertyStatus === "Completed Unit / Developer Unit";
 
-  // ✅✅✅ 修复1：Rent 批量时也要显示 Category / SubType / Storeys / Subtype 等
   const showCategoryBlock =
     (saleType === "Rent") ||
     (saleType === "Sale" && !isProjectStatus);
@@ -163,19 +162,15 @@ export default function TypeSelector({
     ["Subsale / Secondary Market", "Auction Property", "Rent-to-Own Scheme"].includes(propertyStatus) &&
     NEED_STOREYS_CATEGORY.has(category);
 
-  // ✅✅✅ 修复2：Rent 批量时也不要隐藏 storeys
   const needStoreysForRent = saleType === "Rent" && NEED_STOREYS_CATEGORY.has(category);
-
   const showStoreys = needStoreysForSale || needStoreysForRent;
 
-  // ✅✅✅ 修复3：Rent 批量时也不要隐藏「出租整间 / 出租房间」
   const showRoomRentalToggle =
     saleType === "Rent" && ROOM_RENTAL_ELIGIBLE_CATEGORIES.has(category);
 
   const hideBatchToggleBecauseRoomRental =
     saleType === "Rent" && showRoomRentalToggle && roomRentalMode === "room";
 
-  // ================== UI 渲染（保持你原本结构不变） ==================
   return (
     <div className="space-y-4">
       <div>
@@ -193,7 +188,6 @@ export default function TypeSelector({
         </select>
       </div>
 
-      {/* ✅ Sale 的 Property Status 保持原样（Rent 不会出现） */}
       {saleType === "Sale" && (
         <>
           <div>
@@ -284,13 +278,23 @@ export default function TypeSelector({
         </>
       )}
 
-      {/* ✅ Rent：保留你原本的出租整间/房间 + 批量操作（并且批量时不隐藏其它输入框） */}
       {saleType === "Rent" && (
         <>
           {showRoomRentalToggle && (
             <div className="mt-2 space-y-2">
               <label className="block text-sm font-medium text-gray-700">是否只是出租房间？</label>
-              <select className="border rounded w-full p-2" value={roomRentalMode} onChange={(e) => setRoomRentalMode(e.target.value)}>
+              <select
+                className="border rounded w-full p-2"
+                value={roomRentalMode}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setRoomRentalMode(v);
+                  // ✅ 进入「出租房间」时强制关闭批量操作（避免残留 rentBatchMode="yes" 导致渲染出第1/第2房型表单）
+                  if (v === "room") {
+                    onChangeRentBatchMode?.("no");
+                  }
+                }}
+              >
                 <option value="whole">不是，要出租整间</option>
                 <option value="room">是的，只出租房间</option>
               </select>
@@ -303,9 +307,10 @@ export default function TypeSelector({
                       className="border rounded w-full p-2"
                       value={roomCountMode}
                       onChange={(e) => {
-                        const v = e.target.value;
-                        setRoomCountMode(v);
-                        if (v === "single") setRoomCount("1");
+                        const mode = e.target.value;
+                        setRoomCountMode(mode);
+                        if (mode === "single") setRoomCount("1");
+                        else setRoomCount("2");
                       }}
                     >
                       <option value="single">是的，只有一个房间</option>
@@ -314,14 +319,15 @@ export default function TypeSelector({
                   </div>
 
                   {roomCountMode === "multi" && (
-                    <div className="mt-2 space-y-2">
-                      <label className="block text-sm font-medium text-gray-700">有多少个房间</label>
-                      <input
-                        className="border rounded w-full p-2"
-                        value={roomCount}
-                        onChange={(e) => setRoomCount(e.target.value)}
-                        placeholder="2 ~ 20"
-                      />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">选择房间数量</label>
+                      <select className="border rounded w-full p-2" value={roomCount} onChange={(e) => setRoomCount(e.target.value)}>
+                        {Array.from({ length: 19 }, (_, i) => String(i + 2)).map((n) => (
+                          <option key={n} value={n}>
+                            {n}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   )}
                 </>
@@ -377,7 +383,6 @@ export default function TypeSelector({
         </>
       )}
 
-      {/* ✅ Category / Sub Type / Storeys / Property Subtype：Rent 批量也不会隐藏 */}
       {showCategoryBlock && saleType !== "Homestay" && saleType !== "Hotel/Resort" && (
         <>
           <div>
