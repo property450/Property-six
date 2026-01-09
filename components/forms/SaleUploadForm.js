@@ -1,4 +1,3 @@
-// components/forms/SaleUploadForm.js
 "use client";
 
 import { useRef } from "react"; // 🔧 NEW
@@ -116,11 +115,12 @@ export default function SaleUploadForm({
         点击上传 Layout 图纸
       </div>
 
+      {/* ✅✅✅ 关键：传 propertyCategory，Land 才会自动切换 */}
       <AreaSelector
-  propertyCategory={singleFormData?.propertyCategory} // ✅ 关键
-  initialValue={areaData}
-  onChange={(val) => setAreaData(val)}
-/>
+        propertyCategory={singleFormData?.propertyCategory}
+        initialValue={areaData}
+        onChange={(val) => setAreaData(val)}
+      />
 
       <PriceInput
         value={singleFormData.price}
