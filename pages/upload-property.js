@@ -180,8 +180,7 @@ export default function UploadPropertyPage() {
           layoutCount={isRentBatch ? batchLayoutCount : roomLayoutCount}
           unitLayouts={unitLayouts}
           setUnitLayouts={setUnitLayouts}
-          propertyCategory={typeForm?.category || typeForm?.propertyCategory || ""}
-/>
+        />
       ) : (
         <SaleUploadForm
           saleType={saleType}
@@ -192,6 +191,7 @@ export default function UploadPropertyPage() {
           setAreaData={setAreaData}
           description={description}
           setDescription={setDescription}
+          propertyCategory={typeForm?.category || typeForm?.propertyCategory || ""}
         />
       )}
 
