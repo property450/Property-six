@@ -87,7 +87,11 @@ export default function RentUploadForm({
             <div key={idx} className="border rounded-lg p-4 space-y-4 bg-white">
               <div className="text-lg font-semibold">{title}</div>
 
-              <AreaSelector value={localArea} onChange={(val) => updateBatchLayout(idx, { areaData: val })} />
+              <AreaSelector
+  propertyCategory={data?.propertyCategory}  // ✅ 如果 batch 每个屋型有 category，就传它；没有也没关系
+  initialValue={localArea}                  // ✅ value -> initialValue
+  onChange={(val) => updateBatchLayout(idx, { areaData: val })}
+/>
 
               <PriceInput value={data} onChange={(next) => updateBatchLayout(idx, next)} />
 
@@ -139,7 +143,11 @@ export default function RentUploadForm({
         )
       ) : (
         <>
-          <AreaSelector value={areaData} onChange={setAreaData} />
+          <AreaSelector
+  propertyCategory={singleFormData?.propertyCategory} // ✅ 加
+  initialValue={areaData}                             // ✅ value -> initialValue
+  onChange={setAreaData}
+/>
 
           <PriceInput
             value={singleFormData}
