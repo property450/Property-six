@@ -117,9 +117,10 @@ export default function SaleUploadForm({
       </div>
 
       <AreaSelector
-        initialValue={areaData}
-        onChange={(val) => setAreaData(val)}
-      />
+  propertyCategory={singleFormData?.propertyCategory} // ✅ 关键
+  initialValue={areaData}
+  onChange={(val) => setAreaData(val)}
+/>
 
       <PriceInput
         value={singleFormData.price}
