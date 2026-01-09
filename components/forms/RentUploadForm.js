@@ -10,265 +10,193 @@ import ExtraSpacesSelector from "@/components/ExtraSpacesSelector";
 import FurnitureSelector from "@/components/FurnitureSelector";
 import FacilitiesSelector from "@/components/FacilitiesSelector";
 import TransitSelector from "@/components/TransitSelector";
-
-import RoomCountSelector from "@/components/RoomCountSelector";
+import FacingSelector from "@/components/FacingSelector";
 import CarparkCountSelector from "@/components/CarparkCountSelector";
 import CarparkLevelSelector from "@/components/CarparkLevelSelector";
-import FacingSelector from "@/components/FacingSelector";
+import BuildYearSelector from "@/components/BuildYearSelector";
 import ImageUpload from "@/components/ImageUpload";
 
 export default function RentUploadForm({
   saleType,
   computedStatus,
 
+  isRoomRental,
+  roomRentalMode,
+
   singleFormData,
   setSingleFormData,
-
-  isRoomRental,
-  setIsRoomRental,
-
-  hasMultipleRooms,
-  setHasMultipleRooms,
-
-  batchMode,
-  setBatchMode,
-
-  batchLayouts,
-  setBatchLayouts,
-
   areaData,
   setAreaData,
-
   description,
   setDescription,
 
-  photoConfig,
+  rentBatchMode = "no",
+  layoutCount = 1,
+  unitLayouts = [],
+  setUnitLayouts,
 
-  updateBatchLayout,
+  // ✅ 新增：从 upload-property 传进来
+  propertyCategory = "",
 }) {
+  const isBatch = rentBatchMode === "yes";
+
+  // 你原有逻辑：批量时确保 unitLayouts 长度 = layoutCount
   useEffect(() => {
-    // 防止切换成房间出租时还保留 batch
-    if (isRoomRental) {
-      setBatchMode("No");
-    }
-  }, [isRoomRental, setBatchMode]);
+    if (!isBatch) return;
+    if (!setUnitLayouts) return;
 
-  const isBatch = String(batchMode || "").toLowerCase() === "yes";
+    const n = Math.max(2, Math.min(200, Number(layoutCount) || 2));
+    setUnitLayouts((prev) => {
+      const prevArr = Array.isArray(prev) ? prev : [];
+      return Array.from({ length: n }).map((_, i) => prevArr[i] || {});
+    });
+  }, [isBatch, layoutCount, setUnitLayouts]);
 
-  const renderBatchLayouts = () => {
+  const updateBatchLayout = (idx, patch) => {
+    if (!setUnitLayouts) return;
+    setUnitLayouts((prev) => {
+      const arr = Array.isArray(prev) ? [...prev] : [];
+      arr[idx] = { ...(arr[idx] || {}), ...(patch || {}) };
+      return arr;
+    });
+  };
+
+  if (isBatch) {
     return (
       <div className="space-y-4">
-        {batchLayouts.map((data, idx) => {
-          const title = `屋型 ${idx + 1}`;
-          const localArea = data?.areaData || { types: ["buildUp"], units: {}, values: {} };
+        {Array.from({ length: Number(layoutCount) || 0 }).map((_, idx) => {
+          const data = unitLayouts?.[idx] || {};
+          const localArea = data.areaData || {
+            types: ["buildUp"],
+            units: { buildUp: "square feet", land: "square feet" },
+            values: { buildUp: "", land: "" },
+          };
+
+          const title = `房型 ${idx + 1}`;
 
           return (
             <div key={idx} className="border rounded-lg p-4 space-y-4 bg-white">
               <div className="text-lg font-semibold">{title}</div>
 
               <AreaSelector
-                propertyCategory={data?.propertyCategory}
-                initialValue={localArea}
+                value={localArea}
                 onChange={(val) => updateBatchLayout(idx, { areaData: val })}
+                propertyCategory={propertyCategory}
               />
 
               <PriceInput value={data} onChange={(next) => updateBatchLayout(idx, next)} />
 
               <div className="space-y-3">
-                <RoomCountSelector
-                  value={data.rooms}
-                  onChange={(val) => updateBatchLayout(idx, { rooms: val })}
-                />
-
                 <CarparkCountSelector
-                  value={data.carpark}
-                  onChange={(val) => updateBatchLayout(idx, { carpark: val })}
-                  mode="single"
+                  value={data.carparks}
+                  onChange={(val) => updateBatchLayout(idx, { carparks: val })}
                 />
-
                 <CarparkLevelSelector
-                  value={data.carparkPosition}
-                  onChange={(val) => updateBatchLayout(idx, { carparkPosition: val })}
-                  mode="range"
+                  value={data.carparkLevel}
+                  onChange={(val) => updateBatchLayout(idx, { carparkLevel: val })}
                 />
+                <FacingSelector value={data.facing} onChange={(val) => updateBatchLayout(idx, { facing: val })} />
+              </div>
 
-                <FacingSelector
-                  value={data.facing}
-                  onChange={(val) => updateBatchLayout(idx, { facing: val })}
-                />
-
+              <div className="space-y-3">
                 <ExtraSpacesSelector
                   value={data.extraSpaces}
                   onChange={(val) => updateBatchLayout(idx, { extraSpaces: val })}
                 />
-
-                <FurnitureSelector
-                  value={data.furniture}
-                  onChange={(val) => updateBatchLayout(idx, { furniture: val })}
-                />
-
+                <FurnitureSelector value={data.furniture} onChange={(val) => updateBatchLayout(idx, { furniture: val })} />
                 <FacilitiesSelector
                   value={data.facilities}
                   onChange={(val) => updateBatchLayout(idx, { facilities: val })}
                 />
-
-                <TransitSelector
-                  value={data.transit || null}
-                  onChange={(info) => updateBatchLayout(idx, { transit: info })}
+                <TransitSelector value={data.transit} onChange={(val) => updateBatchLayout(idx, { transit: val })} />
+                <BuildYearSelector
+                  value={data.completedYear}
+                  onChange={(val) => updateBatchLayout(idx, { completedYear: val })}
+                  label="完成年份"
                 />
               </div>
 
               <ImageUpload
-                config={photoConfig}
-                images={data.photos}
-                setImages={(updated) => updateBatchLayout(idx, { photos: updated })}
+                config={data.photoConfig}
+                images={data.images}
+                setImages={(val) => updateBatchLayout(idx, { images: val })}
               />
             </div>
           );
         })}
       </div>
     );
-  };
+  }
 
+  // 非批量（单表单）
   return (
     <div className="space-y-4">
-      {/* 你的房间出租 / 多房间 / 批量操作选择区（保持原样） */}
+      <RoomRentalForm
+        isRoomRental={isRoomRental}
+        roomRentalMode={roomRentalMode}
+        data={singleFormData}
+        setData={setSingleFormData}
+      />
+
+      <AreaSelector value={areaData} onChange={setAreaData} propertyCategory={propertyCategory} />
+
+      <PriceInput value={singleFormData} onChange={setSingleFormData} listingMode="Rent" />
+
       <div className="space-y-3">
-        <div className="space-y-1">
-          <div className="font-medium">是否只是出租房间？</div>
-          <select
-            className="w-full border rounded-lg p-2 bg-white"
-            value={isRoomRental ? "Yes" : "No"}
-            onChange={(e) => setIsRoomRental(e.target.value === "Yes")}
-          >
-            <option value="No">否</option>
-            <option value="Yes">是</option>
-          </select>
-        </div>
-
-        <div className="space-y-1">
-          <div className="font-medium">是否只有一个房间？</div>
-          <select
-            className="w-full border rounded-lg p-2 bg-white"
-            value={hasMultipleRooms ? "No" : "Yes"}
-            onChange={(e) => setHasMultipleRooms(e.target.value === "No")}
-            disabled={!isRoomRental}
-          >
-            <option value="Yes">是</option>
-            <option value="No">否</option>
-          </select>
-        </div>
-
-        <div className="space-y-1">
-          <div className="font-medium">需要批量操作吗？</div>
-          <select
-            className="w-full border rounded-lg p-2 bg-white"
-            value={batchMode || "No"}
-            onChange={(e) => setBatchMode(e.target.value)}
-            disabled={isRoomRental}
-          >
-            <option value="No">否</option>
-            <option value="Yes">是</option>
-          </select>
-        </div>
+        <CarparkCountSelector
+          value={singleFormData.carparks}
+          onChange={(val) => setSingleFormData((p) => ({ ...p, carparks: val }))}
+        />
+        <CarparkLevelSelector
+          value={singleFormData.carparkLevel}
+          onChange={(val) => setSingleFormData((p) => ({ ...p, carparkLevel: val }))}
+        />
+        <FacingSelector
+          value={singleFormData.facing}
+          onChange={(val) => setSingleFormData((p) => ({ ...p, facing: val }))}
+        />
       </div>
 
-      {/* 批量操作 */}
-      {isBatch ? (
-        renderBatchLayouts()
-      ) : (
-        <>
-          {/* 房间出租表单 */}
-          {isRoomRental ? (
-            <RoomRentalForm
-              value={singleFormData}
-              onChange={(next) => setSingleFormData((p) => ({ ...p, ...next }))}
-            />
-          ) : (
-            <>
-              {/* ✅ 关键：普通 rent 的 AreaSelector 传 propertyCategory + initialValue */}
-              <AreaSelector
-                propertyCategory={singleFormData?.propertyCategory}
-                initialValue={areaData}
-                onChange={setAreaData}
-              />
+      <div className="space-y-3">
+        <ExtraSpacesSelector
+          value={singleFormData.extraSpaces}
+          onChange={(val) => setSingleFormData((p) => ({ ...p, extraSpaces: val }))}
+        />
+        <FurnitureSelector
+          value={singleFormData.furniture}
+          onChange={(val) => setSingleFormData((p) => ({ ...p, furniture: val }))}
+        />
+        <FacilitiesSelector
+          value={singleFormData.facilities}
+          onChange={(val) => setSingleFormData((p) => ({ ...p, facilities: val }))}
+        />
+        <TransitSelector
+          value={singleFormData.transit}
+          onChange={(val) => setSingleFormData((p) => ({ ...p, transit: val }))}
+        />
+        <BuildYearSelector
+          value={singleFormData.completedYear}
+          onChange={(val) => setSingleFormData((p) => ({ ...p, completedYear: val }))}
+          label="完成年份"
+        />
+      </div>
 
-              <PriceInput
-                value={singleFormData}
-                onChange={(next) => setSingleFormData((p) => ({ ...p, ...next }))}
-                extraSection={
-                  <div className="space-y-3">
-                    <RoomCountSelector
-                      value={singleFormData.rooms}
-                      onChange={(val) => setSingleFormData((p) => ({ ...p, rooms: val }))}
-                    />
+      <div className="space-y-2">
+        <div className="text-sm font-semibold">房源描述</div>
+        <textarea
+          className="border rounded w-full p-3"
+          rows={4}
+          placeholder="请输入房源描述..."
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
+      </div>
 
-                    <CarparkCountSelector
-                      value={singleFormData.carpark}
-                      onChange={(val) => setSingleFormData((p) => ({ ...p, carpark: val }))}
-                      mode="single"
-                    />
-
-                    <CarparkLevelSelector
-                      value={singleFormData.carparkPosition}
-                      onChange={(val) =>
-                        setSingleFormData((p) => ({ ...p, carparkPosition: val }))
-                      }
-                      mode="range"
-                    />
-
-                    <FacingSelector
-                      value={singleFormData.facing}
-                      onChange={(val) => setSingleFormData((p) => ({ ...p, facing: val }))}
-                    />
-
-                    <ExtraSpacesSelector
-                      value={singleFormData.extraSpaces}
-                      onChange={(val) =>
-                        setSingleFormData((p) => ({ ...p, extraSpaces: val }))
-                      }
-                    />
-
-                    <FurnitureSelector
-                      value={singleFormData.furniture}
-                      onChange={(val) => setSingleFormData((p) => ({ ...p, furniture: val }))}
-                    />
-
-                    <FacilitiesSelector
-                      value={singleFormData.facilities}
-                      onChange={(val) =>
-                        setSingleFormData((p) => ({ ...p, facilities: val }))
-                      }
-                    />
-
-                    <TransitSelector
-                      value={singleFormData.transit || null}
-                      onChange={(info) => setSingleFormData((p) => ({ ...p, transit: info }))}
-                    />
-                  </div>
-                }
-              />
-
-              <div>
-                <label className="block font-medium mb-1">房源描述</label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="请输入房源详细描述..."
-                  rows={4}
-                  className="w-full border rounded-lg p-2 resize-y"
-                />
-              </div>
-
-              <ImageUpload
-                config={photoConfig}
-                images={singleFormData.photos}
-                setImages={(updated) => setSingleFormData((p) => ({ ...p, photos: updated }))}
-              />
-            </>
-          )}
-        </>
-      )}
+      <ImageUpload
+        config={singleFormData.photoConfig}
+        images={singleFormData.images}
+        setImages={(val) => setSingleFormData((p) => ({ ...p, images: val }))}
+      />
     </div>
   );
 }
