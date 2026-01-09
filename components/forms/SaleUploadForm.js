@@ -117,11 +117,11 @@ export default function SaleUploadForm({
 
       {/* ✅✅✅ 关键：传 propertyCategory，Land 才会自动切换 */}
       <AreaSelector
-        propertyCategory={singleFormData?.propertyCategory}
         initialValue={areaData}
         onChange={(val) => setAreaData(val)}
+        propertyCategory={propertyCategory}
       />
-
+          
       <PriceInput
         value={singleFormData.price}
         onChange={(val) =>
