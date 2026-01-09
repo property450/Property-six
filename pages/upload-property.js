@@ -17,25 +17,21 @@ import ProjectUploadForm from "@/components/forms/ProjectUploadForm";
 import RentUploadForm from "@/components/forms/RentUploadForm";
 import SaleUploadForm from "@/components/forms/SaleUploadForm";
 
-import { useUser } from "@supabase/auth-helpers-react";
-
 const AddressSearchInput = dynamic(() => import("@/components/AddressSearchInput"), {
   ssr: false,
 });
 
-function toSafeInt(v, fallback) {
-  const n = Number(String(v ?? "").replace(/,/g, ""));
-  if (!Number.isFinite(n)) return fallback;
-  return Math.floor(n);
-}
-
-function clamp(n, min, max) {
-  return Math.max(min, Math.min(max, n));
-}
+const cloneDeep = (obj) => JSON.parse(JSON.stringify(obj || {}));
+const pickCommon = (l) => ({
+  extraSpaces: l.extraSpaces || [],
+  furniture: l.furniture || [],
+  facilities: l.facilities || [],
+  transit: l.transit ?? null,
+});
+const commonHash = (l) => JSON.stringify(pickCommon(l));
 
 export default function UploadPropertyPage() {
   const router = useRouter();
-  const user = useUser();
 
   const [typeValue, setTypeValue] = useState("");
   const [rentBatchMode, setRentBatchMode] = useState("no");
@@ -51,7 +47,6 @@ export default function UploadPropertyPage() {
 
   const [singleFormData, setSingleFormData] = useState({});
   const [areaData, setAreaData] = useState({
-    // ✅ 只默认 Build up（你要求的）
     types: ["buildUp"],
     units: { buildUp: "Square Feet (sqft)", land: "Square Feet (sqft)" },
     values: { buildUp: "", land: "" },
@@ -68,8 +63,8 @@ export default function UploadPropertyPage() {
 
   const isRentBatch = saleTypeNorm === "rent" && rentBatchMode === "yes";
 
-  const rawLayoutCount = toSafeInt(typeForm?.layoutCount, 1);
-  const batchLayoutCount = clamp(rawLayoutCount || 1, 1, 200);
+  const rawLayoutCount = Number(typeForm?.layoutCount);
+  const batchLayoutCount = Math.max(2, Math.min(20, Number.isFinite(rawLayoutCount) ? rawLayoutCount : 2));
 
   const rawRoomCount = Number(typeForm?.roomCount);
   const roomLayoutCount =
@@ -81,7 +76,6 @@ export default function UploadPropertyPage() {
 
   useEffect(() => {
     if (!isRentBatch) return;
-
     const n = batchLayoutCount;
     setUnitLayouts((prev) => {
       const prevArr = Array.isArray(prev) ? prev : [];
@@ -89,28 +83,7 @@ export default function UploadPropertyPage() {
     });
   }, [isRentBatch, batchLayoutCount]);
 
-  useEffect(() => {
-    if (saleTypeNorm !== "rent") return;
-    if (roomRentalMode !== "room") return;
-    if (isRentBatch) return;
-
-    if (roomLayoutCount <= 1) {
-      setUnitLayouts?.([]);
-      return;
-    }
-
-    setUnitLayouts?.((prev) => {
-      const prevArr = Array.isArray(prev) ? prev : [];
-      return Array.from({ length: roomLayoutCount }).map((_, i) => prevArr[i] || {});
-    });
-  }, [saleTypeNorm, roomRentalMode, isRentBatch, roomLayoutCount]);
-
-  const cloneDeep = (obj) => JSON.parse(JSON.stringify(obj || {}));
-  const pickCommon = (src) => cloneDeep(src || {});
-  const commonHash = (obj) => JSON.stringify(obj || {});
-
   const handleSubmit = async () => {
-    // 你原本的提交逻辑（不动）
     try {
       toast.success("提交逻辑保持不动（你原本的）");
     } catch (e) {
@@ -118,7 +91,7 @@ export default function UploadPropertyPage() {
     }
   };
 
-  const rentCategorySelected = !!(typeForm && (typeForm.category || typeForm.propertyCategory));
+  const propertyCategory = typeForm?.category || typeForm?.propertyCategory || "";
 
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-4">
@@ -147,7 +120,6 @@ export default function UploadPropertyPage() {
           computedStatus={computedStatus}
           singleFormData={singleFormData}
           setSingleFormData={setSingleFormData}
-          isBulkRentProject={false}
           projectCategory={projectCategory}
           setProjectCategory={setProjectCategory}
           projectSubType={projectSubType}
@@ -175,8 +147,7 @@ export default function UploadPropertyPage() {
           layoutCount={isRentBatch ? batchLayoutCount : roomLayoutCount}
           unitLayouts={unitLayouts}
           setUnitLayouts={setUnitLayouts}
-          // ✅ 关键：传 propertyCategory 进去（Subsale/Auction/RTO 会生效）
-          propertyCategory={typeForm?.category || typeForm?.propertyCategory || ""}
+          propertyCategory={propertyCategory}
         />
       ) : (
         <SaleUploadForm
@@ -188,8 +159,7 @@ export default function UploadPropertyPage() {
           setAreaData={setAreaData}
           description={description}
           setDescription={setDescription}
-          // ✅ 关键：传 propertyCategory 进去（Subsale/Auction/RTO 会生效）
-          propertyCategory={typeForm?.category || typeForm?.propertyCategory || ""}
+          propertyCategory={propertyCategory}
         />
       )}
 
