@@ -14,10 +14,9 @@ import TransitSelector from "@/components/TransitSelector";
 import BuildYearSelector from "@/components/BuildYearSelector";
 import ImageUpload from "@/components/ImageUpload";
 
-// ✅ 你现有的工具函数（保持不动）
 import { convertToSqft } from "@/utils/psfUtils";
 
-/* ================= 工具函数（不改你原设计） ================= */
+/* ================= 工具函数（保持你原设计） ================= */
 function toNumber(v) {
   const n = Number(String(v ?? "").replace(/,/g, "").trim());
   return Number.isFinite(n) ? n : 0;
@@ -46,14 +45,47 @@ export default function SaleUploadForm({
 
   photoConfig,
 
-  // ✅【只加这一个】给 AreaSelector 做 Land 自动切换
+  // ✅ 只用于 AreaSelector 自动切换 Land（不传也不会影响其它逻辑）
   propertyCategory = "",
 }) {
-  // ✅ 你原本逻辑（保持）
-  const priceNum = toNumber(singleFormData?.price);
+  const buildUpSqft = convertToSqft(
+    areaData?.values?.buildUp,
+    areaData?.units?.buildUp
+  );
 
-  const buildUpSqft = convertToSqft(areaData?.values?.buildUp, areaData?.units?.buildUp);
-  const landSqft = convertToSqft(areaData?.values?.land, areaData?.units?.land);
+  const landSqft = convertToSqft(
+    areaData?.values?.land,
+    areaData?.units?.land
+  );
+
+  /**
+   * ✅ PSF 面积逻辑（重点）
+   * - build up 和 land area 两个都有 → 相加
+   * - 只有一个 → 用那个
+   * - 都没有 → 0
+   */
+  const areaSqft =
+    (buildUpSqft > 0 ? buildUpSqft : 0) +
+    (landSqft > 0 ? landSqft : 0);
+
+  // 单价（你现在用的字段）
+  const priceSingle = toNumber(singleFormData?.price);
+
+  // 预留区间价（不破坏你以后扩展）
+  const priceMin = toNumber(singleFormData?.priceMin);
+  const priceMax = toNumber(singleFormData?.priceMax);
+
+  const psfSingle =
+    areaSqft > 0 && priceSingle > 0 ? priceSingle / areaSqft : 0;
+
+  const psfMin =
+    areaSqft > 0 && priceMin > 0 ? priceMin / areaSqft : 0;
+
+  const psfMax =
+    areaSqft > 0 && priceMax > 0 ? priceMax / areaSqft : 0;
+
+  const showPsfRange = psfMin > 0 && psfMax > 0;
+  const showPsfSingle = !showPsfRange && psfSingle > 0;
 
   return (
     <div className="space-y-4">
@@ -64,8 +96,10 @@ export default function SaleUploadForm({
       />
 
       <PriceInput
-        value={singleFormData?.price || ""}
-        onChange={(val) => setSingleFormData((p) => ({ ...p, price: val }))}
+        value={singleFormData.price}
+        onChange={(val) =>
+          setSingleFormData((p) => ({ ...p, price: val }))
+        }
         listingMode={saleType}
         area={{
           buildUp: buildUpSqft,
@@ -73,62 +107,96 @@ export default function SaleUploadForm({
         }}
       />
 
+      {/* ✅ PSF 显示（所有 Sale 模式一致：New Project / Completed / Subsale / Auction / RTO 都会显示） */}
+      {showPsfRange && (
+        <div className="text-sm text-gray-600 mt-1">
+          每平方英尺: RM {formatMoney(psfMin)} ~ RM {formatMoney(psfMax)}
+        </div>
+      )}
+
+      {showPsfSingle && (
+        <div className="text-sm text-gray-600 mt-1">
+          每平方英尺: RM {formatMoney(psfSingle)}
+        </div>
+      )}
+
       <RoomCountSelector
         value={{
-          bedrooms: photoConfig?.bedrooms,
-          bathrooms: photoConfig?.bathrooms,
-          kitchens: photoConfig?.kitchens,
-          livingRooms: photoConfig?.livingRooms,
+          bedrooms: singleFormData.bedrooms,
+          bathrooms: singleFormData.bathrooms,
+          kitchens: singleFormData.kitchens,
+          livingRooms: singleFormData.livingRooms,
         }}
-        onChange={(patch) => setSingleFormData((p) => ({ ...p, ...patch }))}
+        onChange={(patch) =>
+          setSingleFormData((p) => ({ ...p, ...patch }))
+        }
       />
 
       <CarparkCountSelector
-        value={singleFormData?.carparks}
-        onChange={(val) => setSingleFormData((p) => ({ ...p, carparks: val }))}
+        value={singleFormData.carparks}
+        onChange={(val) =>
+          setSingleFormData((p) => ({ ...p, carparks: val }))
+        }
       />
 
       <CarparkLevelSelector
-        value={singleFormData?.carparkLevel}
-        onChange={(val) => setSingleFormData((p) => ({ ...p, carparkLevel: val }))}
+        value={singleFormData.carparkLevel}
+        onChange={(val) =>
+          setSingleFormData((p) => ({ ...p, carparkLevel: val }))
+        }
       />
 
       <FacingSelector
-        value={singleFormData?.facing}
-        onChange={(val) => setSingleFormData((p) => ({ ...p, facing: val }))}
+        value={singleFormData.facing}
+        onChange={(val) =>
+          setSingleFormData((p) => ({ ...p, facing: val }))
+        }
       />
 
       <ExtraSpacesSelector
-        value={singleFormData?.extraSpaces}
-        onChange={(val) => setSingleFormData((p) => ({ ...p, extraSpaces: val }))}
+        value={singleFormData.extraSpaces}
+        onChange={(val) =>
+          setSingleFormData((p) => ({ ...p, extraSpaces: val }))
+        }
       />
 
       <FurnitureSelector
-        value={singleFormData?.furniture}
-        onChange={(val) => setSingleFormData((p) => ({ ...p, furniture: val }))}
+        value={singleFormData.furniture}
+        onChange={(val) =>
+          setSingleFormData((p) => ({ ...p, furniture: val }))
+        }
       />
 
       <FacilitiesSelector
-        value={singleFormData?.facilities}
-        onChange={(val) => setSingleFormData((p) => ({ ...p, facilities: val }))}
+        value={singleFormData.facilities}
+        onChange={(val) =>
+          setSingleFormData((p) => ({ ...p, facilities: val }))
+        }
       />
 
       <TransitSelector
-        value={singleFormData?.transit}
-        onChange={(val) => setSingleFormData((p) => ({ ...p, transit: val }))}
+        value={singleFormData.transit}
+        onChange={(val) =>
+          setSingleFormData((p) => ({ ...p, transit: val }))
+        }
       />
 
       {/* ✅ 你原本：New Project 有预计完成年份 + 季度 */}
-      {saleType === "Sale" && computedStatus === "New Project / Under Construction" && (
-        <BuildYearSelector
-          value={singleFormData?.estimatedYear}
-          onChange={(val) => setSingleFormData((p) => ({ ...p, estimatedYear: val }))}
-          quarter={singleFormData?.quarter}
-          onQuarterChange={(val) => setSingleFormData((p) => ({ ...p, quarter: val }))}
-          showQuarter
-          label="预计交付时间"
-        />
-      )}
+      {saleType === "Sale" &&
+        computedStatus === "New Project / Under Construction" && (
+          <BuildYearSelector
+            value={singleFormData.estimatedYear}
+            onChange={(val) =>
+              setSingleFormData((p) => ({ ...p, estimatedYear: val }))
+            }
+            quarter={singleFormData.quarter}
+            onQuarterChange={(val) =>
+              setSingleFormData((p) => ({ ...p, quarter: val }))
+            }
+            showQuarter
+            label="预计交付时间"
+          />
+        )}
 
       {/* ✅ 你原本：Completed / Subsale / Auction / RTO 有完成年份 */}
       {saleType === "Sale" &&
@@ -139,8 +207,10 @@ export default function SaleUploadForm({
           "Rent-to-Own Scheme",
         ].includes(computedStatus) && (
           <BuildYearSelector
-            value={singleFormData?.completedYear}
-            onChange={(val) => setSingleFormData((p) => ({ ...p, completedYear: val }))}
+            value={singleFormData.completedYear}
+            onChange={(val) =>
+              setSingleFormData((p) => ({ ...p, completedYear: val }))
+            }
             label="完成年份"
           />
         )}
@@ -158,8 +228,10 @@ export default function SaleUploadForm({
 
       <ImageUpload
         config={photoConfig}
-        images={singleFormData?.photos}
-        setImages={(updated) => setSingleFormData((p) => ({ ...p, photos: updated }))}
+        images={singleFormData.photos}
+        setImages={(updated) =>
+          setSingleFormData((p) => ({ ...p, photos: updated }))
+        }
       />
     </div>
   );
