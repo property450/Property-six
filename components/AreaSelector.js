@@ -63,21 +63,33 @@ export default function AreaSelector({
 
   // ✅ 关键新增：category=Land 自动切换默认勾选
   useEffect(() => {
-    // 兼容各种写法：Land / land / " Land " / "Land (xxx)"
-    const cat = String(propertyCategory || "").toLowerCase().trim();
-    const isLandCategory = cat === "land" || cat.includes("land");
+  const raw = String(propertyCategory || "").toLowerCase();
 
-    if (isLandCategory) {
-      // 切到 Land：默认只勾 land
-      setSelectedTypes(["land"]);
-      // （不强制清空 buildUp 值，让你 PSF/数据逻辑保持原样；如果你要清空我也能加）
-      setDropdownOpen((p) => ({ ...p, buildUp: false }));
-    } else if (propertyCategory !== undefined) {
-      // 离开 Land（且确保 prop 有传进来）：默认只勾 buildUp
-      setSelectedTypes(["buildUp"]);
-      setDropdownOpen((p) => ({ ...p, land: false }));
-    }
-  }, [propertyCategory]);
+  /**
+   * Land 判断规则（一次解决所有模式）：
+   * - land
+   * - residential land
+   * - industrial land
+   * - agricultural land
+   * - vacant land
+   * - land / xxx
+   */
+  const isLand =
+    raw === "land" ||
+    raw.endsWith(" land") ||
+    raw.startsWith("land ") ||
+    raw.includes(" land ") ||
+    raw.includes("land/") ||
+    raw.includes("land /");
+
+  if (isLand) {
+    setSelectedTypes(["land"]);
+    setDropdownOpen((p) => ({ ...p, buildUp: false }));
+  } else {
+    setSelectedTypes(["buildUp"]);
+    setDropdownOpen((p) => ({ ...p, land: false }));
+  }
+}, [propertyCategory]);
 
   // ✅ 回传（保留你原本）
   useEffect(() => {
