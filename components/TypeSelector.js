@@ -636,5 +636,4 @@ export default function TypeSelector({
       )}
     </div>
   );
-                                               }
-                  
+}
