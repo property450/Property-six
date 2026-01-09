@@ -35,22 +35,30 @@ export default function RentUploadForm({
   unitLayouts = [],
   setUnitLayouts,
 
-  // ✅ 新增：从 upload-property 传进来
-  propertyCategory = "",
+  // ✅ 新增：为了 AreaSelector 自动切换
+  propertyCategory,
 }) {
-  const isBatch = rentBatchMode === "yes";
+  // ✅✅✅ 关键：房间出租时，不允许进入 batch 渲染
+  const isBatch = rentBatchMode === "yes" && !isRoomRental;
 
-  // 你原有逻辑：批量时确保 unitLayouts 长度 = layoutCount
+  const roomCount = Math.max(1, Math.min(20, Number(layoutCount) || 1));
+
   useEffect(() => {
-    if (!isBatch) return;
-    if (!setUnitLayouts) return;
+    if (!isRoomRental) {
+      setUnitLayouts?.([]);
+      return;
+    }
 
-    const n = Math.max(2, Math.min(200, Number(layoutCount) || 2));
-    setUnitLayouts((prev) => {
+    if (roomCount <= 1) {
+      setUnitLayouts?.([]);
+      return;
+    }
+
+    setUnitLayouts?.((prev) => {
       const prevArr = Array.isArray(prev) ? prev : [];
-      return Array.from({ length: n }).map((_, i) => prevArr[i] || {});
+      return Array.from({ length: roomCount }).map((_, i) => prevArr[i] || {});
     });
-  }, [isBatch, layoutCount, setUnitLayouts]);
+  }, [isRoomRental, roomCount, setUnitLayouts]);
 
   const updateBatchLayout = (idx, patch) => {
     if (!setUnitLayouts) return;
@@ -68,7 +76,7 @@ export default function RentUploadForm({
           const data = unitLayouts?.[idx] || {};
           const localArea = data.areaData || {
             types: ["buildUp"],
-            units: { buildUp: "square feet", land: "square feet" },
+            units: { buildUp: "Square Feet (sqft)", land: "Square Feet (sqft)" },
             values: { buildUp: "", land: "" },
           };
 
@@ -95,7 +103,10 @@ export default function RentUploadForm({
                   value={data.carparkLevel}
                   onChange={(val) => updateBatchLayout(idx, { carparkLevel: val })}
                 />
-                <FacingSelector value={data.facing} onChange={(val) => updateBatchLayout(idx, { facing: val })} />
+                <FacingSelector
+                  value={data.facing}
+                  onChange={(val) => updateBatchLayout(idx, { facing: val })}
+                />
               </div>
 
               <div className="space-y-3">
@@ -103,12 +114,18 @@ export default function RentUploadForm({
                   value={data.extraSpaces}
                   onChange={(val) => updateBatchLayout(idx, { extraSpaces: val })}
                 />
-                <FurnitureSelector value={data.furniture} onChange={(val) => updateBatchLayout(idx, { furniture: val })} />
+                <FurnitureSelector
+                  value={data.furniture}
+                  onChange={(val) => updateBatchLayout(idx, { furniture: val })}
+                />
                 <FacilitiesSelector
                   value={data.facilities}
                   onChange={(val) => updateBatchLayout(idx, { facilities: val })}
                 />
-                <TransitSelector value={data.transit} onChange={(val) => updateBatchLayout(idx, { transit: val })} />
+                <TransitSelector
+                  value={data.transit}
+                  onChange={(val) => updateBatchLayout(idx, { transit: val })}
+                />
                 <BuildYearSelector
                   value={data.completedYear}
                   onChange={(val) => updateBatchLayout(idx, { completedYear: val })}
@@ -128,7 +145,6 @@ export default function RentUploadForm({
     );
   }
 
-  // 非批量（单表单）
   return (
     <div className="space-y-4">
       <RoomRentalForm
@@ -138,7 +154,11 @@ export default function RentUploadForm({
         setData={setSingleFormData}
       />
 
-      <AreaSelector value={areaData} onChange={setAreaData} propertyCategory={propertyCategory} />
+      <AreaSelector
+        value={areaData}
+        onChange={setAreaData}
+        propertyCategory={propertyCategory}
+      />
 
       <PriceInput value={singleFormData} onChange={setSingleFormData} listingMode="Rent" />
 
