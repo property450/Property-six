@@ -1,114 +1,156 @@
+// components/AreaSelector.js
 "use client";
-import React, { useEffect, useMemo, useRef, useState } from "react";
 
-/**
- * 统一 Area 数据结构（供 PriceInput/psf 计算使用）
- * {
- *   types: ["buildUp"] | ["land"] | ["buildUp","land"],
- *   units: { buildUp: "square feet", land: "square feet" },
- *   values: { buildUp: "1200", land: "3000" }
- * }
- */
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 const AREA_TYPES = [
   { label: "Build up Area", value: "buildUp" },
   { label: "Land Area", value: "land" },
 ];
 
-const UNITS = ["square feet", "square meter", "acres", "hectares"];
+// ✅ 兼容你项目里现有的单位写法（Square Feet (sqft) 等）
+const UNITS = [
+  "Square Feet (sqft)",
+  "Square Meter (sqm)",
+  "Acres",
+  "Hectares",
+  "square feet",
+  "square meter",
+  "acres",
+  "hectares",
+];
+
 const COMMON_VALUES = Array.from({ length: 149 }, (_, i) => 200 + i * 200); // 200–30,000
 
-function normalizeAreaValue(raw) {
-  const v = raw && typeof raw === "object" ? raw : {};
-  const typesArr = Array.isArray(v.types) ? v.types : [];
+function isLandCategory(category) {
+  const raw = String(category || "").toLowerCase().trim();
+  if (!raw) return false;
+  // ✅ 只要包含 land 就算 land 类别（兼容：Residential Land / Industrial Land / Land）
+  return raw.includes("land");
+}
+
+function normalizeAreaValue(v) {
+  const obj = v && typeof v === "object" ? v : {};
+  const typesArr = Array.isArray(obj.types) ? obj.types : [];
   const types =
     typesArr.length > 0
       ? Array.from(new Set(typesArr.filter((t) => t === "buildUp" || t === "land")))
       : ["buildUp"];
 
   const units = {
-    buildUp: v.units?.buildUp || UNITS[0],
-    land: v.units?.land || UNITS[0],
+    buildUp: obj.units?.buildUp || UNITS[0],
+    land: obj.units?.land || UNITS[0],
   };
 
   const values = {
-    buildUp: v.values?.buildUp ?? "",
-    land: v.values?.land ?? "",
+    buildUp: obj.values?.buildUp ?? "",
+    land: obj.values?.land ?? "",
   };
 
   return { types, units, values };
 }
 
-function isLandCategoryText(cat) {
-  const s = String(cat || "").toLowerCase().trim();
-  if (!s) return false;
-
-  // 你的 UI 里常见： "Land" / "LAND" / "Land " / "Land / ..." / "Residential Land" 等
-  // 只要包含 land 就当 land 类别
-  return s.includes("land");
-}
-
-function sameShallow(a, b) {
-  if (!a || !b) return false;
-  if (a.types?.join("|") !== b.types?.join("|")) return false;
-  if (a.units?.buildUp !== b.units?.buildUp) return false;
-  if (a.units?.land !== b.units?.land) return false;
-  if (String(a.values?.buildUp ?? "") !== String(b.values?.buildUp ?? "")) return false;
-  if (String(a.values?.land ?? "") !== String(b.values?.land ?? "")) return false;
-  return true;
+function formatNumberLikeInput(input) {
+  const plain = String(input ?? "").replace(/,/g, "").trim();
+  if (plain === "") return "";
+  const n = Number(plain);
+  if (!Number.isFinite(n)) return "";
+  return n.toLocaleString(undefined, { maximumFractionDigits: 3 });
 }
 
 export default function AreaSelector({
   onChange = () => {},
-  // 兼容你不同文件传参方式：SaleUploadForm 用 initialValue，RentUploadForm 用 value
   initialValue,
   value,
-  // ✅ 关键：从外部传入当前 Property Category，用于自动切换 buildUp/land 默认勾选
+  // ✅ 关键：从外部传入当前 propertyCategory
   propertyCategory,
 }) {
-  const incoming = useMemo(() => normalizeAreaValue(value ?? initialValue ?? {}), [value, initialValue]);
+  const incoming = useMemo(
+    () => normalizeAreaValue(value ?? initialValue ?? {}),
+    [value, initialValue]
+  );
+
+  // ✅ onChange 用 ref，避免 parent inline function 导致无限循环
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   const [selectedTypes, setSelectedTypes] = useState(incoming.types);
   const [units, setUnits] = useState(incoming.units);
   const [areaValues, setAreaValues] = useState(incoming.values);
+  const [displayValues, setDisplayValues] = useState(() => ({
+    buildUp: incoming.values.buildUp ? formatNumberLikeInput(incoming.values.buildUp) : "",
+    land: incoming.values.land ? formatNumberLikeInput(incoming.values.land) : "",
+  }));
+  const [dropdownOpen, setDropdownOpen] = useState({ buildUp: false, land: false });
 
-  // 防止 parent 传入同样内容时重复 setState 造成循环
+  const wrapperRef = useRef({ buildUp: null, land: null });
+
+  // ✅ 父组件 value/initialValue 真正变化才同步（避免循环 setState）
   const lastIncomingRef = useRef(incoming);
   useEffect(() => {
     const last = lastIncomingRef.current;
-    if (!sameShallow(last, incoming)) {
-      lastIncomingRef.current = incoming;
-      setSelectedTypes(incoming.types);
-      setUnits(incoming.units);
-      setAreaValues(incoming.values);
-    }
+    const same =
+      last.types.join("|") === incoming.types.join("|") &&
+      last.units.buildUp === incoming.units.buildUp &&
+      last.units.land === incoming.units.land &&
+      String(last.values.buildUp ?? "") === String(incoming.values.buildUp ?? "") &&
+      String(last.values.land ?? "") === String(incoming.values.land ?? "");
+    if (same) return;
+
+    lastIncomingRef.current = incoming;
+    setSelectedTypes(incoming.types);
+    setUnits(incoming.units);
+    setAreaValues(incoming.values);
+    setDisplayValues({
+      buildUp: incoming.values.buildUp ? formatNumberLikeInput(incoming.values.buildUp) : "",
+      land: incoming.values.land ? formatNumberLikeInput(incoming.values.land) : "",
+    });
   }, [incoming]);
 
-  // ✅ 当 propertyCategory 变成 Land：默认只勾 land
-  // ✅ 当 propertyCategory 不是 Land：默认只勾 buildUp
+  // ✅ propertyCategory 变化时：Land -> 只勾 land；非 Land -> 只勾 buildUp
   const lastCatRef = useRef(propertyCategory);
   useEffect(() => {
-    const prev = lastCatRef.current;
-    if (prev === propertyCategory) return;
+    if (propertyCategory === undefined) return;
+    if (lastCatRef.current === propertyCategory) return;
     lastCatRef.current = propertyCategory;
 
-    const shouldLand = isLandCategoryText(propertyCategory);
-    const nextTypes = shouldLand ? ["land"] : ["buildUp"];
+    const land = isLandCategory(propertyCategory);
+    const nextTypes = land ? ["land"] : ["buildUp"];
 
-    setSelectedTypes((prevTypes) => {
-      const prevKey = (prevTypes || []).join("|");
+    setSelectedTypes((prev) => {
+      const prevKey = (Array.isArray(prev) ? prev : []).join("|");
       const nextKey = nextTypes.join("|");
-      if (prevKey === nextKey) return prevTypes;
-      return nextTypes;
+      return prevKey === nextKey ? prev : nextTypes;
     });
-    // values 不清空，让用户切换回去还在（只是默认勾选变了）
+
+    setDropdownOpen({ buildUp: false, land: false });
   }, [propertyCategory]);
 
-  // 把当前状态打包并通知父组件
-  const emitChange = (next) => {
-    const payload = normalizeAreaValue(next);
-    onChange(payload);
-  };
+  // ✅ 点击外部关闭下拉
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      AREA_TYPES.forEach((t) => {
+        const node = wrapperRef.current[t.value];
+        if (node && !node.contains(event.target)) {
+          setDropdownOpen((prev) => ({ ...prev, [t.value]: false }));
+        }
+      });
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // ✅ 回传给父组件（不把 onChange 放 deps）
+  useEffect(() => {
+    onChangeRef.current?.({
+      types: selectedTypes.length ? selectedTypes : ["buildUp"],
+      units,
+      values: areaValues,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTypes, units, areaValues]);
 
   const toggleType = (type) => {
     setSelectedTypes((prev) => {
@@ -116,48 +158,98 @@ export default function AreaSelector({
       const has = arr.includes(type);
 
       let next;
-      if (has) {
-        next = arr.filter((x) => x !== type);
-      } else {
-        next = [...arr, type];
-      }
+      if (has) next = arr.filter((x) => x !== type);
+      else next = [...arr, type];
 
-      // 至少保留一个
-      if (next.length === 0) next = ["buildUp"];
-
-      // 如果 land 类别，默认是 land，但用户仍可手动加 buildUp（按你的需求）
-      const nextState = { types: next, units, values: areaValues };
-      emitChange(nextState);
+      if (next.length === 0) next = ["buildUp"]; // 至少保留一个
       return next;
     });
   };
 
-  const setUnit = (type, unit) => {
-    setUnits((prev) => {
-      const next = { ...prev, [type]: unit };
-      emitChange({ types: selectedTypes, units: next, values: areaValues });
-      return next;
-    });
+  const setUnit = (type, unitVal) => {
+    setUnits((prev) => ({ ...prev, [type]: unitVal }));
   };
 
-  const setVal = (type, val) => {
-    setAreaValues((prev) => {
-      const next = { ...prev, [type]: val };
-      emitChange({ types: selectedTypes, units, values: next });
-      return next;
-    });
+  const setVal = (type, input) => {
+    const plain = String(input ?? "").replace(/,/g, "");
+    if (!/^\d*\.?\d*$/.test(plain)) return;
+    const parts = plain.split(".");
+    if (parts[1]?.length > 3) return;
+
+    setAreaValues((prev) => ({ ...prev, [type]: plain }));
+    setDisplayValues((prev) => ({ ...prev, [type]: formatNumberLikeInput(plain) }));
   };
 
-  const showBuildUp = selectedTypes.includes("buildUp");
-  const showLand = selectedTypes.includes("land");
+  const pickCommon = (type, v) => {
+    const raw = String(v);
+    setAreaValues((prev) => ({ ...prev, [type]: raw }));
+    setDisplayValues((prev) => ({ ...prev, [type]: formatNumberLikeInput(raw) }));
+    setDropdownOpen((prev) => ({ ...prev, [type]: false }));
+  };
+
+  const renderAreaInput = (type) => {
+    const label = type === "buildUp" ? "Build up Area" : "Land Area";
+    const unit = units[type];
+    const displayVal = displayValues[type] || "";
+
+    return (
+      <div key={type} className="mb-6" ref={(el) => (wrapperRef.current[type] = el)}>
+        <label className="block font-semibold mb-2">{label} Unit</label>
+        <select
+          className="border px-3 py-2 w-full mb-2 rounded bg-white"
+          value={unit}
+          onChange={(e) => setUnit(type, e.target.value)}
+        >
+          {UNITS.map((u) => (
+            <option key={u} value={u}>
+              {u}
+            </option>
+          ))}
+        </select>
+
+        <label className="block font-medium mb-1">{label} Size</label>
+
+        <div className="relative">
+          <input
+            className="border px-3 py-2 w-full rounded pr-40"
+            value={displayVal}
+            placeholder="输入面积或选择常用值"
+            onFocus={() => setDropdownOpen((p) => ({ ...p, [type]: true }))}
+            onChange={(e) => setVal(type, e.target.value)}
+          />
+
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm pointer-events-none">
+            {unit}
+          </span>
+
+          {dropdownOpen[type] && (
+            <div className="absolute z-20 w-full bg-white border rounded mt-1 max-h-56 overflow-y-auto">
+              {COMMON_VALUES.map((v) => (
+                <div
+                  key={v}
+                  className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    pickCommon(type, v);
+                  }}
+                >
+                  {v.toLocaleString()}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <div className="border rounded-xl p-4 bg-white space-y-4">
-      <div className="text-sm font-semibold">Build up Area / Land Area</div>
+    <div className="p-4 border rounded-xl shadow-md bg-white">
+      <label className="block font-semibold mb-2">Build up Area / Land Area</label>
 
-      <div className="flex items-center gap-6">
+      <div className="flex gap-4 mb-4">
         {AREA_TYPES.map((t) => (
-          <label key={t.value} className="flex items-center gap-2 text-sm select-none">
+          <label key={t.value} className="flex items-center gap-2">
             <input
               type="checkbox"
               checked={selectedTypes.includes(t.value)}
@@ -168,77 +260,7 @@ export default function AreaSelector({
         ))}
       </div>
 
-      {showBuildUp && (
-        <div className="space-y-3">
-          <div className="text-sm font-semibold">Build up Area Unit</div>
-          <select
-            className="border rounded px-3 py-2 w-full"
-            value={units.buildUp}
-            onChange={(e) => setUnit("buildUp", e.target.value)}
-          >
-            {UNITS.map((u) => (
-              <option key={u} value={u}>
-                {u}
-              </option>
-            ))}
-          </select>
-
-          <div className="text-sm font-semibold">Build up Area Size</div>
-          <div className="flex gap-2">
-            <input
-              className="border rounded px-3 py-2 w-full"
-              placeholder="输入面积或选择常用值"
-              value={areaValues.buildUp}
-              onChange={(e) => setVal("buildUp", e.target.value)}
-              list="buildup-common"
-            />
-            <div className="border rounded px-3 py-2 text-sm text-gray-600 whitespace-nowrap">
-              {units.buildUp}
-            </div>
-          </div>
-          <datalist id="buildup-common">
-            {COMMON_VALUES.map((v) => (
-              <option key={v} value={v} />
-            ))}
-          </datalist>
-        </div>
-      )}
-
-      {showLand && (
-        <div className="space-y-3">
-          <div className="text-sm font-semibold">Land Area Unit</div>
-          <select
-            className="border rounded px-3 py-2 w-full"
-            value={units.land}
-            onChange={(e) => setUnit("land", e.target.value)}
-          >
-            {UNITS.map((u) => (
-              <option key={u} value={u}>
-                {u}
-              </option>
-            ))}
-          </select>
-
-          <div className="text-sm font-semibold">Land Area Size</div>
-          <div className="flex gap-2">
-            <input
-              className="border rounded px-3 py-2 w-full"
-              placeholder="输入面积或选择常用值"
-              value={areaValues.land}
-              onChange={(e) => setVal("land", e.target.value)}
-              list="land-common"
-            />
-            <div className="border rounded px-3 py-2 text-sm text-gray-600 whitespace-nowrap">
-              {units.land}
-            </div>
-          </div>
-          <datalist id="land-common">
-            {COMMON_VALUES.map((v) => (
-              <option key={v} value={v} />
-            ))}
-          </datalist>
-        </div>
-      )}
+      {selectedTypes.map((type) => renderAreaInput(type))}
     </div>
   );
 }
