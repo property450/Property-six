@@ -364,12 +364,13 @@ export default function UnitLayoutForm({
       />
 
       <AreaSelector
-        initialValue={areaForPsf || {}}
-        onChange={(val) => {
-          setAreaForPsf(val);
-          handleFieldChange("buildUp", val);
-        }}
-      />
+  propertyCategory={category}  // ✅ 关键：让 AreaSelector 知道你选了 Land
+  initialValue={areaForPsf || {}}
+  onChange={(val) => {
+    setAreaForPsf(val);
+    handleFieldChange("buildUp", val);
+  }}
+/>
 
       <PriceInput
         value={priceForPsf}
