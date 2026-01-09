@@ -12,15 +12,12 @@ const COMMON_VALUES = Array.from({ length: 149 }, (_, i) => 200 + i * 200); // 2
 export default function AreaSelector({
   onChange = () => {},
   initialValue = {},
-  propertyCategory, // ✅ 新增：用来判断是否为 Land
+  propertyCategory, // ✅ 新增：用来判断 Land
 }) {
-  // ✅ 默认：非 Land 只勾 buildUp；Land 类别只勾 land
-  const isLandCategoryInit = String(propertyCategory || "").trim() === "Land";
-  const [selectedTypes, setSelectedTypes] = useState(() => {
-    // ✅ 如果是编辑旧数据（initialValue.types 有值），就尊重旧数据
-    if (Array.isArray(initialValue.types) && initialValue.types.length > 0) return initialValue.types;
-    return isLandCategoryInit ? ["land"] : ["buildUp"];
-  });
+  // ✅ 原本逻辑：尊重 initialValue.types；否则默认 buildUp
+  const [selectedTypes, setSelectedTypes] = useState(
+    initialValue.types || ["buildUp"]
+  );
 
   const [units, setUnits] = useState({
     buildUp: initialValue.units?.buildUp || UNITS[0],
@@ -32,35 +29,21 @@ export default function AreaSelector({
   );
 
   const [displayValues, setDisplayValues] = useState({
-    buildUp: initialValue.values?.buildUp ? formatNumber(initialValue.values.buildUp) : "",
+    buildUp: initialValue.values?.buildUp
+      ? formatNumber(initialValue.values.buildUp)
+      : "",
     land: initialValue.values?.land ? formatNumber(initialValue.values.land) : "",
   });
 
-  const [dropdownOpen, setDropdownOpen] = useState({ buildUp: false, land: false });
-
-  // ✅ 当 Property Category 切到 Land / 退出 Land：自动切换默认勾选（不改你原本的 UI/下拉逻辑）
-  useEffect(() => {
-    const isLand = String(propertyCategory || "").trim() === "Land";
-
-    if (isLand) {
-      // Land：默认只勾 land，并清空 buildUp（避免旧值继续参与 PSF 等计算）
-      setSelectedTypes(["land"]);
-      setAreaValues((p) => ({ ...p, buildUp: "" }));
-      setDisplayValues((p) => ({ ...p, buildUp: "" }));
-      setDropdownOpen((p) => ({ ...p, buildUp: false }));
-    } else {
-      // 非 Land：默认只勾 buildUp，并清空 land
-      setSelectedTypes(["buildUp"]);
-      setAreaValues((p) => ({ ...p, land: "" }));
-      setDisplayValues((p) => ({ ...p, land: "" }));
-      setDropdownOpen((p) => ({ ...p, land: false }));
-    }
-  }, [propertyCategory]);
+  const [dropdownOpen, setDropdownOpen] = useState({
+    buildUp: false,
+    land: false,
+  });
 
   const wrapperRef = useRef({ buildUp: null, land: null });
 
+  // ✅ 点击外部关闭下拉（保留你原本）
   useEffect(() => {
-    // 点击外部关闭下拉
     const handleClickOutside = (e) => {
       AREA_TYPES.forEach((t) => {
         const node = wrapperRef.current[t.value];
@@ -73,53 +56,67 @@ export default function AreaSelector({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // ✅ 保留你原本：不允许 selectedTypes 变成空
   useEffect(() => {
-    // 回传给父组件
-    onChange({
-      types: selectedTypes,
-      units,
-      values: areaValues,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTypes, units, areaValues]);
+    if (selectedTypes.length === 0) setSelectedTypes(["buildUp"]);
+  }, [selectedTypes]);
+
+  // ✅ 关键新增：category=Land 自动切换默认勾选
+  useEffect(() => {
+    // 兼容各种写法：Land / land / " Land " / "Land (xxx)"
+    const cat = String(propertyCategory || "").toLowerCase().trim();
+    const isLandCategory = cat === "land" || cat.includes("land");
+
+    if (isLandCategory) {
+      // 切到 Land：默认只勾 land
+      setSelectedTypes(["land"]);
+      // （不强制清空 buildUp 值，让你 PSF/数据逻辑保持原样；如果你要清空我也能加）
+      setDropdownOpen((p) => ({ ...p, buildUp: false }));
+    } else if (propertyCategory !== undefined) {
+      // 离开 Land（且确保 prop 有传进来）：默认只勾 buildUp
+      setSelectedTypes(["buildUp"]);
+      setDropdownOpen((p) => ({ ...p, land: false }));
+    }
+  }, [propertyCategory]);
+
+  // ✅ 回传（保留你原本）
+  useEffect(() => {
+    onChange({ types: selectedTypes, units, values: areaValues });
+  }, [selectedTypes, units, areaValues, onChange]);
 
   function formatNumber(num) {
-    const n = parseFloat(String(num || "").replace(/,/g, ""));
+    const plain = String(num || "").replace(/,/g, "");
+    const n = parseFloat(plain);
     if (!Number.isFinite(n)) return "";
     return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
   }
 
-  const handleCheckboxChange = (type) => {
+  const handleCheckboxChange = (value) => {
     setSelectedTypes((prev) => {
-      // 取消勾选
-      if (prev.includes(type)) {
-        // 不允许清空到 0（至少留一个）
-        if (prev.length === 1) return prev;
-
-        // 清空被取消的值 + 关闭下拉
-        setAreaValues((p) => ({ ...p, [type]: "" }));
-        setDisplayValues((p) => ({ ...p, [type]: "" }));
-        setDropdownOpen((p) => ({ ...p, [type]: false }));
-
-        return prev.filter((t) => t !== type);
-      }
-
-      // 勾选
-      return [...prev, type];
+      if (prev.includes(value)) {
+        if (prev.length > 1) {
+          setAreaValues((prevVals) => ({ ...prevVals, [value]: "" }));
+          setDisplayValues((prevVals) => ({ ...prevVals, [value]: "" }));
+          setDropdownOpen((prevDrop) => ({ ...prevDrop, [value]: false }));
+          return prev.filter((v) => v !== value);
+        } else return prev;
+      } else return [...prev, value];
     });
   };
 
-  const handleUnitChange = (type, unit) => {
-    setUnits((prev) => ({ ...prev, [type]: unit }));
+  const handleUnitChange = (type, unitVal) => {
+    setUnits((prev) => ({ ...prev, [type]: unitVal }));
   };
 
   const handleInputChange = (type, input) => {
-    // 允许输入逗号显示，但内部存纯数字
-    const raw = String(input || "").replace(/,/g, "");
-    if (!/^\d*\.?\d*$/.test(raw)) return;
+    const plain = input.replace(/,/g, "");
+    if (!/^\d*\.?\d*$/.test(plain)) return;
 
-    setAreaValues((prev) => ({ ...prev, [type]: raw }));
-    setDisplayValues((prev) => ({ ...prev, [type]: formatNumber(raw) }));
+    const parts = plain.split(".");
+    if (parts[1]?.length > 3) return;
+
+    setAreaValues((prev) => ({ ...prev, [type]: plain }));
+    setDisplayValues((prev) => ({ ...prev, [type]: formatNumber(plain) }));
   };
 
   const handleSelectCommonValue = (type, val) => {
@@ -140,7 +137,9 @@ export default function AreaSelector({
     else if (unit.includes("acres")) sqft = val * 43560;
     else if (unit.includes("hectares")) sqft = val * 107639;
 
-    return `≈ ${sqft.toLocaleString(undefined, { maximumFractionDigits: 0 })} sq ft`;
+    return `≈ ${sqft.toLocaleString(undefined, {
+      maximumFractionDigits: 0,
+    })} sq ft`;
   };
 
   const renderAreaInput = (type) => {
@@ -165,14 +164,21 @@ export default function AreaSelector({
         </select>
 
         <label className="block font-medium mb-1">{label} Size</label>
+
         <div className="relative">
+          {/* ✅ 新增：右侧显示单位，所以加 pr-32 */}
           <input
-            className="border px-3 py-2 w-full rounded"
+            className="border px-3 py-2 w-full rounded pr-32"
             value={displayVal}
             placeholder="输入面积或选择常用值"
             onFocus={() => setDropdownOpen((p) => ({ ...p, [type]: true }))}
             onChange={(e) => handleInputChange(type, e.target.value)}
           />
+
+          {/* ✅ 新增：输入框右侧单位显示 */}
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm pointer-events-none">
+            {unit}
+          </span>
 
           {dropdownOpen[type] && (
             <div className="absolute z-20 w-full bg-white border rounded mt-1 max-h-56 overflow-y-auto">
@@ -181,7 +187,6 @@ export default function AreaSelector({
                   key={v}
                   className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                   onMouseDown={(e) => {
-                    // 防止 input 失焦导致 dropdown 先关掉
                     e.preventDefault();
                     handleSelectCommonValue(type, v);
                   }}
@@ -193,7 +198,7 @@ export default function AreaSelector({
           )}
         </div>
 
-        {preview ? <div className="text-sm text-gray-500 mt-1">{preview}</div> : null}
+        {preview ? <p className="text-sm text-gray-500 mt-1">{preview}</p> : null}
       </div>
     );
   };
@@ -215,7 +220,7 @@ export default function AreaSelector({
         ))}
       </div>
 
-      {selectedTypes.map((type) => renderAreaInput(type))}
+      {selectedTypes.map((t) => renderAreaInput(t))}
     </div>
   );
 }
