@@ -22,7 +22,7 @@ function isLandCategory(propertyCategory) {
   const raw = String(propertyCategory || "").toLowerCase().trim();
   if (!raw) return false;
 
-  // ✅ 兼容：Land / Residential Land / Industrial Land / Land / Commercial / Land (xxx) 等
+  // ✅ 兼容：Land / Residential Land / Industrial Land / Land / Commercial 等
   return (
     raw === "land" ||
     raw.endsWith(" land") ||
@@ -30,8 +30,6 @@ function isLandCategory(propertyCategory) {
     raw.startsWith("land ") ||
     raw.includes("land/") ||
     raw.includes("land /") ||
-    raw.includes("(land") ||
-    raw.includes("land(") ||
     raw.includes("residential land") ||
     raw.includes("industrial land") ||
     raw.includes("agricultural land") ||
@@ -44,7 +42,20 @@ export default function AreaSelector({
   initialValue = {},
   propertyCategory,
 }) {
-  // ✅ 初始化：优先尊重已有数据；否则按 category 默认（Land -> land / 其它 -> buildUp）
+  /**
+   * ✅ 关键修复点 1：
+   * onChange 很多地方会用 inline function 传进来（每次 render 都是新函数）
+   * 如果把 onChange 放进 useEffect 依赖，会导致无限循环。
+   * 所以我们用 ref 保存最新的 onChange，effect 里不依赖它。
+   */
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  /**
+   * ✅ 初始化（只执行一次）：优先尊重 initialValue.types，否则按 category 默认
+   */
   const [selectedTypes, setSelectedTypes] = useState(() => {
     if (Array.isArray(initialValue?.types) && initialValue.types.length > 0) {
       return initialValue.types;
@@ -70,6 +81,44 @@ export default function AreaSelector({
 
   const wrapperRef = useRef({ buildUp: null, land: null });
 
+  /**
+   * ✅ 关键修复点 2：
+   * 只有当 propertyCategory “真的变化” 时，才自动切换默认勾选
+   * （避免你切换 / rerender 过程中被反复 setState）
+   */
+  const prevCategoryRef = useRef(null);
+  useEffect(() => {
+    // 如果父组件没传 propertyCategory，就不要强行改（避免乱跳）
+    if (propertyCategory === undefined) return;
+
+    // 只在 category 变化时触发
+    if (prevCategoryRef.current === propertyCategory) return;
+    prevCategoryRef.current = propertyCategory;
+
+    const land = isLandCategory(propertyCategory);
+
+    setSelectedTypes(land ? ["land"] : ["buildUp"]);
+
+    // 关掉另外一边的 dropdown，避免 UI 乱
+    setDropdownOpen((p) => ({
+      ...p,
+      buildUp: land ? false : p.buildUp,
+      land: land ? p.land : false,
+    }));
+  }, [propertyCategory]);
+
+  /**
+   * ✅ 关键修复点 3：
+   * 回传给父组件时，不把 onChange 放进依赖，避免循环
+   */
+  useEffect(() => {
+    onChangeRef.current?.({
+      types: selectedTypes,
+      units,
+      values: areaValues,
+    });
+  }, [selectedTypes, units, areaValues]);
+
   // ✅ 点击外部关闭下拉
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -83,29 +132,6 @@ export default function AreaSelector({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  // ✅ 核心：category 切换时设置默认勾选
-  useEffect(() => {
-    // 如果父组件没传 propertyCategory，就不要强行改（避免你别的地方没接上时乱跳）
-    if (propertyCategory === undefined) return;
-
-    const land = isLandCategory(propertyCategory);
-    setSelectedTypes(land ? ["land"] : ["buildUp"]);
-    setDropdownOpen((p) => ({
-      ...p,
-      buildUp: land ? false : p.buildUp,
-      land: land ? p.land : false,
-    }));
-  }, [propertyCategory]);
-
-  // ✅ 回传给父组件（保持你原数据结构）
-  useEffect(() => {
-    onChange({
-      types: selectedTypes,
-      units,
-      values: areaValues,
-    });
-  }, [selectedTypes, units, areaValues, onChange]);
 
   const handleCheckboxChange = (type) => {
     setSelectedTypes((prev) => {
@@ -134,7 +160,7 @@ export default function AreaSelector({
     // 只允许数字 + 小数点
     if (!/^\d*\.?\d*$/.test(plain)) return;
 
-    // 小数最多 3 位（按你原本习惯）
+    // 小数最多 3 位（保持你原本习惯）
     const parts = plain.split(".");
     if (parts[1]?.length > 3) return;
 
@@ -177,7 +203,7 @@ export default function AreaSelector({
       >
         <label className="block font-semibold mb-2">{label} Unit</label>
         <select
-          className="border px-3 py-2 w-full mb-2 rounded"
+          className="border px-3 py-2 w-full mb-2 rounded bg-white"
           value={unit}
           onChange={(e) => handleUnitChange(type, e.target.value)}
         >
@@ -228,7 +254,7 @@ export default function AreaSelector({
   };
 
   return (
-    <div className="p-4 border rounded-xl shadow-md">
+    <div className="p-4 border rounded-xl shadow-md bg-white">
       <label className="block font-semibold mb-2">Build up Area / Land Area</label>
 
       <div className="flex gap-4 mb-4">
