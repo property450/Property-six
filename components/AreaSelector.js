@@ -2,30 +2,21 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { convertToSqft } from "@/utils/psfUtils";
 
 const AREA_TYPES = [
   { label: "Build up Area", value: "buildUp" },
   { label: "Land Area", value: "land" },
 ];
 
-// ✅ 兼容你项目里现有的单位写法（Square Feet (sqft) 等）
-const UNITS = [
-  "Square Feet (sqft)",
-  "Square Meter (sqm)",
-  "Acres",
-  "Hectares",
-  "square feet",
-  "square meter",
-  "acres",
-  "hectares",
-];
+// ✅ 恢复：只保留你原本应该出现的单位（不要小写重复）
+const UNITS = ["Square Feet (sqft)", "Square Meter (sqm)", "Acres", "Hectares"];
 
 const COMMON_VALUES = Array.from({ length: 149 }, (_, i) => 200 + i * 200); // 200–30,000
 
 function isLandCategory(category) {
   const raw = String(category || "").toLowerCase().trim();
   if (!raw) return false;
-  // ✅ 只要包含 land 就算 land 类别（兼容：Residential Land / Industrial Land / Land）
   return raw.includes("land");
 }
 
@@ -58,11 +49,17 @@ function formatNumberLikeInput(input) {
   return n.toLocaleString(undefined, { maximumFractionDigits: 3 });
 }
 
+function formatSqftNumber(n) {
+  if (!Number.isFinite(n) || n <= 0) return "";
+  // 你原本显示的感觉是“数值 + sqft”，这里做轻量格式化
+  return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
 export default function AreaSelector({
   onChange = () => {},
   initialValue,
   value,
-  // ✅ 关键：从外部传入当前 propertyCategory
+  // ✅ 从外部传入当前 propertyCategory
   propertyCategory,
 }) {
   const incoming = useMemo(
@@ -109,24 +106,27 @@ export default function AreaSelector({
     });
   }, [incoming]);
 
-  // ✅ propertyCategory 变化时：Land -> 只勾 land；非 Land -> 只勾 buildUp
-  const lastCatRef = useRef(propertyCategory);
+  // ✅✅✅ 修复：第一次进入也要执行默认切换（Land -> land；非 Land -> buildUp）
+  const lastCatRef = useRef(undefined); // ✅ 不要用 useRef(propertyCategory)
   useEffect(() => {
     if (propertyCategory === undefined) return;
-    if (lastCatRef.current === propertyCategory) return;
-    lastCatRef.current = propertyCategory;
 
+    // 只有在“category真的变化”或“当前勾选不符合默认”才处理
     const land = isLandCategory(propertyCategory);
     const nextTypes = land ? ["land"] : ["buildUp"];
+    const prevKey = (Array.isArray(selectedTypes) ? selectedTypes : []).join("|");
+    const nextKey = nextTypes.join("|");
 
-    setSelectedTypes((prev) => {
-      const prevKey = (Array.isArray(prev) ? prev : []).join("|");
-      const nextKey = nextTypes.join("|");
-      return prevKey === nextKey ? prev : nextTypes;
-    });
+    const catChanged = lastCatRef.current !== propertyCategory;
+    const typesMismatch = prevKey !== nextKey;
 
+    if (!catChanged && !typesMismatch) return;
+
+    lastCatRef.current = propertyCategory;
+
+    setSelectedTypes(nextTypes);
     setDropdownOpen({ buildUp: false, land: false });
-  }, [propertyCategory]);
+  }, [propertyCategory, selectedTypes]);
 
   // ✅ 点击外部关闭下拉
   useEffect(() => {
@@ -192,6 +192,10 @@ export default function AreaSelector({
     const unit = units[type];
     const displayVal = displayValues[type] || "";
 
+    // ✅ 恢复：显示换算后的 sqft（你说原本在 Size 下面会看到）
+    const sqft = convertToSqft(areaValues?.[type], unit);
+    const sqftText = formatSqftNumber(sqft);
+
     return (
       <div key={type} className="mb-6" ref={(el) => (wrapperRef.current[type] = el)}>
         <label className="block font-semibold mb-2">{label} Unit</label>
@@ -239,6 +243,9 @@ export default function AreaSelector({
             </div>
           )}
         </div>
+
+        {/* ✅ 这行就是你说“原本会显示选择的面积=多少sf” */}
+        {sqftText && <div className="text-sm text-gray-600 mt-1">≈ {sqftText} sqft</div>}
       </div>
     );
   };
