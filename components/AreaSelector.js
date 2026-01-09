@@ -58,6 +58,35 @@ function formatNumberLikeInput(input) {
   return n.toLocaleString(undefined, { maximumFractionDigits: 3 });
 }
 
+/** ✅ 加回：把当前输入值 + unit 换算成 sqft（只用于显示 "= xxx sqft"） */
+function toSqft(val, unit) {
+  const raw = String(val ?? "").replace(/,/g, "").trim();
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+
+  const u = String(unit || "").toLowerCase();
+
+  // sqft
+  if (u.includes("square feet") || u.includes("sqft")) return n;
+
+  // sqm -> sqft
+  if (u.includes("square meter") || u.includes("sqm")) return n * 10.763910416709722;
+
+  // acres -> sqft
+  if (u.includes("acres")) return n * 43560;
+
+  // hectares -> sqft
+  if (u.includes("hectares")) return n * 107639.1041670972;
+
+  // fallback
+  return 0;
+}
+
+function formatSqft(n) {
+  if (!Number.isFinite(n) || n <= 0) return "";
+  return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
 export default function AreaSelector({
   onChange = () => {},
   initialValue,
@@ -110,7 +139,7 @@ export default function AreaSelector({
   }, [incoming]);
 
   // ✅ propertyCategory 变化时：Land -> 只勾 land；非 Land -> 只勾 buildUp
-  // ✅【只改这一行】：保证第一次也会跑（否则第一次 lastCatRef === propertyCategory 会直接 return）
+  // ✅【你之前要的默认切换修复：只改这一行确保首次也会触发】
   const lastCatRef = useRef(undefined);
   useEffect(() => {
     if (propertyCategory === undefined) return;
@@ -193,6 +222,10 @@ export default function AreaSelector({
     const unit = units[type];
     const displayVal = displayValues[type] || "";
 
+    // ✅ 加回：显示 "= xxx sqft"
+    const sqft = toSqft(areaValues?.[type], unit);
+    const sqftText = formatSqft(sqft);
+
     return (
       <div key={type} className="mb-6" ref={(el) => (wrapperRef.current[type] = el)}>
         <label className="block font-semibold mb-2">{label} Unit</label>
@@ -240,6 +273,8 @@ export default function AreaSelector({
             </div>
           )}
         </div>
+
+        {sqftText ? <div className="text-sm text-gray-600 mt-1">= {sqftText} sqft</div> : null}
       </div>
     );
   };
