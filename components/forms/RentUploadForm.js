@@ -55,19 +55,17 @@ export default function RentUploadForm({
       <div className="space-y-4">
         {Array.from({ length: Number(layoutCount) || 0 }).map((_, idx) => {
           const data = unitLayouts?.[idx] || {};
-          const localArea = data.areaData || areaData || {};
 
           return (
             <div key={idx} className="border rounded-lg p-4 space-y-4 bg-white">
               <div className="text-lg font-semibold">房型 {idx + 1}</div>
 
-              <AreaSelector
-                value={localArea}
-                onChange={(val) => updateBatchLayout(idx, { areaData: val })}
-                propertyCategory={propertyCategory}
+              {/* ✅ 修复：Rent 价格要传 data.rent，并回传 { rent } */}
+              <PriceInput
+                value={data.rent}
+                onChange={(rent) => updateBatchLayout(idx, { rent })}
+                listingMode="Rent"
               />
-
-              <PriceInput value={data} onChange={(next) => updateBatchLayout(idx, next)} listingMode="Rent" />
 
               <RoomCountSelector
                 value={data}
@@ -124,12 +122,41 @@ export default function RentUploadForm({
   // 单表单（非批量）
   return (
     <div className="space-y-4">
-      <RoomRentalForm
-        isRoomRental={isRoomRental}
-        roomRentalMode={roomRentalMode}
-        data={singleFormData}
-        setData={setSingleFormData}
-      />
+      {/* ✅ 修复：出租房间 + 多房间时，显示 房间1 / 房间2 ... */}
+      {isRoomRental && roomRentalMode === "multi" ? (
+        <div className="space-y-4">
+          {Array.from({ length: Number(layoutCount) || 0 }).map((_, idx) => {
+            const roomData = unitLayouts && unitLayouts[idx] ? unitLayouts[idx] : {};
+
+            return (
+              <div key={idx} className="border rounded-lg p-4 space-y-4 bg-white">
+                <div className="text-lg font-semibold">房间 {idx + 1}</div>
+
+                <RoomRentalForm
+                  isRoomRental
+                  roomRentalMode="single"
+                  data={roomData}
+                  setData={(next) => {
+                    if (!setUnitLayouts) return;
+                    setUnitLayouts((prev) => {
+                      const arr = Array.isArray(prev) ? [...prev] : [];
+                      arr[idx] = next || {};
+                      return arr;
+                    });
+                  }}
+                />
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <RoomRentalForm
+          isRoomRental={isRoomRental}
+          roomRentalMode={roomRentalMode}
+          data={singleFormData}
+          setData={setSingleFormData}
+        />
+      )}
 
       <AreaSelector
         value={areaData}
@@ -137,9 +164,17 @@ export default function RentUploadForm({
         propertyCategory={propertyCategory}
       />
 
-      <PriceInput value={singleFormData} onChange={setSingleFormData} listingMode="Rent" />
+      {/* ✅ 修复：Rent 价格要传 singleFormData.rent，并回传 rent 写回去 */}
+      <PriceInput
+        value={singleFormData.rent}
+        onChange={(rent) => setSingleFormData((p) => ({ ...p, rent }))}
+        listingMode="Rent"
+      />
 
-      <RoomCountSelector value={singleFormData} onChange={(patch) => setSingleFormData((p) => ({ ...p, ...patch }))} />
+      <RoomCountSelector
+        value={singleFormData}
+        onChange={(patch) => setSingleFormData((p) => ({ ...p, ...patch }))}
+      />
 
       <CarparkCountSelector
         value={singleFormData.carparks}
@@ -175,17 +210,6 @@ export default function RentUploadForm({
         value={singleFormData.transit}
         onChange={(val) => setSingleFormData((p) => ({ ...p, transit: val }))}
       />
-
-      <div className="space-y-2">
-        <div className="text-sm font-semibold">房源描述</div>
-        <textarea
-          className="border rounded w-full p-3"
-          rows={4}
-          placeholder="请输入房源描述..."
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-        />
-      </div>
 
       <ImageUpload
         config={singleFormData.photoConfig}
