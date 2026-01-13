@@ -244,6 +244,11 @@ export default function SaleUploadForm({
         />
       </div>
 
+            <LayoutBlueprintUpload
+  value={singleFormData.layoutPhotos}
+  onChange={(val) => setSingleFormData((p) => ({ ...p, layoutPhotos: val }))}
+ />
+
       <ImageUpload
         config={photoConfigComputed}
         images={singleFormData.photos}
