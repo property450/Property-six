@@ -163,6 +163,9 @@ export default function ImageUpload({
 
   // ⭐ 新增：强制使用固定分组标题（例如出租房间只要一个“房源照片上传”）
   labelsOverride,
+
+  // ✅ 新增：额外固定分组（例如：房源外观/环境）
+  fixedLabels,
 }) {
   // 统一 config 来源
   const safeConfig = (value ?? config) || {};
@@ -188,10 +191,25 @@ export default function ImageUpload({
   }, [externalImages]);
 
   // ✅ labels：默认自动生成；出租房间可强制只要一个
-  const labels =
+  const baseLabels =
     Array.isArray(labelsOverride) && labelsOverride.length
       ? labelsOverride
       : getPhotoLabelsFromConfig(safeConfig);
+
+  // ✅ 合并 fixedLabels（保持顺序 + 去重）
+  const mergedLabels = (() => {
+    const extras = Array.isArray(fixedLabels) ? fixedLabels.filter(Boolean) : [];
+    const all = [...baseLabels, ...extras];
+    const seen = new Set();
+    const out = [];
+    for (const l of all) {
+      if (!l) continue;
+      if (seen.has(l)) continue;
+      seen.add(l);
+      out.push(l);
+    }
+    return out.length ? out : ["房源照片"];
+  })();
 
   const writeBack = (updated) => {
     // 旧接口
@@ -245,7 +263,7 @@ export default function ImageUpload({
   // ✅ UI：完全保留你原本的上传框样式
   return (
     <div className="space-y-4 mt-4">
-      {labels.map((label) => {
+      {mergedLabels.map((label) => {
         const list = localImages[label] || [];
         return (
           <div key={label} className="border rounded p-3 space-y-2">
