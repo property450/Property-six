@@ -67,16 +67,19 @@ export default function UnitLayoutForm({
 
   // ✅ 关键：不要依赖 layout.projectType（很多时候为空）
   const effectiveProjectType = layout.projectType || computedStatus || "";
-  const effectiveRentMode = layout.rentMode || saleType || "";
+const effectiveRentMode = layout.rentMode || saleType || "";
 
-  const isNewProject = effectiveProjectType === "New Project / Under Construction";
-  const isCompletedProject = effectiveProjectType === "Completed Unit / Developer Unit";
+// ✅ 只做大小写兼容，不改其它逻辑
+const modeLower = String(effectiveRentMode).toLowerCase();
 
-  // 只有 Sale 的项目，需要显示年份；Rent / Homestay / Hotel 都不要
-  const showBuildYear = effectiveRentMode === "Sale" && (isNewProject || isCompletedProject);
+const isNewProject = effectiveProjectType === "New Project / Under Construction";
+const isCompletedProject = effectiveProjectType === "Completed Unit / Developer Unit";
 
-  // ⭐ 批量 Rent 的 Layout
-  const isBulkRent = effectiveRentMode === "Rent";
+// 只有 Sale 的项目，需要显示年份；Rent / Homestay / Hotel 都不要
+const showBuildYear = modeLower === "sale" && (isNewProject || isCompletedProject);
+
+// ⭐ 批量 Rent 的 Layout
+const isBulkRent = modeLower === "rent";
 
   // Category / SubType / 层数
   const [category, setCategory] = useState(
