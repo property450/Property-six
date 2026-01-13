@@ -36,7 +36,6 @@ export default function RentUploadForm({
   unitLayouts = [],
   setUnitLayouts,
 
-  // ✅【只加这一个】给 AreaSelector 做 Land 自动切换
   propertyCategory = "",
 }) {
   const isBatch = rentBatchMode === "yes";
@@ -50,7 +49,9 @@ export default function RentUploadForm({
     });
   };
 
-  // ✅ 批量模式（整间出租的批量）
+  /* ===========================
+     批量出租（整间，多个 layout）
+  ============================ */
   if (isBatch) {
     return (
       <div className="space-y-4">
@@ -61,11 +62,11 @@ export default function RentUploadForm({
             <div key={idx} className="border rounded-lg p-4 space-y-4 bg-white">
               <div className="text-lg font-semibold">房型 {idx + 1}</div>
 
-              {/* ✅ 修复：Rent 价格必须传 data.rent；onChange 回写 { rent } */}
               <PriceInput
                 value={data.rent}
-                onChange={(rent) => updateBatchLayout(idx, { rent })}
                 listingMode="Rent"
+                areaData={areaData}
+                onChange={(rent) => updateBatchLayout(idx, { rent })}
               />
 
               <RoomCountSelector
@@ -109,9 +110,8 @@ export default function RentUploadForm({
               />
 
               <ImageUpload
-                config={data.photoConfig}
-                images={data.photos}
-                setImages={(updated) => updateBatchLayout(idx, { photos: updated })}
+                value={data}
+                onChange={(next) => updateBatchLayout(idx, next)}
               />
             </div>
           );
@@ -126,25 +126,24 @@ export default function RentUploadForm({
             onChange={(e) => setDescription(e.target.value)}
           />
         </div>
-
-        <ImageUpload
-          config={singleFormData.photoConfig}
-          images={singleFormData.photos}
-          setImages={(updated) => setSingleFormData((p) => ({ ...p, photos: updated }))}
-        />
       </div>
     );
   }
 
-  // ✅ 非批量：这里要严格区分【出租房间】 vs 【整间出租】
+  /* ===========================
+     非批量：严格区分
+     1) 出租房间
+     2) 整间出租
+  ============================ */
   return (
     <div className="space-y-4">
-      {/* ✅✅✅ 出租房间：用 RoomRentalForm（并且传对 value/onChange 才会记住） */}
+      {/* ===== 出租房间 ===== */}
       {isRoomRental ? (
         Number(layoutCount) > 1 ? (
           <div className="space-y-4">
             {Array.from({ length: Number(layoutCount) || 0 }).map((_, idx) => {
               const roomValue = unitLayouts?.[idx] || {};
+
               return (
                 <div key={idx} className="border rounded-lg p-4 space-y-4 bg-white">
                   <div className="text-lg font-semibold">房间 {idx + 1}</div>
@@ -160,27 +159,50 @@ export default function RentUploadForm({
                       });
                     }}
                   />
+
+                  {/* ✅ 每个房间自己的照片上传 */}
+                  <ImageUpload
+                    value={roomValue}
+                    onChange={(next) => {
+                      if (!setUnitLayouts) return;
+                      setUnitLayouts((prev) => {
+                        const arr = Array.isArray(prev) ? [...prev] : [];
+                        arr[idx] = next || {};
+                        return arr;
+                      });
+                    }}
+                  />
                 </div>
               );
             })}
           </div>
         ) : (
-          <RoomRentalForm value={singleFormData} onChange={setSingleFormData} />
+          <>
+            <RoomRentalForm
+              value={singleFormData}
+              onChange={setSingleFormData}
+            />
+
+            <ImageUpload
+              value={singleFormData}
+              onChange={setSingleFormData}
+            />
+          </>
         )
       ) : (
+        /* ===== 整间出租 ===== */
         <>
-          {/* ✅✅✅ 整间出租：保持你原本整间表单（不再渲染 RoomRentalForm） */}
           <AreaSelector
             value={areaData}
             onChange={setAreaData}
             propertyCategory={propertyCategory}
           />
 
-          {/* ✅ 修复：Rent 价格必须传 singleFormData.rent；onChange 回写 rent */}
           <PriceInput
             value={singleFormData.rent}
-            onChange={(rent) => setSingleFormData((p) => ({ ...p, rent }))}
             listingMode="Rent"
+            areaData={areaData}
+            onChange={(rent) => setSingleFormData((p) => ({ ...p, rent }))}
           />
 
           <RoomCountSelector
@@ -195,7 +217,9 @@ export default function RentUploadForm({
 
           <CarparkLevelSelector
             value={singleFormData.carparkLevel}
-            onChange={(val) => setSingleFormData((p) => ({ ...p, carparkLevel: val }))}
+            onChange={(val) =>
+              setSingleFormData((p) => ({ ...p, carparkLevel: val }))
+            }
           />
 
           <FacingSelector
@@ -205,27 +229,40 @@ export default function RentUploadForm({
 
           <ExtraSpacesSelector
             value={singleFormData.extraSpaces}
-            onChange={(val) => setSingleFormData((p) => ({ ...p, extraSpaces: val }))}
+            onChange={(val) =>
+              setSingleFormData((p) => ({ ...p, extraSpaces: val }))
+            }
           />
 
           <FurnitureSelector
             value={singleFormData.furniture}
-            onChange={(val) => setSingleFormData((p) => ({ ...p, furniture: val }))}
+            onChange={(val) =>
+              setSingleFormData((p) => ({ ...p, furniture: val }))
+            }
           />
 
           <FacilitiesSelector
             value={singleFormData.facilities}
-            onChange={(val) => setSingleFormData((p) => ({ ...p, facilities: val }))}
+            onChange={(val) =>
+              setSingleFormData((p) => ({ ...p, facilities: val }))
+            }
           />
 
           <TransitSelector
             value={singleFormData.transit}
-            onChange={(val) => setSingleFormData((p) => ({ ...p, transit: val }))}
+            onChange={(val) =>
+              setSingleFormData((p) => ({ ...p, transit: val }))
+            }
+          />
+
+          {/* ✅ 整间出租：自动分组照片上传 */}
+          <ImageUpload
+            value={singleFormData}
+            onChange={setSingleFormData}
           />
         </>
       )}
 
-      {/* ✅ 描述 + 图片：保留你原本的公共区（整间/房间都需要） */}
       <div className="space-y-2">
         <label className="font-semibold">房源描述</label>
         <textarea
@@ -235,12 +272,7 @@ export default function RentUploadForm({
           onChange={(e) => setDescription(e.target.value)}
         />
       </div>
-
-      <ImageUpload
-        config={singleFormData.photoConfig}
-        images={singleFormData.photos}
-        setImages={(updated) => setSingleFormData((p) => ({ ...p, photos: updated }))}
-      />
     </div>
   );
-}
+                  }
+                
