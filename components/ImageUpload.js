@@ -199,8 +199,13 @@ export default function ImageUpload({
   // ✅ 合并 fixedLabels（保持顺序 + 去重）
   const mergedLabels = (() => {
     const extras = Array.isArray(fixedLabels) ? fixedLabels.filter(Boolean) : [];
-    const extrasFromConfig = Array.isArray(safeConfig?.fixedLabels) ? safeConfig.fixedLabels.filter(Boolean) : [];
-    const all = [...baseLabels, ...extras];
+    const extrasFromConfig = Array.isArray(safeConfig?.fixedLabels)
+      ? safeConfig.fixedLabels.filter(Boolean)
+      : [];
+
+    // ✅✅✅ 只改这里：把 extrasFromConfig 也合并进去
+    const all = [...baseLabels, ...extrasFromConfig, ...extras];
+
     const seen = new Set();
     const out = [];
     for (const l of all) {
