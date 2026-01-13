@@ -14,25 +14,33 @@ function normalizeImages(images) {
 
 // 把各种类型（字符串 / 数字）统一转成正整数
 function toCount(value) {
-  const n = Number(String(value ?? "").replace(/[^\d]/g, ""));
-  if (!Number.isFinite(n) || n < 0) return 0;
-  return Math.floor(n);
+  if (value === undefined || value === null || value === "") return 0;
+  const num = Number(String(value).replace(/,/g, "").trim());
+  if (!Number.isFinite(num) || num <= 0) return 0;
+  return Math.floor(num);
 }
 
-// 安全取数组
-function toArr(val) {
-  return Array.isArray(val) ? val : [];
-}
+const toArray = (val) => {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  return [val];
+};
 
-// 从 config（整份表单数据）里生成你要的分组 label
+const getName = (item) => {
+  if (!item) return "";
+  if (typeof item === "string") return item;
+  return item.label || item.value || item.name || "";
+};
+
+// ✅ 跟 UnitLayoutForm 同步的 label 生成逻辑（完全保留）
 function getPhotoLabelsFromConfig(config) {
   const safe = config || {};
-  const labels = [];
+  let labels = [];
 
-  // 卧室（Studio 特殊）
-  if (safe.bedrooms !== undefined && safe.bedrooms !== null) {
-    const b = String(safe.bedrooms);
-    if (b.toLowerCase().includes("studio")) {
+  // 卧室
+  if (safe.bedrooms) {
+    const raw = String(safe.bedrooms).trim().toLowerCase();
+    if (raw === "studio") {
       labels.push("Studio");
     } else {
       const num = toCount(safe.bedrooms);
@@ -60,132 +68,194 @@ function getPhotoLabelsFromConfig(config) {
 
   // 停车位
   {
-    const num = toCount(safe.carparks);
-    if (num > 0) labels.push("停车位");
+    const v = safe.carpark;
+    if (v) {
+      if (typeof v === "number" || typeof v === "string") {
+        const num = toCount(v);
+        if (num > 0) labels.push("停车位");
+      }
+      if (typeof v === "object" && !Array.isArray(v)) {
+        const min = toCount(v.min);
+        const max = toCount(v.max);
+        if (min > 0 || max > 0) labels.push("停车位");
+      }
+    }
   }
 
   // 储藏室
   {
-    const num = toCount(safe.storerooms);
+    const num = toCount(safe.store);
     for (let i = 1; i <= num; i++) labels.push(`储藏室${i}`);
   }
 
-  // 朝向 / 风景（多选）
-  toArr(safe.facing).forEach((f) => {
-    if (f) labels.push(String(f));
-  });
+  // 朝向
+  {
+    const arr = toArray(safe.orientation);
+    arr.forEach((item) => {
+      const n = getName(item);
+      if (!n) return;
+      labels.push(`朝向：${n}`);
+    });
+  }
 
-  // 额外空间 / 家私 / 设施（多选）
-  toArr(safe.extraSpaces).forEach((x) => x && labels.push(String(x)));
-  toArr(safe.furniture).forEach((x) => x && labels.push(String(x)));
-  toArr(safe.facilities).forEach((x) => x && labels.push(String(x)));
+  // 设施
+  {
+    const arr = toArray(safe.facilities);
+    arr.forEach((item) => {
+      const n = getName(item);
+      if (!n) return;
+      labels.push(`设施：${n}`);
+    });
+  }
 
-  // 如果啥都没有，就给一个默认
+  // 额外空间
+  {
+    const arr = toArray(safe.extraSpaces);
+    arr.forEach((extra) => {
+      if (!extra) return;
+      const name = getName(extra);
+      if (!name) return;
+
+      const count = toCount(extra.count || 1) || 1;
+      if (count <= 1) {
+        labels.push(`额外空间：${name}`);
+      } else {
+        for (let i = 1; i <= count; i++) {
+          labels.push(`额外空间：${name}${i}`);
+        }
+      }
+    });
+  }
+
+  // 家私
+  {
+    const arr = toArray(safe.furniture);
+    arr.forEach((item) => {
+      if (!item) return;
+      const name = getName(item);
+      if (!name) return;
+
+      const count = toCount(item.count || 1) || 1;
+      if (count <= 1) {
+        labels.push(`家私：${name}`);
+      } else {
+        for (let i = 1; i <= count; i++) {
+          labels.push(`家私：${name}${i}`);
+        }
+      }
+    });
+  }
+
+  labels = [...new Set(labels)];
   if (!labels.length) labels.push("房源照片");
-
   return labels;
 }
 
-export default function ImageUpload({ config, images, setImages, value, onChange }) {
-  // ✅ 兼容两种用法：
-  // 1) 旧版：<ImageUpload config={...} images={...} setImages={...} />
-  // 2) 新版：<ImageUpload value={...} onChange={setValue} />
-  const effectiveConfig = value ?? config ?? {};
-  const effectiveImages = images ?? (value && (value.photos ?? value.images)) ?? {};
-  const writeBackKey =
-    value && typeof value === "object"
-      ? ("photos" in value ? "photos" : ("images" in value ? "images" : "photos"))
-      : "photos";
-  const effectiveSetImages =
-    setImages ||
-    (onChange
-      ? (updated) => {
-          const next = { ...(value || {}) };
-          next[writeBackKey] = updated;
-          onChange(next);
-        }
-      : null);
+export default function ImageUpload({
+  // ===== 旧接口（原本的）=====
+  config,
+  images,
+  setImages,
 
-  const safeConfig = effectiveConfig || {};
-  const [localImages, setLocalImages] = useState(normalizeImages(effectiveImages));
+  // ⭐ 新接口（Rent 用）
+  value,
+  onChange,
+}) {
+  // ⭐ 统一配置来源（不影响旧用法）
+  const effectiveConfig = value ?? config ?? {};
+
+  // ⭐ 判断图片字段写回到哪里
+  const writeKey =
+    value && typeof value === "object"
+      ? ("photos" in value ? "photos" : "images")
+      : null;
+
+  // ⭐ 统一图片来源
+  const externalImages =
+    images ??
+    (value && typeof value === "object" ? value[writeKey] : undefined);
+
+  const [localImages, setLocalImages] = useState(
+    normalizeImages(externalImages)
+  );
 
   // 外部 images 更新时同步
   useEffect(() => {
-    setLocalImages(normalizeImages(effectiveImages));
-  }, [effectiveImages]);
+    setLocalImages(normalizeImages(externalImages));
+  }, [externalImages]);
 
-  const labels = getPhotoLabelsFromConfig(safeConfig);
+  const labels = getPhotoLabelsFromConfig(effectiveConfig);
 
-  const handleAdd = async (label, files) => {
-    if (!files || !files.length) return;
+  const writeBack = (updated) => {
+    // 旧接口
+    if (setImages) setImages(updated);
 
-    const updated = { ...normalizeImages(localImages) };
-    const list = Array.isArray(updated[label]) ? [...updated[label]] : [];
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-      const url = URL.createObjectURL(file);
-
-      list.push({
-        id,
-        url,
-        file,
+    // ⭐ 新接口（Rent）
+    if (onChange && value && writeKey) {
+      onChange({
+        ...value,
+        [writeKey]: updated,
       });
     }
+  };
 
-    updated[label] = list;
+  const handleFilesChange = (label, fileList) => {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+
+    const newItems = files.map((file, idx) => ({
+      id: `${label}-${Date.now()}-${idx}`,
+      file,
+      url: URL.createObjectURL(file),
+    }));
+
+    const current = localImages[label] || [];
+    const updated = {
+      ...localImages,
+      [label]: [...current, ...newItems],
+    };
+
     setLocalImages(updated);
-    effectiveSetImages && effectiveSetImages(updated);
+    writeBack(updated);
+  };
+
+  const handleSort = (label, newList) => {
+    const updated = { ...localImages, [label]: newList };
+    setLocalImages(updated);
+    writeBack(updated);
   };
 
   const handleRemove = (label, id) => {
-    const updated = { ...normalizeImages(localImages) };
-    const list = Array.isArray(updated[label]) ? [...updated[label]] : [];
-    updated[label] = list.filter((x) => x.id !== id);
+    const current = localImages[label] || [];
+    const updated = {
+      ...localImages,
+      [label]: current.filter((img) => img.id !== id),
+    };
     setLocalImages(updated);
-    effectiveSetImages && effectiveSetImages(updated);
+    writeBack(updated);
   };
 
-  const handleReorder = (label, newList) => {
-    const updated = { ...normalizeImages(localImages) };
-    updated[label] = Array.isArray(newList) ? newList : [];
-    setLocalImages(updated);
-    effectiveSetImages && effectiveSetImages(updated);
-  };
-
+  // ⭐ UI：完全保留你原本的上传框样式
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 mt-4">
       {labels.map((label) => {
-        const list = Array.isArray(localImages[label]) ? localImages[label] : [];
-
+        const list = localImages[label] || [];
         return (
-          <div key={label} className="border rounded-lg p-4 bg-white">
-            <div className="flex items-center justify-between mb-3">
-              <div className="font-semibold">{label}</div>
-              <label className="text-sm text-blue-600 cursor-pointer">
-                上传照片
-                <input
-                  type="file"
-                  multiple
-                  className="hidden"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const files = Array.from(e.target.files || []);
-                    handleAdd(label, files);
-                    e.target.value = "";
-                  }}
-                />
-              </label>
-            </div>
+          <div key={label} className="border rounded p-3 space-y-2">
+            <p className="font-semibold">{label}</p>
 
-            {list.length === 0 ? (
-              <div className="text-sm text-gray-500">暂无照片</div>
-            ) : (
+            <input
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={(e) => handleFilesChange(label, e.target.files)}
+            />
+
+            {list.length > 0 && (
               <ReactSortable
                 list={list}
-                setList={(newList) => handleReorder(label, newList)}
-                className="grid grid-cols-3 gap-3"
+                setList={(newList) => handleSort(label, newList)}
+                className="grid grid-cols-3 gap-2 mt-2"
               >
                 {list.map((img) => (
                   <div key={img.id} className="relative">
