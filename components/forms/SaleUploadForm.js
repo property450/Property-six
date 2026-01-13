@@ -100,6 +100,8 @@ export default function SaleUploadForm({
     facilities: Array.isArray(singleFormData?.facilities) ? singleFormData.facilities : [],
     // ImageUpload 用 orientation（你 FacingSelector 存在 facing）
     orientation: singleFormData?.facing ?? singleFormData?.orientation ?? [],
+    // ✅ 新增：固定上传框（不依赖选择）
+  fixedLabels: ["外观 / 环境"],
   };
 
   return (
