@@ -24,7 +24,7 @@ const hotelOptions = [
   "Resort Room",
 ];
 
-const usageOptions = ["Residential", "Commercial", "Industrial", "Land"];
+const usageOptions = ["Residential", "Commercial", "Commercial Under HDA", "Industrial", "Agricultural"];
 
 const saleTypeOptions = [
   "New Project / Under Construction",
@@ -36,16 +36,19 @@ const saleTypeOptions = [
 
 const affordableTypeOptions = [
   "Rumah Mampu Milik",
+  "PPR",
   "PR1MA",
   "Rumah Selangorku",
   "Rumah Mesra Rakyat",
   "PPA1M",
-  "RUMAWIP",
+  "Rumah WIP (Wilayah Persekutuan)",
   "MyHome",
   "RUMAHWIP",
+  "Rumah Mampu Milik Johor (RMMJ)",
+  "Rumah Idaman (Selangor)",
 ];
 
-const tenureOptions = ["Freehold", "Leasehold", "Malay Reserved", "Bumi Lot"];
+const tenureOptions = ["Freehold", "Leasehold", "Bumi Lot", "Malay Reserved Land", "Private Lease Scheme", "State Lease Land", "Strata Leasehold", "Perpetual Lease"];
 
 // ✅✅✅ 这里就是你“之前的设计”的 categoryOptions（完全照回，不乱改）
 const categoryOptions = {
