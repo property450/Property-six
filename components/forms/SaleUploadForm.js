@@ -1,4 +1,3 @@
-// components/forms/SaleUploadForm.js
 "use client";
 
 import AreaSelector from "@/components/AreaSelector";
@@ -86,6 +85,22 @@ export default function SaleUploadForm({
 
   const showPsfRange = psfMin > 0 && psfMax > 0;
   const showPsfSingle = !showPsfRange && psfSingle > 0;
+
+  // ✅✅✅【关键修复】不再依赖外部传进来的 photoConfig，直接用 singleFormData 生成（恢复自动分组上传框）
+  const photoConfigComputed = {
+    bedrooms: singleFormData?.bedrooms ?? "",
+    bathrooms: singleFormData?.bathrooms ?? "",
+    kitchens: singleFormData?.kitchens ?? "",
+    livingRooms: singleFormData?.livingRooms ?? "",
+    // ImageUpload 用的是 carpark 字段（支持数字/字符串或 min/max）
+    carpark: singleFormData?.carparks ?? singleFormData?.carpark ?? "",
+    store: singleFormData?.store ?? "",
+    extraSpaces: Array.isArray(singleFormData?.extraSpaces) ? singleFormData.extraSpaces : [],
+    furniture: Array.isArray(singleFormData?.furniture) ? singleFormData.furniture : [],
+    facilities: Array.isArray(singleFormData?.facilities) ? singleFormData.facilities : [],
+    // ImageUpload 用 orientation（你 FacingSelector 存在 facing）
+    orientation: singleFormData?.facing ?? singleFormData?.orientation ?? [],
+  };
 
   return (
     <div className="space-y-4">
@@ -227,7 +242,7 @@ export default function SaleUploadForm({
       </div>
 
       <ImageUpload
-        config={photoConfig}
+        config={photoConfigComputed}   {/* ✅ 关键：恢复自动生成上传框 */}
         images={singleFormData.photos}
         setImages={(updated) =>
           setSingleFormData((p) => ({ ...p, photos: updated }))
