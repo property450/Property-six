@@ -241,8 +241,9 @@ export default function SaleUploadForm({
         />
       </div>
 
+   {/* ✅ 关键：恢复自动生成上传框 */}
       <ImageUpload
-        config={photoConfigComputed}   {/* ✅ 关键：恢复自动生成上传框 */}
+        config={photoConfigComputed}   
         images={singleFormData.photos}
         setImages={(updated) =>
           setSingleFormData((p) => ({ ...p, photos: updated }))
