@@ -211,7 +211,28 @@ const isBulkRent = modeLower === "rent";
   };
 
   const psfText = getPsfText(areaForPsf, priceForPsf);
-  const uploadLabels = getPhotoLabelsFromConfig(photoConfig);
+  const uploadLabelsBase = getPhotoLabelsFromConfig(photoConfig);
+
+// ✅ 固定增加「房源外观/环境」：只在 New Project & Completed Unit
+const uploadLabels = (() => {
+  const needExterior =
+    computedStatus === "New Project / Under Construction" ||
+    computedStatus === "Completed Unit / Developer Unit";
+
+  const extras = needExterior ? ["房源外观/环境"] : [];
+  const all = [...(uploadLabelsBase || []), ...extras];
+
+  // 去重 + 保持顺序
+  const seen = new Set();
+  const out = [];
+  for (const l of all) {
+    if (!l) continue;
+    if (seen.has(l)) continue;
+    seen.add(l);
+    out.push(l);
+  }
+  return out;
+})();
 
   const toggleSubtype = (item) => {
     const next = propertySubtype.includes(item)
