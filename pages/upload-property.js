@@ -152,6 +152,7 @@ export default function UploadPropertyPage() {
         <HotelUploadForm />
       ) : isProject ? (
         <ProjectUploadForm
+          saleType={saleType}
           computedStatus={computedStatus}
           isBulkRentProject={false}
           projectCategory={projectCategory}
