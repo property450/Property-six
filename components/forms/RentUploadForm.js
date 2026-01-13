@@ -191,6 +191,7 @@ export default function RentUploadForm({
               value={singleFormData}
               onChange={setSingleFormData}
               labelsOverride={["房源照片上传"]}
+              fixedLabels={["外观 / 环境"]}
             />
           </>
         )
