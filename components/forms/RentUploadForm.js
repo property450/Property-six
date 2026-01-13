@@ -1,4 +1,3 @@
-// components/forms/RentUploadForm.js
 "use client";
 
 import AreaSelector from "@/components/AreaSelector";
@@ -160,7 +159,7 @@ export default function RentUploadForm({
                     }}
                   />
 
-                  {/* ✅ 每个房间自己的照片上传 */}
+                  {/* ✅ 出租房间：只要一个“房源照片上传” */}
                   <ImageUpload
                     value={roomValue}
                     onChange={(next) => {
@@ -171,6 +170,7 @@ export default function RentUploadForm({
                         return arr;
                       });
                     }}
+                    labelsOverride={["房源照片上传"]}
                   />
                 </div>
               );
@@ -183,9 +183,11 @@ export default function RentUploadForm({
               onChange={setSingleFormData}
             />
 
+            {/* ✅ 出租房间（单间）：只要一个“房源照片上传” */}
             <ImageUpload
               value={singleFormData}
               onChange={setSingleFormData}
+              labelsOverride={["房源照片上传"]}
             />
           </>
         )
@@ -255,7 +257,7 @@ export default function RentUploadForm({
             }
           />
 
-          {/* ✅ 整间出租：自动分组照片上传 */}
+          {/* ✅ 整间出租：保持你原本“自动分组”的照片上传 */}
           <ImageUpload
             value={singleFormData}
             onChange={setSingleFormData}
@@ -274,5 +276,4 @@ export default function RentUploadForm({
       </div>
     </div>
   );
-                  }
-                
+}
