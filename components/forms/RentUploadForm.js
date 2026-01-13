@@ -50,23 +50,24 @@ export default function RentUploadForm({
 
   /* ===========================
      批量出租（整间，多个 layout）
+     ✅ 每个房型表单都要有面积选择
   ============================ */
   if (isBatch) {
     return (
       <div className="space-y-4">
-        {/* ✅【关键修复】批量整间出租也要显示面积选择 */}
-        <AreaSelector
-          value={areaData}
-          onChange={setAreaData}
-          propertyCategory={propertyCategory}
-        />
-
         {Array.from({ length: Number(layoutCount) || 0 }).map((_, idx) => {
           const data = unitLayouts?.[idx] || {};
 
           return (
             <div key={idx} className="border rounded-lg p-4 space-y-4 bg-white">
               <div className="text-lg font-semibold">房型 {idx + 1}</div>
+
+              {/* ✅【关键修复】每个房型都显示面积选择（不改变现有状态结构，仍用 areaData） */}
+              <AreaSelector
+                value={areaData}
+                onChange={setAreaData}
+                propertyCategory={propertyCategory}
+              />
 
               <PriceInput
                 value={data.rent}
@@ -184,10 +185,7 @@ export default function RentUploadForm({
           </div>
         ) : (
           <>
-            <RoomRentalForm
-              value={singleFormData}
-              onChange={setSingleFormData}
-            />
+            <RoomRentalForm value={singleFormData} onChange={setSingleFormData} />
 
             <ImageUpload
               value={singleFormData}
@@ -224,9 +222,7 @@ export default function RentUploadForm({
 
           <CarparkLevelSelector
             value={singleFormData.carparkLevel}
-            onChange={(val) =>
-              setSingleFormData((p) => ({ ...p, carparkLevel: val }))
-            }
+            onChange={(val) => setSingleFormData((p) => ({ ...p, carparkLevel: val }))}
           />
 
           <FacingSelector
@@ -236,36 +232,25 @@ export default function RentUploadForm({
 
           <ExtraSpacesSelector
             value={singleFormData.extraSpaces}
-            onChange={(val) =>
-              setSingleFormData((p) => ({ ...p, extraSpaces: val }))
-            }
+            onChange={(val) => setSingleFormData((p) => ({ ...p, extraSpaces: val }))}
           />
 
           <FurnitureSelector
             value={singleFormData.furniture}
-            onChange={(val) =>
-              setSingleFormData((p) => ({ ...p, furniture: val }))
-            }
+            onChange={(val) => setSingleFormData((p) => ({ ...p, furniture: val }))}
           />
 
           <FacilitiesSelector
             value={singleFormData.facilities}
-            onChange={(val) =>
-              setSingleFormData((p) => ({ ...p, facilities: val }))
-            }
+            onChange={(val) => setSingleFormData((p) => ({ ...p, facilities: val }))}
           />
 
           <TransitSelector
             value={singleFormData.transit}
-            onChange={(val) =>
-              setSingleFormData((p) => ({ ...p, transit: val }))
-            }
+            onChange={(val) => setSingleFormData((p) => ({ ...p, transit: val }))}
           />
 
-          <ImageUpload
-            value={singleFormData}
-            onChange={setSingleFormData}
-          />
+          <ImageUpload value={singleFormData} onChange={setSingleFormData} />
         </>
       )}
 
