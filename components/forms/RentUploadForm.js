@@ -62,7 +62,6 @@ export default function RentUploadForm({
             <div key={idx} className="border rounded-lg p-4 space-y-4 bg-white">
               <div className="text-lg font-semibold">房型 {idx + 1}</div>
 
-              {/* ✅【关键修复】每个房型都显示面积选择（不改变现有状态结构，仍用 areaData） */}
               <AreaSelector
                 value={areaData}
                 onChange={setAreaData}
@@ -116,9 +115,11 @@ export default function RentUploadForm({
                 onChange={(val) => updateBatchLayout(idx, { transit: val })}
               />
 
+              {/* ✅ 整间出租（批量）固定加一格：房源外观/环境 */}
               <ImageUpload
                 value={data}
                 onChange={(next) => updateBatchLayout(idx, next)}
+                fixedLabels={["房源外观/环境"]}
               />
             </div>
           );
@@ -191,7 +192,6 @@ export default function RentUploadForm({
               value={singleFormData}
               onChange={setSingleFormData}
               labelsOverride={["房源照片上传"]}
-              fixedLabels={["外观 / 环境"]}
             />
           </>
         )
@@ -251,7 +251,12 @@ export default function RentUploadForm({
             onChange={(val) => setSingleFormData((p) => ({ ...p, transit: val }))}
           />
 
-          <ImageUpload value={singleFormData} onChange={setSingleFormData} />
+          {/* ✅ 整间出租（单个）固定加一格：房源外观/环境 */}
+          <ImageUpload
+            value={singleFormData}
+            onChange={setSingleFormData}
+            fixedLabels={["房源外观/环境"]}
+          />
         </>
       )}
 
