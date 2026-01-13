@@ -100,8 +100,9 @@ export default function SaleUploadForm({
     facilities: Array.isArray(singleFormData?.facilities) ? singleFormData.facilities : [],
     // ImageUpload 用 orientation（你 FacingSelector 存在 facing）
     orientation: singleFormData?.facing ?? singleFormData?.orientation ?? [],
-    // ✅ 新增：固定上传框（不依赖选择）
-  fixedLabels: ["外观 / 环境"],
+
+    // ✅ 固定上传框（不依赖选择）
+    fixedLabels: ["房源外观/环境"],
   };
 
   return (
@@ -243,9 +244,8 @@ export default function SaleUploadForm({
         />
       </div>
 
-   {/* ✅ 关键：恢复自动生成上传框 */}
       <ImageUpload
-        config={photoConfigComputed}   
+        config={photoConfigComputed}
         images={singleFormData.photos}
         setImages={(updated) =>
           setSingleFormData((p) => ({ ...p, photos: updated }))
