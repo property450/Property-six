@@ -157,20 +157,23 @@ export default function ImageUpload({
   images,
   setImages,
 
-  // ⭐ 新接口（Rent 用）
+  // ⭐ 新接口（Rent 用，兼容但不改UI）
   value,
   onChange,
-}) {
-  // ⭐ 统一配置来源（不影响旧用法）
-  const effectiveConfig = value ?? config ?? {};
 
-  // ⭐ 判断图片字段写回到哪里
+  // ⭐ 新增：强制使用固定分组标题（例如出租房间只要一个“房源照片上传”）
+  labelsOverride,
+}) {
+  // 统一 config 来源
+  const safeConfig = (value ?? config) || {};
+
+  // 写回字段：优先 photos，其次 images
   const writeKey =
     value && typeof value === "object"
       ? ("photos" in value ? "photos" : "images")
       : null;
 
-  // ⭐ 统一图片来源
+  // 统一 images 来源
   const externalImages =
     images ??
     (value && typeof value === "object" ? value[writeKey] : undefined);
@@ -179,18 +182,22 @@ export default function ImageUpload({
     normalizeImages(externalImages)
   );
 
-  // 外部 images 更新时同步
+  // 外部 images 更新时同步（保证“记住”）
   useEffect(() => {
     setLocalImages(normalizeImages(externalImages));
   }, [externalImages]);
 
-  const labels = getPhotoLabelsFromConfig(effectiveConfig);
+  // ✅ labels：默认自动生成；出租房间可强制只要一个
+  const labels =
+    Array.isArray(labelsOverride) && labelsOverride.length
+      ? labelsOverride
+      : getPhotoLabelsFromConfig(safeConfig);
 
   const writeBack = (updated) => {
     // 旧接口
     if (setImages) setImages(updated);
 
-    // ⭐ 新接口（Rent）
+    // 新接口（Rent）
     if (onChange && value && writeKey) {
       onChange({
         ...value,
@@ -235,7 +242,7 @@ export default function ImageUpload({
     writeBack(updated);
   };
 
-  // ⭐ UI：完全保留你原本的上传框样式
+  // ✅ UI：完全保留你原本的上传框样式
   return (
     <div className="space-y-4 mt-4">
       {labels.map((label) => {
