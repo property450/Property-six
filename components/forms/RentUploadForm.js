@@ -54,6 +54,13 @@ export default function RentUploadForm({
   if (isBatch) {
     return (
       <div className="space-y-4">
+        {/* ✅【关键修复】批量整间出租也要显示面积选择 */}
+        <AreaSelector
+          value={areaData}
+          onChange={setAreaData}
+          propertyCategory={propertyCategory}
+        />
+
         {Array.from({ length: Number(layoutCount) || 0 }).map((_, idx) => {
           const data = unitLayouts?.[idx] || {};
 
@@ -159,7 +166,6 @@ export default function RentUploadForm({
                     }}
                   />
 
-                  {/* ✅ 出租房间：只要一个“房源照片上传” */}
                   <ImageUpload
                     value={roomValue}
                     onChange={(next) => {
@@ -183,7 +189,6 @@ export default function RentUploadForm({
               onChange={setSingleFormData}
             />
 
-            {/* ✅ 出租房间（单间）：只要一个“房源照片上传” */}
             <ImageUpload
               value={singleFormData}
               onChange={setSingleFormData}
@@ -192,7 +197,7 @@ export default function RentUploadForm({
           </>
         )
       ) : (
-        /* ===== 整间出租 ===== */
+        /* ===== 整间出租（非批量） ===== */
         <>
           <AreaSelector
             value={areaData}
@@ -257,7 +262,6 @@ export default function RentUploadForm({
             }
           />
 
-          {/* ✅ 整间出租：保持你原本“自动分组”的照片上传 */}
           <ImageUpload
             value={singleFormData}
             onChange={setSingleFormData}
