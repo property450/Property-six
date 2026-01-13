@@ -50,6 +50,7 @@ export default function RentUploadForm({
     });
   };
 
+  // ✅ 批量模式（整间出租的批量）
   if (isBatch) {
     return (
       <div className="space-y-4">
@@ -60,7 +61,7 @@ export default function RentUploadForm({
             <div key={idx} className="border rounded-lg p-4 space-y-4 bg-white">
               <div className="text-lg font-semibold">房型 {idx + 1}</div>
 
-              {/* ✅ 修复：Rent 价格要传 data.rent，并回传 { rent } */}
+              {/* ✅ 修复：Rent 价格必须传 data.rent；onChange 回写 { rent } */}
               <PriceInput
                 value={data.rent}
                 onChange={(rent) => updateBatchLayout(idx, { rent })}
@@ -115,101 +116,125 @@ export default function RentUploadForm({
             </div>
           );
         })}
+
+        <div className="space-y-2">
+          <label className="font-semibold">房源描述</label>
+          <textarea
+            className="border p-3 rounded-lg w-full min-h-[120px]"
+            placeholder="请输入房源描述..."
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </div>
+
+        <ImageUpload
+          config={singleFormData.photoConfig}
+          images={singleFormData.photos}
+          setImages={(updated) => setSingleFormData((p) => ({ ...p, photos: updated }))}
+        />
       </div>
     );
   }
 
-  // 单表单（非批量）
+  // ✅ 非批量：这里要严格区分【出租房间】 vs 【整间出租】
   return (
     <div className="space-y-4">
-      {/* ✅ 修复：出租房间 + 多房间时，显示 房间1 / 房间2 ... */}
-      {isRoomRental && roomRentalMode === "multi" ? (
-        <div className="space-y-4">
-          {Array.from({ length: Number(layoutCount) || 0 }).map((_, idx) => {
-            const roomData = unitLayouts && unitLayouts[idx] ? unitLayouts[idx] : {};
+      {/* ✅✅✅ 出租房间：用 RoomRentalForm（并且传对 value/onChange 才会记住） */}
+      {isRoomRental ? (
+        Number(layoutCount) > 1 ? (
+          <div className="space-y-4">
+            {Array.from({ length: Number(layoutCount) || 0 }).map((_, idx) => {
+              const roomValue = unitLayouts?.[idx] || {};
+              return (
+                <div key={idx} className="border rounded-lg p-4 space-y-4 bg-white">
+                  <div className="text-lg font-semibold">房间 {idx + 1}</div>
 
-            return (
-              <div key={idx} className="border rounded-lg p-4 space-y-4 bg-white">
-                <div className="text-lg font-semibold">房间 {idx + 1}</div>
-
-                <RoomRentalForm
-                  isRoomRental
-                  roomRentalMode="single"
-                  data={roomData}
-                  setData={(next) => {
-                    if (!setUnitLayouts) return;
-                    setUnitLayouts((prev) => {
-                      const arr = Array.isArray(prev) ? [...prev] : [];
-                      arr[idx] = next || {};
-                      return arr;
-                    });
-                  }}
-                />
-              </div>
-            );
-          })}
-        </div>
+                  <RoomRentalForm
+                    value={roomValue}
+                    onChange={(next) => {
+                      if (!setUnitLayouts) return;
+                      setUnitLayouts((prev) => {
+                        const arr = Array.isArray(prev) ? [...prev] : [];
+                        arr[idx] = next || {};
+                        return arr;
+                      });
+                    }}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <RoomRentalForm value={singleFormData} onChange={setSingleFormData} />
+        )
       ) : (
-        <RoomRentalForm
-          isRoomRental={isRoomRental}
-          roomRentalMode={roomRentalMode}
-          data={singleFormData}
-          setData={setSingleFormData}
-        />
+        <>
+          {/* ✅✅✅ 整间出租：保持你原本整间表单（不再渲染 RoomRentalForm） */}
+          <AreaSelector
+            value={areaData}
+            onChange={setAreaData}
+            propertyCategory={propertyCategory}
+          />
+
+          {/* ✅ 修复：Rent 价格必须传 singleFormData.rent；onChange 回写 rent */}
+          <PriceInput
+            value={singleFormData.rent}
+            onChange={(rent) => setSingleFormData((p) => ({ ...p, rent }))}
+            listingMode="Rent"
+          />
+
+          <RoomCountSelector
+            value={singleFormData}
+            onChange={(patch) => setSingleFormData((p) => ({ ...p, ...patch }))}
+          />
+
+          <CarparkCountSelector
+            value={singleFormData.carparks}
+            onChange={(val) => setSingleFormData((p) => ({ ...p, carparks: val }))}
+          />
+
+          <CarparkLevelSelector
+            value={singleFormData.carparkLevel}
+            onChange={(val) => setSingleFormData((p) => ({ ...p, carparkLevel: val }))}
+          />
+
+          <FacingSelector
+            value={singleFormData.facing}
+            onChange={(val) => setSingleFormData((p) => ({ ...p, facing: val }))}
+          />
+
+          <ExtraSpacesSelector
+            value={singleFormData.extraSpaces}
+            onChange={(val) => setSingleFormData((p) => ({ ...p, extraSpaces: val }))}
+          />
+
+          <FurnitureSelector
+            value={singleFormData.furniture}
+            onChange={(val) => setSingleFormData((p) => ({ ...p, furniture: val }))}
+          />
+
+          <FacilitiesSelector
+            value={singleFormData.facilities}
+            onChange={(val) => setSingleFormData((p) => ({ ...p, facilities: val }))}
+          />
+
+          <TransitSelector
+            value={singleFormData.transit}
+            onChange={(val) => setSingleFormData((p) => ({ ...p, transit: val }))}
+          />
+        </>
       )}
 
-      <AreaSelector
-        value={areaData}
-        onChange={setAreaData}
-        propertyCategory={propertyCategory}
-      />
-
-      {/* ✅ 修复：Rent 价格要传 singleFormData.rent，并回传 rent 写回去 */}
-      <PriceInput
-        value={singleFormData.rent}
-        onChange={(rent) => setSingleFormData((p) => ({ ...p, rent }))}
-        listingMode="Rent"
-      />
-
-      <RoomCountSelector
-        value={singleFormData}
-        onChange={(patch) => setSingleFormData((p) => ({ ...p, ...patch }))}
-      />
-
-      <CarparkCountSelector
-        value={singleFormData.carparks}
-        onChange={(val) => setSingleFormData((p) => ({ ...p, carparks: val }))}
-      />
-
-      <CarparkLevelSelector
-        value={singleFormData.carparkLevel}
-        onChange={(val) => setSingleFormData((p) => ({ ...p, carparkLevel: val }))}
-      />
-
-      <FacingSelector
-        value={singleFormData.facing}
-        onChange={(val) => setSingleFormData((p) => ({ ...p, facing: val }))}
-      />
-
-      <ExtraSpacesSelector
-        value={singleFormData.extraSpaces}
-        onChange={(val) => setSingleFormData((p) => ({ ...p, extraSpaces: val }))}
-      />
-
-      <FurnitureSelector
-        value={singleFormData.furniture}
-        onChange={(val) => setSingleFormData((p) => ({ ...p, furniture: val }))}
-      />
-
-      <FacilitiesSelector
-        value={singleFormData.facilities}
-        onChange={(val) => setSingleFormData((p) => ({ ...p, facilities: val }))}
-      />
-
-      <TransitSelector
-        value={singleFormData.transit}
-        onChange={(val) => setSingleFormData((p) => ({ ...p, transit: val }))}
-      />
+      {/* ✅ 描述 + 图片：保留你原本的公共区（整间/房间都需要） */}
+      <div className="space-y-2">
+        <label className="font-semibold">房源描述</label>
+        <textarea
+          className="border p-3 rounded-lg w-full min-h-[120px]"
+          placeholder="请输入房源描述..."
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
+      </div>
 
       <ImageUpload
         config={singleFormData.photoConfig}
