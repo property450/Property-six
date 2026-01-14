@@ -114,7 +114,6 @@ export default function SaleUploadForm({
 
   photoConfig,
 
-  // ✅ 只用于 AreaSelector 自动切换 Land（不传也不会影响其它逻辑）
   propertyCategory = "",
 }) {
   const buildUpSqft = convertToSqft(
@@ -124,38 +123,26 @@ export default function SaleUploadForm({
 
   const landSqft = convertToSqft(areaData?.values?.land, areaData?.units?.land);
 
-  /**
-   * ✅ PSF 面积逻辑（重点）
-   * - build up 和 land area 两个都有 → 相加
-   * - 只有一个 → 用那个
-   * - 都没有 → 0
-   */
   const areaSqft =
     (buildUpSqft > 0 ? buildUpSqft : 0) + (landSqft > 0 ? landSqft : 0);
 
-  // 单价（你现在用的字段）
   const priceSingle = toNumber(singleFormData?.price);
-
-  // 预留区间价（不破坏你以后扩展）
   const priceMin = toNumber(singleFormData?.priceMin);
   const priceMax = toNumber(singleFormData?.priceMax);
 
-  const psfSingle = areaSqft > 0 && priceSingle > 0 ? priceSingle / areaSqft : 0;
-
+  const psfSingle =
+    areaSqft > 0 && priceSingle > 0 ? priceSingle / areaSqft : 0;
   const psfMin = areaSqft > 0 && priceMin > 0 ? priceMin / areaSqft : 0;
-
   const psfMax = areaSqft > 0 && priceMax > 0 ? priceMax / areaSqft : 0;
 
   const showPsfRange = psfMin > 0 && psfMax > 0;
   const showPsfSingle = !showPsfRange && psfSingle > 0;
 
-  // ✅✅✅【关键修复】不再依赖外部传进来的 photoConfig，直接用 singleFormData 生成（恢复自动分组上传框）
   const photoConfigComputed = {
     bedrooms: singleFormData?.bedrooms ?? "",
     bathrooms: singleFormData?.bathrooms ?? "",
     kitchens: singleFormData?.kitchens ?? "",
     livingRooms: singleFormData?.livingRooms ?? "",
-    // ImageUpload 用的是 carpark 字段（支持数字/字符串或 min/max）
     carpark: singleFormData?.carparks ?? singleFormData?.carpark ?? "",
     store: singleFormData?.store ?? "",
     extraSpaces: Array.isArray(singleFormData?.extraSpaces)
@@ -167,10 +154,7 @@ export default function SaleUploadForm({
     facilities: Array.isArray(singleFormData?.facilities)
       ? singleFormData.facilities
       : [],
-    // ImageUpload 用 orientation（你 FacingSelector 存在 facing）
     orientation: singleFormData?.facing ?? singleFormData?.orientation ?? [],
-
-    // ✅ 固定上传框（不依赖选择）
     fixedLabels: ["房源外观/环境"],
   };
 
@@ -192,7 +176,6 @@ export default function SaleUploadForm({
         }}
       />
 
-      {/* ✅ PSF 显示（所有 Sale 模式一致：New Project / Completed / Subsale / Auction / RTO 都会显示） */}
       {showPsfRange && (
         <div className="text-sm text-gray-600 mt-1">
           每平方英尺: RM {formatMoney(psfMin)} ~ RM {formatMoney(psfMax)}
@@ -260,7 +243,6 @@ export default function SaleUploadForm({
         }
       />
 
-      {/* ✅ 你原本：New Project 有预计完成年份 + 季度 */}
       {saleType === "Sale" &&
         computedStatus === "New Project / Under Construction" && (
           <BuildYearSelector
@@ -277,7 +259,6 @@ export default function SaleUploadForm({
           />
         )}
 
-      {/* ✅ 你原本：Completed / Subsale / Auction / RTO 有完成年份 */}
       {saleType === "Sale" &&
         [
           "Completed Unit / Developer Unit",
@@ -305,17 +286,21 @@ export default function SaleUploadForm({
         />
       </div>
 
-      {/* ✅ 仅新增：Layout 图纸上传（不影响原 ImageUpload） */}
+      {/* ✅ 只新增：Layout 图纸上传 */}
       <LayoutBlueprintUpload
         value={singleFormData.layoutPhotos}
-        onChange={(val) => setSingleFormData((p) => ({ ...p, layoutPhotos: val }))}
+        onChange={(val) =>
+          setSingleFormData((p) => ({ ...p, layoutPhotos: val }))
+        }
       />
 
       <ImageUpload
         config={photoConfigComputed}
         images={singleFormData.photos}
-        setImages={(updated) => setSingleFormData((p) => ({ ...p, photos: updated }))}
+        setImages={(updated) =>
+          setSingleFormData((p) => ({ ...p, photos: updated }))
+        }
       />
     </div>
   );
-}
+          }
