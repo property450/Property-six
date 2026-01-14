@@ -6,7 +6,7 @@ import HotelRoomTypeForm from "./HotelRoomTypeForm";
 import ImageUpload from "@/components/ImageUpload";
 import { Button } from "@/components/ui/button";
 
-// ✅ New Project 同款
+// ✅ New Project 同款 Layout 图纸上传
 import BlueprintUploadSection from "@/components/unitlayout/BlueprintUploadSection";
 
 const createEmptyRoomLayout = () => ({
@@ -46,8 +46,12 @@ const createEmptyRoomLayout = () => ({
   availability: {},
   photos: {},
 
-  // ✅ Layout 图纸（New Project 同款用这个字段）
+  // ✅ Layout 图纸（New Project 同款）
   layoutPhotos: [],
+
+  // ✅✅ 只新增：每个房型数量（1~3000，带逗号显示）
+  unitCount: 1,
+  unitCountInput: "1",
 });
 
 const SHARED_KEYS = [
@@ -62,6 +66,17 @@ const SHARED_KEYS = [
   "fees",
 ];
 
+function formatWithCommas(n) {
+  if (!Number.isFinite(n) || n <= 0) return "";
+  return n.toLocaleString("en-US");
+}
+
+function parseDigitsToInt(v) {
+  const cleaned = String(v ?? "").replace(/[^\d]/g, "");
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : 0;
+}
+
 export default function HotelUploadForm() {
   const [roomCount, setRoomCount] = useState(1);
   const [roomLayouts, setRoomLayouts] = useState([createEmptyRoomLayout()]);
@@ -71,10 +86,14 @@ export default function HotelUploadForm() {
   const [roomCountInput, setRoomCountInput] = useState("1");
   const [showDropdown, setShowDropdown] = useState(false);
 
+  // ✅ 每个房型“数量下拉”当前展开的是哪一个
+  const [openUnitCountIndex, setOpenUnitCountIndex] = useState(null);
+
   const dropdownRef = useRef(null);
 
-  // ✅ 每个房型一个 file input ref（给 BlueprintUploadSection 用）
+  // ✅ Layout 图纸上传 refs（每个房型一个）
   const layoutFileInputRefs = useRef([]);
+  const unitCountDropdownRefs = useRef([]); // ✅ 每个房型数量框外层 ref
 
   const getLayoutFileRef = (index) => {
     if (!layoutFileInputRefs.current[index]) {
@@ -83,11 +102,31 @@ export default function HotelUploadForm() {
     return layoutFileInputRefs.current[index];
   };
 
+  const getUnitCountRef = (index) => {
+    if (!unitCountDropdownRefs.current[index]) {
+      unitCountDropdownRefs.current[index] = { current: null };
+    }
+    return unitCountDropdownRefs.current[index];
+  };
+
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (!dropdownRef.current || dropdownRef.current.contains(e.target)) return;
-      setShowDropdown(false);
+      // 关闭房型数量 dropdown：只要点到任何一个数量框内就不关闭
+      const clickedInsideAnyUnitCount =
+        unitCountDropdownRefs.current?.some(
+          (r) => r?.current && r.current.contains(e.target)
+        ) || false;
+
+      if (!clickedInsideAnyUnitCount) {
+        setOpenUnitCountIndex(null);
+      }
+
+      // 关闭 layout 数量 dropdown（你原本的）
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setShowDropdown(false);
+      }
     };
+
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
@@ -114,7 +153,7 @@ export default function HotelUploadForm() {
       const updated = { ...next[index], ...patch };
       next[index] = updated;
 
-      // 同步 Layout 1 的通用信息（保持你原逻辑）
+      // ✅ 保持你原逻辑：Layout1 同步通用字段到其它房型
       if (index === 0 && next.length > 1) {
         const shared = {};
         SHARED_KEYS.forEach((key) => (shared[key] = updated[key]));
@@ -126,12 +165,51 @@ export default function HotelUploadForm() {
     });
   };
 
-  // ✅ New Project 同款：处理 Layout 图纸上传 -> 存进 layoutPhotos
+  // ✅ Layout 图纸上传 -> 存进 layoutPhotos
   const handleBlueprintUpload = (index, e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
     const newPhotos = [...(roomLayouts[index]?.layoutPhotos || []), ...files];
     handleRoomLayoutChange(index, { layoutPhotos: newPhotos });
+  };
+
+  // ✅ 每个房型数量：手动输入
+  const handleUnitCountInput = (index, raw) => {
+    const n = parseDigitsToInt(raw);
+
+    // 允许空值输入过程（比如用户正在删）
+    if (raw === "" || raw == null) {
+      handleRoomLayoutChange(index, {
+        unitCountInput: "",
+        unitCount: 0,
+      });
+      return;
+    }
+
+    const clamped = Math.max(1, Math.min(3000, n));
+    handleRoomLayoutChange(index, {
+      unitCountInput: String(raw),
+      unitCount: clamped,
+    });
+  };
+
+  // ✅ 每个房型数量：选择下拉
+  const selectUnitCount = (index, n) => {
+    const clamped = Math.max(1, Math.min(3000, n));
+    handleRoomLayoutChange(index, {
+      unitCount: clamped,
+      unitCountInput: formatWithCommas(clamped),
+    });
+    setOpenUnitCountIndex(null);
+  };
+
+  const handleUnitCountBlur = (index) => {
+    const layout = roomLayouts[index] || {};
+    const n = Math.max(1, Math.min(3000, Number(layout.unitCount) || 1));
+    handleRoomLayoutChange(index, {
+      unitCount: n,
+      unitCountInput: formatWithCommas(n),
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -141,6 +219,7 @@ export default function HotelUploadForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* 你原本的“有多少个房型/layout” */}
       <div className="relative w-40" ref={dropdownRef}>
         <label className="block font-medium mb-1">
           这个 Homestay / Hotel 有多少个房型 / layout？
@@ -191,11 +270,49 @@ export default function HotelUploadForm() {
             房型 {index + 1} / {roomLayouts.length}
           </h3>
 
-          {/* ✅✅✅ 这里就是 New Project 同款的 Layout 图纸上传（点击上传 Layout 图纸） */}
+          {/* ✅ Layout 图纸（New Project 同款） */}
           <BlueprintUploadSection
             fileInputRef={getLayoutFileRef(index)}
             onUpload={(e) => handleBlueprintUpload(index, e)}
           />
+
+          {/* ✅✅ 只新增：每个房型数量（1~3000，可编辑，千分位） */}
+          <div className="relative w-72" ref={getUnitCountRef(index)}>
+            <label className="block font-medium mb-1">
+              请问这个房型的数量有多少？
+            </label>
+
+            <input
+              type="text"
+              value={
+                layout.unitCountInput != null && layout.unitCountInput !== ""
+                  ? layout.unitCountInput
+                  : ""
+              }
+              onChange={(e) => handleUnitCountInput(index, e.target.value)}
+              onFocus={() => setOpenUnitCountIndex(index)}
+              onBlur={() => handleUnitCountBlur(index)}
+              placeholder="1 ~ 3,000"
+              className="border rounded px-3 py-2 w-full"
+            />
+
+            {openUnitCountIndex === index && (
+              <ul
+                className="absolute z-30 w-full max-h-60 bg-white border rounded shadow mt-1 overflow-y-auto"
+                onMouseDown={(e) => e.preventDefault()}
+              >
+                {Array.from({ length: 3000 }, (_, i) => i + 1).map((n) => (
+                  <li
+                    key={n}
+                    className="px-3 py-1 hover:bg-gray-100 cursor-pointer"
+                    onClick={() => selectUnitCount(index, n)}
+                  >
+                    {formatWithCommas(n)}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
 
           <HotelRoomTypeForm
             index={index}
