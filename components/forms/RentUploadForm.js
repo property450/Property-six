@@ -1,5 +1,7 @@
 "use client";
 
+import { useRef } from "react";
+
 import AreaSelector from "@/components/AreaSelector";
 import PriceInput from "@/components/PriceInput";
 import RoomRentalForm from "@/components/RoomRentalForm";
@@ -13,6 +15,74 @@ import CarparkCountSelector from "@/components/CarparkCountSelector";
 import CarparkLevelSelector from "@/components/CarparkLevelSelector";
 import FacingSelector from "@/components/FacingSelector";
 import ImageUpload from "@/components/ImageUpload";
+
+/* ================= Layout 图纸上传（仅新增，不影响其它逻辑） ================= */
+function LayoutBlueprintUpload({ value = [], onChange }) {
+  const inputRef = useRef(null);
+  const files = Array.isArray(value) ? value : [];
+
+  const addFiles = (e) => {
+    const picked = Array.from(e.target.files || []);
+    if (!picked.length) return;
+    onChange?.([...(files || []), ...picked]);
+    e.target.value = "";
+  };
+
+  const removeAt = (idx) => {
+    const next = files.filter((_, i) => i !== idx);
+    onChange?.(next);
+  };
+
+  return (
+    <div className="border rounded-lg p-4 bg-white">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="font-medium">Layout 图纸上传</div>
+          <div className="text-sm text-gray-500">支持多张图片 / PDF（可多选）</div>
+        </div>
+
+        <button
+          type="button"
+          className="px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+          onClick={() => inputRef.current?.click()}
+        >
+          上传 Layout 图纸
+        </button>
+
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*,application/pdf"
+          multiple
+          className="hidden"
+          onChange={addFiles}
+        />
+      </div>
+
+      {files.length > 0 && (
+        <div className="mt-3 space-y-2">
+          {files.map((f, idx) => (
+            <div
+              key={idx}
+              className="flex items-center justify-between border rounded-lg px-3 py-2"
+            >
+              <div className="text-sm text-gray-800 break-all">
+                {f?.name || `文件 ${idx + 1}`}
+              </div>
+              <button
+                type="button"
+                className="text-sm text-red-600 hover:underline"
+                onClick={() => removeAt(idx)}
+              >
+                删除
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function RentUploadForm({
   saleType,
@@ -115,6 +185,12 @@ export default function RentUploadForm({
                 onChange={(val) => updateBatchLayout(idx, { transit: val })}
               />
 
+              {/* ✅ 仅新增：Layout 图纸上传 */}
+              <LayoutBlueprintUpload
+                value={data.layoutPhotos}
+                onChange={(val) => updateBatchLayout(idx, { layoutPhotos: val })}
+              />
+
               {/* ✅ 整间出租（批量）固定加一格：房源外观/环境 */}
               <ImageUpload
                 value={data}
@@ -168,6 +244,19 @@ export default function RentUploadForm({
                     }}
                   />
 
+                  {/* ✅ 仅新增：Layout 图纸上传（房间也有） */}
+                  <LayoutBlueprintUpload
+                    value={roomValue.layoutPhotos}
+                    onChange={(val) => {
+                      if (!setUnitLayouts) return;
+                      setUnitLayouts((prev) => {
+                        const arr = Array.isArray(prev) ? [...prev] : [];
+                        arr[idx] = { ...(arr[idx] || {}), layoutPhotos: val };
+                        return arr;
+                      });
+                    }}
+                  />
+
                   <ImageUpload
                     value={roomValue}
                     onChange={(next) => {
@@ -187,6 +276,12 @@ export default function RentUploadForm({
         ) : (
           <>
             <RoomRentalForm value={singleFormData} onChange={setSingleFormData} />
+
+            {/* ✅ 仅新增：Layout 图纸上传（单房间） */}
+            <LayoutBlueprintUpload
+              value={singleFormData.layoutPhotos}
+              onChange={(val) => setSingleFormData((p) => ({ ...p, layoutPhotos: val }))}
+            />
 
             <ImageUpload
               value={singleFormData}
@@ -249,6 +344,12 @@ export default function RentUploadForm({
           <TransitSelector
             value={singleFormData.transit}
             onChange={(val) => setSingleFormData((p) => ({ ...p, transit: val }))}
+          />
+
+          {/* ✅ 仅新增：Layout 图纸上传（整间单个） */}
+          <LayoutBlueprintUpload
+            value={singleFormData.layoutPhotos}
+            onChange={(val) => setSingleFormData((p) => ({ ...p, layoutPhotos: val }))}
           />
 
           {/* ✅ 整间出租（单个）固定加一格：房源外观/环境 */}
