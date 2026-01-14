@@ -1,7 +1,7 @@
 // components/HotelUploadForm.js
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import RoomCountSelector from "./RoomCountSelector";
 import ExtraSpacesSelector from "./ExtraSpacesSelector";
 import FurnitureSelector from "./FurnitureSelector";
@@ -29,6 +29,74 @@ const HOTEL_TYPES = [
   "Airport Hotel",
 ];
 
+/* ================= Layout 图纸上传（仅新增，不影响其它逻辑） ================= */
+function LayoutBlueprintUpload({ value = [], onChange }) {
+  const inputRef = useRef(null);
+  const files = Array.isArray(value) ? value : [];
+
+  const addFiles = (e) => {
+    const picked = Array.from(e.target.files || []);
+    if (!picked.length) return;
+    onChange?.([...(files || []), ...picked]);
+    e.target.value = "";
+  };
+
+  const removeAt = (idx) => {
+    const next = files.filter((_, i) => i !== idx);
+    onChange?.(next);
+  };
+
+  return (
+    <div className="border rounded-lg p-4 bg-white">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="font-medium">Layout 图纸上传</div>
+          <div className="text-sm text-gray-500">支持多张图片 / PDF（可多选）</div>
+        </div>
+
+        <button
+          type="button"
+          className="px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+          onClick={() => inputRef.current?.click()}
+        >
+          上传 Layout 图纸
+        </button>
+
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*,application/pdf"
+          multiple
+          className="hidden"
+          onChange={addFiles}
+        />
+      </div>
+
+      {files.length > 0 && (
+        <div className="mt-3 space-y-2">
+          {files.map((f, idx) => (
+            <div
+              key={idx}
+              className="flex items-center justify-between border rounded-lg px-3 py-2"
+            >
+              <div className="text-sm text-gray-800 break-all">
+                {f?.name || `文件 ${idx + 1}`}
+              </div>
+              <button
+                type="button"
+                className="text-sm text-red-600 hover:underline"
+                onClick={() => removeAt(idx)}
+              >
+                删除
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // 单个房型表单
 function HotelRoomTypeForm({ index, room, onChange }) {
   const safeRoom = room || {};
@@ -38,6 +106,7 @@ function HotelRoomTypeForm({ index, room, onChange }) {
   const facilities = safeRoom.facilities || [];
   const photos = safeRoom.photos || [];
   const availability = safeRoom.availability || {};
+  const layoutPhotos = safeRoom.layoutPhotos || [];
 
   // 更新房型
   const updateRoom = (patch) => {
@@ -149,12 +218,20 @@ function HotelRoomTypeForm({ index, room, onChange }) {
 
       {/* 此房型独立的日历（可选，你也可以只用整体的） */}
       <div>
-        <label className="block text-sm font-medium mb-1">此房型可租日期 / 价格（日历）</label>
+        <label className="block text-sm font-medium mb-1">
+          此房型可租日期 / 价格（日历）
+        </label>
         <AdvancedAvailabilityCalendar
           value={availability}
           onChange={(val) => updateRoom({ availability: val })}
         />
       </div>
+
+      {/* ✅ 仅新增：Layout 图纸上传（每个房型一套） */}
+      <LayoutBlueprintUpload
+        value={layoutPhotos}
+        onChange={(val) => updateRoom({ layoutPhotos: val })}
+      />
 
       {/* 房型图片上传 */}
       <div>
@@ -194,6 +271,9 @@ export default function HotelUploadForm() {
         facilities: [],
         availability: {},
         photos: [],
+
+        // ✅ 仅新增：每个房型的 Layout 图纸
+        layoutPhotos: [],
       },
     ]);
   };
