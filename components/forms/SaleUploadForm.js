@@ -286,7 +286,7 @@ export default function SaleUploadForm({
         />
       </div>
 
-      {/* ✅ 只新增：Layout 图纸上传 */}
+      {/* ✅ 原本就有：Layout 图纸上传（文件列表方式） */}
       <LayoutBlueprintUpload
         value={singleFormData.layoutPhotos}
         onChange={(val) =>
@@ -301,6 +301,22 @@ export default function SaleUploadForm({
           setSingleFormData((p) => ({ ...p, photos: updated }))
         }
       />
+
+      {/* ✅✅✅ 只新增：Layout 图纸上传（像 New Project / Completed Unit 那种用 ImageUpload） */}
+      <div className="border rounded-lg p-4 bg-white">
+        <div className="font-medium">Layout 图纸上传</div>
+        <div className="text-sm text-gray-500">支持多张图片 / PDF（可多选）</div>
+
+        <div className="mt-3">
+          <ImageUpload
+            config={{ id: "sale_layout_floorplans", multiple: true }}
+            images={singleFormData.layoutFloorPlans || {}}
+            setImages={(updated) =>
+              setSingleFormData((p) => ({ ...p, layoutFloorPlans: updated }))
+            }
+          />
+        </div>
+      </div>
     </div>
   );
-          }
+}
