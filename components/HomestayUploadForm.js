@@ -1,7 +1,7 @@
 // components/HomestayUploadForm.js
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 
@@ -27,6 +27,69 @@ const toArray = (val) => {
   if (Array.isArray(val)) return val;
   return [val];
 };
+
+/* ================= Layout 图纸上传（仅新增，不影响其它逻辑） ================= */
+function LayoutBlueprintUpload({ value = [], onChange }) {
+  const inputRef = useRef(null);
+  const files = Array.isArray(value) ? value : [];
+
+  const addFiles = (e) => {
+    const picked = Array.from(e.target.files || []);
+    if (!picked.length) return;
+    onChange?.([...(files || []), ...picked]);
+    e.target.value = "";
+  };
+
+  const removeAt = (idx) => {
+    const next = files.filter((_, i) => i !== idx);
+    onChange?.(next);
+  };
+
+  return (
+    <div className="space-y-2 border rounded-lg p-4">
+      <h3 className="font-semibold mb-1">Layout 图纸上传</h3>
+
+      <button
+        type="button"
+        className="px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+        onClick={() => inputRef.current?.click()}
+      >
+        上传 Layout 图纸
+      </button>
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*,application/pdf"
+        multiple
+        className="hidden"
+        onChange={addFiles}
+      />
+
+      {files.length > 0 && (
+        <div className="space-y-2">
+          {files.map((f, idx) => (
+            <div
+              key={idx}
+              className="flex items-center justify-between border rounded-lg px-3 py-2"
+            >
+              <div className="text-sm text-gray-800 break-all">
+                {f?.name || `文件 ${idx + 1}`}
+              </div>
+              <button
+                type="button"
+                className="text-sm text-red-600 hover:underline"
+                onClick={() => removeAt(idx)}
+              >
+                删除
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function HomestayUploadForm({ onSubmit }) {
   // 基本信息
@@ -85,6 +148,9 @@ export default function HomestayUploadForm({ onSubmit }) {
   // 描述 & 照片
   const [description, setDescription] = useState("");
   const [photos, setPhotos] = useState({}); // 给 ImageUpload 用
+
+  // ✅ 仅新增：Layout 图纸
+  const [layoutPhotos, setLayoutPhotos] = useState([]);
 
   const handleLocationSelect = ({ lat, lng, address }) => {
     setLat(lat);
@@ -148,6 +214,9 @@ export default function HomestayUploadForm({ onSubmit }) {
       },
       description,
       photos,
+
+      // ✅ 仅新增：Layout 图纸
+      layoutPhotos,
     };
 
     if (onSubmit) {
@@ -258,21 +327,12 @@ export default function HomestayUploadForm({ onSubmit }) {
 
         <RoomCountSelector
           value={roomCounts}
-          onChange={(patch) =>
-            setRoomCounts((prev) => ({ ...prev, ...patch }))
-          }
+          onChange={(patch) => setRoomCounts((prev) => ({ ...prev, ...patch }))}
         />
 
-        <CarparkCountSelector
-          value={carpark}
-          onChange={setCarpark}
-          mode="single"
-        />
+        <CarparkCountSelector value={carpark} onChange={setCarpark} mode="single" />
 
-        <AreaSelector
-          initialValue={areaData}
-          onChange={(data) => setAreaData(data)}
-        />
+        <AreaSelector initialValue={areaData} onChange={(data) => setAreaData(data)} />
       </div>
 
       {/* 价格 & Availability */}
@@ -365,10 +425,7 @@ export default function HomestayUploadForm({ onSubmit }) {
         </div>
 
         {/* 高级日历：可设置封房 & 特殊价格 */}
-        <AdvancedAvailabilityCalendar
-          value={availability}
-          onChange={setAvailability}
-        />
+        <AdvancedAvailabilityCalendar value={availability} onChange={setAvailability} />
       </div>
 
       {/* 设施 / 家私 / 额外空间 / 朝向 */}
@@ -469,14 +526,13 @@ export default function HomestayUploadForm({ onSubmit }) {
         />
       </div>
 
+      {/* ✅ 仅新增：Layout 图纸上传 */}
+      <LayoutBlueprintUpload value={layoutPhotos} onChange={setLayoutPhotos} />
+
       {/* 照片上传 */}
       <div className="space-y-2 border rounded-lg p-4">
         <h3 className="font-semibold mb-1">房源照片</h3>
-        <ImageUpload
-          config={photoConfig}
-          images={photos}
-          setImages={setPhotos}
-        />
+        <ImageUpload config={photoConfig} images={photos} setImages={setPhotos} />
       </div>
 
       <Button
