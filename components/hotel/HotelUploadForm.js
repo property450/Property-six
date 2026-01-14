@@ -42,6 +42,9 @@ const createEmptyRoomLayout = () => ({
 
   availability: {},
   photos: {},
+
+  // ✅ 只新增：Layout 图纸
+  floorPlans: {},
 });
 
 const SHARED_KEYS = [
@@ -116,7 +119,6 @@ export default function HotelUploadForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-
       {/* 🟦 修复：减少间距，回到原来美观布局 */}
       <div className="relative w-40" ref={dropdownRef}>
         <label className="block font-medium mb-1">
@@ -174,6 +176,21 @@ export default function HotelUploadForm() {
             data={layout}
             onChange={(patch) => handleRoomLayoutChange(index, patch)}
           />
+
+          {/* ✅ 只新增：Layout 图纸上传框（每个房型都有） */}
+          <div className="border rounded-xl p-4 space-y-3 bg-white shadow-sm">
+            <h3 className="font-semibold text-lg">Layout 图纸</h3>
+            <ImageUpload
+              config={{
+                id: `hotel_room_${index + 1}_floorplans`,
+                multiple: true,
+              }}
+              images={layout.floorPlans || {}}
+              setImages={(updated) =>
+                handleRoomLayoutChange(index, { floorPlans: updated })
+              }
+            />
+          </div>
         </div>
       ))}
 
