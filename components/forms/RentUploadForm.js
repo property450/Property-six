@@ -118,10 +118,6 @@ export default function RentUploadForm({
     });
   };
 
-  /* ===========================
-     批量出租（整间，多个 layout）
-     ✅ 每个房型表单都要有面积选择
-  ============================ */
   if (isBatch) {
     return (
       <div className="space-y-4">
@@ -157,7 +153,9 @@ export default function RentUploadForm({
 
               <CarparkLevelSelector
                 value={data.carparkLevel}
-                onChange={(val) => updateBatchLayout(idx, { carparkLevel: val })}
+                onChange={(val) =>
+                  updateBatchLayout(idx, { carparkLevel: val })
+                }
               />
 
               <FacingSelector
@@ -185,10 +183,12 @@ export default function RentUploadForm({
                 onChange={(val) => updateBatchLayout(idx, { transit: val })}
               />
 
-              {/* ✅ 仅新增：Layout 图纸上传 */}
+              {/* ✅ 只新增：Layout 图纸上传（批量每个房型都有） */}
               <LayoutBlueprintUpload
                 value={data.layoutPhotos}
-                onChange={(val) => updateBatchLayout(idx, { layoutPhotos: val })}
+                onChange={(val) =>
+                  updateBatchLayout(idx, { layoutPhotos: val })
+                }
               />
 
               {/* ✅ 整间出租（批量）固定加一格：房源外观/环境 */}
@@ -214,14 +214,8 @@ export default function RentUploadForm({
     );
   }
 
-  /* ===========================
-     非批量：严格区分
-     1) 出租房间
-     2) 整间出租
-  ============================ */
   return (
     <div className="space-y-4">
-      {/* ===== 出租房间 ===== */}
       {isRoomRental ? (
         Number(layoutCount) > 1 ? (
           <div className="space-y-4">
@@ -229,7 +223,10 @@ export default function RentUploadForm({
               const roomValue = unitLayouts?.[idx] || {};
 
               return (
-                <div key={idx} className="border rounded-lg p-4 space-y-4 bg-white">
+                <div
+                  key={idx}
+                  className="border rounded-lg p-4 space-y-4 bg-white"
+                >
                   <div className="text-lg font-semibold">房间 {idx + 1}</div>
 
                   <RoomRentalForm
@@ -244,7 +241,7 @@ export default function RentUploadForm({
                     }}
                   />
 
-                  {/* ✅ 仅新增：Layout 图纸上传（房间也有） */}
+                  {/* ✅ 只新增：Layout 图纸上传（多房间每间都有） */}
                   <LayoutBlueprintUpload
                     value={roomValue.layoutPhotos}
                     onChange={(val) => {
@@ -277,10 +274,12 @@ export default function RentUploadForm({
           <>
             <RoomRentalForm value={singleFormData} onChange={setSingleFormData} />
 
-            {/* ✅ 仅新增：Layout 图纸上传（单房间） */}
+            {/* ✅ 只新增：Layout 图纸上传（单房间） */}
             <LayoutBlueprintUpload
               value={singleFormData.layoutPhotos}
-              onChange={(val) => setSingleFormData((p) => ({ ...p, layoutPhotos: val }))}
+              onChange={(val) =>
+                setSingleFormData((p) => ({ ...p, layoutPhotos: val }))
+              }
             />
 
             <ImageUpload
@@ -291,7 +290,6 @@ export default function RentUploadForm({
           </>
         )
       ) : (
-        /* ===== 整间出租（非批量） ===== */
         <>
           <AreaSelector
             value={areaData}
@@ -308,48 +306,66 @@ export default function RentUploadForm({
 
           <RoomCountSelector
             value={singleFormData}
-            onChange={(patch) => setSingleFormData((p) => ({ ...p, ...patch }))}
+            onChange={(patch) =>
+              setSingleFormData((p) => ({ ...p, ...patch }))
+            }
           />
 
           <CarparkCountSelector
             value={singleFormData.carparks}
-            onChange={(val) => setSingleFormData((p) => ({ ...p, carparks: val }))}
+            onChange={(val) =>
+              setSingleFormData((p) => ({ ...p, carparks: val }))
+            }
           />
 
           <CarparkLevelSelector
             value={singleFormData.carparkLevel}
-            onChange={(val) => setSingleFormData((p) => ({ ...p, carparkLevel: val }))}
+            onChange={(val) =>
+              setSingleFormData((p) => ({ ...p, carparkLevel: val }))
+            }
           />
 
           <FacingSelector
             value={singleFormData.facing}
-            onChange={(val) => setSingleFormData((p) => ({ ...p, facing: val }))}
+            onChange={(val) =>
+              setSingleFormData((p) => ({ ...p, facing: val }))
+            }
           />
 
           <ExtraSpacesSelector
             value={singleFormData.extraSpaces}
-            onChange={(val) => setSingleFormData((p) => ({ ...p, extraSpaces: val }))}
+            onChange={(val) =>
+              setSingleFormData((p) => ({ ...p, extraSpaces: val }))
+            }
           />
 
           <FurnitureSelector
             value={singleFormData.furniture}
-            onChange={(val) => setSingleFormData((p) => ({ ...p, furniture: val }))}
+            onChange={(val) =>
+              setSingleFormData((p) => ({ ...p, furniture: val }))
+            }
           />
 
           <FacilitiesSelector
             value={singleFormData.facilities}
-            onChange={(val) => setSingleFormData((p) => ({ ...p, facilities: val }))}
+            onChange={(val) =>
+              setSingleFormData((p) => ({ ...p, facilities: val }))
+            }
           />
 
           <TransitSelector
             value={singleFormData.transit}
-            onChange={(val) => setSingleFormData((p) => ({ ...p, transit: val }))}
+            onChange={(val) =>
+              setSingleFormData((p) => ({ ...p, transit: val }))
+            }
           />
 
-          {/* ✅ 仅新增：Layout 图纸上传（整间单个） */}
+          {/* ✅ 只新增：Layout 图纸上传（整间单个） */}
           <LayoutBlueprintUpload
             value={singleFormData.layoutPhotos}
-            onChange={(val) => setSingleFormData((p) => ({ ...p, layoutPhotos: val }))}
+            onChange={(val) =>
+              setSingleFormData((p) => ({ ...p, layoutPhotos: val }))
+            }
           />
 
           {/* ✅ 整间出租（单个）固定加一格：房源外观/环境 */}
@@ -372,4 +388,5 @@ export default function RentUploadForm({
       </div>
     </div>
   );
-}
+                               }
+                  
