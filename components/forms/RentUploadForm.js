@@ -339,4 +339,9 @@ export default function RentUploadForm({
           className="border p-3 rounded-lg w-full min-h-[120px]"
           placeholder="请输入房源描述..."
           value={description}
-          onChange={(e) => setDescription(e.target.value
+          onChange={(e) => setDescription(e.target.value)}
+        />
+      </div>
+    </div>
+  );
+}
