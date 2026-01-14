@@ -6,6 +6,9 @@ import HotelRoomTypeForm from "./HotelRoomTypeForm";
 import ImageUpload from "@/components/ImageUpload";
 import { Button } from "@/components/ui/button";
 
+// ✅ New Project 同款
+import BlueprintUploadSection from "@/components/unitlayout/BlueprintUploadSection";
+
 const createEmptyRoomLayout = () => ({
   name: "",
   code: "",
@@ -43,8 +46,8 @@ const createEmptyRoomLayout = () => ({
   availability: {},
   photos: {},
 
-  // ✅ 只新增：Layout 图纸
-  floorPlans: {},
+  // ✅ Layout 图纸（New Project 同款用这个字段）
+  layoutPhotos: [],
 });
 
 const SHARED_KEYS = [
@@ -69,6 +72,16 @@ export default function HotelUploadForm() {
   const [showDropdown, setShowDropdown] = useState(false);
 
   const dropdownRef = useRef(null);
+
+  // ✅ 每个房型一个 file input ref（给 BlueprintUploadSection 用）
+  const layoutFileInputRefs = useRef([]);
+
+  const getLayoutFileRef = (index) => {
+    if (!layoutFileInputRefs.current[index]) {
+      layoutFileInputRefs.current[index] = { current: null };
+    }
+    return layoutFileInputRefs.current[index];
+  };
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -101,6 +114,7 @@ export default function HotelUploadForm() {
       const updated = { ...next[index], ...patch };
       next[index] = updated;
 
+      // 同步 Layout 1 的通用信息（保持你原逻辑）
       if (index === 0 && next.length > 1) {
         const shared = {};
         SHARED_KEYS.forEach((key) => (shared[key] = updated[key]));
@@ -112,6 +126,14 @@ export default function HotelUploadForm() {
     });
   };
 
+  // ✅ New Project 同款：处理 Layout 图纸上传 -> 存进 layoutPhotos
+  const handleBlueprintUpload = (index, e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    const newPhotos = [...(roomLayouts[index]?.layoutPhotos || []), ...files];
+    handleRoomLayoutChange(index, { layoutPhotos: newPhotos });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     console.log("提交数据", { roomLayouts, facilityImages });
@@ -119,7 +141,6 @@ export default function HotelUploadForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* 🟦 修复：减少间距，回到原来美观布局 */}
       <div className="relative w-40" ref={dropdownRef}>
         <label className="block font-medium mb-1">
           这个 Homestay / Hotel 有多少个房型 / layout？
@@ -170,31 +191,22 @@ export default function HotelUploadForm() {
             房型 {index + 1} / {roomLayouts.length}
           </h3>
 
+          {/* ✅✅✅ 这里就是 New Project 同款的 Layout 图纸上传（点击上传 Layout 图纸） */}
+          <BlueprintUploadSection
+            fileInputRef={getLayoutFileRef(index)}
+            onUpload={(e) => handleBlueprintUpload(index, e)}
+          />
+
           <HotelRoomTypeForm
             index={index}
             total={roomLayouts.length}
             data={layout}
             onChange={(patch) => handleRoomLayoutChange(index, patch)}
           />
-
-          {/* ✅ 只新增：Layout 图纸上传框（每个房型都有） */}
-          <div className="border rounded-xl p-4 space-y-3 bg-white shadow-sm">
-            <h3 className="font-semibold text-lg">Layout 图纸</h3>
-            <ImageUpload
-              config={{
-                id: `hotel_room_${index + 1}_floorplans`,
-                multiple: true,
-              }}
-              images={layout.floorPlans || {}}
-              setImages={(updated) =>
-                handleRoomLayoutChange(index, { floorPlans: updated })
-              }
-            />
-          </div>
         </div>
       ))}
 
-      {/* 公共设施上传 */}
+      {/* 公共设施上传（保持你原本） */}
       <div className="border rounded-xl p-4 space-y-3 bg-white shadow-sm">
         <h3 className="font-semibold text-lg">这个酒店/度假屋的设施照片</h3>
         <ImageUpload
