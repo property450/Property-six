@@ -14,6 +14,7 @@ import FacilitiesSelector from "@/components/FacilitiesSelector";
 import TransitSelector from "@/components/TransitSelector";
 import BuildYearSelector from "@/components/BuildYearSelector";
 import ImageUpload from "@/components/ImageUpload";
+import BlueprintUploadSection from "@/components/unitlayout/BlueprintUploadSection";
 
 import { convertToSqft } from "@/utils/psfUtils";
 
@@ -31,71 +32,19 @@ function formatMoney(n) {
   });
 }
 
-/* ================= Layout 图纸上传（仅新增，不影响其它逻辑） ================= */
-function LayoutBlueprintUpload({ value = [], onChange }) {
-  const inputRef = useRef(null);
-  const files = Array.isArray(value) ? value : [];
+// ✅ 只新增：Layout 图纸上传（使用 New Project 同款 BlueprintUploadSection，不动其它逻辑）
+function LayoutBlueprintUploader({ value = [], onChange }) {
+  const fileInputRef = useRef(null);
 
-  const addFiles = (e) => {
-    const picked = Array.from(e.target.files || []);
-    if (!picked.length) return;
-    onChange?.([...(files || []), ...picked]);
-    e.target.value = "";
-  };
-
-  const removeAt = (idx) => {
-    const next = files.filter((_, i) => i !== idx);
+  const handleUpload = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    const next = [...(Array.isArray(value) ? value : []), ...files];
     onChange?.(next);
   };
 
   return (
-    <div className="border rounded-lg p-4 bg-white">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <div className="font-medium">Layout 图纸上传</div>
-          <div className="text-sm text-gray-500">支持多张图片 / PDF（可多选）</div>
-        </div>
-
-        <button
-          type="button"
-          className="px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
-          onClick={() => inputRef.current?.click()}
-        >
-          上传 Layout 图纸
-        </button>
-
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*,application/pdf"
-          multiple
-          className="hidden"
-          onChange={addFiles}
-        />
-      </div>
-
-      {files.length > 0 && (
-        <div className="mt-3 space-y-2">
-          {files.map((f, idx) => (
-            <div
-              key={idx}
-              className="flex items-center justify-between border rounded-lg px-3 py-2"
-            >
-              <div className="text-sm text-gray-800 break-all">
-                {f?.name || `文件 ${idx + 1}`}
-              </div>
-              <button
-                type="button"
-                className="text-sm text-red-600 hover:underline"
-                onClick={() => removeAt(idx)}
-              >
-                删除
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+    <BlueprintUploadSection fileInputRef={fileInputRef} onUpload={handleUpload} />
   );
 }
 
@@ -286,14 +235,15 @@ export default function SaleUploadForm({
         />
       </div>
 
-      {/* ✅ 原本就有：Layout 图纸上传（文件列表方式） */}
-      <LayoutBlueprintUpload
+      {/* ✅✅ 只新增这一块：New Project 同款「点击上传 Layout 图纸」 */}
+      <LayoutBlueprintUploader
         value={singleFormData.layoutPhotos}
-        onChange={(val) =>
-          setSingleFormData((p) => ({ ...p, layoutPhotos: val }))
+        onChange={(next) =>
+          setSingleFormData((p) => ({ ...p, layoutPhotos: next }))
         }
       />
 
+      {/* ✅ 原本房源照片上传（只保留这一套，不会重复） */}
       <ImageUpload
         config={photoConfigComputed}
         images={singleFormData.photos}
@@ -301,22 +251,6 @@ export default function SaleUploadForm({
           setSingleFormData((p) => ({ ...p, photos: updated }))
         }
       />
-
-      {/* ✅✅✅ 只新增：Layout 图纸上传（像 New Project / Completed Unit 那种用 ImageUpload） */}
-      <div className="border rounded-lg p-4 bg-white">
-        <div className="font-medium">Layout 图纸上传</div>
-        <div className="text-sm text-gray-500">支持多张图片 / PDF（可多选）</div>
-
-        <div className="mt-3">
-          <ImageUpload
-            config={{ id: "sale_layout_floorplans", multiple: true }}
-            images={singleFormData.layoutFloorPlans || {}}
-            setImages={(updated) =>
-              setSingleFormData((p) => ({ ...p, layoutFloorPlans: updated }))
-            }
-          />
-        </div>
-      </div>
     </div>
   );
 }
