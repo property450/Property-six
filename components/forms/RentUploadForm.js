@@ -62,10 +62,7 @@ function LayoutBlueprintUpload({ value = [], onChange }) {
       {files.length > 0 && (
         <div className="mt-3 space-y-2">
           {files.map((f, idx) => (
-            <div
-              key={idx}
-              className="flex items-center justify-between border rounded-lg px-3 py-2"
-            >
+            <div key={idx} className="flex items-center justify-between border rounded-lg px-3 py-2">
               <div className="text-sm text-gray-800 break-all">
                 {f?.name || `文件 ${idx + 1}`}
               </div>
@@ -183,7 +180,7 @@ export default function RentUploadForm({
                 onChange={(val) => updateBatchLayout(idx, { transit: val })}
               />
 
-              {/* ✅ 只新增：Layout 图纸上传（批量每个房型都有） */}
+              {/* ✅ 原本就有：Layout 图纸上传（批量每个房型都有） */}
               <LayoutBlueprintUpload
                 value={data.layoutPhotos}
                 onChange={(val) =>
@@ -197,6 +194,21 @@ export default function RentUploadForm({
                 onChange={(next) => updateBatchLayout(idx, next)}
                 fixedLabels={["房源外观/环境"]}
               />
+
+              {/* ✅✅✅ 只新增：Layout 图纸上传（像 New Project / Completed Unit 那种用 ImageUpload） */}
+              <div className="mt-4 border rounded-lg p-4 bg-white">
+                <div className="font-medium">Layout 图纸上传</div>
+                <div className="text-sm text-gray-500">支持多张图片 / PDF（可多选）</div>
+                <div className="mt-3">
+                  <ImageUpload
+                    config={{ id: `rent_layout_floorplans_batch_${idx + 1}`, multiple: true }}
+                    images={data.layoutFloorPlans || {}}
+                    setImages={(updated) =>
+                      updateBatchLayout(idx, { layoutFloorPlans: updated })
+                    }
+                  />
+                </div>
+              </div>
             </div>
           );
         })}
@@ -241,7 +253,7 @@ export default function RentUploadForm({
                     }}
                   />
 
-                  {/* ✅ 只新增：Layout 图纸上传（多房间每间都有） */}
+                  {/* ✅ 原本就有：Layout 图纸上传（多房间每间都有） */}
                   <LayoutBlueprintUpload
                     value={roomValue.layoutPhotos}
                     onChange={(val) => {
@@ -266,6 +278,26 @@ export default function RentUploadForm({
                     }}
                     labelsOverride={["房源照片上传"]}
                   />
+
+                  {/* ✅✅✅ 只新增：Layout 图纸上传（像 New Project / Completed Unit 那种用 ImageUpload） */}
+                  <div className="mt-4 border rounded-lg p-4 bg-white">
+                    <div className="font-medium">Layout 图纸上传</div>
+                    <div className="text-sm text-gray-500">支持多张图片 / PDF（可多选）</div>
+                    <div className="mt-3">
+                      <ImageUpload
+                        config={{ id: `rent_layout_floorplans_room_${idx + 1}`, multiple: true }}
+                        images={roomValue.layoutFloorPlans || {}}
+                        setImages={(updated) => {
+                          if (!setUnitLayouts) return;
+                          setUnitLayouts((prev) => {
+                            const arr = Array.isArray(prev) ? [...prev] : [];
+                            arr[idx] = { ...(arr[idx] || {}), layoutFloorPlans: updated };
+                            return arr;
+                          });
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
               );
             })}
@@ -274,7 +306,7 @@ export default function RentUploadForm({
           <>
             <RoomRentalForm value={singleFormData} onChange={setSingleFormData} />
 
-            {/* ✅ 只新增：Layout 图纸上传（单房间） */}
+            {/* ✅ 原本就有：Layout 图纸上传（单房间） */}
             <LayoutBlueprintUpload
               value={singleFormData.layoutPhotos}
               onChange={(val) =>
@@ -287,6 +319,21 @@ export default function RentUploadForm({
               onChange={setSingleFormData}
               labelsOverride={["房源照片上传"]}
             />
+
+            {/* ✅✅✅ 只新增：Layout 图纸上传（像 New Project / Completed Unit 那种用 ImageUpload） */}
+            <div className="mt-4 border rounded-lg p-4 bg-white">
+              <div className="font-medium">Layout 图纸上传</div>
+              <div className="text-sm text-gray-500">支持多张图片 / PDF（可多选）</div>
+              <div className="mt-3">
+                <ImageUpload
+                  config={{ id: "rent_layout_floorplans_room_single", multiple: true }}
+                  images={singleFormData.layoutFloorPlans || {}}
+                  setImages={(updated) =>
+                    setSingleFormData((p) => ({ ...p, layoutFloorPlans: updated }))
+                  }
+                />
+              </div>
+            </div>
           </>
         )
       ) : (
@@ -360,7 +407,7 @@ export default function RentUploadForm({
             }
           />
 
-          {/* ✅ 只新增：Layout 图纸上传（整间单个） */}
+          {/* ✅ 原本就有：Layout 图纸上传（整间单个） */}
           <LayoutBlueprintUpload
             value={singleFormData.layoutPhotos}
             onChange={(val) =>
@@ -374,6 +421,21 @@ export default function RentUploadForm({
             onChange={setSingleFormData}
             fixedLabels={["房源外观/环境"]}
           />
+
+          {/* ✅✅✅ 只新增：Layout 图纸上传（像 New Project / Completed Unit 那种用 ImageUpload） */}
+          <div className="mt-4 border rounded-lg p-4 bg-white">
+            <div className="font-medium">Layout 图纸上传</div>
+            <div className="text-sm text-gray-500">支持多张图片 / PDF（可多选）</div>
+            <div className="mt-3">
+              <ImageUpload
+                config={{ id: "rent_layout_floorplans_single", multiple: true }}
+                images={singleFormData.layoutFloorPlans || {}}
+                setImages={(updated) =>
+                  setSingleFormData((p) => ({ ...p, layoutFloorPlans: updated }))
+                }
+              />
+            </div>
+          </div>
         </>
       )}
 
@@ -388,5 +450,4 @@ export default function RentUploadForm({
       </div>
     </div>
   );
-                               }
-                  
+}
