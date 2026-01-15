@@ -16,7 +16,6 @@ export default function CarparkLevelSelector({
     single: false,
   });
 
-  // ⭐ 内部 state，用来记住范围 / 单选
   const [internalRange, setInternalRange] = useState(
     value && typeof value === "object"
       ? { min: value.min || "", max: value.max || "" }
@@ -26,8 +25,10 @@ export default function CarparkLevelSelector({
     typeof value === "string" ? value : ""
   );
 
-  // ✅ 只给 single 模式用的下拉控制
+  // ✅ single 模式下拉控制：点击/聚焦显示全量，输入才筛选
   const [openSingleDropdown, setOpenSingleDropdown] = useState(false);
+  const [isTypingFilter, setIsTypingFilter] = useState(false);
+  const [query, setQuery] = useState("");
   const singleWrapRef = useRef(null);
 
   // 父组件 value 变化时，同步到内部
@@ -49,6 +50,8 @@ export default function CarparkLevelSelector({
       if (!singleWrapRef.current) return;
       if (!singleWrapRef.current.contains(e.target)) {
         setOpenSingleDropdown(false);
+        setIsTypingFilter(false);
+        setQuery("");
       }
     };
     document.addEventListener("mousedown", handler);
@@ -110,9 +113,11 @@ export default function CarparkLevelSelector({
     "🔝 顶层": ["R（Roof）", "Rooftop"],
   };
 
-  // ✅ single 下拉：根据输入过滤（不改你原本 options，只是过滤显示）
   const filteredGroupedOptions = useMemo(() => {
-    const q = (internalSingle || "").trim().toLowerCase();
+    // ✅ 只有在“输入筛选模式”才过滤；点击/聚焦永远显示全量
+    if (!isTypingFilter) return groupedOptions;
+
+    const q = (query || "").trim().toLowerCase();
     if (!q) return groupedOptions;
 
     const next = {};
@@ -121,10 +126,10 @@ export default function CarparkLevelSelector({
       if (hit.length) next[group] = hit;
     }
     return next;
-  }, [internalSingle, groupedOptions]);
+  }, [groupedOptions, isTypingFilter, query]);
 
   // ======================
-  // range 模式（完全保持你原本代码，不动）
+  // range 模式（保持你原本逻辑）
   // ======================
   if (mode === "range") {
     return (
@@ -132,6 +137,7 @@ export default function CarparkLevelSelector({
         <label className="block text-sm font-medium text-gray-700">
           车位位置范围
         </label>
+
         <div className="flex gap-2">
           {/* 最小楼层 */}
           {isCustom.min ? (
@@ -234,7 +240,7 @@ export default function CarparkLevelSelector({
   }
 
   // ======================
-  // single 模式：✅ 选择后还能编辑（视频那种）
+  // single 模式：✅ 点击全量下拉 + 输入才筛选 + 选择后可编辑
   // ======================
   return (
     <div className="space-y-2" ref={singleWrapRef}>
@@ -245,19 +251,32 @@ export default function CarparkLevelSelector({
           type="text"
           placeholder="请选择车位位置"
           value={internalSingle || ""}
-          onFocus={() => setOpenSingleDropdown(true)}
-          onClick={() => setOpenSingleDropdown(true)}
+          // ✅ 重点：点击/聚焦永远显示全量
+          onFocus={() => {
+            setOpenSingleDropdown(true);
+            setIsTypingFilter(false);
+            setQuery("");
+          }}
+          onClick={() => {
+            setOpenSingleDropdown(true);
+            setIsTypingFilter(false);
+            setQuery("");
+          }}
           onChange={(e) => {
             const v = e.target.value;
             setInternalSingle(v);
             onChange?.(v);
+
+            // ✅ 只有真正输入时才筛选
             setOpenSingleDropdown(true);
+            setIsTypingFilter(true);
+            setQuery(v);
           }}
           className="w-full border border-gray-300 rounded px-3 py-2"
         />
 
         {openSingleDropdown && (
-          <div className="absolute z-30 w-full bg-white border border-gray-300 rounded shadow mt-1 max-h-64 overflow-y-auto">
+          <div className="absolute z-30 w-full bg-white border border-gray-300 rounded shadow mt-1 max-h-[520px] overflow-y-auto">
             {Object.keys(filteredGroupedOptions).length === 0 ? (
               <div className="px-3 py-2 text-sm text-gray-500">
                 没有匹配选项（可直接输入）
@@ -268,16 +287,21 @@ export default function CarparkLevelSelector({
                   <div className="px-3 py-2 text-xs font-semibold text-gray-500 bg-gray-50">
                     {groupLabel}
                   </div>
+
                   {options.map((opt) => (
                     <div
                       key={opt}
                       className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                      // 防止点击时 input 先 blur 导致 dropdown 关闭
+                      // 防止点击导致 input blur 先关掉下拉
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => {
                         setInternalSingle(opt);
                         onChange?.(opt);
+
+                        // ✅ 选中后关闭，下次再点输入框仍然全量下拉
                         setOpenSingleDropdown(false);
+                        setIsTypingFilter(false);
+                        setQuery("");
                       }}
                     >
                       {opt}
