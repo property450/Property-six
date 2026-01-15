@@ -5,59 +5,27 @@ export default function CarparkLevelSelector({
   onChange,
   mode = "single", // "single" | "range"
 }) {
-  const [customValue, setCustomValue] = useState({
-    min: "",
-    max: "",
-    single: "",
-  });
-  const [isCustom, setIsCustom] = useState({
-    min: false,
-    max: false,
-    single: false,
-  });
-
   const [internalRange, setInternalRange] = useState(
     value && typeof value === "object"
       ? { min: value.min || "", max: value.max || "" }
       : { min: "", max: "" }
   );
+
   const [internalSingle, setInternalSingle] = useState(
     typeof value === "string" ? value : ""
   );
-
-  // ✅ single 模式下拉控制：点击/聚焦显示全量，输入才筛选
-  const [openSingleDropdown, setOpenSingleDropdown] = useState(false);
-  const [isTypingFilter, setIsTypingFilter] = useState(false);
-  const [query, setQuery] = useState("");
-  const singleWrapRef = useRef(null);
 
   // 父组件 value 变化时，同步到内部
   useEffect(() => {
     if (mode === "range") {
       const v = value && typeof value === "object" ? value : {};
-      setInternalRange({
-        min: v.min || "",
-        max: v.max || "",
-      });
+      setInternalRange({ min: v.min || "", max: v.max || "" });
     } else {
       setInternalSingle(typeof value === "string" ? value : "");
     }
   }, [value, mode]);
 
-  // ✅ 点击外部关闭 single 下拉
-  useEffect(() => {
-    const handler = (e) => {
-      if (!singleWrapRef.current) return;
-      if (!singleWrapRef.current.contains(e.target)) {
-        setOpenSingleDropdown(false);
-        setIsTypingFilter(false);
-        setQuery("");
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
+  // ✅ 选项（保持你原本分组/内容）
   const groupedOptions = {
     "🔻 地下楼层（Basement）": [
       "Basement 10",
@@ -113,170 +81,78 @@ export default function CarparkLevelSelector({
     "🔝 顶层": ["R（Roof）", "Rooftop"],
   };
 
-  const filteredGroupedOptions = useMemo(() => {
-    // ✅ 只有在“输入筛选模式”才过滤；点击/聚焦永远显示全量
-    if (!isTypingFilter) return groupedOptions;
+  // ========= 通用：可编辑下拉输入框（选择后仍可编辑） =========
+  function EditableDropdownInput({
+    placeholder,
+    value,
+    onValueChange,
+    maxHeightClass = "max-h-64", // ✅ 控制下拉高度（你说要关小一些）
+  }) {
+    const wrapRef = useRef(null);
+    const [open, setOpen] = useState(false);
+    const [isTypingFilter, setIsTypingFilter] = useState(false);
+    const [query, setQuery] = useState("");
 
-    const q = (query || "").trim().toLowerCase();
-    if (!q) return groupedOptions;
+    // 点击外部关闭
+    useEffect(() => {
+      const handler = (e) => {
+        if (!wrapRef.current) return;
+        if (!wrapRef.current.contains(e.target)) {
+          setOpen(false);
+          setIsTypingFilter(false);
+          setQuery("");
+        }
+      };
+      document.addEventListener("mousedown", handler);
+      return () => document.removeEventListener("mousedown", handler);
+    }, []);
 
-    const next = {};
-    for (const [group, arr] of Object.entries(groupedOptions)) {
-      const hit = arr.filter((x) => x.toLowerCase().includes(q));
-      if (hit.length) next[group] = hit;
-    }
-    return next;
-  }, [groupedOptions, isTypingFilter, query]);
+    const filteredGroupedOptions = useMemo(() => {
+      // ✅ 点击/聚焦：显示全量；只有输入时才筛选
+      if (!isTypingFilter) return groupedOptions;
 
-  // ======================
-  // range 模式（保持你原本逻辑）
-  // ======================
-  if (mode === "range") {
+      const q = (query || "").trim().toLowerCase();
+      if (!q) return groupedOptions;
+
+      const next = {};
+      for (const [group, arr] of Object.entries(groupedOptions)) {
+        const hit = arr.filter((x) => x.toLowerCase().includes(q));
+        if (hit.length) next[group] = hit;
+      }
+      return next;
+    }, [isTypingFilter, query]);
+
     return (
-      <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-700">
-          车位位置范围
-        </label>
-
-        <div className="flex gap-2">
-          {/* 最小楼层 */}
-          {isCustom.min ? (
-            <input
-              type="text"
-              placeholder="请输入最小楼层"
-              value={customValue.min}
-              onChange={(e) => {
-                const v = e.target.value;
-                setCustomValue((p) => ({ ...p, min: v }));
-                const next = { ...internalRange, min: v };
-                setInternalRange(next);
-                onChange?.(next);
-              }}
-              className="w-1/2 border border-gray-300 rounded px-3 py-2"
-            />
-          ) : (
-            <select
-              value={internalRange.min || ""}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (v === "自定义") {
-                  setIsCustom((p) => ({ ...p, min: true }));
-                  setCustomValue((p) => ({ ...p, min: "" }));
-                  const next = { ...internalRange, min: "" };
-                  setInternalRange(next);
-                  onChange?.(next);
-                } else {
-                  const next = { ...internalRange, min: v };
-                  setInternalRange(next);
-                  onChange?.(next);
-                }
-              }}
-              className="w-1/2 border border-gray-300 rounded px-3 py-2"
-            >
-              <option value="">最小楼层</option>
-              {Object.entries(groupedOptions).map(([groupLabel, options]) => (
-                <optgroup key={groupLabel} label={groupLabel}>
-                  {options.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-              <option value="自定义">其他（自定义）</option>
-            </select>
-          )}
-
-          {/* 最大楼层 */}
-          {isCustom.max ? (
-            <input
-              type="text"
-              placeholder="请输入最大楼层"
-              value={customValue.max}
-              onChange={(e) => {
-                const v = e.target.value;
-                setCustomValue((p) => ({ ...p, max: v }));
-                const next = { ...internalRange, max: v };
-                setInternalRange(next);
-                onChange?.(next);
-              }}
-              className="w-1/2 border border-gray-300 rounded px-3 py-2"
-            />
-          ) : (
-            <select
-              value={internalRange.max || ""}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (v === "自定义") {
-                  setIsCustom((p) => ({ ...p, max: true }));
-                  setCustomValue((p) => ({ ...p, max: "" }));
-                  const next = { ...internalRange, max: "" };
-                  setInternalRange(next);
-                  onChange?.(next);
-                } else {
-                  const next = { ...internalRange, max: v };
-                  setInternalRange(next);
-                  onChange?.(next);
-                }
-              }}
-              className="w-1/2 border border-gray-300 rounded px-3 py-2"
-            >
-              <option value="">最大楼层</option>
-              {Object.entries(groupedOptions).map(([groupLabel, options]) => (
-                <optgroup key={groupLabel} label={groupLabel}>
-                  {options.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-              <option value="自定义">其他（自定义）</option>
-            </select>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // ======================
-  // single 模式：✅ 点击全量下拉 + 输入才筛选 + 选择后可编辑
-  // ======================
-  return (
-    <div className="space-y-2" ref={singleWrapRef}>
-      <label className="block text-sm font-medium text-gray-700">车位位置</label>
-
-      <div className="relative">
+      <div className="relative" ref={wrapRef}>
         <input
           type="text"
-          placeholder="请选择车位位置"
-          value={internalSingle || ""}
-          // ✅ 重点：点击/聚焦永远显示全量
+          placeholder={placeholder}
+          value={value || ""}
           onFocus={() => {
-            setOpenSingleDropdown(true);
+            setOpen(true);
             setIsTypingFilter(false);
             setQuery("");
           }}
           onClick={() => {
-            setOpenSingleDropdown(true);
+            setOpen(true);
             setIsTypingFilter(false);
             setQuery("");
           }}
           onChange={(e) => {
             const v = e.target.value;
-            setInternalSingle(v);
-            onChange?.(v);
+            onValueChange(v);
 
-            // ✅ 只有真正输入时才筛选
-            setOpenSingleDropdown(true);
+            setOpen(true);
             setIsTypingFilter(true);
             setQuery(v);
           }}
           className="w-full border border-gray-300 rounded px-3 py-2"
         />
 
-        {openSingleDropdown && (
-          <div className="absolute z-30 w-full bg-white border border-gray-300 rounded shadow mt-1 max-h-[520px] overflow-y-auto">
+        {open && (
+          <div
+            className={`absolute z-30 w-full bg-white border border-gray-300 rounded shadow mt-1 ${maxHeightClass} overflow-y-auto`}
+          >
             {Object.keys(filteredGroupedOptions).length === 0 ? (
               <div className="px-3 py-2 text-sm text-gray-500">
                 没有匹配选项（可直接输入）
@@ -292,14 +168,10 @@ export default function CarparkLevelSelector({
                     <div
                       key={opt}
                       className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                      // 防止点击导致 input blur 先关掉下拉
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => {
-                        setInternalSingle(opt);
-                        onChange?.(opt);
-
-                        // ✅ 选中后关闭，下次再点输入框仍然全量下拉
-                        setOpenSingleDropdown(false);
+                        onValueChange(opt);
+                        setOpen(false);
                         setIsTypingFilter(false);
                         setQuery("");
                       }}
@@ -313,6 +185,68 @@ export default function CarparkLevelSelector({
           </div>
         )}
       </div>
+    );
+  }
+
+  // ======================
+  // range 模式：✅ 选择 + 可编辑（按你要求）
+  // ======================
+  if (mode === "range") {
+    return (
+      <div className="space-y-2">
+        <label className="block text-sm font-medium text-gray-700">
+          车位位置范围
+        </label>
+
+        <div className="flex gap-2">
+          <div className="w-1/2">
+            <EditableDropdownInput
+              placeholder="最小楼层"
+              value={internalRange.min}
+              onValueChange={(v) => {
+                const next = { ...internalRange, min: v };
+                setInternalRange(next);
+                onChange?.(next);
+              }}
+              // ✅ 下拉不要太长：这里控制高度（你觉得还长就改成 max-h-52 / max-h-48）
+              maxHeightClass="max-h-56"
+            />
+          </div>
+
+          <div className="w-1/2">
+            <EditableDropdownInput
+              placeholder="最大楼层"
+              value={internalRange.max}
+              onValueChange={(v) => {
+                const next = { ...internalRange, max: v };
+                setInternalRange(next);
+                onChange?.(next);
+              }}
+              maxHeightClass="max-h-56"
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ======================
+  // single 模式：✅ 选择 + 可编辑（你之前满意的逻辑）
+  // ======================
+  return (
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-gray-700">车位位置</label>
+
+      <EditableDropdownInput
+        placeholder="请选择车位位置"
+        value={internalSingle}
+        onValueChange={(v) => {
+          setInternalSingle(v);
+          onChange?.(v);
+        }}
+        // ✅ 你说下拉太长：这里同样改小
+        maxHeightClass="max-h-56"
+      />
     </div>
   );
 }
