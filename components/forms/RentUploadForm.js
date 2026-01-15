@@ -33,6 +33,21 @@ function LayoutBlueprintUploader({ value = [], onChange }) {
   );
 }
 
+// ✅ 只新增：复用同一段“房源描述”输入框（不改变状态结构）
+function DescriptionField({ description, setDescription }) {
+  return (
+    <div className="space-y-2">
+      <label className="font-semibold">房源描述</label>
+      <textarea
+        className="border p-3 rounded-lg w-full min-h-[120px]"
+        placeholder="请输入房源描述..."
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+      />
+    </div>
+  );
+}
+
 export default function RentUploadForm({
   saleType,
   computedStatus,
@@ -77,7 +92,10 @@ export default function RentUploadForm({
           const data = unitLayouts?.[idx] || {};
 
           return (
-            <div key={idx} className="border rounded-lg p-4 space-y-4 bg-white">
+            <div
+              key={idx}
+              className="border rounded-lg p-4 space-y-4 bg-white"
+            >
               <div className="text-lg font-semibold">房型 {idx + 1}</div>
 
               <AreaSelector
@@ -135,31 +153,27 @@ export default function RentUploadForm({
                 onChange={(val) => updateBatchLayout(idx, { transit: val })}
               />
 
-              {/* ✅✅ 批量：每个房型都要 New Project 同款 Layout 图纸上传 */}
+              {/* ✅✅ 每个房型都有 Layout 图纸上传 */}
               <LayoutBlueprintUploader
                 value={data.layoutPhotos}
-                onChange={(next) => updateBatchLayout(idx, { layoutPhotos: next })}
+                onChange={(val) => updateBatchLayout(idx, { layoutPhotos: val })}
               />
 
-              {/* ✅ 原本房源照片上传（只保留这一套，不会重复） */}
+              {/* ✅ 原本房源照片上传（保留） */}
               <ImageUpload
                 value={data}
                 onChange={(next) => updateBatchLayout(idx, next)}
                 fixedLabels={["房源外观/环境"]}
               />
+
+              {/* ✅✅ 关键：每个表单卡片都有房源描述输入框 */}
+              <DescriptionField
+                description={description}
+                setDescription={setDescription}
+              />
             </div>
           );
         })}
-
-        <div className="space-y-2">
-          <label className="font-semibold">房源描述</label>
-          <textarea
-            className="border p-3 rounded-lg w-full min-h-[120px]"
-            placeholder="请输入房源描述..."
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
-        </div>
       </div>
     );
   }
@@ -179,7 +193,10 @@ export default function RentUploadForm({
               const roomValue = unitLayouts?.[idx] || {};
 
               return (
-                <div key={idx} className="border rounded-lg p-4 space-y-4 bg-white">
+                <div
+                  key={idx}
+                  className="border rounded-lg p-4 space-y-4 bg-white"
+                >
                   <div className="text-lg font-semibold">房间 {idx + 1}</div>
 
                   <RoomRentalForm
@@ -194,7 +211,7 @@ export default function RentUploadForm({
                     }}
                   />
 
-                  {/* ✅✅ 多房间：每间都要 Layout 图纸上传 */}
+                  {/* ✅✅ 每间房也有 Layout 图纸上传 */}
                   <LayoutBlueprintUploader
                     value={roomValue.layoutPhotos}
                     onChange={(next) => {
@@ -207,7 +224,7 @@ export default function RentUploadForm({
                     }}
                   />
 
-                  {/* ✅ 原本房源照片上传（只保留这一套，不会重复） */}
+                  {/* ✅ 原本房源照片上传（保留） */}
                   <ImageUpload
                     value={roomValue}
                     onChange={(next) => {
@@ -220,6 +237,12 @@ export default function RentUploadForm({
                     }}
                     labelsOverride={["房源照片上传"]}
                   />
+
+                  {/* ✅✅ 关键：每个表单卡片都有房源描述输入框 */}
+                  <DescriptionField
+                    description={description}
+                    setDescription={setDescription}
+                  />
                 </div>
               );
             })}
@@ -228,7 +251,7 @@ export default function RentUploadForm({
           <>
             <RoomRentalForm value={singleFormData} onChange={setSingleFormData} />
 
-            {/* ✅✅ 单房间：Layout 图纸上传 */}
+            {/* ✅✅ 单房间也有 Layout 图纸上传 */}
             <LayoutBlueprintUploader
               value={singleFormData.layoutPhotos}
               onChange={(next) =>
@@ -236,11 +259,17 @@ export default function RentUploadForm({
               }
             />
 
-            {/* ✅ 原本房源照片上传（只保留这一套，不会重复） */}
+            {/* ✅ 原本房源照片上传（保留） */}
             <ImageUpload
               value={singleFormData}
               onChange={setSingleFormData}
               labelsOverride={["房源照片上传"]}
+            />
+
+            {/* ✅✅ 关键：这个表单也要有房源描述 */}
+            <DescriptionField
+              description={description}
+              setDescription={setDescription}
             />
           </>
         )
@@ -324,24 +353,20 @@ export default function RentUploadForm({
             }
           />
 
-          {/* ✅ 原本房源照片上传（只保留这一套，不会重复） */}
+          {/* ✅ 原本房源照片上传（保留） */}
           <ImageUpload
             value={singleFormData}
             onChange={setSingleFormData}
             fixedLabels={["房源外观/环境"]}
           />
+
+          {/* ✅✅ 关键：整间出租这个表单也要有房源描述 */}
+          <DescriptionField
+            description={description}
+            setDescription={setDescription}
+          />
         </>
       )}
-
-      <div className="space-y-2">
-        <label className="font-semibold">房源描述</label>
-        <textarea
-          className="border p-3 rounded-lg w-full min-h-[120px]"
-          placeholder="请输入房源描述..."
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-        />
-      </div>
     </div>
   );
 }
