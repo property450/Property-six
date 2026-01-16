@@ -8,21 +8,34 @@ export default function GuestSelector({ value, onChange }) {
     onChange?.({ ...guests, ...patch });
   };
 
-  const renderSelect = (field, label) => (
+  const normalizeNumberLike = (v) => {
+    if (v === null || v === undefined) return "";
+    const s = String(v);
+    // 只保留数字
+    const digits = s.replace(/[^\d]/g, "");
+    // 允许空
+    return digits === "" ? "" : digits;
+  };
+
+  const renderEditableSelect = (field, label, listId) => (
     <div className="flex items-center gap-2">
       <span className="w-10 text-sm">{label}</span>
-      <select
+
+      <input
         className="border rounded p-1 w-24"
-        value={guests[field] || ""}
-        onChange={(e) => update({ [field]: e.target.value })}
-      >
-        <option value="">请选择</option>
+        list={listId}
+        inputMode="numeric"
+        placeholder="请选择"
+        value={guests[field] ?? ""}
+        onChange={(e) => update({ [field]: normalizeNumberLike(e.target.value) })}
+        onBlur={(e) => update({ [field]: normalizeNumberLike(e.target.value) })}
+      />
+
+      <datalist id={listId}>
         {Array.from({ length: 20 }, (_, i) => i + 1).map((n) => (
-          <option key={n} value={n}>
-            {n}
-          </option>
+          <option key={n} value={String(n)} />
         ))}
-      </select>
+      </datalist>
     </div>
   );
 
@@ -31,9 +44,10 @@ export default function GuestSelector({ value, onChange }) {
       <label className="block text-sm font-medium mb-1">
         这个房型能住几个人？
       </label>
+
       <div className="flex flex-wrap gap-4">
-        {renderSelect("adults", "大人")}
-        {renderSelect("children", "小孩")}
+        {renderEditableSelect("adults", "大人", "guest-adults-options")}
+        {renderEditableSelect("children", "小孩", "guest-children-options")}
       </div>
     </div>
   );
