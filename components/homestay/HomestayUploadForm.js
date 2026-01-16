@@ -285,7 +285,7 @@ export default function HomestayUploadForm(props) {
       </div>
 
       {/* ✅ 下面：不重复写，直接复用 Hotel/Resort 表单 */}
-      <HotelResortUploadForm {...props} />
+      <HotelUploadForm {...props} />
     </div>
   );
 }
