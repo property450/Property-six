@@ -8,9 +8,6 @@ import { Button } from "@/components/ui/button";
 // ✅ New Project 同款 Layout 图纸上传
 import BlueprintUploadSection from "@/components/unitlayout/BlueprintUploadSection";
 
-// ✅ 新增：停车位数量选择器
-import CarparkCountSelector from "@/components/CarparkCountSelector";
-
 const createEmptyRoomLayout = () => ({
   name: "",
   code: "",
@@ -300,21 +297,6 @@ export default function HotelUploadForm() {
             data={layout}
             onChange={(patch) => handleRoomLayoutChange(index, patch)}
           />
-
-          {/* ✅ 新增：停车位数量（放在“客厅”逻辑后） */}
-          <CarparkCountSelector
-            value={layout.roomCounts?.carparks || ""}
-            onChange={(v) =>
-              handleRoomLayoutChange(index, {
-                roomCounts: {
-                  ...layout.roomCounts,
-                  carparks: v,
-                },
-              })
-            }
-          />
-        </div>
-      ))}
 
       {/* 公共设施照片 */}
       <div className="border rounded-xl p-4 space-y-3 bg-white shadow-sm">
