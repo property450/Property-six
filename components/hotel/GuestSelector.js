@@ -22,7 +22,11 @@ export default function GuestSelector({ value, onChange }) {
       <span className="w-10 text-sm">{label}</span>
 
       <input
-        className="border rounded p-1 w-24"
+        className="
+    border rounded px-2 py-1
+    bg-white text-black
+    [color-scheme:light]
+  "
         list={listId}
         inputMode="numeric"
         placeholder="请选择"
