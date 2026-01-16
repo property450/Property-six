@@ -91,6 +91,49 @@ function LayoutBlueprintUpload({ value = [], onChange }) {
   );
 }
 
+/* ================= 仅新增：Homestay 的 Property Category / Sub Type / Storeys / Property Subtype ================= */
+const HOMESTAY_PROPERTY_CATEGORIES = [
+  "Bungalow / Villa",
+  "Apartment / Condo / Service Residence",
+  "Semi-Detached House",
+  "Terrace / Link House",
+  "Business Property",
+  "Industrial Property",
+  "Land",
+];
+
+// 只做基本子类型（不加“自定义/Other”），避免你不想要的选项
+const HOMESTAY_SUBTYPE_MAP = {
+  "Bungalow / Villa": ["Bungalow", "Villa"],
+  "Apartment / Condo / Service Residence": [
+    "Apartment",
+    "Condo",
+    "Service Residence",
+    "Studio",
+    "Loft",
+  ],
+  "Semi-Detached House": ["Semi-Detached", "Cluster House"],
+  "Terrace / Link House": ["Terrace House", "Link House", "Townhouse"],
+  "Business Property": ["Shop", "Office", "Shop Office", "Retail Lot"],
+  "Industrial Property": ["Factory", "Warehouse", "Workshop"],
+  Land: ["Residential Land", "Commercial Land", "Industrial Land", "Agricultural Land"],
+};
+
+const NEED_STOREYS_CATEGORIES = new Set([
+  "Bungalow / Villa",
+  "Semi-Detached House",
+  "Terrace / Link House",
+  "Business Property",
+  "Industrial Property",
+]);
+
+const HOMESTAY_PROPERTY_SUBTYPE_OPTIONS = [
+  "Penthouse",
+  "Duplex",
+  "Triplex",
+  "Dual Key",
+];
+
 export default function HomestayUploadForm({ onSubmit }) {
   // 基本信息
   const [title, setTitle] = useState("");
@@ -98,6 +141,12 @@ export default function HomestayUploadForm({ onSubmit }) {
   const [maxGuests, setMaxGuests] = useState("");
   const [recommendedGuests, setRecommendedGuests] = useState("");
   const [tags, setTags] = useState(""); // 简单用逗号分隔
+
+  // ✅ 仅新增：Homestay 的 Property Category / Sub Type / Storeys / Property Subtype
+  const [hsCategory, setHsCategory] = useState("");
+  const [hsSubType, setHsSubType] = useState("");
+  const [hsStoreys, setHsStoreys] = useState("");
+  const [hsPropertySubtypes, setHsPropertySubtypes] = useState([]);
 
   // 地址 / 经纬度
   const [address, setAddress] = useState("");
@@ -177,6 +226,15 @@ export default function HomestayUploadForm({ onSubmit }) {
       formType: "homestay",
       title,
       homestayType,
+
+      // ✅ 仅新增：Homestay 类型（property category / subtype / storeys / property subtype）
+      homestayPropertyType: {
+        category: hsCategory,
+        subType: hsSubType,
+        storeys: hsStoreys,
+        propertySubtypes: hsPropertySubtypes,
+      },
+
       maxGuests,
       recommendedGuests,
       tags: tags
@@ -227,6 +285,9 @@ export default function HomestayUploadForm({ onSubmit }) {
     }
   };
 
+  const hsSubTypeOptions = hsCategory ? (HOMESTAY_SUBTYPE_MAP[hsCategory] || []) : [];
+  const showStoreys = NEED_STOREYS_CATEGORIES.has(hsCategory);
+
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-semibold">Homestay 上传表单</h2>
@@ -254,7 +315,90 @@ export default function HomestayUploadForm({ onSubmit }) {
           />
         </div>
 
-        {/* Homestay Type */}
+        {/* ✅✅ 仅新增：Homestay 的 Property Category / Sub Type / Storeys / Property Subtype */}
+        <div className="space-y-3 border rounded-lg p-4">
+          <div className="space-y-2">
+            <label className="block text-sm font-medium">Property Category</label>
+            <select
+              className="w-full border rounded p-2"
+              value={hsCategory}
+              onChange={(e) => {
+                const v = e.target.value;
+                setHsCategory(v);
+                // category 改变时，重置 subType / storeys（避免旧值残留）
+                setHsSubType("");
+                setHsStoreys("");
+              }}
+            >
+              <option value="">请选择</option>
+              {HOMESTAY_PROPERTY_CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-sm font-medium">Sub Type</label>
+            <select
+              className="w-full border rounded p-2"
+              value={hsSubType}
+              onChange={(e) => setHsSubType(e.target.value)}
+              disabled={!hsCategory}
+            >
+              <option value="">{hsCategory ? "请选择具体类型" : "请先选择 Property Category"}</option>
+              {hsSubTypeOptions.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {showStoreys && (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium">有多少层（Storeys）</label>
+              <input
+                type="text"
+                className="w-full border rounded p-2"
+                placeholder="例如：2 或 2.5"
+                value={hsStoreys}
+                onChange={(e) => setHsStoreys(e.target.value)}
+              />
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <label className="block text-sm font-medium">Property Subtype</label>
+            <div className="border rounded p-2 space-y-2">
+              <div className="text-sm text-gray-500">请选择 subtype（可多选）</div>
+              <div className="space-y-2">
+                {HOMESTAY_PROPERTY_SUBTYPE_OPTIONS.map((opt) => {
+                  const checked = hsPropertySubtypes.includes(opt);
+                  return (
+                    <label key={opt} className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(e) => {
+                          const on = e.target.checked;
+                          setHsPropertySubtypes((prev) => {
+                            if (on) return [...prev, opt];
+                            return prev.filter((x) => x !== opt);
+                          });
+                        }}
+                      />
+                      {opt}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Homestay Type（保持你原本不动） */}
         <div className="space-y-2">
           <label className="block text-sm font-medium">Homestay Type</label>
           <select
@@ -463,84 +607,4 @@ export default function HomestayUploadForm({ onSubmit }) {
               className="w-full border rounded p-2"
               value={checkOutTime}
               onChange={(e) => setCheckOutTime(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <label className="inline-flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={allowSmoking}
-              onChange={(e) => setAllowSmoking(e.target.checked)}
-            />
-            允许吸烟
-          </label>
-          <label className="inline-flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={allowPets}
-              onChange={(e) => setAllowPets(e.target.checked)}
-            />
-            允许宠物
-          </label>
-          <label className="inline-flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={allowParty}
-              onChange={(e) => setAllowParty(e.target.checked)}
-            />
-            允许聚会 / 派对
-          </label>
-          <label className="inline-flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={allowBBQ}
-              onChange={(e) => setAllowBBQ(e.target.checked)}
-            />
-            允许烧烤（BBQ）
-          </label>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium">额外说明（可选）</label>
-          <textarea
-            className="w-full border rounded p-2 resize-y"
-            rows={3}
-            value={extraRuleNote}
-            onChange={(e) => setExtraRuleNote(e.target.value)}
-            placeholder="例如：请在22:00后保持安静，不允许在屋内穿鞋等..."
-          />
-        </div>
-      </div>
-
-      {/* 描述 */}
-      <div className="space-y-2 border rounded-lg p-4">
-        <h3 className="font-semibold mb-1">房源描述</h3>
-        <textarea
-          className="w-full border rounded p-2 resize-y"
-          rows={4}
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="详细介绍你的 Homestay：亮点、附近景点、适合什么客人等..."
-        />
-      </div>
-
-      {/* ✅ 仅新增：Layout 图纸上传 */}
-      <LayoutBlueprintUpload value={layoutPhotos} onChange={setLayoutPhotos} />
-
-      {/* 照片上传 */}
-      <div className="space-y-2 border rounded-lg p-4">
-        <h3 className="font-semibold mb-1">房源照片</h3>
-        <ImageUpload config={photoConfig} images={photos} setImages={setPhotos} />
-      </div>
-
-      <Button
-        onClick={handleSubmit}
-        className="w-full bg-blue-600 text-white hover:bg-blue-700"
-      >
-        提交 Homestay 房源（暂时只打印数据）
-      </Button>
-    </div>
-  );
-}
+         
