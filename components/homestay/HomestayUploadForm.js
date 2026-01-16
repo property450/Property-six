@@ -1,110 +1,145 @@
 // components/homestay/HomestayUploadForm.js
+// components/homestay/HomestayUploadForm.js
 "use client";
 
 import { useMemo, useState } from "react";
+import HotelUploadForm from "@/components/hotel/HotelUploadForm";
+
+const PROPERTY_CATEGORIES = [
+  "Bungalow / Villa",
+  "Apartment / Condo / Service Residence",
+  "Semi-Detached House",
+  "Terrace / Link House",
+  "Business Property",
+  "Industrial Property",
+  "Land",
+];
+
+// 只有这些类别才需要 Storeys（跟你原本风格一致）
+const NEED_STOREYS_CATEGORIES = new Set([
+  "Bungalow / Villa",
+  "Semi-Detached House",
+  "Terrace / Link House",
+]);
+
+// Property Subtype（多选）
+const PROPERTY_SUBTYPE_OPTIONS = ["Penthouse", "Duplex", "Triplex", "Dual Key"];
+
+// Sub Type 给建议 + 允许手动输入（白色 datalist，不会变黑）
+const SUBTYPE_SUGGESTIONS_BY_CATEGORY = {
+  "Bungalow / Villa": ["Bungalow", "Villa", "Cluster House", "Twin Villa"],
+  "Apartment / Condo / Service Residence": [
+    "Apartment",
+    "Condominium",
+    "Service Residence",
+    "SOHO",
+    "SOFO",
+    "SOVO",
+    "Studio",
+  ],
+  "Semi-Detached House": ["Semi-D", "Semi-Detached"],
+  "Terrace / Link House": ["Terrace", "Link House", "Townhouse"],
+  "Business Property": ["Shop", "Shop Lot", "Office", "Retail"],
+  "Industrial Property": ["Factory", "Warehouse", "Workshop"],
+  Land: ["Residential Land", "Commercial Land", "Industrial Land", "Agricultural Land"],
+};
 
 export default function HomestayUploadForm() {
-  // ✅ 只做你要的 4 个字段（不碰其它任何页面逻辑）
+  // ✅ 只新增你要的 4 个类型字段（不碰其他逻辑）
   const [propertyCategory, setPropertyCategory] = useState("");
   const [subType, setSubType] = useState("");
   const [storeys, setStoreys] = useState("");
-  const [propertySubtypes, setPropertySubtypes] = useState([]); // 多选
+  const [propertySubtypes, setPropertySubtypes] = useState([]);
 
-  const needsStoreys = useMemo(() => {
-    // landed 才显示 storeys
-    return (
-      propertyCategory === "Bungalow / Villa" ||
-      propertyCategory === "Semi-Detached House" ||
-      propertyCategory === "Terrace / Link House"
-    );
+  const needStoreys = NEED_STOREYS_CATEGORIES.has(propertyCategory);
+
+  const subtypeSuggestions = useMemo(() => {
+    return SUBTYPE_SUGGESTIONS_BY_CATEGORY[propertyCategory] || [];
   }, [propertyCategory]);
 
-  const toggleSubtype = (item) => {
-    setPropertySubtypes((prev) =>
-      prev.includes(item) ? prev.filter((x) => x !== item) : [...prev, item]
-    );
-  };
-
   return (
-    <div className="space-y-3 border rounded-lg p-4">
-      <h3 className="font-semibold mb-1">房产类型（Homestay）</h3>
+    <div className="space-y-4">
+      {/* ✅ Homestay 里新增：类型选择（Property Category / Sub Type / Storeys / Property Subtype） */}
+      <div className="border rounded p-4 space-y-3">
+        <div className="font-semibold">房产类型（Homestay）</div>
 
-      {/* 1) Property Category */}
-      <div className="space-y-2">
-        <label className="block text-sm font-medium">Property Category</label>
-        <select
-          className="w-full border rounded p-2"
-          value={propertyCategory}
-          onChange={(e) => {
-            const v = e.target.value;
-            setPropertyCategory(v);
-            // 如果不需要 storeys，就清空
-            if (
-              v !== "Bungalow / Villa" &&
-              v !== "Semi-Detached House" &&
-              v !== "Terrace / Link House"
-            ) {
-              setStoreys("");
-            }
-          }}
-        >
-          <option value="">请选择</option>
-          <option value="Bungalow / Villa">Bungalow / Villa</option>
-          <option value="Apartment / Condo / Service Residence">
-            Apartment / Condo / Service Residence
-          </option>
-          <option value="Semi-Detached House">Semi-Detached House</option>
-          <option value="Terrace / Link House">Terrace / Link House</option>
-          <option value="Business Property">Business Property</option>
-          <option value="Industrial Property">Industrial Property</option>
-          <option value="Land">Land</option>
-        </select>
-      </div>
+        <div className="space-y-1">
+          <div className="text-sm">Property Category</div>
+          <select
+            className="w-full border rounded p-2 bg-white"
+            value={propertyCategory}
+            onChange={(e) => {
+              const next = e.target.value;
+              setPropertyCategory(next);
+              setSubType("");
+              if (!NEED_STOREYS_CATEGORIES.has(next)) setStoreys("");
+            }}
+          >
+            <option value="">请选择</option>
+            {PROPERTY_CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </div>
 
-      {/* 2) Sub Type */}
-      <div className="space-y-2">
-        <label className="block text-sm font-medium">Sub Type</label>
-        <input
-          className="w-full border rounded p-2"
-          value={subType}
-          onChange={(e) => setSubType(e.target.value)}
-          placeholder="请选择具体类型"
-        />
-      </div>
-
-      {/* 3) Storeys（需要时） */}
-      {needsStoreys && (
-        <div className="space-y-2">
-          <label className="block text-sm font-medium">有多少层（Storeys）</label>
+        <div className="space-y-1">
+          <div className="text-sm">Sub Type</div>
           <input
-            className="w-full border rounded p-2"
-            value={storeys}
-            onChange={(e) => setStoreys(e.target.value)}
-            placeholder="例如：2 或 2.5"
+            list="homestay-subtype-suggestions"
+            className="w-full border rounded p-2 bg-white"
+            placeholder="请选择具体类型"
+            value={subType}
+            onChange={(e) => setSubType(e.target.value)}
           />
+          <datalist id="homestay-subtype-suggestions">
+            {subtypeSuggestions.map((s) => (
+              <option key={s} value={s} />
+            ))}
+          </datalist>
         </div>
-      )}
 
-      {/* 4) Property Subtype（多选） */}
-      <div className="space-y-2">
-        <label className="block text-sm font-medium">
-          Property Subtype（可多选）
-        </label>
+        {needStoreys && (
+          <div className="space-y-1">
+            <div className="text-sm">有多少层（Storeys）</div>
+            <input
+              className="w-full border rounded p-2 bg-white"
+              placeholder="例如：2 或 2.5"
+              value={storeys}
+              onChange={(e) => setStoreys(e.target.value)}
+            />
+          </div>
+        )}
 
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          {["Penthouse", "Duplex", "Triplex", "Dual Key"].map((item) => (
-            <label key={item} className="inline-flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={propertySubtypes.includes(item)}
-                onChange={() => toggleSubtype(item)}
-              />
-              {item}
-            </label>
-          ))}
+        <div className="space-y-2">
+          <div className="text-sm">Property Subtype（可多选）</div>
+          <div className="grid grid-cols-2 gap-2">
+            {PROPERTY_SUBTYPE_OPTIONS.map((opt) => {
+              const checked = propertySubtypes.includes(opt);
+              return (
+                <label key={opt} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(e) => {
+                      const nextChecked = e.target.checked;
+                      setPropertySubtypes((prev) => {
+                        if (nextChecked) return [...prev, opt];
+                        return prev.filter((x) => x !== opt);
+                      });
+                    }}
+                  />
+                  <span>{opt}</span>
+                </label>
+              );
+            })}
+          </div>
         </div>
       </div>
+
+      {/* ✅ Homestay 其它上传表单：继续沿用你原本“复制 hotel/resort 那套”的做法 */}
+      <HotelUploadForm />
     </div>
   );
 }
-
