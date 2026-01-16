@@ -1,3 +1,4 @@
+// components/hotel/HotelUploadForm.js
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -7,6 +8,103 @@ import { Button } from "@/components/ui/button";
 
 // ✅ New Project 同款 Layout 图纸上传
 import BlueprintUploadSection from "@/components/unitlayout/BlueprintUploadSection";
+
+// ✅ 仅新增：Hotel / Resort Type 超全选项（你给的 + 我补充的）
+const HOTEL_RESORT_TYPES = [
+  // 你给的
+  "Budget Hotel",
+  "2-Star Hotel",
+  "3-Star Hotel",
+  "4-Star Hotel",
+  "5-Star / Luxury Hotel",
+  "Business Hotel",
+  "Boutique Hotel",
+  "Resort",
+  "Serviced Apartment Hotel",
+  "Convention Hotel",
+  "Spa / Hot Spring Hotel",
+  "Casino Hotel",
+  "Extended Stay Hotel",
+  "Capsule Hotel",
+  "Hostel / Backpacker Hotel",
+  "Airport Hotel",
+
+  // 我补充（更全）
+  "Motel",
+  "Lodge",
+  "Eco Resort",
+  "Eco Lodge",
+  "Heritage Hotel",
+  "All-Inclusive Resort",
+  "Villa Resort",
+  "Overwater / Water Villa Resort",
+  "Family Resort",
+  "Theme Resort",
+  "Beach Resort",
+  "Island Resort",
+  "Mountain Resort",
+  "Golf Resort",
+  "Ski Resort",
+  "Wellness Resort",
+  "Retreat Resort",
+  "Luxury Resort",
+  "Budget Resort",
+
+  "City Hotel",
+  "Downtown Hotel",
+  "Suburban Hotel",
+  "Roadside Hotel",
+
+  "Serviced Residence (Hotel)",
+  "Apartment Hotel",
+  "Apart-Hotel",
+  "Residence Hotel",
+
+  "Co-living Hotel",
+  "Co-living Space",
+  "Shared Hotel",
+  "Shared Accommodation",
+  "Shared Hostel",
+
+  "Youth Hostel",
+  "Youth Hotel",
+  "Backpacker Hostel",
+  "Guesthouse",
+  "Inn",
+  "Bed & Breakfast (B&B)",
+  "Boutique Guesthouse",
+  "Heritage Guesthouse",
+
+  "Homestay Lodge",
+  "Farmstay",
+  "Kampung Stay",
+  "Glamping",
+  "Tiny House Stay",
+  "Container Stay",
+
+  "Transit Hotel",
+  "Railway Station Hotel",
+  "Port / Ferry Terminal Hotel",
+
+  "Conference Hotel",
+  "MICE Hotel",
+  "Wedding Hotel",
+  "Event Hotel",
+
+  "Medical Hotel",
+  "Hospitality Suites",
+  "Student Accommodation",
+  "Worker Dorm / Hostel",
+
+  "Ryokan (Japanese Inn)",
+  "Onsen Hotel",
+  "Shophouse Hotel",
+  "Heritage Shophouse Hotel",
+
+  "Pet-Friendly Hotel",
+  "Adults Only Hotel",
+  "Family Friendly Hotel",
+];
 
 const createEmptyRoomLayout = () => ({
   name: "",
@@ -77,6 +175,9 @@ function parseDigitsToInt(v) {
 }
 
 export default function HotelUploadForm() {
+  // ✅ 仅新增：Hotel / Resort 类型
+  const [hotelResortType, setHotelResortType] = useState("");
+
   const [roomCount, setRoomCount] = useState(1);
   const [roomLayouts, setRoomLayouts] = useState([createEmptyRoomLayout()]);
 
@@ -213,11 +314,29 @@ export default function HotelUploadForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("提交数据", { roomLayouts, facilityImages });
+    // ✅ 仅新增：把 hotelResortType 也打印出来（不影响你其它逻辑）
+    console.log("提交数据", { hotelResortType, roomLayouts, facilityImages });
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* ✅✅ 仅新增：Hotel / Resort Type */}
+      <div className="w-full">
+        <label className="block font-medium mb-1">Hotel / Resort Type</label>
+        <select
+          className="border rounded px-3 py-2 w-full"
+          value={hotelResortType}
+          onChange={(e) => setHotelResortType(e.target.value)}
+        >
+          <option value="">请选择 Hotel/Resort 类型</option>
+          {HOTEL_RESORT_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {/* 你原本的“有多少个房型/layout” */}
       <div className="relative w-40" ref={dropdownRef}>
         <label className="block font-medium mb-1">
