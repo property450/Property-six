@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import FloorCountSelector from "@/components/FloorCountSelector";
 
 // ✅ 复用 Hotel/Resort 表单（你项目真实路径保持不变）
-import HotelResortUploadForm from "@/components/hotel/HotelResortUploadForm";
+import HotelUploadForm from "@/components/hotel/HotelUploadForm";
 
 // ================== 从你的 TypeSelector.js 复制来的选项（保持原设计不变） ==================
 const subtypeOptions = ["Penthouse", "Duplex", "Triplex", "Dual Key"];
