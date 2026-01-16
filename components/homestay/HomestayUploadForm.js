@@ -6,10 +6,21 @@ import TypeSelector from "@/components/TypeSelector";
 export default function HomestayUploadForm() {
   return (
     <div className="space-y-4">
-      {/* ✅ Homestay 用回和 Sale / New Project 一模一样的类型系统 */}
-      <TypeSelector />
+      {/* 
+        Homestay 模式：
+        只使用 Property Category / Sub Type / Storeys / Property Subtype
+        不使用 Sale / Rent / Hotel / Affordable / Tenure 等逻辑
+      */}
+      <TypeSelector
+        hideSaleType
+        hidePropertyUsage
+        hideAffordableHousing
+        hideTenureType
+        hideSaleStatus
+        forceMode="homestay"
+      />
 
-      {/* ⚠️ 下面原本已有的 Homestay 字段全部保持不动 */}
+      {/* 下面如果你原本还有 Homestay 专用字段，继续放在这里 */}
     </div>
   );
 }
