@@ -1,9 +1,15 @@
 // components/homestay/HomestayUploadForm.js
 "use client";
 
-import HotelUploadForm from "@/components/hotel/HotelUploadForm";
+import TypeSelector from "@/components/TypeSelector";
 
-export default function HomestayUploadForm(props) {
-  // ✅ 复用同一个表单（你印象中的行为）
-  return <HotelUploadForm {...props} mode="homestay" />;
+export default function HomestayUploadForm() {
+  return (
+    <div className="space-y-4">
+      {/* ✅ Homestay 用回和 Sale / New Project 一模一样的类型系统 */}
+      <TypeSelector />
+
+      {/* ⚠️ 下面原本已有的 Homestay 字段全部保持不动 */}
+    </div>
+  );
 }
