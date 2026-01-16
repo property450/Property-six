@@ -130,21 +130,24 @@ export default function UploadPropertyPage() {
 
       <AddressSearchInput value={addressObj} onChange={setAddressObj} />
 
-      <TypeSelector
-        value={typeValue}
-        onChange={setTypeValue}
-        rentBatchMode={allowRentBatchMode ? rentBatchMode : "no"}
-        onChangeRentBatchMode={(val) => {
-          if (!allowRentBatchMode) return;
-          setRentBatchMode(val);
-        }}
-        onFormChange={(form) => {
-          setTypeForm(form || null);
-          setSaleType(form?.saleType || "");
-          setComputedStatus(form?.propertyStatus || "");
-          setRoomRentalMode(form?.roomRentalMode || "whole");
-        }}
-      />
+      {!isHomestay && !isHotel && (
+  <TypeSelector
+    value={typeValue}
+    onChange={setTypeValue}
+    rentBatchMode={allowRentBatchMode ? rentBatchMode : "no"}
+    onChangeRentBatchMode={(val) => {
+      if (!allowRentBatchMode) return;
+      setRentBatchMode(val);
+    }}
+    onFormChange={(form) => {
+      setTypeForm(form || null);
+      setSaleType(form?.saleType || "");
+      setComputedStatus(form?.propertyStatus || "");
+      setRoomRentalMode(form?.roomRentalMode || "whole");
+    }}
+  />
+)}
+
 
       {isHomestay ? (
         <HomestayUploadForm />
