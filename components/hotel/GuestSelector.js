@@ -23,16 +23,20 @@ export default function GuestSelector({ value, onChange }) {
 
       <input
         className="
-    border rounded px-2 py-1
-    bg-white text-black
-    [color-scheme:light]
-  "
+          border rounded p-1 w-24
+          bg-white text-black
+          [color-scheme:light]
+        "
         list={listId}
         inputMode="numeric"
         placeholder="请选择"
         value={guests[field] ?? ""}
-        onChange={(e) => update({ [field]: normalizeNumberLike(e.target.value) })}
-        onBlur={(e) => update({ [field]: normalizeNumberLike(e.target.value) })}
+        onChange={(e) =>
+          update({ [field]: normalizeNumberLike(e.target.value) })
+        }
+        onBlur={(e) =>
+          update({ [field]: normalizeNumberLike(e.target.value) })
+        }
       />
 
       <datalist id={listId}>
