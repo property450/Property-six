@@ -29,40 +29,65 @@ const categoryOptions = {
   "Business Property": [
     "Shop",
     "Office",
+    "Office Suite",
+    "Business Suite",
     "Retail",
+    "Retail Shop",
+    "Retail Space",
+    "Retail Office",
+    "Shop / Office",
     "Commercial Land",
     "Hotel",
+    "Hotel / Resort",
     "Hotel Apartment",
+    "Serviced Apartment Hotel",
+    "Boutique Hotel",
     "Hostel / Guesthouse",
+    "Hostel / Dormitory",
+    "Dormitory",
+    "Student Hostel",
+    "Worker Dormitory",
+    "Co-Living Building",
     "Capsule / Pod Stay",
     "Cultural / Heritage Lodge",
     "Shophouse",
+    "Commercial Shophouse (Stay Use)",
     "Shop Apartment",
+    "Sofo",
+    "Soho",
+    "Sovo",
+    "Commercial Bungalow",
+    "Commercial Semi-Detached House",
     "Food Court",
     "Restaurant / Cafe",
     "Entertainment / Leisure",
     "Convention / Exhibition Space",
+    "Event Hall / Ballroom",
+    "Mall / Commercial Complex",
     "Co-working Space",
     "Business Centre",
     "Data Centre",
     "Studio / Production Space",
     "Sports / Recreation Facility",
     "Education / Training Centre",
+    "Training Centre / Hostel",
+    "School / University",
     "Childcare / Kindergarten",
     "Hospital / Medical Centre",
     "Mosque / Temple / Church",
-    "Event Hall / Ballroom",
+    "Bank / Financial Office",
+    "Government Office",
+    "Community Hall / Public Utilities",
     "Car Wash",
     "Petrol Station",
     "Showroom",
-    "Bank / Financial Office",
-    "Government Office",
     "Warehouse Retail",
     "Supermarket / Hypermarket",
   ],
   "Industrial Property": [
     "Factory",
     "Warehouse",
+    "Showroom cum Warehouse",
     "Industrial Land",
     "Detached Factory",
     "Semi-Detached Factory",
@@ -71,10 +96,14 @@ const categoryOptions = {
     "Light Industrial",
     "Heavy Industrial",
     "Logistics / Distribution Centre",
+    "Logistics Hub",
     "Cold Storage / Warehouse",
     "Workshop",
     "Plant / Mill",
     "Recycling / Waste Facility",
+    "Worker Quarters",
+    "Factory Dormitory",
+    "Industrial Hostel",
   ],
   Land: [
     "Residential Land",
@@ -87,6 +116,11 @@ const categoryOptions = {
     "Estate Land",
     "Orchard Land",
     "Plantation Land",
+    "Oil Palm Estate",
+    "Rubber Plantation",
+    "Fruit Orchard",
+    "Paddy Field",
+    "Vacant Agricultural Land",
   ],
 };
 
@@ -284,8 +318,14 @@ export default function HomestayUploadForm(props) {
         )}
       </div>
 
-      {/* ✅ 下面：不重复写，直接复用 Hotel/Resort 表单 */}
-      <HotelUploadForm {...props} />
+      {/* ✅ 下面：复用 Hotel/Resort 表单，但在 Homestay 模式隐藏 Hotel/Resort 的类型选择框 */}
+      <HotelUploadForm
+        {...props}
+        mode="homestay"
+        hideHotelResortTypeSelector
+        hideHotelTypeSelector
+      />
     </div>
   );
 }
+
