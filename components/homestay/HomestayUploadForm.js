@@ -318,14 +318,18 @@ export default function HomestayUploadForm(props) {
         )}
       </div>
 
-      {/* ✅ 关键：Homestay 模式，告诉 HotelUploadForm 不要显示 Hotel/Resort Type */}
+      {/* ✅ 下面：复用 Hotel/Resort 表单，但在 Homestay 模式隐藏 Hotel/Resort 的类型选择框 */}
       <HotelUploadForm
         {...props}
         mode="homestay"
         isHomestay
-        hideHotelResortType
         hideHotelResortTypeSelector
+        hideHotelTypeSelector
+        hideHotelResortType
+        hideHotelResortType
+        showHotelResortType={false}
       />
     </div>
   );
 }
+
