@@ -164,6 +164,9 @@ export default function HomestayUploadForm(props) {
   const setFormData = props?.setFormData;
   const onFormChange = props?.onFormChange;
 
+  // ✅ 新增：Homestay Type
+  const [homestayType, setHomestayType] = useState(formData?.homestayType || "");
+
   // 从外部已有值初始化（如果外层已经存过）
   const [category, setCategory] = useState(formData?.category || "");
   const [finalType, setFinalType] = useState(formData?.finalType || "");
@@ -222,6 +225,7 @@ export default function HomestayUploadForm(props) {
   // ✅ 把选择同步回外层（不改变你外层结构，只做 merge）
   useEffect(() => {
     const patch = {
+      homestayType,
       category,
       finalType,
       storeys,
@@ -236,7 +240,25 @@ export default function HomestayUploadForm(props) {
       onFormChange(patch);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [category, finalType, storeys, subtype]);
+  }, [homestayType, category, finalType, storeys, subtype]);
+
+  {/* ✅ 新增：Homestay Type（位置在 Property Category 上面） */}
+        <div>
+          <label className="block font-medium">Homestay Type</label>
+          <select
+            className="w-full border rounded p-2"
+            value={homestayType}
+            onChange={(e) => setHomestayType(e.target.value)}
+          >
+            <option value="">请选择 Homestay 类型</option>
+            {homestayOptions.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+        </div>
+  
 
   return (
     <div className="space-y-4">
