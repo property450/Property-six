@@ -165,7 +165,9 @@ export default function HomestayUploadForm(props) {
   const onFormChange = props?.onFormChange;
 
   // ✅ 新增：Homestay Type
-  const [homestayType, setHomestayType] = useState(formData?.homestayType || "");
+  const [homestayType, setHomestayType] = useState(
+    formData?.homestayType || ""
+  );
 
   // 从外部已有值初始化（如果外层已经存过）
   const [category, setCategory] = useState(formData?.category || "");
@@ -242,7 +244,11 @@ export default function HomestayUploadForm(props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [homestayType, category, finalType, storeys, subtype]);
 
-  {/* ✅ 新增：Homestay Type（位置在 Property Category 上面） */}
+  return (
+    <div className="space-y-4">
+      {/* ✅ 你要的类型选择区块（跟 TypeSelector 选项一致） */}
+      <div className="space-y-4">
+        {/* ✅✅✅ Homestay Type（现在放在 return 里面，并且在 Property Category 上面） */}
         <div>
           <label className="block font-medium">Homestay Type</label>
           <select
@@ -258,12 +264,7 @@ export default function HomestayUploadForm(props) {
             ))}
           </select>
         </div>
-  
 
-  return (
-    <div className="space-y-4">
-      {/* ✅ 你要的类型选择区块（跟 TypeSelector 选项一致） */}
-      <div className="space-y-4">
         <div>
           <label className="block font-medium">Property Category</label>
           <select
