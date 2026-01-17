@@ -11,17 +11,51 @@ const homestayOptions = [
   "Entire Place",
   "Private Room",
   "Shared Room",
+
   "Serviced Apartment (Homestay)",
+  "Villa Homestay",
+  "Farmstay / Kampung Stay",
+  "Cultural / Heritage Homestay",
+  "Monthly Rental Stay",
+
+  "Hostel / Guesthouse",
+  "Capsule / Pod Stay",
+
+  // 🔥 新增（合理且常见）
+  "Eco / Nature Stay",
+  "Glamping",
+  "Co-Living / Long Stay",
+  "Shophouse Homestay",
+  "Student Accommodation (Homestay)",
+  "Worker / Staff Accommodation",
 ];
 
 const hotelOptions = [
-  "Single Room",
-  "Double Room",
-  "Twin Room",
-  "Family Room",
-  "Suite",
-  "Villa",
-  "Resort Room",
+  "Budget Hotel",
+  "2-Star Hotel",
+  "3-Star Hotel",
+  "4-Star Hotel",
+  "5-Star / Luxury Hotel",
+  "Business Hotel",
+  "Boutique Hotel",
+  "Resort",
+  "Serviced Apartment Hotel",
+  "Convention Hotel",
+  "Spa / Hot Spring Hotel",
+  "Casino Hotel",
+  "Extended Stay Hotel",
+  "Capsule Hotel",
+  "Hostel / Backpacker Hotel",
+  "Airport Hotel",
+
+  // 🔥 新增
+  "Eco Resort",
+  "Beach Resort",
+  "Mountain Resort",
+  "All-Inclusive Resort",
+  "Theme Hotel",
+  "Heritage Hotel",
+  "Medical / Wellness Hotel",
 ];
 
 const usageOptions = ["Residential", "Commercial", "Commercial Under HDA", "Industrial", "Agricultural"];
@@ -70,40 +104,65 @@ const categoryOptions = {
   "Business Property": [
     "Shop",
     "Office",
+    "Office Suite",
+    "Business Suite",
     "Retail",
+    "Retail Shop",
+    "Retail Space",
+    "Retail Office",
+    "Shop / Office",
     "Commercial Land",
     "Hotel",
+    "Hotel / Resort",
     "Hotel Apartment",
+    "Serviced Apartment Hotel",
+    "Boutique Hotel",
     "Hostel / Guesthouse",
+    "Hostel / Dormitory",
+    "Dormitory",
+    "Student Hostel",
+    "Worker Dormitory",
+    "Co-Living Building",
     "Capsule / Pod Stay",
     "Cultural / Heritage Lodge",
     "Shophouse",
+    "Commercial Shophouse (Stay Use)",
     "Shop Apartment",
+    "Sofo",
+    "Soho",
+    "Sovo",
+    "Commercial Bungalow",
+    "Commercial Semi-Detached House",
     "Food Court",
     "Restaurant / Cafe",
     "Entertainment / Leisure",
     "Convention / Exhibition Space",
+    "Event Hall / Ballroom",
+    "Mall / Commercial Complex",
     "Co-working Space",
     "Business Centre",
     "Data Centre",
     "Studio / Production Space",
     "Sports / Recreation Facility",
     "Education / Training Centre",
+    "Training Centre / Hostel",
+    "School / University",
     "Childcare / Kindergarten",
     "Hospital / Medical Centre",
     "Mosque / Temple / Church",
-    "Event Hall / Ballroom",
+    "Bank / Financial Office",
+    "Government Office",
+    "Community Hall / Public Utilities",
     "Car Wash",
     "Petrol Station",
     "Showroom",
-    "Bank / Financial Office",
-    "Government Office",
     "Warehouse Retail",
     "Supermarket / Hypermarket",
-  ],
+],
   "Industrial Property": [
     "Factory",
     "Warehouse",
+    "Showroom cum Warehouse",
     "Industrial Land",
     "Detached Factory",
     "Semi-Detached Factory",
@@ -112,11 +171,15 @@ const categoryOptions = {
     "Light Industrial",
     "Heavy Industrial",
     "Logistics / Distribution Centre",
+    "Logistics Hub",
     "Cold Storage / Warehouse",
     "Workshop",
     "Plant / Mill",
     "Recycling / Waste Facility",
-  ],
+    "Worker Quarters",
+    "Factory Dormitory",
+    "Industrial Hostel",
+],
   Land: [
     "Residential Land",
     "Agricultural Land",
@@ -128,7 +191,12 @@ const categoryOptions = {
     "Estate Land",
     "Orchard Land",
     "Plantation Land",
-  ],
+    "Oil Palm Estate",
+    "Rubber Plantation",
+    "Fruit Orchard",
+    "Paddy Field",
+    "Vacant Agricultural Land",
+],
 };
 
 const NEED_STOREYS_CATEGORY = new Set([
@@ -605,38 +673,4 @@ export default function TypeSelector({
                   onFocus={() => setShowLayoutSuggest(true)}
                   onBlur={() => {
                     setTimeout(() => setShowLayoutSuggest(false), 120);
-                    const n = clamp(toIntFromInput(layoutCountInput), 2, 20);
-                    setLayoutCountInput(addCommas(String(n)));
-                  }}
-                  inputMode="numeric"
-                  placeholder="2 ~ 20"
-                />
-
-                {showLayoutSuggest && (
-                  <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-auto">
-                    {Array.from({ length: 19 }).map((_, i) => {
-                      const v = String(i + 2);
-                      return (
-                        <div
-                          key={v}
-                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            setLayoutCountInput(v);
-                            setShowLayoutSuggest(false);
-                          }}
-                        >
-                          {v}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
+      
