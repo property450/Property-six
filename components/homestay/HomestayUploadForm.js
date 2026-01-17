@@ -7,6 +7,22 @@ import FloorCountSelector from "@/components/FloorCountSelector";
 // ✅ 复用 Hotel/Resort 表单（你项目真实路径保持不变）
 import HotelUploadForm from "@/components/hotel/HotelUploadForm";
 
+// ================= Homestay Options =================
+export const homestayOptions = [
+  "Entire Place",
+  "Private Room",
+  "Shared Room",
+
+  // 补齐的 Homestay 类型
+  "Serviced Apartment (Homestay)",
+  "Villa Homestay",
+  "Farmstay / Kampung Stay",
+  "Cultural / Heritage Homestay",
+  "Monthly Rental Stay",
+  "Hostel / Guesthouse",
+  "Capsule / Pod Stay",
+];
+
 // ================== 从你的 TypeSelector.js 复制来的选项（保持原设计不变） ==================
 const subtypeOptions = ["Penthouse", "Duplex", "Triplex", "Dual Key"];
 
