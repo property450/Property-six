@@ -174,7 +174,13 @@ function parseDigitsToInt(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
-export default function HotelUploadForm() {
+export default function HotelUploadForm(props) {
+  // ✅✅✅ 关键：Homestay 模式隐藏 Hotel / Resort Type（只改这一处判断，不动其它逻辑）
+  const shouldShowHotelResortType =
+    props?.mode !== "homestay" &&
+    !props?.hideHotelResortTypeSelector &&
+    !props?.hideHotelResortType;
+
   // ✅ 仅新增：Hotel / Resort 类型
   const [hotelResortType, setHotelResortType] = useState("");
 
@@ -321,21 +327,23 @@ export default function HotelUploadForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* ✅✅ 仅新增：Hotel / Resort Type */}
-      <div className="w-full">
-        <label className="block font-medium mb-1">Hotel / Resort Type</label>
-        <select
-          className="border rounded px-3 py-2 w-full"
-          value={hotelResortType}
-          onChange={(e) => setHotelResortType(e.target.value)}
-        >
-          <option value="">请选择 Hotel/Resort 类型</option>
-          {HOTEL_RESORT_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
-      </div>
+      {shouldShowHotelResortType && (
+        <div className="w-full">
+          <label className="block font-medium mb-1">Hotel / Resort Type</label>
+          <select
+            className="border rounded px-3 py-2 w-full"
+            value={hotelResortType}
+            onChange={(e) => setHotelResortType(e.target.value)}
+          >
+            <option value="">请选择 Hotel/Resort 类型</option>
+            {HOTEL_RESORT_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* 你原本的“有多少个房型/layout” */}
       <div className="relative w-40" ref={dropdownRef}>
@@ -458,3 +466,4 @@ export default function HotelUploadForm() {
     </form>
   );
 }
+
