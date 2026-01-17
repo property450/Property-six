@@ -673,4 +673,38 @@ export default function TypeSelector({
                   onFocus={() => setShowLayoutSuggest(true)}
                   onBlur={() => {
                     setTimeout(() => setShowLayoutSuggest(false), 120);
-      
+                    const n = clamp(toIntFromInput(layoutCountInput), 2, 20);
+                    setLayoutCountInput(addCommas(String(n)));
+                  }}
+                  inputMode="numeric"
+                  placeholder="2 ~ 20"
+                />
+
+                {showLayoutSuggest && (
+                  <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-auto">
+                    {Array.from({ length: 19 }).map((_, i) => {
+                      const v = String(i + 2);
+                      return (
+                        <div
+                          key={v}
+                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setLayoutCountInput(v);
+                            setShowLayoutSuggest(false);
+                          }}
+                        >
+                          {v}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
