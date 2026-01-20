@@ -54,20 +54,30 @@ export default function ListingTrustSection({
   const verificationHelpText = useMemo(() => {
     if (mode === "new_project") {
       return (
-        "请上传以下任一文件以协助我们核实项目真实性：Developer License（DL）或 Advertisement & Sales Permit（AP）。" +
-        " 文件仅用于平台内部审核，不会公开展示，也不会提供给第三方。您可自行遮挡不相关的个人资料。"
-      );
+        "请上传以下任一文件以协助我们核实项目真实性：\n\n" +
+      "• Developer License（DL）\n" +
+      "• Advertisement & Sales Permit（AP）\n\n" +
+      "文件仅用于平台内部审核，不会公开展示，也不会提供给第三方。"
+    );
     }
     if (mode === "completed_unit") {
       return (
-        "请上传以下任一文件以协助我们核实项目真实性：CCC（Certificate of Completion and Compliance）或 Developer Confirmation Letter，" +
-        "或仍有效的 DL / AP。文件仅用于平台内部审核，不会公开展示，也不会提供给第三方。您可自行遮挡不相关的个人资料。"
+        "请上传以下任一文件以协助我们核实项目真实性：\n\n" +
+      "• CCC（Certificate of Completion and Compliance）\n" +
+      "• Developer Confirmation Letter\n\n" +
+      "文件仅用于平台内部审核，不会公开展示，也不会提供给第三方。\n" +
+      "您可自行遮挡不相关的个人资料。"
       );
     }
     // sale / rent
     return (
-      "可上传以下任一文件以协助我们核实房源真实性：SPA（买卖合约）、地契（Title Deed）、Assessment Bill 或最近水电账单。" +
-      " 文件仅用于平台内部审核，不会公开展示，也不会提供给第三方。您可自行遮挡不相关的个人资料。"
+      "可上传以下任一文件以协助我们核实房源真实性：\n\n" +
+    "• SPA（买卖合约）\n" +
+    "• 地契（Title Deed）\n" +
+    "• Assessment Bill\n" +
+    "• 最近三个月水电账单\n\n" +
+    "文件仅用于平台内部审核，不会公开展示，也不会提供给第三方。\n" +
+    "您可自行遮挡不相关的个人资料。"
     );
   }, [mode]);
 
