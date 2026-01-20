@@ -254,18 +254,18 @@ export default function SaleUploadForm({
       />
 
           <ListingTrustSection
-  mode={
-    computedStatus === "New Project / Under Construction"
-      ? "new_project"
-      : computedStatus === "Completed Unit / Developer Unit"
-      ? "completed_unit"
-      : "sale"
-  }
-  value={formData?.trustSection || {}}
-  onChange={(next) =>
-    setFormData((prev) => ({ ...(prev || {}), trustSection: next }))
-  }
-/>
+        mode={
+          computedStatus === "New Project / Under Construction"
+            ? "new_project"
+            : computedStatus === "Completed Unit / Developer Unit"
+            ? "completed_unit"
+            : "sale"
+        }
+        value={singleFormData?.trustSection || {}}
+        onChange={(next) =>
+          setSingleFormData((prev) => ({ ...(prev || {}), trustSection: next }))
+        }
+      />
     </div>
   );
 }
