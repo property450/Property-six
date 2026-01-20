@@ -16,6 +16,7 @@ import HomestayUploadForm from "@/components/homestay/HomestayUploadForm";
 import ProjectUploadForm from "@/components/forms/ProjectUploadForm";
 import RentUploadForm from "@/components/forms/RentUploadForm";
 import SaleUploadForm from "@/components/forms/SaleUploadForm";
+import ListingTrustSection from "@/components/trust/ListingTrustSection";
 
 import { useUser } from "@supabase/auth-helpers-react";
 
@@ -166,6 +167,23 @@ export default function UploadPropertyPage() {
           pickCommon={pickCommon}
           commonHash={commonHash}
         />
+            {/* ✅ 只在 New Project / Completed Unit 显示一次 */}
+    <ListingTrustSection
+      mode={
+        computedStatus === "New Project / Under Construction"
+          ? "new_project"
+          : "completed_unit"
+      }
+      value={singleFormData?.trustSection || {}}
+      onChange={(next) =>
+        setSingleFormData((prev) => ({
+          ...(prev || {}),
+          trustSection: next,
+        }))
+      }
+    />
+  </>
+)
       ) : saleTypeNorm === "rent" ? (
         <RentUploadForm
           saleType={saleType}
