@@ -216,7 +216,7 @@ export default function UploadPropertyPage() {
           setDescription={setDescription}
           propertyCategory={typeForm?.category || typeForm?.propertyCategory || ""}
         />
-      )}
+      
 
       <Button onClick={handleSubmit} className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full">
         提交房源
