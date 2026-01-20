@@ -125,6 +125,10 @@ export default function UploadPropertyPage() {
     }
   };
 
+  // ✅ New Project / Completed Unit：必须 layout 表单已经生成才显示 trust section
+  const shouldShowProjectTrustSection =
+    isProject && Array.isArray(unitLayouts) && unitLayouts.length > 0;
+
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-4">
       <h1 className="text-2xl font-bold">上传房源</h1>
@@ -168,24 +172,24 @@ export default function UploadPropertyPage() {
             commonHash={commonHash}
           />
 
-          {/* ✅ 只在 New Project / Completed Unit 显示一次 */}
-              {Number(typeForm?.layoutCount) > 0 && (
-  <ListingTrustSection
-    mode={
-      computedStatus === "New Project / Under Construction"
-        ? "new_project"
-        : "completed_unit"
-    }
-    value={singleFormData?.trustSection || {}}
-    onChange={(next) =>
-      setSingleFormData((prev) => ({
-        ...(prev || {}),
-        trustSection: next,
-      }))
-    }
-  />
-)}
-
+          {/* ✅ 只在 layout 表单生成后才显示（避免你说的“还没选 layout 数量就出现”） */}
+          {shouldShowProjectTrustSection && (
+            <ListingTrustSection
+              mode={
+                computedStatus === "New Project / Under Construction"
+                  ? "new_project"
+                  : "completed_unit"
+              }
+              value={singleFormData?.trustSection || {}}
+              onChange={(next) =>
+                setSingleFormData((prev) => ({
+                  ...(prev || {}),
+                  trustSection: next,
+                }))
+              }
+            />
+          )}
+        </>
       ) : saleTypeNorm === "rent" ? (
         <RentUploadForm
           saleType={saleType}
@@ -216,9 +220,12 @@ export default function UploadPropertyPage() {
           setDescription={setDescription}
           propertyCategory={typeForm?.category || typeForm?.propertyCategory || ""}
         />
-      
+      )}
 
-      <Button onClick={handleSubmit} className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full">
+      <Button
+        onClick={handleSubmit}
+        className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full"
+      >
         提交房源
       </Button>
     </div>
