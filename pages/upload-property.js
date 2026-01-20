@@ -132,57 +132,58 @@ export default function UploadPropertyPage() {
       <AddressSearchInput value={addressObj} onChange={setAddressObj} />
 
       <TypeSelector
-  value={typeValue}
-  onChange={setTypeValue}
-  rentBatchMode={allowRentBatchMode ? rentBatchMode : "no"}
-  onChangeRentBatchMode={(val) => {
-    if (!allowRentBatchMode) return;
-    setRentBatchMode(val);
-  }}
-  onFormChange={(form) => {
-    setTypeForm(form || null);
-    setSaleType(form?.saleType || "");
-    setComputedStatus(form?.propertyStatus || "");
-    setRoomRentalMode(form?.roomRentalMode || "whole");
-  }}
-/>
-
+        value={typeValue}
+        onChange={setTypeValue}
+        rentBatchMode={allowRentBatchMode ? rentBatchMode : "no"}
+        onChangeRentBatchMode={(val) => {
+          if (!allowRentBatchMode) return;
+          setRentBatchMode(val);
+        }}
+        onFormChange={(form) => {
+          setTypeForm(form || null);
+          setSaleType(form?.saleType || "");
+          setComputedStatus(form?.propertyStatus || "");
+          setRoomRentalMode(form?.roomRentalMode || "whole");
+        }}
+      />
 
       {isHomestay ? (
         <HomestayUploadForm />
       ) : isHotel ? (
         <HotelUploadForm />
       ) : isProject ? (
-        <ProjectUploadForm
-          saleType={saleType}
-          computedStatus={computedStatus}
-          isBulkRentProject={false}
-          projectCategory={projectCategory}
-          setProjectCategory={setProjectCategory}
-          projectSubType={projectSubType}
-          setProjectSubType={setProjectSubType}
-          unitLayouts={unitLayouts}
-          setUnitLayouts={setUnitLayouts}
-          enableProjectAutoCopy={computedStatus === "New Project / Under Construction"}
-          pickCommon={pickCommon}
-          commonHash={commonHash}
-        />
-           // {/* ✅ 只在 New Project / Completed Unit 显示一次 */}
-    <ListingTrustSection
-      mode={
-        computedStatus === "New Project / Under Construction"
-          ? "new_project"
-          : "completed_unit"
-      }
-      value={singleFormData?.trustSection || {}}
-      onChange={(next) =>
-        setSingleFormData((prev) => ({
-          ...(prev || {}),
-          trustSection: next,
-        }))
-      }
-    />
-  </>
+        <>
+          <ProjectUploadForm
+            saleType={saleType}
+            computedStatus={computedStatus}
+            isBulkRentProject={false}
+            projectCategory={projectCategory}
+            setProjectCategory={setProjectCategory}
+            projectSubType={projectSubType}
+            setProjectSubType={setProjectSubType}
+            unitLayouts={unitLayouts}
+            setUnitLayouts={setUnitLayouts}
+            enableProjectAutoCopy={computedStatus === "New Project / Under Construction"}
+            pickCommon={pickCommon}
+            commonHash={commonHash}
+          />
+
+          {/* ✅ 只在 New Project / Completed Unit 显示一次 */}
+          <ListingTrustSection
+            mode={
+              computedStatus === "New Project / Under Construction"
+                ? "new_project"
+                : "completed_unit"
+            }
+            value={singleFormData?.trustSection || {}}
+            onChange={(next) =>
+              setSingleFormData((prev) => ({
+                ...(prev || {}),
+                trustSection: next,
+              }))
+            }
+          />
+        </>
       ) : saleTypeNorm === "rent" ? (
         <RentUploadForm
           saleType={saleType}
@@ -200,7 +201,6 @@ export default function UploadPropertyPage() {
           unitLayouts={unitLayouts}
           setUnitLayouts={setUnitLayouts}
           propertyCategory={typeForm?.category || typeForm?.propertyCategory || ""}
-
         />
       ) : (
         <SaleUploadForm
