@@ -15,6 +15,7 @@ import TransitSelector from "@/components/TransitSelector";
 import BuildYearSelector from "@/components/BuildYearSelector";
 import ImageUpload from "@/components/ImageUpload";
 import BlueprintUploadSection from "@/components/unitlayout/BlueprintUploadSection";
+import ListingTrustSection from "@/components/trust/ListingTrustSection";
 
 import { convertToSqft } from "@/utils/psfUtils";
 
@@ -251,6 +252,20 @@ export default function SaleUploadForm({
           setSingleFormData((p) => ({ ...p, photos: updated }))
         }
       />
+
+          <ListingTrustSection
+  mode={
+    computedStatus === "New Project / Under Construction"
+      ? "new_project"
+      : computedStatus === "Completed Unit / Developer Unit"
+      ? "completed_unit"
+      : "sale"
+  }
+  value={formData?.trustSection || {}}
+  onChange={(next) =>
+    setFormData((prev) => ({ ...(prev || {}), trustSection: next }))
+  }
+/>
     </div>
   );
 }
