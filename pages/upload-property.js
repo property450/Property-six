@@ -169,6 +169,7 @@ export default function UploadPropertyPage() {
           />
 
           {/* ✅ 只在 New Project / Completed Unit 显示一次 */}
+              {Number(typeForm?.layoutCount) > 0 && (
           <ListingTrustSection
             mode={
               computedStatus === "New Project / Under Construction"
