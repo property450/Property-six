@@ -253,7 +253,7 @@ export default function SaleUploadForm({
         }
       />
 
-          <ListingTrustSection
+      <ListingTrustSection
         mode={
           computedStatus === "New Project / Under Construction"
             ? "new_project"
