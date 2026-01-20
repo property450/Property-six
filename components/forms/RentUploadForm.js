@@ -379,8 +379,8 @@ export default function RentUploadForm({
               {/* ===== 房源级：地址 + 真实性验证（只出现一次） ===== */}
 <ListingTrustSection
   mode="rent"
-  value={formData?.trustSection || {}}
-  onChange={(next) =>
+  value={singleFormData?.trustSection || {}}
+        onChange={(next) =>
     setFormData((prev) => ({ ...(prev || {}), trustSection: next }))
   }
 />
