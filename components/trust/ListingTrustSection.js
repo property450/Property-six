@@ -114,7 +114,7 @@ export default function ListingTrustSection({
 
         <textarea
           className="w-full border rounded p-2 min-h-[90px]"
-          placeholder="例如：Condo 名称 + Block + Unit + Street + Postcode + City + State"
+          placeholder="花园名称 / 项目名称 / Condo 名称 + Block + Unit + Street + Postcode + City + State"
           value={value?.fullAddress || ""}
           onChange={(e) => patch({ fullAddress: e.target.value })}
         />
