@@ -16,6 +16,7 @@ import CarparkLevelSelector from "@/components/CarparkLevelSelector";
 import FacingSelector from "@/components/FacingSelector";
 import ImageUpload from "@/components/ImageUpload";
 import BlueprintUploadSection from "@/components/unitlayout/BlueprintUploadSection";
+import ListingTrustSection from "@/components/trust/ListingTrustSection";
 
 // ✅ 只新增：Layout 图纸上传（使用 New Project 同款 BlueprintUploadSection，不动其它逻辑）
 function LayoutBlueprintUploader({ value = [], onChange }) {
@@ -171,6 +172,15 @@ export default function RentUploadForm({
                 description={description}
                 setDescription={setDescription}
               />
+
+                  {/* ===== 房源级：地址 + 真实性验证（只出现一次） ===== */}
+<ListingTrustSection
+  mode="rent"
+  value={formData?.trustSection || {}}
+  onChange={(next) =>
+    setFormData((prev) => ({ ...(prev || {}), trustSection: next }))
+  }
+/>
             </div>
           );
         })}
@@ -365,6 +375,15 @@ export default function RentUploadForm({
             description={description}
             setDescription={setDescription}
           />
+
+              {/* ===== 房源级：地址 + 真实性验证（只出现一次） ===== */}
+<ListingTrustSection
+  mode="rent"
+  value={formData?.trustSection || {}}
+  onChange={(next) =>
+    setFormData((prev) => ({ ...(prev || {}), trustSection: next }))
+  }
+/>
         </>
       )}
     </div>
