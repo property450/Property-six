@@ -184,7 +184,7 @@ export default function UploadPropertyPage() {
               }))
             }
           />
-        </>
+        )}
       ) : saleTypeNorm === "rent" ? (
         <RentUploadForm
           saleType={saleType}
