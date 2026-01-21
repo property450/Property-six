@@ -19,7 +19,44 @@ export default function MyProfile() {
   const [myProperties, setMyProperties] = useState([]);
   const [deletingId, setDeletingId] = useState(null);
 
+  // ✅ UI: 搜索 & 排序（不动原数据）
+  const [keyword, setKeyword] = useState("");
+  const [sort, setSort] = useState("new"); // new | old
+
   const total = useMemo(() => myProperties?.length || 0, [myProperties]);
+
+  const stats = useMemo(() => {
+    const published = myProperties.filter((p) => p?.status === "published").length;
+    const draft = myProperties.filter((p) => p?.status === "draft").length;
+
+    const latest = myProperties[0]?.created_at || myProperties[0]?.updated_at || null;
+
+    return { published, draft, latest };
+  }, [myProperties]);
+
+  const filtered = useMemo(() => {
+    const k = (keyword || "").trim().toLowerCase();
+
+    let list = [...(Array.isArray(myProperties) ? myProperties : [])];
+
+    // 搜索：标题 + 地点
+    if (k) {
+      list = list.filter((p) => {
+        const title = (p?.title || "").toLowerCase();
+        const location = (p?.location || "").toLowerCase();
+        return title.includes(k) || location.includes(k);
+      });
+    }
+
+    // 排序：最新/最旧
+    list.sort((a, b) => {
+      const ta = new Date(a?.created_at || a?.updated_at || 0).getTime();
+      const tb = new Date(b?.created_at || b?.updated_at || 0).getTime();
+      return sort === "new" ? tb - ta : ta - tb;
+    });
+
+    return list;
+  }, [myProperties, keyword, sort]);
 
   useEffect(() => {
     if (!user) {
@@ -70,7 +107,6 @@ export default function MyProfile() {
 
       if (error) throw error;
 
-      // ✅ 前端即时移除（更像后台）
       setMyProperties((prev) => prev.filter((p) => p.id !== property.id));
       toast.success("已删除房源");
     } catch (e) {
@@ -83,16 +119,19 @@ export default function MyProfile() {
 
   if (!user) {
     return (
-      <div className="p-4 max-w-5xl mx-auto">
-        <h2 className="text-2xl font-bold mb-2">🏠 我的房源（卖家后台）</h2>
-        <p className="text-gray-600 mb-4">请先登录后再查看你上传的房源。</p>
-        <Button onClick={() => router.push("/login")}>去登录</Button>
+      <div className="p-4 max-w-6xl mx-auto">
+        <div className="border rounded-2xl bg-white p-6">
+          <h2 className="text-2xl font-bold mb-2">🏠 我的房源（卖家后台）</h2>
+          <p className="text-gray-600 mb-4">请先登录后再查看你上传的房源。</p>
+          <Button onClick={() => router.push("/login")}>去登录</Button>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="p-4 max-w-6xl mx-auto space-y-4">
+      {/* Header */}
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h2 className="text-2xl font-bold">🏠 我的房源（卖家后台）</h2>
@@ -102,58 +141,113 @@ export default function MyProfile() {
         </div>
 
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={fetchMyProperties}
-            disabled={loading}
-          >
+          <Button variant="outline" onClick={fetchMyProperties} disabled={loading}>
             {loading ? "刷新中..." : "刷新"}
           </Button>
 
-          <Button onClick={() => router.push("/upload-property")}>
-            + 上传新房源
-          </Button>
+          <Button onClick={() => router.push("/upload-property")}>+ 上传新房源</Button>
         </div>
       </div>
 
+      {/* Stats cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="border rounded-2xl bg-white p-4">
+          <div className="text-xs text-gray-500">总房源</div>
+          <div className="text-2xl font-bold mt-1">{total}</div>
+        </div>
+
+        <div className="border rounded-2xl bg-white p-4">
+          <div className="text-xs text-gray-500">已发布</div>
+          <div className="text-2xl font-bold mt-1">{stats.published}</div>
+        </div>
+
+        <div className="border rounded-2xl bg-white p-4">
+          <div className="text-xs text-gray-500">草稿</div>
+          <div className="text-2xl font-bold mt-1">{stats.draft}</div>
+        </div>
+
+        <div className="border rounded-2xl bg-white p-4">
+          <div className="text-xs text-gray-500">最近时间</div>
+          <div className="text-sm font-semibold mt-2 text-gray-800">
+            {stats.latest ? new Date(stats.latest).toLocaleString() : "-"}
+          </div>
+        </div>
+      </div>
+
+      {/* Search & sort */}
+      <div className="border rounded-2xl bg-white p-4 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+        <div className="flex-1">
+          <div className="text-sm font-semibold text-gray-700 mb-2">搜索</div>
+          <input
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            placeholder="输入标题或地点..."
+            className="w-full border rounded-xl px-3 py-2"
+          />
+        </div>
+
+        <div className="min-w-[180px]">
+          <div className="text-sm font-semibold text-gray-700 mb-2">排序</div>
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+            className="w-full border rounded-xl px-3 py-2 bg-white"
+          >
+            <option value="new">最新优先</option>
+            <option value="old">最旧优先</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Content */}
       {loading ? (
         <div className="p-4 text-gray-600">加载中...</div>
-      ) : myProperties.length === 0 ? (
-        <div className="p-6 border rounded-lg bg-white space-y-3">
-          <div className="text-lg font-semibold">你还没有上传任何房源</div>
-          <div className="text-gray-600 text-sm">
-            点击右上角「上传新房源」，开始发布你的第一条房源。
+      ) : filtered.length === 0 ? (
+        <div className="p-6 border rounded-2xl bg-white space-y-3">
+          <div className="text-lg font-semibold">
+            {myProperties.length === 0 ? "你还没有上传任何房源" : "没有匹配的结果"}
           </div>
-          <div>
-            <Button onClick={() => router.push("/upload-property")}>
-              去上传
-            </Button>
+          <div className="text-gray-600 text-sm">
+            {myProperties.length === 0
+              ? "点击右上角「上传新房源」，开始发布你的第一条房源。"
+              : "换个关键词试试看，或清空搜索框。"}
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={() => router.push("/upload-property")}>去上传</Button>
+            {myProperties.length !== 0 && (
+              <Button variant="outline" onClick={() => setKeyword("")}>
+                清空搜索
+              </Button>
+            )}
           </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {myProperties.map((property) => (
-            <div key={property.id} className="border rounded-lg bg-white overflow-hidden">
+          {filtered.map((property) => (
+            <div
+              key={property.id}
+              className="border rounded-2xl bg-white overflow-hidden shadow-sm"
+            >
               {/* 你原本的展示卡片 */}
               <PropertyCard property={property} />
 
-              {/* ✅ 管理按钮区 */}
+              {/* ✅ 管理按钮区（更像后台） */}
               <div className="p-3 pt-0">
-                <div className="flex gap-2">
-                  <Link href={`/property/${property.id}`} className="flex-1">
+                <div className="grid grid-cols-3 gap-2">
+                  <Link href={`/property/${property.id}`} className="w-full">
                     <Button className="w-full" variant="outline">
                       查看
                     </Button>
                   </Link>
 
-                  <Link href={`/edit-property/${property.id}`} className="flex-1">
+                  <Link href={`/edit-property/${property.id}`} className="w-full">
                     <Button className="w-full" variant="outline">
                       编辑
                     </Button>
                   </Link>
 
                   <Button
-                    className="flex-1"
+                    className="w-full"
                     variant="destructive"
                     onClick={() => handleDelete(property)}
                     disabled={deletingId === property.id}
@@ -162,8 +256,13 @@ export default function MyProfile() {
                   </Button>
                 </div>
 
-                <div className="text-xs text-gray-500 mt-2">
-                  ID: {property.id}
+                <div className="flex items-center justify-between mt-3 text-xs text-gray-500">
+                  <div>ID: {property.id}</div>
+                  <div>
+                    {property.created_at
+                      ? new Date(property.created_at).toLocaleDateString()
+                      : ""}
+                  </div>
                 </div>
               </div>
             </div>
