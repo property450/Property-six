@@ -234,18 +234,14 @@ export default function MyProfile() {
               {/* ✅ 管理按钮区（更像后台） */}
               <div className="p-3 pt-0">
                 <div className="grid grid-cols-3 gap-2">
-                  <Link href={`/property/${property.id}`} className="w-full">
-                    <Button className="w-full" variant="outline">
-                      查看
-                    </Button>
-                  </Link>
+                  <Button asChild className="w-full" variant="outline">
+  <Link href={`/property/${property.id}`}>查看</Link>
+</Button>
 
-                  <Link href={`/upload-property?edit=1&id=${property.id}`}>
+<Button asChild className="w-full" variant="outline">
+  <Link href={`/upload-property?edit=1&id=${property.id}`}>编辑</Link>
+</Button>
 
-                    <Button className="w-full" variant="outline">
-                      编辑
-                    </Button>
-                  </Link>
 
                   <Button
                     className="w-full"
