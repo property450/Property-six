@@ -40,6 +40,56 @@ function stableJson(obj) {
   }
 }
 
+// ✅ 从 supabase/postgrest error 里提取“不存在的 column 名”
+function extractMissingColumnName(err) {
+  const msg = String(err?.message || "");
+  const details = String(err?.details || "");
+  const hint = String(err?.hint || "");
+  const combined = `${msg}\n${details}\n${hint}`;
+
+  // PostgREST 常见：Could not find the 'xxx' column of 'properties' in the schema cache
+  let m = combined.match(/Could not find the '([^']+)' column/i);
+  if (m?.[1]) return m[1];
+
+  // 另一种：column "xxx" does not exist
+  m = combined.match(/column "([^"]+)" does not exist/i);
+  if (m?.[1]) return m[1];
+
+  return null;
+}
+
+// ✅ 自动剔除不存在 column：避免 400（你不需要先把 supabase 表补齐也能先跑起来）
+async function runWithAutoStripColumns({ mode, table, payload, where }) {
+  let working = { ...(payload || {}) };
+
+  // 最多尝试 12 次，足够把一堆不存在字段剔除干净
+  for (let i = 0; i < 12; i++) {
+    let res;
+    if (mode === "update") {
+      let q = supabase.from(table).update(working);
+      (where || []).forEach(({ col, val }) => {
+        q = q.eq(col, val);
+      });
+      res = await q;
+    } else {
+      res = await supabase.from(table).insert([working]);
+    }
+
+    if (!res?.error) return { data: res?.data, payload: working };
+
+    const missing = extractMissingColumnName(res.error);
+    if (missing && Object.prototype.hasOwnProperty.call(working, missing)) {
+      delete working[missing];
+      continue;
+    }
+
+    // 如果不是“不存在 column”的错误，就直接抛出
+    throw res.error;
+  }
+
+  throw new Error("提交失败：自动剔除 column 次数用尽（请把 Console 报错发我）");
+}
+
 export default function UploadPropertyPage() {
   const router = useRouter();
   const user = useUser();
@@ -53,7 +103,7 @@ export default function UploadPropertyPage() {
 
   const [addressObj, setAddressObj] = useState(null);
 
-  // 前端 state（不一定对应 DB column）
+  // ✅ 这些是前端用的（不要直接写入 DB 的对象字段，除非你表里真有 json column）
   const [typeValue, setTypeValue] = useState("");
   const [rentBatchMode, setRentBatchMode] = useState("no");
   const [typeForm, setTypeForm] = useState(null);
@@ -68,6 +118,7 @@ export default function UploadPropertyPage() {
 
   const [singleFormData, setSingleFormData] = useState({});
   const [areaData, setAreaData] = useState({
+    // ✅ 默认只勾 build up
     types: ["buildUp"],
     units: { buildUp: "Square Feet (sqft)", land: "Square Feet (sqft)" },
     values: { buildUp: "", land: "" },
@@ -87,6 +138,7 @@ export default function UploadPropertyPage() {
   const rentCategorySelected = !!(typeForm && (typeForm.category || typeForm.propertyCategory));
   const allowRentBatchMode = saleTypeNorm === "rent" && rentCategorySelected;
 
+  // ✅ 房间出租时不允许进入 batch
   const isRentBatch = saleTypeNorm === "rent" && rentBatchMode === "yes" && roomRentalMode !== "room";
 
   const rawLayoutCount = Number(typeForm?.layoutCount);
@@ -105,21 +157,7 @@ export default function UploadPropertyPage() {
 
   // ✅ 记住上一次 onFormChange 的值，避免无限 setState 循环
   const lastFormJsonRef = useRef("");
-  const lastFormRef = useRef(null);
   const lastDerivedRef = useRef({ saleType: "", status: "", roomMode: "" });
-
-  // ✅ 记录 DB schema（靠 select * 回来的 keys 判断你到底用 camel 还是 snake）
-  const schemaKeysRef = useRef(null);
-  const setSchemaKeysFromRow = (row) => {
-    if (!row || typeof row !== "object") return;
-    const keys = Object.keys(row);
-    if (keys.length) schemaKeysRef.current = keys;
-  };
-  const pickCol = (candidates) => {
-    const keys = schemaKeysRef.current;
-    if (!Array.isArray(keys)) return null;
-    return candidates.find((c) => keys.includes(c)) || null;
-  };
 
   useEffect(() => {
     if (!isRentBatch) return;
@@ -136,11 +174,11 @@ export default function UploadPropertyPage() {
     if (isRentBatch) return;
 
     if (roomLayoutCount <= 1) {
-      setUnitLayouts([]);
+      setUnitLayouts?.([]);
       return;
     }
 
-    setUnitLayouts((prev) => {
+    setUnitLayouts?.((prev) => {
       const prevArr = Array.isArray(prev) ? prev : [];
       return Array.from({ length: roomLayoutCount }).map((_, i) => prevArr[i] || {});
     });
@@ -168,9 +206,6 @@ export default function UploadPropertyPage() {
           return;
         }
 
-        // ✅ 记录 schema keys（用来决定保存时写哪个 column 名）
-        setSchemaKeysFromRow(data);
-
         // ✅ 地址
         if (data.lat && data.lng) {
           setAddressObj({
@@ -183,18 +218,19 @@ export default function UploadPropertyPage() {
         // ✅ 类型（把 DB 的 type 映射回 typeValue）
         if (typeof data.type === "string") setTypeValue(data.type);
 
-        // ✅ 模式（兼容多种字段名回填）
+        // ✅ 模式
         setSaleType(data.saleType || data.sale_type || "");
         setComputedStatus(data.propertyStatus || data.property_status || "");
         setRoomRentalMode(data.roomRentalMode || data.room_rental_mode || "whole");
         if (typeof data.rentBatchMode === "string") setRentBatchMode(data.rentBatchMode);
+        if (typeof data.rent_batch_mode === "string") setRentBatchMode(data.rent_batch_mode);
 
-        // 其他字段：有就回填，没有就不影响
-        setProjectCategory(data.projectCategory || "");
-        setProjectSubType(data.projectSubType || "");
-        setUnitLayouts(Array.isArray(data.unitLayouts) ? data.unitLayouts : []);
-        setSingleFormData(data.singleFormData || {});
-        setAreaData(data.areaData || areaData);
+        // ✅ 这些只有在你 DB 确实有 json 字段时才会存在；不存在也不会影响
+        setProjectCategory(data.projectCategory || data.project_category || "");
+        setProjectSubType(data.projectSubType || data.project_sub_type || "");
+        setUnitLayouts(Array.isArray(data.unitLayouts) ? data.unitLayouts : Array.isArray(data.unit_layouts) ? data.unit_layouts : []);
+        setSingleFormData(data.singleFormData || data.single_form_data || {});
+        setAreaData(data.areaData || data.area_data || areaData);
         setDescription(typeof data.description === "string" ? data.description : "");
 
         toast.success("已进入编辑模式");
@@ -213,17 +249,7 @@ export default function UploadPropertyPage() {
   const mustPickSaleType = !saleType;
   const mustPickAddress = !addressObj?.lat || !addressObj?.lng;
 
-  const probeSchemaIfNeeded = async () => {
-    if (Array.isArray(schemaKeysRef.current)) return;
-    try {
-      const { data } = await supabase.from("properties").select("*").limit(1);
-      if (Array.isArray(data) && data[0]) setSchemaKeysFromRow(data[0]);
-    } catch {
-      // ignore
-    }
-  };
-
-  // ✅✅✅ 提交：新增 / 编辑共用（重点：不要 update 不存在的 column）
+  // ✅✅✅ 提交：新增 / 编辑共用（重点：自动剔除不存在的 column，避免 400）
   const handleSubmit = async () => {
     if (mustLogin) {
       toast.error("请先登录");
@@ -244,34 +270,61 @@ export default function UploadPropertyPage() {
 
     setSubmitting(true);
     try {
-      // ✅ 先探测一次 schema（避免你表是 snake_case 导致 400）
-      await probeSchemaIfNeeded();
-
+      // ✅ 重点：我们可以同时写 camelCase + snake_case
+      // 你表里哪一个存在就保留哪一个，不存在的会被自动剔除（不会再 400）
       const payload = {
+        user_id: user.id,
         address: addressObj?.address || "",
         lat: addressObj?.lat,
         lng: addressObj?.lng,
+
+        // type 一般存在
         type: typeValue,
+
+        // saleType / propertyStatus 可能是 snake_case
+        saleType,
+        sale_type: saleType,
+        propertyStatus: computedStatus,
+        property_status: computedStatus,
+
+        roomRentalMode,
+        room_rental_mode: roomRentalMode,
+
+        rentBatchMode,
+        rent_batch_mode: rentBatchMode,
+
+        projectCategory,
+        project_category: projectCategory,
+
+        projectSubType,
+        project_sub_type: projectSubType,
+
+        // json 字段：有就写，没有会自动剔除
+        unitLayouts,
+        unit_layouts: unitLayouts,
+
+        singleFormData,
+        single_form_data: singleFormData,
+
+        areaData,
+        area_data: areaData,
+
         description,
+
+        // 有些表没有 updated_at：也没关系，会自动剔除
         updated_at: new Date().toISOString(),
       };
 
-      // ✅ saleType column（自动选）
-      const saleTypeCol = pickCol(["saleType", "sale_type"]);
-      if (saleTypeCol) payload[saleTypeCol] = saleType;
-
-      // ✅ propertyStatus column（自动选，避免你现在报的 PGRST204）
-      const statusCol = pickCol(["propertyStatus", "property_status"]);
-      if (statusCol) payload[statusCol] = computedStatus;
-
       if (isEditMode) {
-        const { error } = await supabase
-          .from("properties")
-          .update(payload)
-          .eq("id", editId)
-          .eq("user_id", user.id);
-
-        if (error) throw error;
+        await runWithAutoStripColumns({
+          mode: "update",
+          table: "properties",
+          payload,
+          where: [
+            { col: "id", val: editId },
+            { col: "user_id", val: user.id },
+          ],
+        });
 
         toast.success("保存修改成功");
         alert("保存修改成功");
@@ -281,13 +334,14 @@ export default function UploadPropertyPage() {
 
       const insertPayload = {
         ...payload,
-        user_id: user.id,
         created_at: new Date().toISOString(),
       };
 
-      const { error } = await supabase.from("properties").insert([insertPayload]);
-
-      if (error) throw error;
+      await runWithAutoStripColumns({
+        mode: "insert",
+        table: "properties",
+        payload: insertPayload,
+      });
 
       toast.success("提交成功");
       alert("提交成功");
@@ -341,11 +395,18 @@ export default function UploadPropertyPage() {
     <div className="max-w-3xl mx-auto p-4 space-y-4">
       <h1 className="text-2xl font-bold">{isEditMode ? "编辑房源" : "上传房源"}</h1>
 
-      <AddressSearchInput
-        onLocationSelect={(loc) => {
-          setAddressObj(loc);
-        }}
-      />
+      {(mustLogin || mustPickSaleType || mustPickAddress) && (
+        <div className="border rounded-xl bg-yellow-50 p-3 text-sm text-yellow-900">
+          <div className="font-semibold mb-1">当前还不能提交，因为：</div>
+          <ul className="list-disc pl-5 space-y-1">
+            {mustLogin && <li>你还没登录（user 还是 null）</li>}
+            {mustPickSaleType && <li>你还没选择 Sale / Rent / Homestay / Hotel</li>}
+            {mustPickAddress && <li>你还没选择地址（lat/lng 为空）</li>}
+          </ul>
+        </div>
+      )}
+
+      <AddressSearchInput value={addressObj} onChange={setAddressObj} />
 
       <TypeSelector
         value={typeValue}
@@ -357,9 +418,6 @@ export default function UploadPropertyPage() {
         }}
         onFormChange={(form) => {
           // ✅ 关键：避免无限更新（maximum update depth）
-          if (form === lastFormRef.current) return;
-          lastFormRef.current = form;
-
           const nextJson = stableJson(form);
           if (nextJson && nextJson === lastFormJsonRef.current) return;
           lastFormJsonRef.current = nextJson;
