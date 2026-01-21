@@ -1,7 +1,7 @@
 // pages/upload-property.js
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import dynamic from "next/dynamic";
 import { supabase } from "../supabaseClient";
@@ -32,6 +32,14 @@ const pickCommon = (l) => ({
 });
 const commonHash = (l) => JSON.stringify(pickCommon(l));
 
+function stableJson(obj) {
+  try {
+    return JSON.stringify(obj ?? null);
+  } catch {
+    return "";
+  }
+}
+
 export default function UploadPropertyPage() {
   const router = useRouter();
   const user = useUser();
@@ -45,6 +53,7 @@ export default function UploadPropertyPage() {
 
   const [addressObj, setAddressObj] = useState(null);
 
+  // ✅ 这些是前端用的（不要直接写入 DB 的对象字段，除非你表里真有 json column）
   const [typeValue, setTypeValue] = useState("");
   const [rentBatchMode, setRentBatchMode] = useState("no");
   const [typeForm, setTypeForm] = useState(null);
@@ -59,6 +68,7 @@ export default function UploadPropertyPage() {
 
   const [singleFormData, setSingleFormData] = useState({});
   const [areaData, setAreaData] = useState({
+    // ✅ 默认只勾 build up
     types: ["buildUp"],
     units: { buildUp: "Square Feet (sqft)", land: "Square Feet (sqft)" },
     values: { buildUp: "", land: "" },
@@ -78,6 +88,7 @@ export default function UploadPropertyPage() {
   const rentCategorySelected = !!(typeForm && (typeForm.category || typeForm.propertyCategory));
   const allowRentBatchMode = saleTypeNorm === "rent" && rentCategorySelected;
 
+  // ✅ 房间出租时不允许进入 batch
   const isRentBatch = saleTypeNorm === "rent" && rentBatchMode === "yes" && roomRentalMode !== "room";
 
   const rawLayoutCount = Number(typeForm?.layoutCount);
@@ -93,6 +104,10 @@ export default function UploadPropertyPage() {
         ? Math.max(2, Math.min(20, Number.isFinite(rawRoomCount) ? rawRoomCount : 2))
         : 1
       : 1;
+
+  // ✅ 记住上一次 onFormChange 的值，避免无限 setState 循环
+  const lastFormJsonRef = useRef("");
+  const lastDerivedRef = useRef({ saleType: "", status: "", roomMode: "" });
 
   useEffect(() => {
     if (!isRentBatch) return;
@@ -141,36 +156,30 @@ export default function UploadPropertyPage() {
           return;
         }
 
-        const nextAddress =
-          data.addressObj ||
-          (data.lat && data.lng
-            ? { address: data.address || data.location || "", lat: data.lat, lng: data.lng }
-            : null);
-        if (nextAddress) setAddressObj(nextAddress);
+        // ✅ 地址
+        if (data.lat && data.lng) {
+          setAddressObj({
+            address: data.address || data.location || "",
+            lat: data.lat,
+            lng: data.lng,
+          });
+        }
 
-        if (typeof data.typeValue === "string") setTypeValue(data.typeValue);
-        else if (typeof data.type === "string") setTypeValue(data.type);
+        // ✅ 类型（把 DB 的 type 映射回 typeValue）
+        if (typeof data.type === "string") setTypeValue(data.type);
 
-        if (typeof data.rentBatchMode === "string") setRentBatchMode(data.rentBatchMode);
-        if (data.typeForm) setTypeForm(data.typeForm);
-
+        // ✅ 模式
         setSaleType(data.saleType || data.sale_type || "");
         setComputedStatus(data.propertyStatus || data.property_status || "");
         setRoomRentalMode(data.roomRentalMode || data.room_rental_mode || "whole");
+        if (typeof data.rentBatchMode === "string") setRentBatchMode(data.rentBatchMode);
 
+        // ✅ 这些只有在你 DB 确实有 json 字段时才会存在；不存在也不会影响
         setProjectCategory(data.projectCategory || "");
         setProjectSubType(data.projectSubType || "");
-
-        setUnitLayouts(
-          Array.isArray(data.unitLayouts)
-            ? data.unitLayouts
-            : Array.isArray(data.unit_layouts)
-            ? data.unit_layouts
-            : []
-        );
-
-        setSingleFormData(data.singleFormData || data.single_form_data || {});
-        setAreaData(data.areaData || data.area_data || areaData);
+        setUnitLayouts(Array.isArray(data.unitLayouts) ? data.unitLayouts : []);
+        setSingleFormData(data.singleFormData || {});
+        setAreaData(data.areaData || areaData);
         setDescription(typeof data.description === "string" ? data.description : "");
 
         toast.success("已进入编辑模式");
@@ -189,8 +198,8 @@ export default function UploadPropertyPage() {
   const mustPickSaleType = !saleType;
   const mustPickAddress = !addressObj?.lat || !addressObj?.lng;
 
+  // ✅✅✅ 提交：新增 / 编辑共用（重点：不要 update 不存在的 column）
   const handleSubmit = async () => {
-    // ✅ 让你“必定看到反应”
     if (mustLogin) {
       toast.error("请先登录");
       alert("请先登录（你现在 user 还是 null）");
@@ -206,27 +215,30 @@ export default function UploadPropertyPage() {
       alert("请选择地址（你现在 lat/lng 还是空）");
       return;
     }
-
     if (submitting) return;
 
     setSubmitting(true);
     try {
+      // ✅ 只写你表里“很大概率存在”的字段
+      // ⚠️ 重点：不要写 addressObj / typeForm 这种你表里没有的字段！
       const payload = {
         user_id: user.id,
         address: addressObj?.address || "",
         lat: addressObj?.lat,
         lng: addressObj?.lng,
-        addressObj,
 
         saleType,
         propertyStatus: computedStatus,
+
+        // ✅ 你表里一般会有 type（string），我们用 typeValue 写进去
+        type: typeValue,
+
+        // ✅ 若你表里没有这些字段也会报 400；如果你确定没有，可告诉我我再删掉
         roomRentalMode,
         rentBatchMode,
-        typeValue,
-        typeForm,
 
-        projectCategory,
-        projectSubType,
+        // ✅ 你如果表里有 json 字段才会成功；如果你表里没有这几个字段也会 400
+        // 如果你不确定，先注释掉，确认后再开
         unitLayouts,
         singleFormData,
         areaData,
@@ -308,7 +320,6 @@ export default function UploadPropertyPage() {
     <div className="max-w-3xl mx-auto p-4 space-y-4">
       <h1 className="text-2xl font-bold">{isEditMode ? "编辑房源" : "上传房源"}</h1>
 
-      {/* ✅ 顶部状态提示：让你一眼知道“为什么点按钮没反应” */}
       {(mustLogin || mustPickSaleType || mustPickAddress) && (
         <div className="border rounded-xl bg-yellow-50 p-3 text-sm text-yellow-900">
           <div className="font-semibold mb-1">当前还不能提交，因为：</div>
@@ -331,10 +342,27 @@ export default function UploadPropertyPage() {
           setRentBatchMode(val);
         }}
         onFormChange={(form) => {
-          setTypeForm(form || null);
-          setSaleType(form?.saleType || "");
-          setComputedStatus(form?.propertyStatus || "");
-          setRoomRentalMode(form?.roomRentalMode || "whole");
+          // ✅ 关键：避免无限更新（maximum update depth）
+          const nextJson = stableJson(form);
+          if (nextJson && nextJson === lastFormJsonRef.current) return;
+          lastFormJsonRef.current = nextJson;
+
+          setTypeForm((prev) => {
+            const prevJson = stableJson(prev);
+            if (prevJson === nextJson) return prev;
+            return form || null;
+          });
+
+          const nextSale = form?.saleType || "";
+          const nextStatus = form?.propertyStatus || "";
+          const nextRoom = form?.roomRentalMode || "whole";
+
+          const last = lastDerivedRef.current;
+          if (last.saleType !== nextSale) setSaleType(nextSale);
+          if (last.status !== nextStatus) setComputedStatus(nextStatus);
+          if (last.roomMode !== nextRoom) setRoomRentalMode(nextRoom);
+
+          lastDerivedRef.current = { saleType: nextSale, status: nextStatus, roomMode: nextRoom };
         }}
       />
 
@@ -414,11 +442,7 @@ export default function UploadPropertyPage() {
         disabled={submitting}
         className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full disabled:opacity-60"
       >
-        {submitting
-          ? "处理中..."
-          : isEditMode
-          ? "保存修改"
-          : "提交房源"}
+        {submitting ? "处理中..." : isEditMode ? "保存修改" : "提交房源"}
       </Button>
 
       {isEditMode && (
