@@ -240,7 +240,8 @@ export default function MyProfile() {
                     </Button>
                   </Link>
 
-                  <Link href={`/edit-property/${property.id}`} className="w-full">
+                  <Link href={`/upload-property?edit=1&id=${property.id}`}>
+
                     <Button className="w-full" variant="outline">
                       编辑
                     </Button>
