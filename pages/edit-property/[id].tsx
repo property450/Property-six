@@ -1,12 +1,11 @@
 "use client";
 
 import { useRouter } from "next/router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../../supabaseClient";
 import { useUser } from "@supabase/auth-helpers-react";
 import dynamic from "next/dynamic";
 import TypeSelector from "../../components/TypeSelector";
-import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import Link from "next/link";
 
 const MapPicker = dynamic(() => import("../../components/MapPicker"), {
@@ -28,6 +27,10 @@ export default function EditProperty() {
   const [images, setImages] = useState<string[]>([]);
   const [newImages, setNewImages] = useState<File[]>([]);
   const [updating, setUpdating] = useState(false);
+
+  // ✅ 原生拖拽：记录拖动 index
+  const dragIndexRef = useRef<number | null>(null);
+  const overIndexRef = useRef<number | null>(null);
 
   function parseTypeString(str?: string): TypeValue {
     const parts = (str || "").split(" > ");
@@ -59,12 +62,8 @@ export default function EditProperty() {
       return;
     }
 
-    if (data) {
-      setProperty(data);
-      setImages(Array.isArray(data.image_urls) ? data.image_urls : []);
-    } else {
-      alert("无法加载房源");
-    }
+    setProperty(data);
+    setImages(Array.isArray(data?.image_urls) ? data.image_urls : []);
   }
 
   const handleChange = (e: any) => {
@@ -84,40 +83,58 @@ export default function EditProperty() {
   };
 
   const removeImage = async (index: number) => {
-    const confirmDelete = confirm("确定要删除这张图片吗？此操作将永久移除");
-    if (!confirmDelete) return;
+    const ok = confirm("确定要删除这张图片吗？此操作将永久移除");
+    if (!ok) return;
 
     const imgUrl = images[index];
     const path = getStoragePathFromUrl(imgUrl);
 
-    // 若拿不到 path，就只从列表移除（避免卡死）
+    // 拿不到路径就只从列表移除
     if (!path) {
       setImages((prev) => prev.filter((_, i) => i !== index));
       return;
     }
 
-    const { error: deleteError } = await supabase.storage
+    const { error } = await supabase.storage
       .from("property-images")
       .remove([path]);
 
-    if (deleteError) {
-      alert("删除失败：" + deleteError.message);
+    if (error) {
+      alert("删除失败：" + error.message);
       return;
     }
 
     setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const onDragEnd = (result: any) => {
-    if (!result.destination) return;
-    const reordered = [...images];
-    const [removed] = reordered.splice(result.source.index, 1);
-    reordered.splice(result.destination.index, 0, removed);
-    setImages(reordered);
-  };
-
   const setCoverImage = (index: number) => {
     setImages((prev) => [prev[index], ...prev.filter((_, i) => i !== index)]);
+  };
+
+  // ✅ 原生拖拽：排序
+  const onDragStart = (index: number) => {
+    dragIndexRef.current = index;
+  };
+
+  const onDragEnter = (index: number) => {
+    overIndexRef.current = index;
+  };
+
+  const onDragEnd = () => {
+    const from = dragIndexRef.current;
+    const to = overIndexRef.current;
+
+    dragIndexRef.current = null;
+    overIndexRef.current = null;
+
+    if (from === null || to === null || from === to) return;
+
+    setImages((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
   };
 
   const handleUpdate = async (e: any) => {
@@ -129,6 +146,7 @@ export default function EditProperty() {
     try {
       const updatedImageUrls = [...images];
 
+      // 上传新图
       for (const file of newImages) {
         const ext = file.name.split(".").pop() || "jpg";
         const safeRand = Math.random().toString(16).slice(2);
@@ -177,7 +195,6 @@ export default function EditProperty() {
     }
   };
 
-  // ✅ 更友好的加载/权限提示
   if (!user) {
     return (
       <div className="p-6 max-w-3xl mx-auto">
@@ -220,7 +237,7 @@ export default function EditProperty() {
         <div>
           <h1 className="text-2xl font-bold">编辑房源</h1>
           <p className="text-sm text-gray-600 mt-1">
-            你可以修改文字、价格、类型、地图定位以及图片排序/封面。
+            修改信息、地图定位，并支持图片拖拽排序/封面/删除。
           </p>
         </div>
 
@@ -343,7 +360,7 @@ export default function EditProperty() {
                 图片管理（拖拽排序 / 设封面 / 删除）
               </div>
               <div className="text-xs text-gray-500 mt-1">
-                第一张会作为封面显示
+                第一张会作为封面显示（拖动图片即可排序）
               </div>
             </div>
 
@@ -362,66 +379,52 @@ export default function EditProperty() {
           {images.length === 0 ? (
             <div className="text-sm text-gray-600">目前没有图片。</div>
           ) : (
-            <DragDropContext onDragEnd={onDragEnd}>
-              <Droppable droppableId="images">
-                {(provided) => (
-                  <div
-                    className="grid grid-cols-2 sm:grid-cols-3 gap-2"
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                  >
-                    {images.map((url, i) => (
-                      <Draggable key={url} draggableId={url} index={i}>
-                        {(provided) => (
-                          <div
-                            className="relative group"
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                          >
-                            <img
-                              loading="lazy"
-                              src={url}
-                              className="w-full h-32 object-cover rounded-lg border"
-                              alt=""
-                            />
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {images.map((url, i) => (
+                <div
+                  key={url}
+                  className="relative group"
+                  draggable
+                  onDragStart={() => onDragStart(i)}
+                  onDragEnter={() => onDragEnter(i)}
+                  onDragEnd={onDragEnd}
+                  onDragOver={(e) => e.preventDefault()}
+                >
+                  <img
+                    loading="lazy"
+                    src={url}
+                    className="w-full h-32 object-cover rounded-lg border"
+                    alt=""
+                  />
 
-                            {/* 封面标识 */}
-                            {i === 0 && (
-                              <div className="absolute top-2 left-2 text-xs bg-black text-white px-2 py-1 rounded">
-                                封面
-                              </div>
-                            )}
+                  {i === 0 && (
+                    <div className="absolute top-2 left-2 text-xs bg-black text-white px-2 py-1 rounded">
+                      封面
+                    </div>
+                  )}
 
-                            {/* 操作按钮 */}
-                            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition flex items-end justify-between p-2">
-                              <button
-                                type="button"
-                                onClick={() => setCoverImage(i)}
-                                className="bg-yellow-500 text-white px-2 py-1 rounded text-xs hover:bg-yellow-600"
-                                title="设为封面"
-                              >
-                                设封面
-                              </button>
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition flex items-end justify-between p-2">
+                    <button
+                      type="button"
+                      onClick={() => setCoverImage(i)}
+                      className="bg-yellow-500 text-white px-2 py-1 rounded text-xs hover:bg-yellow-600"
+                      title="设为封面"
+                    >
+                      设封面
+                    </button>
 
-                              <button
-                                type="button"
-                                onClick={() => removeImage(i)}
-                                className="bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700"
-                                title="删除图片"
-                              >
-                                删除
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
+                    <button
+                      type="button"
+                      onClick={() => removeImage(i)}
+                      className="bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700"
+                      title="删除图片"
+                    >
+                      删除
+                    </button>
                   </div>
-                )}
-              </Droppable>
-            </DragDropContext>
+                </div>
+              ))}
+            </div>
           )}
         </div>
 
