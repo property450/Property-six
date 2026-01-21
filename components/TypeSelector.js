@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import FloorCountSelector from "./FloorCountSelector";
+import PropertyTitleSelector from "@/components/PropertyTitleSelector";
 
 // ================== 选项常量 ==================
 const subtypeOptions = ["Penthouse", "Duplex", "Triplex", "Dual Key"];
@@ -252,6 +253,7 @@ export default function TypeSelector({
   const [auctionDate, setAuctionDate] = useState("");
   const [showSubtype, setShowSubtype] = useState(false);
   const [storeys, setStoreys] = useState("");
+  const [propertyTitle, setPropertyTitle] = useState("");
 
   // Rent room rental
   const [roomRentalMode, setRoomRentalMode] = useState("whole");
@@ -416,6 +418,12 @@ export default function TypeSelector({
               ))}
             </select>
           </div>
+
+              <PropertyTitleSelector
+  value={propertyTitle}
+  onChange={(val) => setPropertyTitle(val)}
+/>
+
 
           <div>
             <label className="block font-medium">Property Status / Sale Type</label>
