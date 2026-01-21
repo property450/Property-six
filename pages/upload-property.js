@@ -53,7 +53,7 @@ export default function UploadPropertyPage() {
 
   const [addressObj, setAddressObj] = useState(null);
 
-  // ✅ 这些是前端用的（不要直接写入 DB 的对象字段，除非你表里真有 json column）
+  // 前端 state（不一定对应 DB column）
   const [typeValue, setTypeValue] = useState("");
   const [rentBatchMode, setRentBatchMode] = useState("no");
   const [typeForm, setTypeForm] = useState(null);
@@ -68,7 +68,6 @@ export default function UploadPropertyPage() {
 
   const [singleFormData, setSingleFormData] = useState({});
   const [areaData, setAreaData] = useState({
-    // ✅ 默认只勾 build up
     types: ["buildUp"],
     units: { buildUp: "Square Feet (sqft)", land: "Square Feet (sqft)" },
     values: { buildUp: "", land: "" },
@@ -88,7 +87,6 @@ export default function UploadPropertyPage() {
   const rentCategorySelected = !!(typeForm && (typeForm.category || typeForm.propertyCategory));
   const allowRentBatchMode = saleTypeNorm === "rent" && rentCategorySelected;
 
-  // ✅ 房间出租时不允许进入 batch
   const isRentBatch = saleTypeNorm === "rent" && rentBatchMode === "yes" && roomRentalMode !== "room";
 
   const rawLayoutCount = Number(typeForm?.layoutCount);
@@ -110,6 +108,19 @@ export default function UploadPropertyPage() {
   const lastFormRef = useRef(null);
   const lastDerivedRef = useRef({ saleType: "", status: "", roomMode: "" });
 
+  // ✅ 记录 DB schema（靠 select * 回来的 keys 判断你到底用 camel 还是 snake）
+  const schemaKeysRef = useRef(null);
+  const setSchemaKeysFromRow = (row) => {
+    if (!row || typeof row !== "object") return;
+    const keys = Object.keys(row);
+    if (keys.length) schemaKeysRef.current = keys;
+  };
+  const pickCol = (candidates) => {
+    const keys = schemaKeysRef.current;
+    if (!Array.isArray(keys)) return null;
+    return candidates.find((c) => keys.includes(c)) || null;
+  };
+
   useEffect(() => {
     if (!isRentBatch) return;
     const n = batchLayoutCount;
@@ -125,11 +136,11 @@ export default function UploadPropertyPage() {
     if (isRentBatch) return;
 
     if (roomLayoutCount <= 1) {
-      setUnitLayouts?.([]);
+      setUnitLayouts([]);
       return;
     }
 
-    setUnitLayouts?.((prev) => {
+    setUnitLayouts((prev) => {
       const prevArr = Array.isArray(prev) ? prev : [];
       return Array.from({ length: roomLayoutCount }).map((_, i) => prevArr[i] || {});
     });
@@ -157,6 +168,9 @@ export default function UploadPropertyPage() {
           return;
         }
 
+        // ✅ 记录 schema keys（用来决定保存时写哪个 column 名）
+        setSchemaKeysFromRow(data);
+
         // ✅ 地址
         if (data.lat && data.lng) {
           setAddressObj({
@@ -169,13 +183,13 @@ export default function UploadPropertyPage() {
         // ✅ 类型（把 DB 的 type 映射回 typeValue）
         if (typeof data.type === "string") setTypeValue(data.type);
 
-        // ✅ 模式
+        // ✅ 模式（兼容多种字段名回填）
         setSaleType(data.saleType || data.sale_type || "");
         setComputedStatus(data.propertyStatus || data.property_status || "");
         setRoomRentalMode(data.roomRentalMode || data.room_rental_mode || "whole");
         if (typeof data.rentBatchMode === "string") setRentBatchMode(data.rentBatchMode);
 
-        // ✅ 这些只有在你 DB 确实有 json 字段时才会存在；不存在也不会影响
+        // 其他字段：有就回填，没有就不影响
         setProjectCategory(data.projectCategory || "");
         setProjectSubType(data.projectSubType || "");
         setUnitLayouts(Array.isArray(data.unitLayouts) ? data.unitLayouts : []);
@@ -199,6 +213,16 @@ export default function UploadPropertyPage() {
   const mustPickSaleType = !saleType;
   const mustPickAddress = !addressObj?.lat || !addressObj?.lng;
 
+  const probeSchemaIfNeeded = async () => {
+    if (Array.isArray(schemaKeysRef.current)) return;
+    try {
+      const { data } = await supabase.from("properties").select("*").limit(1);
+      if (Array.isArray(data) && data[0]) setSchemaKeysFromRow(data[0]);
+    } catch {
+      // ignore
+    }
+  };
+
   // ✅✅✅ 提交：新增 / 编辑共用（重点：不要 update 不存在的 column）
   const handleSubmit = async () => {
     if (mustLogin) {
@@ -220,24 +244,25 @@ export default function UploadPropertyPage() {
 
     setSubmitting(true);
     try {
-      // ✅ 只写你表里“很大概率存在”的字段
-      // ⚠️ 重点：不要写 addressObj / typeForm 这种你表里没有的字段！
+      // ✅ 先探测一次 schema（避免你表是 snake_case 导致 400）
+      await probeSchemaIfNeeded();
+
       const payload = {
         address: addressObj?.address || "",
         lat: addressObj?.lat,
         lng: addressObj?.lng,
-
-        saleType,
-        propertyStatus: computedStatus,
-
-        // ✅ 你表里一般会有 type（string），我们用 typeValue 写进去
         type: typeValue,
-
-        // ✅ 备注
         description,
-
         updated_at: new Date().toISOString(),
       };
+
+      // ✅ saleType column（自动选）
+      const saleTypeCol = pickCol(["saleType", "sale_type"]);
+      if (saleTypeCol) payload[saleTypeCol] = saleType;
+
+      // ✅ propertyStatus column（自动选，避免你现在报的 PGRST204）
+      const statusCol = pickCol(["propertyStatus", "property_status"]);
+      if (statusCol) payload[statusCol] = computedStatus;
 
       if (isEditMode) {
         const { error } = await supabase
@@ -254,9 +279,13 @@ export default function UploadPropertyPage() {
         return;
       }
 
-      const { error } = await supabase.from("properties").insert([
-        { ...payload, user_id: user.id, created_at: new Date().toISOString() },
-      ]);
+      const insertPayload = {
+        ...payload,
+        user_id: user.id,
+        created_at: new Date().toISOString(),
+      };
+
+      const { error } = await supabase.from("properties").insert([insertPayload]);
 
       if (error) throw error;
 
@@ -311,17 +340,6 @@ export default function UploadPropertyPage() {
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-4">
       <h1 className="text-2xl font-bold">{isEditMode ? "编辑房源" : "上传房源"}</h1>
-
-      {(mustLogin || mustPickSaleType || mustPickAddress) && (
-        <div className="border rounded-xl bg-yellow-50 p-3 text-sm text-yellow-900">
-          <div className="font-semibold mb-1">当前还不能提交，因为：</div>
-          <ul className="list-disc pl-5 space-y-1">
-            {mustLogin && <li>你还没登录（user 还是 null）</li>}
-            {mustPickSaleType && <li>你还没选择 Sale / Rent / Homestay / Hotel</li>}
-            {mustPickAddress && <li>你还没选择地址（lat/lng 为空）</li>}
-          </ul>
-        </div>
-      )}
 
       <AddressSearchInput
         onLocationSelect={(loc) => {
