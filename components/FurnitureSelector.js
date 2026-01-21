@@ -46,24 +46,31 @@ export default function FurnitureSelector({ value = [], onChange }) {
 
   // 同步外部数据，兼容字符串/旧结构
   useEffect(() => {
-    const arr = Array.isArray(value) ? value : [];
-    const normalized = arr
-      .map((item) => {
-        if (!item) return null;
-        if (typeof item === "string") {
-          return { label: item, count: "", remark: "" };
-        }
-        const label = item.label ?? item.value ?? "";
-        if (!label) return null;
-        return {
-          label,
-          count: item.count ?? "",
-          remark: item.remark ?? "",
-        };
-      })
-      .filter(Boolean);
-    setSelectedFurniture(normalized);
-  }, [value]);
+  const arr = Array.isArray(value) ? value : [];
+  const normalized = arr
+    .map((item) => {
+      if (!item) return null;
+      if (typeof item === "string") {
+        return { label: item, count: "", remark: "" };
+      }
+      const label = item.label ?? item.value ?? "";
+      if (!label) return null;
+      return {
+        label,
+        count: item.count ?? "",
+        remark: item.remark ?? "",
+      };
+    })
+    .filter(Boolean);
+
+  // ⭐ 核心：深度比较，内容一样就不要 setState
+  setSelectedFurniture((prev) => {
+    const prevJson = JSON.stringify(prev || []);
+    const nextJson = JSON.stringify(normalized || []);
+    if (prevJson === nextJson) return prev;
+    return normalized;
+  });
+}, [value]);
 
   const emit = (next) => {
     setSelectedFurniture(next);
