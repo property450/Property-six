@@ -40,43 +40,65 @@ function stableJson(obj) {
   }
 }
 
-// =============== ✅ Supabase：自动剔除不存在 column（防 400） ===============
-function extractMissingColumnName(err) {
-  const msg = err?.message || err?.error?.message || "";
-  // 常见：Could not find the 'xxx' column of 'properties' in the schema cache
+/**
+ * ✅ Supabase 报错 PGRST204 时，会有类似：
+ * "Could not find the 'propertyStatus' column of 'properties' in the schema cache"
+ * 我们把 column 名抓出来，然后从 payload 删除再重试。
+ */
+function extractMissingColumnName(error) {
+  const msg = String(error?.message || "");
   const m = msg.match(/Could not find the '([^']+)' column/i);
   return m?.[1] || "";
 }
 
-async function runWithAutoStripColumns({ mode, table, payload, where }) {
+async function runWithAutoStripColumns({ mode, payload, editId, userId, maxTries = 8 }) {
+  // mode: "insert" | "update"
   let working = { ...(payload || {}) };
+  let tries = 0;
+  const removed = [];
 
-  // 最多尝试 12 次，避免死循环
-  for (let i = 0; i < 12; i++) {
-    let q = supabase.from(table);
+  while (tries < maxTries) {
+    tries += 1;
 
-    if (mode === "insert") q = q.insert([working]);
+    let res;
     if (mode === "update") {
-      q = q.update(working);
-      (where || []).forEach(({ col, val }) => {
-        q = q.eq(col, val);
-      });
+      res = await supabase.from("properties").update(working).eq("id", editId).eq("user_id", userId);
+    } else {
+      res = await supabase.from("properties").insert([working]);
     }
 
-    const res = await q.select("*"); // 让 supabase 返回更完整 error 资讯
-    if (!res?.error) return { data: res?.data, payload: working };
+    if (!res?.error) {
+      return { ok: true, removed, result: res };
+    }
 
-    const missing = extractMissingColumnName(res.error);
-    if (missing && Object.prototype.hasOwnProperty.call(working, missing)) {
+    const err = res.error;
+
+    // ✅ 把真正的错误打印出来（你要看 Console 的就是这个）
+    console.error("[Supabase Error]", err);
+
+    // ✅ 只有 PGRST204（缺 column）才自动剔除
+    const missing = extractMissingColumnName(err);
+    if (err?.code === "PGRST204" && missing) {
+      // 如果 payload 里没有这个 key，就别死循环了
+      if (!Object.prototype.hasOwnProperty.call(working, missing)) {
+        return { ok: false, removed, error: err };
+      }
       delete working[missing];
+      removed.push(missing);
+
+      // 继续下一轮尝试
       continue;
     }
 
-    // 如果不是“不存在 column”的错误，就直接抛出（让你看到真正原因）
-    throw res.error;
+    // ✅ 其它错误直接退出（例如 RLS、权限、类型不对、id 不存在）
+    return { ok: false, removed, error: err };
   }
 
-  throw new Error("提交失败：自动剔除 column 次数用尽（请把 Console 报错发我）");
+  return {
+    ok: false,
+    removed,
+    error: new Error("自动删除 column 次数用尽（请看 Console 报错）"),
+  };
 }
 
 export default function UploadPropertyPage() {
@@ -131,7 +153,10 @@ export default function UploadPropertyPage() {
   const isRentBatch = saleTypeNorm === "rent" && rentBatchMode === "yes" && roomRentalMode !== "room";
 
   const rawLayoutCount = Number(typeForm?.layoutCount);
-  const batchLayoutCount = Math.max(2, Math.min(20, Number.isFinite(rawLayoutCount) ? rawLayoutCount : 2));
+  const batchLayoutCount = Math.max(
+    2,
+    Math.min(20, Number.isFinite(rawLayoutCount) ? rawLayoutCount : 2)
+  );
 
   const rawRoomCount = Number(typeForm?.roomCount);
   const roomLayoutCount =
@@ -141,7 +166,7 @@ export default function UploadPropertyPage() {
         : 1
       : 1;
 
-  // ✅ 记住上一次 onFormChange 的值，避免无限 setState 循环（Maximum update depth）
+  // ✅ 记住上一次 onFormChange 的值，避免无限 setState 循环
   const lastFormJsonRef = useRef("");
   const lastDerivedRef = useRef({ saleType: "", status: "", roomMode: "" });
 
@@ -201,7 +226,7 @@ export default function UploadPropertyPage() {
           });
         }
 
-        // ✅ type
+        // ✅ 类型（把 DB 的 type 映射回 typeValue）
         if (typeof data.type === "string") setTypeValue(data.type);
 
         // ✅ 模式
@@ -210,22 +235,19 @@ export default function UploadPropertyPage() {
         setRoomRentalMode(data.roomRentalMode || data.room_rental_mode || "whole");
         if (typeof data.rentBatchMode === "string") setRentBatchMode(data.rentBatchMode);
 
-        // ✅ project
-        setProjectCategory(data.projectCategory || data.project_category || "");
-        setProjectSubType(data.projectSubType || data.project_sub_type || "");
-
-        // ✅ json
-        setUnitLayouts(data.unitLayouts || data.unit_layouts || []);
-        setSingleFormData(data.singleFormData || data.single_form_data || {});
-        setAreaData(data.areaData || data.area_data || areaData);
-
-        setDescription(data.description || "");
+        // ✅ 这些只有在你 DB 确实有 json 字段时才会存在；不存在也不会影响
+        setProjectCategory(data.projectCategory || "");
+        setProjectSubType(data.projectSubType || "");
+        setUnitLayouts(Array.isArray(data.unitLayouts) ? data.unitLayouts : []);
+        setSingleFormData(data.singleFormData || {});
+        setAreaData(data.areaData || areaData);
+        setDescription(typeof data.description === "string" ? data.description : "");
 
         toast.success("已进入编辑模式");
       } catch (e) {
         console.error(e);
         toast.error("无法加载房源进行编辑");
-        alert(`无法加载房源进行编辑：${e?.message || e?.error_description || JSON.stringify(e)}`);
+        alert("无法加载房源进行编辑（请看 Console 报错）");
       }
     };
 
@@ -237,7 +259,7 @@ export default function UploadPropertyPage() {
   const mustPickSaleType = !saleType;
   const mustPickAddress = !addressObj?.lat || !addressObj?.lng;
 
-  // ✅✅✅ 提交：新增 / 编辑共用（重点：自动剔除不存在的 column，避免 400）
+  // ✅✅✅ 提交：新增 / 编辑共用（重点：不要 update 不存在的 column）
   const handleSubmit = async () => {
     if (mustLogin) {
       toast.error("请先登录");
@@ -258,61 +280,53 @@ export default function UploadPropertyPage() {
 
     setSubmitting(true);
     try {
-      // ✅ 重点：我们可以同时写 camelCase + snake_case
-      // 你表里哪一个存在就保留哪一个，不存在的会被自动剔除（不会再 400）
+      // ✅ 你的原 payload 保持不动，只是“自动剔除不存在 column”避免 400
       const payload = {
         user_id: user.id,
         address: addressObj?.address || "",
         lat: addressObj?.lat,
         lng: addressObj?.lng,
 
-        // type 一般存在
+        saleType,
+        propertyStatus: computedStatus,
+
         type: typeValue,
 
-        // saleType / propertyStatus 可能是 snake_case
-        saleType,
-        sale_type: saleType,
-        propertyStatus: computedStatus,
-        property_status: computedStatus,
-
         roomRentalMode,
-        room_rental_mode: roomRentalMode,
-
         rentBatchMode,
-        rent_batch_mode: rentBatchMode,
 
-        projectCategory,
-        project_category: projectCategory,
-
-        projectSubType,
-        project_sub_type: projectSubType,
-
-        // json 字段：有就写，没有会自动剔除
         unitLayouts,
-        unit_layouts: unitLayouts,
-
         singleFormData,
-        single_form_data: singleFormData,
-
         areaData,
-        area_data: areaData,
-
         description,
 
-        // 有些表没有 updated_at：也没关系，会自动剔除
         updated_at: new Date().toISOString(),
       };
 
       if (isEditMode) {
-        await runWithAutoStripColumns({
+        const out = await runWithAutoStripColumns({
           mode: "update",
-          table: "properties",
           payload,
-          where: [
-            { col: "id", val: editId },
-            { col: "user_id", val: user.id },
-          ],
+          editId,
+          userId: user.id,
+          maxTries: 10,
         });
+
+        if (!out.ok) {
+          const missing = extractMissingColumnName(out.error);
+          if (missing) {
+            toast.error(`提交失败：Supabase 缺少 column：${missing}`);
+            alert(`提交失败：Supabase 缺少 column：${missing}\n（请看 Console 报错）`);
+          } else {
+            toast.error("提交失败（请看 Console 报错）");
+            alert("提交失败（请看 Console 报错）");
+          }
+          return;
+        }
+
+        if (out.removed?.length) {
+          console.warn("[Auto removed columns]", out.removed);
+        }
 
         toast.success("保存修改成功");
         alert("保存修改成功");
@@ -320,16 +334,28 @@ export default function UploadPropertyPage() {
         return;
       }
 
-      const insertPayload = {
-        ...payload,
-        created_at: new Date().toISOString(),
-      };
-
-      await runWithAutoStripColumns({
+      const out = await runWithAutoStripColumns({
         mode: "insert",
-        table: "properties",
-        payload: insertPayload,
+        payload: { ...payload, created_at: new Date().toISOString() },
+        userId: user.id,
+        maxTries: 10,
       });
+
+      if (!out.ok) {
+        const missing = extractMissingColumnName(out.error);
+        if (missing) {
+          toast.error(`提交失败：Supabase 缺少 column：${missing}`);
+          alert(`提交失败：Supabase 缺少 column：${missing}\n（请看 Console 报错）`);
+        } else {
+          toast.error("提交失败（请看 Console 报错）");
+          alert("提交失败（请看 Console 报错）");
+        }
+        return;
+      }
+
+      if (out.removed?.length) {
+        console.warn("[Auto removed columns]", out.removed);
+      }
 
       toast.success("提交成功");
       alert("提交成功");
@@ -337,7 +363,7 @@ export default function UploadPropertyPage() {
     } catch (e) {
       console.error(e);
       toast.error("提交失败");
-      alert(`提交失败：${e?.message || e?.error_description || JSON.stringify(e)}`);
+      alert("提交失败（请看 Console 报错）");
     } finally {
       setSubmitting(false);
     }
@@ -370,7 +396,7 @@ export default function UploadPropertyPage() {
     } catch (e) {
       console.error(e);
       toast.error("删除失败");
-      alert(`删除失败：${e?.message || e?.error_description || JSON.stringify(e)}`);
+      alert("删除失败（请看 Console 报错）");
     } finally {
       setSubmitting(false);
     }
@@ -426,59 +452,67 @@ export default function UploadPropertyPage() {
           if (last.roomMode !== nextRoom) setRoomRentalMode(nextRoom);
 
           lastDerivedRef.current = { saleType: nextSale, status: nextStatus, roomMode: nextRoom };
-
-          // ✅ project category / subtype（仅当有传）
-          if (typeof form?.projectCategory === "string") setProjectCategory(form.projectCategory);
-          if (typeof form?.projectSubType === "string") setProjectSubType(form.projectSubType);
         }}
       />
 
-      {/* ====== 你的原本表单渲染逻辑：完全照旧 ====== */}
-      {isHotel && <HotelUploadForm />}
-      {isHomestay && <HomestayUploadForm />}
+      {isHomestay ? (
+        <HomestayUploadForm />
+      ) : isHotel ? (
+        <HotelUploadForm />
+      ) : isProject ? (
+        <>
+          <ProjectUploadForm
+            saleType={saleType}
+            computedStatus={computedStatus}
+            isBulkRentProject={false}
+            projectCategory={projectCategory}
+            setProjectCategory={setProjectCategory}
+            projectSubType={projectSubType}
+            setProjectSubType={setProjectSubType}
+            unitLayouts={unitLayouts}
+            setUnitLayouts={setUnitLayouts}
+            enableProjectAutoCopy={computedStatus === "New Project / Under Construction"}
+            pickCommon={pickCommon}
+            commonHash={commonHash}
+          />
 
-      {!isHotel && !isHomestay && isProject && (
-        <ProjectUploadForm
-          addressObj={addressObj}
-          typeValue={typeValue}
-          saleType={saleType}
-          computedStatus={computedStatus}
-          projectCategory={projectCategory}
-          projectSubType={projectSubType}
-          unitLayouts={unitLayouts}
-          setUnitLayouts={setUnitLayouts}
-          pickCommon={pickCommon}
-          commonHash={commonHash}
-        />
-      )}
-
-      {!isHotel && !isHomestay && saleTypeNorm === "rent" && (
+          {shouldShowProjectTrustSection && (
+            <ListingTrustSection
+              mode={
+                computedStatus === "New Project / Under Construction"
+                  ? "new_project"
+                  : "completed_unit"
+              }
+              value={singleFormData?.trustSection || {}}
+              onChange={(next) =>
+                setSingleFormData((prev) => ({
+                  ...(prev || {}),
+                  trustSection: next,
+                }))
+              }
+            />
+          )}
+        </>
+      ) : saleTypeNorm === "rent" ? (
         <RentUploadForm
-          addressObj={addressObj}
-          typeValue={typeValue}
           saleType={saleType}
           computedStatus={computedStatus}
           roomRentalMode={roomRentalMode}
-          rentBatchMode={rentBatchMode}
-          allowRentBatchMode={allowRentBatchMode}
-          isRentBatch={isRentBatch}
-          batchLayoutCount={batchLayoutCount}
-          roomLayoutCount={roomLayoutCount}
-          unitLayouts={unitLayouts}
-          setUnitLayouts={setUnitLayouts}
+          isRoomRental={roomRentalMode === "room"}
           singleFormData={singleFormData}
           setSingleFormData={setSingleFormData}
           areaData={areaData}
           setAreaData={setAreaData}
           description={description}
           setDescription={setDescription}
+          rentBatchMode={rentBatchMode}
+          layoutCount={isRentBatch ? batchLayoutCount : roomLayoutCount}
+          unitLayouts={unitLayouts}
+          setUnitLayouts={setUnitLayouts}
+          propertyCategory={typeForm?.category || typeForm?.propertyCategory || ""}
         />
-      )}
-
-      {!isHotel && !isHomestay && saleTypeNorm === "sale" && !isProject && (
+      ) : (
         <SaleUploadForm
-          addressObj={addressObj}
-          typeValue={typeValue}
           saleType={saleType}
           computedStatus={computedStatus}
           singleFormData={singleFormData}
@@ -487,24 +521,30 @@ export default function UploadPropertyPage() {
           setAreaData={setAreaData}
           description={description}
           setDescription={setDescription}
+          propertyCategory={typeForm?.category || typeForm?.propertyCategory || ""}
         />
       )}
 
-      {shouldShowProjectTrustSection && (
-        <ListingTrustSection unitLayouts={unitLayouts} />
-      )}
+      <Button
+        type="button"
+        onClick={handleSubmit}
+        disabled={submitting}
+        className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full disabled:opacity-60"
+      >
+        {submitting ? "处理中..." : isEditMode ? "保存修改" : "提交房源"}
+      </Button>
 
-      <div className="flex gap-2">
-        <Button onClick={handleSubmit} disabled={submitting}>
-          {submitting ? "提交中..." : isEditMode ? "保存修改" : "提交"}
+      {isEditMode && (
+        <Button
+          type="button"
+          onClick={handleDelete}
+          disabled={submitting}
+          variant="destructive"
+          className="w-full disabled:opacity-60"
+        >
+          {submitting ? "处理中..." : "删除房源"}
         </Button>
-
-        {isEditMode && (
-          <Button variant="destructive" onClick={handleDelete} disabled={submitting}>
-            删除
-          </Button>
-        )}
-      </div>
+      )}
     </div>
   );
 }
