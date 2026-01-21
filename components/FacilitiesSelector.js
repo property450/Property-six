@@ -112,7 +112,14 @@ export default function FacilitiesSelector({ value = [], onChange }) {
         return { label, remark: item.remark ?? "" };
       })
       .filter(Boolean);
-    setItems(normalized);
+
+    // ✅ 关键：内容没变就不要 setState，避免无限循环
+    setItems((prev) => {
+      const prevJson = JSON.stringify(prev || []);
+      const nextJson = JSON.stringify(normalized || []);
+      if (prevJson === nextJson) return prev;
+      return normalized;
+    });
   }, [value]);
 
   const emit = (next) => {
