@@ -107,6 +107,7 @@ export default function UploadPropertyPage() {
 
   // ✅ 记住上一次 onFormChange 的值，避免无限 setState 循环
   const lastFormJsonRef = useRef("");
+  const lastFormRef = useRef(null);
   const lastDerivedRef = useRef({ saleType: "", status: "", roomMode: "" });
 
   useEffect(() => {
@@ -222,7 +223,6 @@ export default function UploadPropertyPage() {
       // ✅ 只写你表里“很大概率存在”的字段
       // ⚠️ 重点：不要写 addressObj / typeForm 这种你表里没有的字段！
       const payload = {
-        user_id: user.id,
         address: addressObj?.address || "",
         lat: addressObj?.lat,
         lng: addressObj?.lng,
@@ -233,15 +233,7 @@ export default function UploadPropertyPage() {
         // ✅ 你表里一般会有 type（string），我们用 typeValue 写进去
         type: typeValue,
 
-        // ✅ 若你表里没有这些字段也会报 400；如果你确定没有，可告诉我我再删掉
-        roomRentalMode,
-        rentBatchMode,
-
-        // ✅ 你如果表里有 json 字段才会成功；如果你表里没有这几个字段也会 400
-        // 如果你不确定，先注释掉，确认后再开
-        unitLayouts,
-        singleFormData,
-        areaData,
+        // ✅ 备注
         description,
 
         updated_at: new Date().toISOString(),
@@ -263,7 +255,7 @@ export default function UploadPropertyPage() {
       }
 
       const { error } = await supabase.from("properties").insert([
-        { ...payload, created_at: new Date().toISOString() },
+        { ...payload, user_id: user.id, created_at: new Date().toISOString() },
       ]);
 
       if (error) throw error;
@@ -331,7 +323,11 @@ export default function UploadPropertyPage() {
         </div>
       )}
 
-      <AddressSearchInput value={addressObj} onChange={setAddressObj} />
+      <AddressSearchInput
+        onLocationSelect={(loc) => {
+          setAddressObj(loc);
+        }}
+      />
 
       <TypeSelector
         value={typeValue}
@@ -343,6 +339,9 @@ export default function UploadPropertyPage() {
         }}
         onFormChange={(form) => {
           // ✅ 关键：避免无限更新（maximum update depth）
+          if (form === lastFormRef.current) return;
+          lastFormRef.current = form;
+
           const nextJson = stableJson(form);
           if (nextJson && nextJson === lastFormJsonRef.current) return;
           lastFormJsonRef.current = nextJson;
