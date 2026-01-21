@@ -17,7 +17,6 @@ import ProjectUploadForm from "@/components/forms/ProjectUploadForm";
 import RentUploadForm from "@/components/forms/RentUploadForm";
 import SaleUploadForm from "@/components/forms/SaleUploadForm";
 import ListingTrustSection from "@/components/trust/ListingTrustSection";
-import PropertyTitleSelector from "@/components/PropertyTitleSelector";
 
 import { useUser } from "@supabase/auth-helpers-react";
 
@@ -151,19 +150,6 @@ export default function UploadPropertyPage() {
           setRoomRentalMode(form?.roomRentalMode || "whole");
         }}
       />
-
-{/* ✅ Sale 模式：Property Usage（在 TypeSelector 里）下面显示 Property Title */}
-{saleTypeNorm === "sale" && !isProject && !isHomestay && !isHotel && (
-  <PropertyTitleSelector
-    value={singleFormData?.propertyTitle}
-    onChange={(val) =>
-      setSingleFormData((prev) => ({
-        ...(prev || {}),
-        propertyTitle: val,
-      }))
-    }
-  />
-)}
 
       {isHomestay ? (
         <HomestayUploadForm />
