@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "../../supabaseClient";
 import { useUser } from "@supabase/auth-helpers-react";
 import dynamic from "next/dynamic";
@@ -89,7 +89,6 @@ export default function EditProperty() {
     const imgUrl = images[index];
     const path = getStoragePathFromUrl(imgUrl);
 
-    // 拿不到路径就只从列表移除
     if (!path) {
       setImages((prev) => prev.filter((_, i) => i !== index));
       return;
@@ -111,7 +110,7 @@ export default function EditProperty() {
     setImages((prev) => [prev[index], ...prev.filter((_, i) => i !== index)]);
   };
 
-  // ✅ 原生拖拽：排序
+  // ✅ 原生拖拽排序
   const onDragStart = (index: number) => {
     dragIndexRef.current = index;
   };
@@ -146,7 +145,6 @@ export default function EditProperty() {
     try {
       const updatedImageUrls = [...images];
 
-      // 上传新图
       for (const file of newImages) {
         const ext = file.name.split(".").pop() || "jpg";
         const safeRand = Math.random().toString(16).slice(2);
@@ -195,6 +193,7 @@ export default function EditProperty() {
     }
   };
 
+  // ✅ 注意：hooks 都已经在上面声明完了，这里 return 没问题
   if (!user) {
     return (
       <div className="p-6 max-w-3xl mx-auto">
@@ -225,11 +224,8 @@ export default function EditProperty() {
     );
   }
 
-  const typeValue = useMemo(
-    () => parseTypeString(property.type),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [property?.type]
-  );
+  // ✅ 不用 useMemo，直接计算（不会触发 hooks 错误）
+  const typeValue = parseTypeString(property?.type);
 
   return (
     <div className="p-4 max-w-3xl mx-auto space-y-4">
