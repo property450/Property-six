@@ -37,6 +37,11 @@ export default function UploadPropertyPage() {
   const router = useRouter();
   const user = useUser();
 
+  // ✅✅✅ 编辑模式识别：/upload-property?edit=1&id=xxx
+  const edit = router?.query?.edit;
+  const editId = router?.query?.id;
+  const isEditMode = String(edit || "") === "1" && !!editId;
+
   const [addressObj, setAddressObj] = useState(null);
 
   const [typeValue, setTypeValue] = useState("");
@@ -111,11 +116,126 @@ export default function UploadPropertyPage() {
     });
   }, [saleTypeNorm, roomRentalMode, isRentBatch, roomLayoutCount]);
 
+  // ✅✅✅ 编辑模式：读取房源数据并回填（只加，不动你原本逻辑）
+  useEffect(() => {
+    if (!isEditMode) return;
+    if (!user) return;
+    if (!editId) return;
+
+    const fetchForEdit = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("properties")
+          .select("*")
+          .eq("id", editId)
+          .eq("user_id", user.id)
+          .single();
+
+        if (error) throw error;
+        if (!data) {
+          toast.error("找不到该房源");
+          return;
+        }
+
+        // ✅ 回填：尽量“按你现有 state 名称”读取（字段不存在也不会崩）
+        // 地址（AddressSearchInput 需要 {address, lat, lng}）
+        const nextAddress =
+          data.addressObj ||
+          (data.lat && data.lng
+            ? { address: data.address || data.location || "", lat: data.lat, lng: data.lng }
+            : null);
+        if (nextAddress) setAddressObj(nextAddress);
+
+        // TypeSelector & 模式
+        if (typeof data.typeValue === "string") setTypeValue(data.typeValue);
+        else if (typeof data.type === "string") setTypeValue(data.type);
+
+        if (typeof data.rentBatchMode === "string") setRentBatchMode(data.rentBatchMode);
+        if (data.typeForm) setTypeForm(data.typeForm);
+
+        setSaleType(data.saleType || data.sale_type || "");
+        setComputedStatus(data.propertyStatus || data.property_status || "");
+        setRoomRentalMode(data.roomRentalMode || data.room_rental_mode || "whole");
+
+        // Project fields
+        setProjectCategory(data.projectCategory || "");
+        setProjectSubType(data.projectSubType || "");
+
+        // Forms
+        setUnitLayouts(Array.isArray(data.unitLayouts) ? data.unitLayouts : Array.isArray(data.unit_layouts) ? data.unit_layouts : []);
+        setSingleFormData(data.singleFormData || data.single_form_data || {});
+        setAreaData(data.areaData || data.area_data || areaData);
+        setDescription(typeof data.description === "string" ? data.description : "");
+
+        toast.success("已进入编辑模式");
+      } catch (e) {
+        console.error(e);
+        toast.error("无法加载房源进行编辑");
+      }
+    };
+
+    fetchForEdit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditMode, editId, user]);
+
+  // ✅✅✅ 提交：新增 / 编辑共用
   const handleSubmit = async () => {
     try {
       if (!user) return toast.error("请先登录");
       if (!saleType) return toast.error("请选择 Sale / Rent / Homestay / Hotel");
       if (!addressObj?.lat || !addressObj?.lng) return toast.error("请选择地址");
+
+      // ✅ 统一 payload（尽量不假设你 DB 一定有所有字段；少量字段也能跑）
+      const payload = {
+        user_id: user.id,
+        // 地址
+        address: addressObj?.address || "",
+        lat: addressObj?.lat,
+        lng: addressObj?.lng,
+        addressObj,
+
+        // 模式 / 类型
+        saleType,
+        propertyStatus: computedStatus,
+        roomRentalMode,
+        rentBatchMode,
+        typeValue,
+        typeForm,
+
+        // 表单数据
+        projectCategory,
+        projectSubType,
+        unitLayouts,
+        singleFormData,
+        areaData,
+        description,
+
+        updated_at: new Date().toISOString(),
+      };
+
+      if (isEditMode) {
+        const { error } = await supabase
+          .from("properties")
+          .update(payload)
+          .eq("id", editId)
+          .eq("user_id", user.id);
+
+        if (error) throw error;
+
+        toast.success("保存修改成功");
+        router.push("/my-profile");
+        return;
+      }
+
+      // 新增
+      const { error } = await supabase.from("properties").insert([
+        {
+          ...payload,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+
+      if (error) throw error;
 
       toast.success("提交成功");
       router.push("/");
@@ -125,13 +245,37 @@ export default function UploadPropertyPage() {
     }
   };
 
+  // ✅✅✅ 删除（仅编辑模式显示）
+  const handleDelete = async () => {
+    try {
+      if (!user) return toast.error("请先登录");
+      if (!isEditMode) return;
+      const ok = confirm("确定要删除这个房源吗？此操作不可恢复。");
+      if (!ok) return;
+
+      const { error } = await supabase
+        .from("properties")
+        .delete()
+        .eq("id", editId)
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      toast.success("房源已删除");
+      router.push("/my-profile");
+    } catch (e) {
+      console.error(e);
+      toast.error("删除失败");
+    }
+  };
+
   // ✅ New Project / Completed Unit：必须 layout 表单已经生成才显示 trust section
   const shouldShowProjectTrustSection =
     isProject && Array.isArray(unitLayouts) && unitLayouts.length > 0;
 
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-4">
-      <h1 className="text-2xl font-bold">上传房源</h1>
+      <h1 className="text-2xl font-bold">{isEditMode ? "编辑房源" : "上传房源"}</h1>
 
       <AddressSearchInput value={addressObj} onChange={setAddressObj} />
 
@@ -222,12 +366,23 @@ export default function UploadPropertyPage() {
         />
       )}
 
+      {/* ✅✅✅ 按钮区：编辑模式=保存修改+删除；新增=提交房源 */}
       <Button
         onClick={handleSubmit}
         className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full"
       >
-        提交房源
+        {isEditMode ? "保存修改" : "提交房源"}
       </Button>
+
+      {isEditMode && (
+        <Button
+          onClick={handleDelete}
+          variant="destructive"
+          className="w-full"
+        >
+          删除房源
+        </Button>
+      )}
     </div>
   );
 }
