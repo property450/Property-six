@@ -242,7 +242,6 @@ export default function MyProfile() {
   <Link href={`/upload-property?edit=1&id=${property.id}`}>编辑</Link>
 </Button>
 
-
                   <Button
                     className="w-full"
                     variant="destructive"
