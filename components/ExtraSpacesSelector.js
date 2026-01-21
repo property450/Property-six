@@ -48,7 +48,9 @@ export default function ExtraSpacesSelector({
 }) {
   const [selectedSpaces, setSelectedSpaces] = useState([]);
 
-  // 同步外部传进来的值，兼容老数据结构
+  // ✅✅✅ 同步外部传进来的值：加“内容对比”，避免每次 render 都 setState 导致 Maximum update depth
+  const lastSyncJsonRef = useRef("");
+
   useEffect(() => {
     const arr = Array.isArray(value) ? value : [];
     const normalized = arr.map((item) => {
@@ -65,6 +67,18 @@ export default function ExtraSpacesSelector({
         remark: item.remark ?? "",
       };
     });
+
+    let nextJson = "";
+    try {
+      nextJson = JSON.stringify(normalized);
+    } catch {
+      nextJson = "";
+    }
+
+    // ✅ 内容没变就不要 setState（否则会无限循环）
+    if (nextJson && nextJson === lastSyncJsonRef.current) return;
+    lastSyncJsonRef.current = nextJson;
+
     setSelectedSpaces(normalized);
   }, [value]);
 
@@ -282,3 +296,4 @@ export default function ExtraSpacesSelector({
     </div>
   );
 }
+
