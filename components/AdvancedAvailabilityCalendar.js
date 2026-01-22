@@ -83,15 +83,6 @@ const DayCell = React.memo(function DayCell({ date, prices }) {
   );
 });
 
-/**
- * ✅✅✅ 现在支持受控：
- * <AdvancedAvailabilityCalendar value={formData.availability} onChange={(next)=>...} />
- *
- * - value 可以是对象或 JSON 字符串
- * - onChange 会回传：{ prices, checkInTime, checkOutTime }
- *
- * 不传 value/onChange 也能用（兼容你旧用法）
- */
 export default function AdvancedAvailabilityCalendar({ value, onChange }) {
   // ====== 内部状态（默认值） ======
   const [prices, setPrices] = useState({});
@@ -110,13 +101,12 @@ export default function AdvancedAvailabilityCalendar({ value, onChange }) {
     onChangeRef.current = onChange;
   }, [onChange]);
 
-  // ✅✅✅ 关键：当外层传入 value（编辑/回填）时，把值灌回日历 state
+  // ✅✅✅ 当外层传入 value（编辑/回填）时，把值灌回日历 state
   const didHydrateRef = useRef(false);
   useEffect(() => {
     const parsed = safeParseValue(value);
     if (!parsed) return;
 
-    // 第一次有值就 hydrate；后续如果外层值变化也允许同步（但会做对比避免抖动）
     const nextPrices = parsed?.prices || {};
     const nextIn = parsed?.checkInTime || "15:00";
     const nextOut = parsed?.checkOutTime || "11:00";
@@ -129,13 +119,12 @@ export default function AdvancedAvailabilityCalendar({ value, onChange }) {
       return;
     }
 
-    // 已 hydrate 过：只有外层真的变了才同步，避免覆盖用户正在编辑的输入
     setPrices((prev) => (isSamePrices(prev, nextPrices) ? prev : nextPrices));
     setCheckInTime((prev) => (prev === nextIn ? prev : nextIn));
     setCheckOutTime((prev) => (prev === nextOut ? prev : nextOut));
   }, [value]);
 
-  // ✅✅✅ 每当 prices / time 改变时，回写给外层（让 upload form 能保存进 supabase）
+  // ✅✅✅ 每当 prices / time 改变时，回写给外层
   useEffect(() => {
     const fn = onChangeRef.current;
     if (typeof fn !== "function") return;
@@ -170,11 +159,9 @@ export default function AdvancedAvailabilityCalendar({ value, onChange }) {
     []
   );
 
-  /** ✅ 点击日期逻辑：单日 → 区间 → 重置 */
   const handleDayClick = useCallback(
     (day) => {
       setRange((prev) => {
-        // 1) 没有 range → 单日
         if (!prev) {
           const key = toKey(day);
           const existing = prices[key];
@@ -183,7 +170,6 @@ export default function AdvancedAvailabilityCalendar({ value, onChange }) {
           return { from: day, to: day };
         }
 
-        // 2) 单日 → 扩展区间
         if (prev.from && prev.to && prev.from.getTime() === prev.to.getTime()) {
           const start = prev.from;
           if (day.getTime() === start.getTime()) return prev;
@@ -192,7 +178,6 @@ export default function AdvancedAvailabilityCalendar({ value, onChange }) {
           return { from, to };
         }
 
-        // 3) 区间 → 新单日
         const key = toKey(day);
         const existing = prices[key];
         const v = displayToNumber(existing);
@@ -209,14 +194,13 @@ export default function AdvancedAvailabilityCalendar({ value, onChange }) {
     const num = Number(digitsOnly(tempPriceRaw));
     const display = toDisplayPrice(num);
 
-    // ✅ 用函数式更新，避免闭包拿到旧 prices
     setPrices((prev) => {
       const next = { ...(prev || {}) };
       const cursor = new Date(range.from);
       while (cursor <= range.to) {
         const k = toKey(cursor);
         if (display) next[k] = display;
-        else delete next[k]; // 允许清空价格
+        else delete next[k];
         cursor.setDate(cursor.getDate() + 1);
       }
       return next;
@@ -243,7 +227,6 @@ export default function AdvancedAvailabilityCalendar({ value, onChange }) {
 
   return (
     <div>
-      {/* ✅ 日历 */}
       <div className="scale-110 origin-top" ref={calendarRef}>
         <DayPicker
           mode="range"
@@ -274,14 +257,12 @@ export default function AdvancedAvailabilityCalendar({ value, onChange }) {
         }
       `}</style>
 
-      {/* ✅ 面板 */}
       {range?.from && range?.to && (
         <div
           className="p-3 border rounded bg-gray-50 space-y-3 mt-3"
           ref={panelRef}
           onPointerDown={(e) => e.stopPropagation()}
         >
-          {/* Check-in/out 日期 */}
           <div className="flex items-center justify-between text-sm text-gray-700">
             <div>
               <span className="font-medium">Check-in 日期：</span>
@@ -293,7 +274,6 @@ export default function AdvancedAvailabilityCalendar({ value, onChange }) {
             </div>
           </div>
 
-          {/* 时间输入 */}
           <div className="flex items-center justify-between text-sm text-gray-700 gap-4">
             <div>
               <span className="font-medium">Check-in 时间：</span>
@@ -315,7 +295,6 @@ export default function AdvancedAvailabilityCalendar({ value, onChange }) {
             </div>
           </div>
 
-          {/* 价格输入 */}
           <div className="relative">
             <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-600 select-none pointer-events-none">
               RM
@@ -352,8 +331,8 @@ export default function AdvancedAvailabilityCalendar({ value, onChange }) {
             )}
           </div>
 
-          {/* 保存按钮 */}
           <div className="flex gap-2">
+            {/* ✅✅ 关键修复：防止在 form 里触发 submit */}
             <button
               type="button"
               onClick={(e) => {
