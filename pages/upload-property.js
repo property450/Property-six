@@ -73,24 +73,20 @@ async function runWithAutoStripColumns({ mode, payload, editId, userId, maxTries
 
     const err = res.error;
 
-    // ✅ 把真正的错误打印出来（你要看 Console 的就是这个）
+    // ✅ 把真正的错误打印出来
     console.error("[Supabase Error]", err);
 
     // ✅ 只有 PGRST204（缺 column）才自动剔除
     const missing = extractMissingColumnName(err);
     if (err?.code === "PGRST204" && missing) {
-      // 如果 payload 里没有这个 key，就别死循环了
       if (!Object.prototype.hasOwnProperty.call(working, missing)) {
         return { ok: false, removed, error: err };
       }
       delete working[missing];
       removed.push(missing);
-
-      // 继续下一轮尝试
       continue;
     }
 
-    // ✅ 其它错误直接退出（例如 RLS、权限、类型不对、id 不存在）
     return { ok: false, removed, error: err };
   }
 
@@ -105,7 +101,6 @@ export default function UploadPropertyPage() {
   const router = useRouter();
   const user = useUser();
 
-  // ✅ 编辑模式识别：/upload-property?edit=1&id=xxx
   const edit = router?.query?.edit;
   const editId = router?.query?.id;
   const isEditMode = String(edit || "") === "1" && !!editId;
@@ -114,7 +109,6 @@ export default function UploadPropertyPage() {
 
   const [addressObj, setAddressObj] = useState(null);
 
-  // ✅ 这些是前端用的（不要直接写入 DB 的对象字段，除非你表里真有 json column）
   const [typeValue, setTypeValue] = useState("");
   const [rentBatchMode, setRentBatchMode] = useState("no");
   const [typeForm, setTypeForm] = useState(null);
@@ -129,7 +123,6 @@ export default function UploadPropertyPage() {
 
   const [singleFormData, setSingleFormData] = useState({});
   const [areaData, setAreaData] = useState({
-    // ✅ 默认只勾 build up
     types: ["buildUp"],
     units: { buildUp: "Square Feet (sqft)", land: "Square Feet (sqft)" },
     values: { buildUp: "", land: "" },
@@ -149,7 +142,6 @@ export default function UploadPropertyPage() {
   const rentCategorySelected = !!(typeForm && (typeForm.category || typeForm.propertyCategory));
   const allowRentBatchMode = saleTypeNorm === "rent" && rentCategorySelected;
 
-  // ✅ 房间出租时不允许进入 batch
   const isRentBatch = saleTypeNorm === "rent" && rentBatchMode === "yes" && roomRentalMode !== "room";
 
   const rawLayoutCount = Number(typeForm?.layoutCount);
@@ -166,7 +158,6 @@ export default function UploadPropertyPage() {
         : 1
       : 1;
 
-  // ✅ 记住上一次 onFormChange 的值，避免无限 setState 循环
   const lastFormJsonRef = useRef("");
   const lastDerivedRef = useRef({ saleType: "", status: "", roomMode: "" });
 
@@ -217,7 +208,9 @@ export default function UploadPropertyPage() {
           return;
         }
 
-        // ✅ 地址
+        // ✅✅✅（新增）回填 TypeSelector 的整套选择（避免编辑保存后再进编辑又要重填）
+        setTypeForm(data?.typeForm || null);
+
         if (data.lat && data.lng) {
           setAddressObj({
             address: data.address || data.location || "",
@@ -226,21 +219,14 @@ export default function UploadPropertyPage() {
           });
         }
 
-        // ✅ 类型（把 DB 的 type 映射回 typeValue）
         if (typeof data.type === "string") setTypeValue(data.type);
 
-        // ✅✅✅【最小新增】回填 typeForm，让 TypeSelector 能记住你之前保存的选择
-        setTypeForm(data.typeForm || null);
-
-        // ✅ 模式
-        // 优先用 typeForm 里的（如果有），没有再用旧字段（兼容你旧数据）
         const tf = data.typeForm || null;
         setSaleType((tf && tf.saleType) || data.saleType || data.sale_type || "");
         setComputedStatus((tf && tf.propertyStatus) || data.propertyStatus || data.property_status || "");
         setRoomRentalMode((tf && tf.roomRentalMode) || data.roomRentalMode || data.room_rental_mode || "whole");
         if (typeof data.rentBatchMode === "string") setRentBatchMode(data.rentBatchMode);
 
-        // ✅ 这些只有在你 DB 确实有 json 字段时才会存在；不存在也不会影响
         setProjectCategory(data.projectCategory || "");
         setProjectSubType(data.projectSubType || "");
         setUnitLayouts(Array.isArray(data.unitLayouts) ? data.unitLayouts : []);
@@ -264,7 +250,6 @@ export default function UploadPropertyPage() {
   const mustPickSaleType = !saleType;
   const mustPickAddress = !addressObj?.lat || !addressObj?.lng;
 
-  // ✅✅✅ 提交：新增 / 编辑共用（重点：不要 update 不存在的 column）
   const handleSubmit = async () => {
     if (mustLogin) {
       toast.error("请先登录");
@@ -285,7 +270,6 @@ export default function UploadPropertyPage() {
 
     setSubmitting(true);
     try {
-      // ✅ 你的原 payload 保持不动，只【最小新增】写入 typeForm（用于“记住选择”）
       const payload = {
         user_id: user.id,
         address: addressObj?.address || "",
@@ -296,8 +280,7 @@ export default function UploadPropertyPage() {
         propertyStatus: computedStatus,
 
         type: typeValue,
-
-        // ✅✅✅【最小新增】把 TypeSelector 的所有选择一次性存进去
+        // ✅✅✅（新增）把 TypeSelector 的所有选择一次性存进 Supabase
         typeForm: typeForm || null,
 
         roomRentalMode,
@@ -332,10 +315,6 @@ export default function UploadPropertyPage() {
           return;
         }
 
-        if (out.removed?.length) {
-          console.warn("[Auto removed columns]", out.removed);
-        }
-
         toast.success("保存修改成功");
         alert("保存修改成功");
         router.push("/my-profile");
@@ -359,10 +338,6 @@ export default function UploadPropertyPage() {
           alert("提交失败（请看 Console 报错）");
         }
         return;
-      }
-
-      if (out.removed?.length) {
-        console.warn("[Auto removed columns]", out.removed);
       }
 
       toast.success("提交成功");
@@ -433,7 +408,7 @@ export default function UploadPropertyPage() {
       <TypeSelector
         value={typeValue}
         onChange={setTypeValue}
-        // ✅✅✅【最小新增】把编辑读取到的 typeForm 传进去，让 TypeSelector 回填
+        // ✅✅✅（新增）把编辑读取到的 typeForm 传进去，让选择能回填
         initialForm={typeForm}
         rentBatchMode={allowRentBatchMode ? rentBatchMode : "no"}
         onChangeRentBatchMode={(val) => {
@@ -441,7 +416,6 @@ export default function UploadPropertyPage() {
           setRentBatchMode(val);
         }}
         onFormChange={(form) => {
-          // ✅ 关键：避免无限更新（maximum update depth）
           const nextJson = stableJson(form);
           if (nextJson && nextJson === lastFormJsonRef.current) return;
           lastFormJsonRef.current = nextJson;
