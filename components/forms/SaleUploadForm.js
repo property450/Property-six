@@ -111,10 +111,10 @@ export default function SaleUploadForm({
   return (
     <div className="space-y-4">
       <AreaSelector
-        initialValue={areaData}
-        onChange={(val) => setAreaData(val)}
-        propertyCategory={propertyCategory}
-      />
+  value={areaData}
+  onChange={(val) => setAreaData(val)}
+  propertyCategory={propertyCategory}
+/>
 
       <PriceInput
         value={singleFormData.price}
