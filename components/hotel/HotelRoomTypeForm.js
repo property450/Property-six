@@ -245,11 +245,10 @@ export default function HotelRoomTypeForm({ index, total, data, onChange }) {
           这个房型的可租日期 & 价格（日历）
         </label>
         <AdvancedAvailabilityCalendar
-  value={formData.availability}
-  onChange={(next) =>
-    setFormData((prev) => ({ ...(prev || {}), availability: next }))
-  }
-/>
+          value={availability}
+          onChange={(val) => updateRoom({ availability: val })}
+        />
+      </div>
       <div className="mt-4">
         <label className="block text-sm font-medium mb-1">
           上传房型照片
