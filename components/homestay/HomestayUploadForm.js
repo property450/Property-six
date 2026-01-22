@@ -189,6 +189,16 @@ export default function HomestayUploadForm(props) {
     const fd = props?.formData;
     if (!fd || typeof fd !== "object") return;
 
+    // ✅✅✅ 关键修复：只有当 fd 真的带有编辑数据时才 hydrate（避免空对象时就锁死）
+    const hasData =
+      (typeof fd?.homestayType === "string" && fd.homestayType !== "") ||
+      (typeof fd?.category === "string" && fd.category !== "") ||
+      (typeof fd?.finalType === "string" && fd.finalType !== "") ||
+      (typeof fd?.storeys === "string" && fd.storeys !== "") ||
+      (Array.isArray(fd?.subtype) && fd.subtype.length > 0);
+
+    if (!hasData) return;
+
     if (didHydrateRef.current) return;
 
     setHomestayType(fd?.homestayType || "");
