@@ -42,7 +42,7 @@ function stableJson(obj) {
 
 /**
  * ✅ Supabase 报错 PGRST204 时，会有类似：
- * "Could not find the 'propertyStatus' column of 'properties' in the schema cache"
+ * "Could not find the 'xxx' column of 'properties' in the schema cache"
  * 我们把 column 名抓出来。
  */
 function extractMissingColumnName(error) {
@@ -94,14 +94,13 @@ async function runWithAutoStripColumns({ mode, payload, editId, userId, maxTries
 
     const err = res.error;
 
-    // ✅ 打印真实 Supabase error
+    // ✅ 把真正的错误打印出来
     console.error("[Supabase Error]", err);
 
+    // ✅ 只有 PGRST204（缺 column）才自动剔除
     const missing = extractMissingColumnName(err);
-
-    // ✅ 只有 PGRST204（缺 column）才考虑剔除
     if (err?.code === "PGRST204" && missing) {
-      // ✅✅✅ 关键字段：不允许自动剔除（否则就是“保存成功但没存进去”）
+      // ✅✅✅ 关键字段：不允许自动剔除（否则会出现“保存成功但数据没存进去”）
       if (PROTECTED_COLUMNS.has(missing)) {
         return { ok: false, removed, error: err, protectedMissing: missing };
       }
@@ -109,7 +108,6 @@ async function runWithAutoStripColumns({ mode, payload, editId, userId, maxTries
       if (!Object.prototype.hasOwnProperty.call(working, missing)) {
         return { ok: false, removed, error: err };
       }
-
       delete working[missing];
       removed.push(missing);
       continue;
@@ -222,6 +220,10 @@ export default function UploadPropertyPage() {
     });
   }, [saleTypeNorm, roomRentalMode, isRentBatch, roomLayoutCount]);
 
+  const mustLogin = !user;
+  const mustPickSaleType = !saleType;
+  const mustPickAddress = !addressObj?.lat || !addressObj?.lng;
+
   // ✅ 编辑模式：读取房源并回填
   useEffect(() => {
     if (!isEditMode) return;
@@ -244,26 +246,19 @@ export default function UploadPropertyPage() {
           return;
         }
 
-        // ✅ 自动识别 camelCase / snake_case
-        if (data.typeForm === undefined && data.type_form !== undefined) {
-          columnKeysRef.current.typeForm = "type_form";
-        }
-        if (data.singleFormData === undefined && data.single_form_data !== undefined) {
-          columnKeysRef.current.singleFormData = "single_form_data";
-        }
-        if (data.areaData === undefined && data.area_data !== undefined) {
-          columnKeysRef.current.areaData = "area_data";
-        }
-        if (data.unitLayouts === undefined && data.unit_layouts !== undefined) {
-          columnKeysRef.current.unitLayouts = "unit_layouts";
-        }
-
-        const tfKey = columnKeysRef.current.typeForm;
-        const sfKey = columnKeysRef.current.singleFormData;
-        const adKey = columnKeysRef.current.areaData;
-        const ulKey = columnKeysRef.current.unitLayouts;
-
         // ✅✅✅ 回填 TypeSelector 的整套选择（避免编辑保存后再进编辑又要重填）
+        // 兼容你 Supabase 可能用 snake_case 建 column
+        const keys = columnKeysRef.current;
+        if (data.typeForm === undefined && data.type_form !== undefined) keys.typeForm = "type_form";
+        if (data.singleFormData === undefined && data.single_form_data !== undefined) keys.singleFormData = "single_form_data";
+        if (data.areaData === undefined && data.area_data !== undefined) keys.areaData = "area_data";
+        if (data.unitLayouts === undefined && data.unit_layouts !== undefined) keys.unitLayouts = "unit_layouts";
+
+        const tfKey = keys.typeForm;
+        const sfKey = keys.singleFormData;
+        const adKey = keys.areaData;
+        const ulKey = keys.unitLayouts;
+
         setTypeForm(data?.[tfKey] || null);
 
         if (data.lat && data.lng) {
@@ -301,10 +296,6 @@ export default function UploadPropertyPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditMode, editId, user]);
 
-  const mustLogin = !user;
-  const mustPickSaleType = !saleType;
-  const mustPickAddress = !addressObj?.lat || !addressObj?.lng;
-
   const handleSubmit = async () => {
     if (mustLogin) {
       toast.error("请先登录");
@@ -325,10 +316,11 @@ export default function UploadPropertyPage() {
 
     setSubmitting(true);
     try {
-      const tfKey = columnKeysRef.current.typeForm;
-      const sfKey = columnKeysRef.current.singleFormData;
-      const adKey = columnKeysRef.current.areaData;
-      const ulKey = columnKeysRef.current.unitLayouts;
+      const keys = columnKeysRef.current;
+      const tfKey = keys.typeForm;
+      const sfKey = keys.singleFormData;
+      const adKey = keys.areaData;
+      const ulKey = keys.unitLayouts;
 
       const payload = {
         user_id: user.id,
@@ -365,18 +357,18 @@ export default function UploadPropertyPage() {
         });
 
         if (!out.ok) {
-          const missing = extractMissingColumnName(out.error);
-
+          // ✅✅✅ 关键字段缺失：不允许自动删除，否则就会“保存成功但没存”
           if (out.protectedMissing) {
             toast.error(`保存失败：Supabase 缺少关键 column：${out.protectedMissing}`);
             alert(
               `保存失败：Supabase 缺少关键 column：${out.protectedMissing}\n\n` +
-                `✅ 这个 column 必须加（不然你的表单/日历价格就永远不会被保存）\n` +
+                `✅ 这个 column 必须加（否则表单/日历价格不会被保存）\n` +
                 `（请看 Console 报错）`
             );
             return;
           }
 
+          const missing = extractMissingColumnName(out.error);
           if (missing) {
             toast.error(`提交失败：Supabase 缺少 column：${missing}`);
             alert(`提交失败：Supabase 缺少 column：${missing}\n（请看 Console 报错）`);
@@ -405,18 +397,18 @@ export default function UploadPropertyPage() {
       });
 
       if (!out.ok) {
-        const missing = extractMissingColumnName(out.error);
-
+        // ✅✅✅ 关键字段缺失：不允许自动删除，否则就会“提交成功但没存”
         if (out.protectedMissing) {
           toast.error(`提交失败：Supabase 缺少关键 column：${out.protectedMissing}`);
           alert(
             `提交失败：Supabase 缺少关键 column：${out.protectedMissing}\n\n` +
-              `✅ 这个 column 必须加（不然你的表单/日历价格就永远不会被保存）\n` +
+              `✅ 这个 column 必须加（否则表单/日历价格不会被保存）\n` +
               `（请看 Console 报错）`
           );
           return;
         }
 
+        const missing = extractMissingColumnName(out.error);
         if (missing) {
           toast.error(`提交失败：Supabase 缺少 column：${missing}`);
           alert(`提交失败：Supabase 缺少 column：${missing}\n（请看 Console 报错）`);
@@ -497,9 +489,10 @@ export default function UploadPropertyPage() {
       <AddressSearchInput value={addressObj} onChange={setAddressObj} />
 
       <TypeSelector
+        // ✅ 强制重挂载：保证 initialForm 回填后 UI 一定更新（解决“看起来没记住”）
+        key={`${isEditMode ? editId : "new"}-${typeForm ? "hasForm" : "noForm"}`}
         value={typeValue}
         onChange={setTypeValue}
-        // ✅✅✅ 把编辑读取到的 typeForm 传进去，让选择能回填
         initialForm={typeForm}
         rentBatchMode={allowRentBatchMode ? rentBatchMode : "no"}
         onChangeRentBatchMode={(val) => {
