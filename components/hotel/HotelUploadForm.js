@@ -207,7 +207,7 @@ export default function HotelUploadForm(props) {
     }
 
     if (Array.isArray(formData.roomLayouts) && formData.roomLayouts.length > 0) {
-      // ✅✅✅ 关键修复：合并默认结构，确保 availability（日历价格）不会在回填时丢失/变成空
+      // ✅✅✅ 关键修复：合并默认结构，避免 availability（日历价格）回填时丢失
       setRoomLayouts(
         formData.roomLayouts.map((l) => ({
           ...createEmptyRoomLayout(),
