@@ -146,7 +146,7 @@ export default function AdvancedAvailabilityCalendar({ value, onChange }) {
     });
   }, [prices, checkInTime, checkOutTime]);
 
-  /** ✅ 点击空白处关闭面板（修正：add/remove 使用同一种事件） */
+  /** ✅ 点击空白处关闭面板 */
   useEffect(() => {
     const handleOutside = (e) => {
       const target = e.target;
@@ -355,7 +355,11 @@ export default function AdvancedAvailabilityCalendar({ value, onChange }) {
           {/* 保存按钮 */}
           <div className="flex gap-2">
             <button
-              onClick={handleSave}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                handleSave();
+              }}
               className="bg-blue-600 text-white px-4 py-2 rounded"
             >
               保存价格（应用到整个区间）
@@ -365,5 +369,4 @@ export default function AdvancedAvailabilityCalendar({ value, onChange }) {
       )}
     </div>
   );
-            }
-                      
+}
