@@ -1,548 +1,545 @@
-// pages/upload-property.js
+// components/hotel/HotelUploadForm.js
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/router";
-import dynamic from "next/dynamic";
-import { supabase } from "../supabaseClient";
-import { toast } from "react-hot-toast";
+import { useState, useRef, useEffect } from "react";
+import HotelRoomTypeForm from "./HotelRoomTypeForm";
+import ImageUpload from "@/components/ImageUpload";
 import { Button } from "@/components/ui/button";
 
-import TypeSelector from "@/components/TypeSelector";
+// ✅ New Project 同款 Layout 图纸上传
+import BlueprintUploadSection from "@/components/unitlayout/BlueprintUploadSection";
 
-import HotelUploadForm from "@/components/hotel/HotelUploadForm";
-import HomestayUploadForm from "@/components/homestay/HomestayUploadForm";
+// ✅ 仅新增：Hotel / Resort Type 超全选项（你给的 + 我补充的）
+const HOTEL_RESORT_TYPES = [
+  // 你给的
+  "Budget Hotel",
+  "2-Star Hotel",
+  "3-Star Hotel",
+  "4-Star Hotel",
+  "5-Star / Luxury Hotel",
+  "Business Hotel",
+  "Boutique Hotel",
+  "Resort",
+  "Serviced Apartment Hotel",
+  "Convention Hotel",
+  "Spa / Hot Spring Hotel",
+  "Casino Hotel",
+  "Extended Stay Hotel",
+  "Capsule Hotel",
+  "Hostel / Backpacker Hotel",
+  "Airport Hotel",
 
-import ProjectUploadForm from "@/components/forms/ProjectUploadForm";
-import RentUploadForm from "@/components/forms/RentUploadForm";
-import SaleUploadForm from "@/components/forms/SaleUploadForm";
-import ListingTrustSection from "@/components/trust/ListingTrustSection";
+  // 我补充（更全）
+  "Motel",
+  "Lodge",
+  "Eco Resort",
+  "Eco Lodge",
+  "Heritage Hotel",
+  "All-Inclusive Resort",
+  "Villa Resort",
+  "Overwater / Water Villa Resort",
+  "Family Resort",
+  "Theme Resort",
+  "Beach Resort",
+  "Island Resort",
+  "Mountain Resort",
+  "Golf Resort",
+  "Ski Resort",
+  "Wellness Resort",
+  "Retreat Resort",
+  "Luxury Resort",
+  "Budget Resort",
 
-import { useUser } from "@supabase/auth-helpers-react";
+  "City Hotel",
+  "Downtown Hotel",
+  "Suburban Hotel",
+  "Roadside Hotel",
 
-const AddressSearchInput = dynamic(() => import("@/components/AddressSearchInput"), {
-  ssr: false,
+  "Serviced Residence (Hotel)",
+  "Apartment Hotel",
+  "Apart-Hotel",
+  "Residence Hotel",
+
+  "Co-living Hotel",
+  "Co-living Space",
+  "Shared Hotel",
+  "Shared Accommodation",
+  "Shared Hostel",
+
+  "Youth Hostel",
+  "Youth Hotel",
+  "Backpacker Hostel",
+  "Guesthouse",
+  "Inn",
+  "Bed & Breakfast (B&B)",
+  "Boutique Guesthouse",
+  "Heritage Guesthouse",
+
+  "Homestay Lodge",
+  "Farmstay",
+  "Kampung Stay",
+  "Glamping",
+  "Tiny House Stay",
+  "Container Stay",
+
+  "Transit Hotel",
+  "Railway Station Hotel",
+  "Port / Ferry Terminal Hotel",
+
+  "Conference Hotel",
+  "MICE Hotel",
+  "Wedding Hotel",
+  "Event Hotel",
+
+  "Medical Hotel",
+  "Hospitality Suites",
+  "Student Accommodation",
+  "Worker Dorm / Hostel",
+
+  "Ryokan (Japanese Inn)",
+  "Onsen Hotel",
+  "Shophouse Hotel",
+  "Heritage Shophouse Hotel",
+
+  "Pet-Friendly Hotel",
+  "Adults Only Hotel",
+  "Family Friendly Hotel",
+];
+
+const createEmptyRoomLayout = () => ({
+  name: "",
+  code: "",
+  roomRange: "",
+  beds: [],
+  guests: { adults: "", children: "" },
+  smoking: "",
+  checkinService: {},
+  breakfast: "",
+  cancellationPolicy: { type: "", condition: "" },
+
+  roomCounts: {
+    bedrooms: "",
+    bathrooms: "",
+    kitchens: "",
+    livingRooms: "",
+  },
+  extraSpaces: [],
+
+  indoorFacilities: [],
+  bathroomFacilities: [],
+  kitchenFacilities: [],
+  otherFacilities: [],
+  views: [],
+
+  otherServices: { tags: [], note: "" },
+
+  fees: {
+    serviceFee: { mode: "free", value: "" },
+    cleaningFee: { mode: "free", value: "" },
+    deposit: { mode: "free", value: "" },
+    otherFee: { amount: "", note: "" },
+  },
+
+  availability: {},
+  photos: {},
+
+  // ✅ Layout 图纸（New Project 同款）
+  layoutPhotos: [],
+
+  // ✅✅ 只新增：每个房型数量（1~3000，带逗号显示）
+  unitCount: 1,
+  unitCountInput: "1",
 });
 
-const pickCommon = (l) => ({
-  extraSpaces: l.extraSpaces || [],
-  furniture: l.furniture || [],
-  facilities: l.facilities || [],
-  transit: l.transit ?? null,
-});
-const commonHash = (l) => JSON.stringify(pickCommon(l));
+const SHARED_KEYS = [
+  "roomCounts",
+  "extraSpaces",
+  "indoorFacilities",
+  "bathroomFacilities",
+  "kitchenFacilities",
+  "otherFacilities",
+  "views",
+  "otherServices",
+  "fees",
+];
 
-function stableJson(obj) {
-  try {
-    return JSON.stringify(obj ?? null);
-  } catch {
-    return "";
-  }
+function formatWithCommas(n) {
+  if (!Number.isFinite(n) || n <= 0) return "";
+  return n.toLocaleString("en-US");
 }
 
-/**
- * ✅ Supabase 报错 PGRST204 时，会有类似：
- * "Could not find the 'propertyStatus' column of 'properties' in the schema cache"
- * 我们把 column 名抓出来，然后从 payload 删除再重试。
- */
-function extractMissingColumnName(error) {
-  const msg = String(error?.message || "");
-  const m = msg.match(/Could not find the '([^']+)' column/i);
-  return m?.[1] || "";
+function parseDigitsToInt(v) {
+  const cleaned = String(v ?? "").replace(/[^\d]/g, "");
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : 0;
 }
 
-async function runWithAutoStripColumns({ mode, payload, editId, userId, maxTries = 8 }) {
-  // mode: "insert" | "update"
-  let working = { ...(payload || {}) };
-  let tries = 0;
-  const removed = [];
+function hasAnyValue(obj) {
+  if (!obj || typeof obj !== "object") return false;
+  return Object.keys(obj).length > 0;
+}
 
-  while (tries < maxTries) {
-    tries += 1;
+export default function HotelUploadForm(props) {
+  // ✅✅✅ 关键：Homestay 模式隐藏 Hotel / Resort Type（只改这一处判断，不动其它逻辑）
+  const shouldShowHotelResortType =
+    props?.mode !== "homestay" &&
+    !props?.hideHotelResortTypeSelector &&
+    !props?.hideHotelResortType;
 
-    let res;
-    if (mode === "update") {
-      res = await supabase.from("properties").update(working).eq("id", editId).eq("user_id", userId);
-    } else {
-      res = await supabase.from("properties").insert([working]);
+  // ✅ 仅新增：Hotel / Resort 类型
+  const [hotelResortType, setHotelResortType] = useState("");
+
+  const [roomCount, setRoomCount] = useState(1);
+  const [roomLayouts, setRoomLayouts] = useState([createEmptyRoomLayout()]);
+  const [facilityImages, setFacilityImages] = useState({});
+
+  const [roomCountInput, setRoomCountInput] = useState("1");
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  // ✅ 每个房型“数量下拉”当前展开的是哪一个
+  const [openUnitCountIndex, setOpenUnitCountIndex] = useState(null);
+
+  const dropdownRef = useRef(null);
+
+  // ✅ Layout 图纸上传 refs（每个房型一个）
+  const layoutFileInputRefs = useRef([]);
+  const unitCountDropdownRefs = useRef([]); // ✅ 每个房型数量框外层 ref
+
+  // ✅✅✅ 修复无限循环：把父层传进来的函数放进 ref，不放进 useEffect 依赖
+  const setFormDataRef = useRef(props?.setFormData);
+  const onFormChangeRef = useRef(props?.onFormChange);
+
+  useEffect(() => {
+    setFormDataRef.current = props?.setFormData;
+    onFormChangeRef.current = props?.onFormChange;
+  }, [props?.setFormData, props?.onFormChange]);
+
+  const getLayoutFileRef = (index) => {
+    if (!layoutFileInputRefs.current[index]) {
+      layoutFileInputRefs.current[index] = { current: null };
     }
-
-    if (!res?.error) {
-      return { ok: true, removed, result: res };
-    }
-
-    const err = res.error;
-
-    // ✅ 把真正的错误打印出来
-    console.error("[Supabase Error]", err);
-
-    // ✅ 只有 PGRST204（缺 column）才自动剔除
-    const missing = extractMissingColumnName(err);
-    if (err?.code === "PGRST204" && missing) {
-      if (!Object.prototype.hasOwnProperty.call(working, missing)) {
-        return { ok: false, removed, error: err };
-      }
-      delete working[missing];
-      removed.push(missing);
-      continue;
-    }
-
-    return { ok: false, removed, error: err };
-  }
-
-  return {
-    ok: false,
-    removed,
-    error: new Error("自动删除 column 次数用尽（请看 Console 报错）"),
+    return layoutFileInputRefs.current[index];
   };
-}
 
-export default function UploadPropertyPage() {
-  const router = useRouter();
-  const user = useUser();
+  const getUnitCountRef = (index) => {
+    if (!unitCountDropdownRefs.current[index]) {
+      unitCountDropdownRefs.current[index] = { current: null };
+    }
+    return unitCountDropdownRefs.current[index];
+  };
 
-  const edit = router?.query?.edit;
-  const editId = router?.query?.id;
-  const isEditMode = String(edit || "") === "1" && !!editId;
-
-  const [submitting, setSubmitting] = useState(false);
-
-  const [addressObj, setAddressObj] = useState(null);
-
-  const [typeValue, setTypeValue] = useState("");
-  const [rentBatchMode, setRentBatchMode] = useState("no");
-  const [typeForm, setTypeForm] = useState(null);
-
-  const [saleType, setSaleType] = useState("");
-  const [computedStatus, setComputedStatus] = useState("");
-  const [roomRentalMode, setRoomRentalMode] = useState("whole");
-
-  const [projectCategory, setProjectCategory] = useState("");
-  const [projectSubType, setProjectSubType] = useState("");
-  const [unitLayouts, setUnitLayouts] = useState([]);
-
-  const [singleFormData, setSingleFormData] = useState({});
-  const [areaData, setAreaData] = useState({
-    types: ["buildUp"],
-    units: { buildUp: "Square Feet (sqft)", land: "Square Feet (sqft)" },
-    values: { buildUp: "", land: "" },
-  });
-  const [description, setDescription] = useState("");
-
-  const saleTypeNorm = String(saleType || "").toLowerCase();
-  const isHomestay = saleTypeNorm.includes("homestay");
-  const isHotel = saleTypeNorm.includes("hotel");
-
-  const isProject =
-    saleTypeNorm === "sale" &&
-    ["New Project / Under Construction", "Completed Unit / Developer Unit"].includes(
-      computedStatus
-    );
-
-  const rentCategorySelected = !!(typeForm && (typeForm.category || typeForm.propertyCategory));
-  const allowRentBatchMode = saleTypeNorm === "rent" && rentCategorySelected;
-
-  const isRentBatch = saleTypeNorm === "rent" && rentBatchMode === "yes" && roomRentalMode !== "room";
-
-  const rawLayoutCount = Number(typeForm?.layoutCount);
-  const batchLayoutCount = Math.max(
-    2,
-    Math.min(20, Number.isFinite(rawLayoutCount) ? rawLayoutCount : 2)
-  );
-
-  const rawRoomCount = Number(typeForm?.roomCount);
-  const roomLayoutCount =
-    roomRentalMode === "room"
-      ? typeForm?.roomCountMode === "multi"
-        ? Math.max(2, Math.min(20, Number.isFinite(rawRoomCount) ? rawRoomCount : 2))
-        : 1
-      : 1;
-
-  const lastFormJsonRef = useRef("");
-  const lastDerivedRef = useRef({ saleType: "", status: "", roomMode: "" });
-
+  // ✅✅✅【核心修复 1】编辑模式/回填：从 props.formData 初始化一次（支持异步加载后再回填）
+  const didInitFromPropsRef = useRef(false);
   useEffect(() => {
-    if (!isRentBatch) return;
-    const n = batchLayoutCount;
-    setUnitLayouts((prev) => {
-      const prevArr = Array.isArray(prev) ? prev : [];
-      return Array.from({ length: n }).map((_, i) => prevArr[i] || {});
-    });
-  }, [isRentBatch, batchLayoutCount]);
+    if (didInitFromPropsRef.current) return;
 
+    const d = props?.formData;
+    if (!hasAnyValue(d)) return;
+
+    if (typeof d.hotelResortType === "string") {
+      setHotelResortType(d.hotelResortType);
+    }
+
+    if (Array.isArray(d.roomLayouts) && d.roomLayouts.length > 0) {
+      const normalized = d.roomLayouts.map((l) => {
+        const base = { ...createEmptyRoomLayout(), ...(l || {}) };
+        const unitCountNum = Number(base.unitCount);
+        if (
+          (!base.unitCountInput || base.unitCountInput === "") &&
+          Number.isFinite(unitCountNum) &&
+          unitCountNum > 0
+        ) {
+          base.unitCountInput = formatWithCommas(unitCountNum);
+        }
+        return base;
+      });
+
+      setRoomLayouts(normalized);
+      setRoomCount(normalized.length);
+      setRoomCountInput(String(normalized.length));
+    }
+
+    if (d.facilityImages && typeof d.facilityImages === "object") {
+      setFacilityImages(d.facilityImages);
+    }
+
+    didInitFromPropsRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props?.formData]);
+
+  // ✅✅✅【核心修复 2】实时同步回父层（不会再无限循环）
+  // 重点：
+  // - 不把 props 放进依赖
+  // - 用 ref 拿 setFormData / onFormChange
+  // - 有 setFormData 就优先用它（避免 setFormData + onFormChange 双重更新）
   useEffect(() => {
-    if (saleTypeNorm !== "rent") return;
-    if (roomRentalMode !== "room") return;
-    if (isRentBatch) return;
+    const patch = {
+      hotelResortType,
+      roomLayouts,
+      facilityImages,
+      roomCount,
+    };
 
-    if (roomLayoutCount <= 1) {
-      setUnitLayouts?.([]);
+    const setFn = setFormDataRef.current;
+    const onFn = onFormChangeRef.current;
+
+    if (typeof setFn === "function") {
+      setFn((prev) => ({ ...(prev || {}), ...patch }));
       return;
     }
+    if (typeof onFn === "function") {
+      onFn(patch);
+    }
+  }, [hotelResortType, roomLayouts, facilityImages, roomCount]);
 
-    setUnitLayouts?.((prev) => {
-      const prevArr = Array.isArray(prev) ? prev : [];
-      return Array.from({ length: roomLayoutCount }).map((_, i) => prevArr[i] || {});
-    });
-  }, [saleTypeNorm, roomRentalMode, isRentBatch, roomLayoutCount]);
-
-  // ✅ 编辑模式：读取房源并回填
   useEffect(() => {
-    if (!isEditMode) return;
-    if (!user) return;
-    if (!editId) return;
+    const handleClickOutside = (e) => {
+      // 关闭房型数量 dropdown：只要点到任何一个数量框内就不关闭
+      const clickedInsideAnyUnitCount =
+        unitCountDropdownRefs.current?.some(
+          (r) => r?.current && r.current.contains(e.target)
+        ) || false;
 
-    const fetchForEdit = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("properties")
-          .select("*")
-          .eq("id", editId)
-          .eq("user_id", user.id)
-          .single();
+      if (!clickedInsideAnyUnitCount) {
+        setOpenUnitCountIndex(null);
+      }
 
-        if (error) throw error;
-        if (!data) {
-          toast.error("找不到该房源");
-          alert("找不到该房源");
-          return;
-        }
-
-        // ✅✅✅（新增）回填 TypeSelector 的整套选择（避免编辑保存后再进编辑又要重填）
-        setTypeForm(data?.typeForm || null);
-
-        if (data.lat && data.lng) {
-          setAddressObj({
-            address: data.address || data.location || "",
-            lat: data.lat,
-            lng: data.lng,
-          });
-        }
-
-        if (typeof data.type === "string") setTypeValue(data.type);
-
-        const tf = data.typeForm || null;
-        setSaleType((tf && tf.saleType) || data.saleType || data.sale_type || "");
-        setComputedStatus((tf && tf.propertyStatus) || data.propertyStatus || data.property_status || "");
-        setRoomRentalMode((tf && tf.roomRentalMode) || data.roomRentalMode || data.room_rental_mode || "whole");
-        if (typeof data.rentBatchMode === "string") setRentBatchMode(data.rentBatchMode);
-
-        setProjectCategory(data.projectCategory || "");
-        setProjectSubType(data.projectSubType || "");
-        setUnitLayouts(Array.isArray(data.unitLayouts) ? data.unitLayouts : []);
-        setSingleFormData(data.singleFormData || {});
-        setAreaData(data.areaData || areaData);
-        setDescription(typeof data.description === "string" ? data.description : "");
-
-        toast.success("已进入编辑模式");
-      } catch (e) {
-        console.error(e);
-        toast.error("无法加载房源进行编辑");
-        alert("无法加载房源进行编辑（请看 Console 报错）");
+      // 关闭 layout 数量 dropdown（你原本的）
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setShowDropdown(false);
       }
     };
 
-    fetchForEdit();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEditMode, editId, user]);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-  const mustLogin = !user;
-  const mustPickSaleType = !saleType;
-  const mustPickAddress = !addressObj?.lat || !addressObj?.lng;
+  const applyRoomCount = (n) => {
+    const safeN = Math.max(1, Math.min(200, n));
+    setRoomCount(safeN);
+    setRoomCountInput(String(safeN));
 
-  const handleSubmit = async () => {
-    if (mustLogin) {
-      toast.error("请先登录");
-      alert("请先登录（你现在 user 还是 null）");
-      return;
-    }
-    if (mustPickSaleType) {
-      toast.error("请选择 Sale / Rent / Homestay / Hotel");
-      alert("请选择 Sale / Rent / Homestay / Hotel（你现在 saleType 还是空）");
-      return;
-    }
-    if (mustPickAddress) {
-      toast.error("请选择地址");
-      alert("请选择地址（你现在 lat/lng 还是空）");
-      return;
-    }
-    if (submitting) return;
-
-    setSubmitting(true);
-    try {
-      const payload = {
-        user_id: user.id,
-        address: addressObj?.address || "",
-        lat: addressObj?.lat,
-        lng: addressObj?.lng,
-
-        saleType,
-        propertyStatus: computedStatus,
-
-        type: typeValue,
-        // ✅✅✅（新增）把 TypeSelector 的所有选择一次性存进 Supabase
-        typeForm: typeForm || null,
-
-        roomRentalMode,
-        rentBatchMode,
-
-        unitLayouts,
-        singleFormData,
-        areaData,
-        description,
-
-        updated_at: new Date().toISOString(),
-      };
-
-      if (isEditMode) {
-        const out = await runWithAutoStripColumns({
-          mode: "update",
-          payload,
-          editId,
-          userId: user.id,
-          maxTries: 10,
-        });
-
-        if (!out.ok) {
-          const missing = extractMissingColumnName(out.error);
-          if (missing) {
-            toast.error(`提交失败：Supabase 缺少 column：${missing}`);
-            alert(`提交失败：Supabase 缺少 column：${missing}\n（请看 Console 报错）`);
-          } else {
-            toast.error("提交失败（请看 Console 报错）");
-            alert("提交失败（请看 Console 报错）");
-          }
-          return;
-        }
-
-        toast.success("保存修改成功");
-        alert("保存修改成功");
-        router.push("/my-profile");
-        return;
+    setRoomLayouts((prev) => {
+      const arr = [...prev];
+      if (arr.length < safeN) {
+        while (arr.length < safeN) arr.push(createEmptyRoomLayout());
+      } else if (arr.length > safeN) {
+        arr.length = safeN;
       }
+      return arr;
+    });
+  };
 
-      const out = await runWithAutoStripColumns({
-        mode: "insert",
-        payload: { ...payload, created_at: new Date().toISOString() },
-        userId: user.id,
-        maxTries: 10,
+  const handleRoomLayoutChange = (index, patch) => {
+    setRoomLayouts((prev) => {
+      const next = [...prev];
+      const updated = { ...next[index], ...patch };
+      next[index] = updated;
+
+      // ✅ 保持你原逻辑：Layout1 同步通用字段到其它房型
+      if (index === 0 && next.length > 1) {
+        const shared = {};
+        SHARED_KEYS.forEach((key) => (shared[key] = updated[key]));
+        for (let i = 1; i < next.length; i++) {
+          next[i] = { ...next[i], ...shared };
+        }
+      }
+      return next;
+    });
+  };
+
+  // ✅ Layout 图纸上传 -> 存进 layoutPhotos
+  const handleBlueprintUpload = (index, e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    const newPhotos = [...(roomLayouts[index]?.layoutPhotos || []), ...files];
+    handleRoomLayoutChange(index, { layoutPhotos: newPhotos });
+  };
+
+  // ✅ 每个房型数量：手动输入
+  const handleUnitCountInput = (index, raw) => {
+    const n = parseDigitsToInt(raw);
+
+    // 允许空值输入过程（比如用户正在删）
+    if (raw === "" || raw == null) {
+      handleRoomLayoutChange(index, {
+        unitCountInput: "",
+        unitCount: 0,
       });
-
-      if (!out.ok) {
-        const missing = extractMissingColumnName(out.error);
-        if (missing) {
-          toast.error(`提交失败：Supabase 缺少 column：${missing}`);
-          alert(`提交失败：Supabase 缺少 column：${missing}\n（请看 Console 报错）`);
-        } else {
-          toast.error("提交失败（请看 Console 报错）");
-          alert("提交失败（请看 Console 报错）");
-        }
-        return;
-      }
-
-      toast.success("提交成功");
-      alert("提交成功");
-      router.push("/");
-    } catch (e) {
-      console.error(e);
-      toast.error("提交失败");
-      alert("提交失败（请看 Console 报错）");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!user) {
-      toast.error("请先登录");
-      alert("请先登录");
       return;
     }
-    if (!isEditMode) return;
 
-    const ok = confirm("确定要删除这个房源吗？此操作不可恢复。");
-    if (!ok) return;
-
-    try {
-      setSubmitting(true);
-      const { error } = await supabase
-        .from("properties")
-        .delete()
-        .eq("id", editId)
-        .eq("user_id", user.id);
-
-      if (error) throw error;
-
-      toast.success("房源已删除");
-      alert("房源已删除");
-      router.push("/my-profile");
-    } catch (e) {
-      console.error(e);
-      toast.error("删除失败");
-      alert("删除失败（请看 Console 报错）");
-    } finally {
-      setSubmitting(false);
-    }
+    const clamped = Math.max(1, Math.min(3000, n));
+    handleRoomLayoutChange(index, {
+      unitCountInput: String(raw),
+      unitCount: clamped,
+    });
   };
 
-  const shouldShowProjectTrustSection =
-    isProject && Array.isArray(unitLayouts) && unitLayouts.length > 0;
+  // ✅ 每个房型数量：选择下拉
+  const selectUnitCount = (index, n) => {
+    const clamped = Math.max(1, Math.min(3000, n));
+    handleRoomLayoutChange(index, {
+      unitCount: clamped,
+      unitCountInput: formatWithCommas(clamped),
+    });
+    setOpenUnitCountIndex(null);
+  };
+
+  const handleUnitCountBlur = (index) => {
+    const layout = roomLayouts[index] || {};
+    const n = Math.max(1, Math.min(3000, Number(layout.unitCount) || 1));
+    handleRoomLayoutChange(index, {
+      unitCount: n,
+      unitCountInput: formatWithCommas(n),
+    });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    // ✅ 仅新增：把 hotelResortType 也打印出来（不影响你其它逻辑）
+    console.log("提交数据", { hotelResortType, roomLayouts, facilityImages });
+  };
 
   return (
-    <div className="max-w-3xl mx-auto p-4 space-y-4">
-      <h1 className="text-2xl font-bold">{isEditMode ? "编辑房源" : "上传房源"}</h1>
-
-      {(mustLogin || mustPickSaleType || mustPickAddress) && (
-        <div className="border rounded-xl bg-yellow-50 p-3 text-sm text-yellow-900">
-          <div className="font-semibold mb-1">当前还不能提交，因为：</div>
-          <ul className="list-disc pl-5 space-y-1">
-            {mustLogin && <li>你还没登录（user 还是 null）</li>}
-            {mustPickSaleType && <li>你还没选择 Sale / Rent / Homestay / Hotel</li>}
-            {mustPickAddress && <li>你还没选择地址（lat/lng 为空）</li>}
-          </ul>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {/* ✅✅ 仅新增：Hotel / Resort Type */}
+      {shouldShowHotelResortType && (
+        <div className="w-full">
+          <label className="block font-medium mb-1">Hotel / Resort Type</label>
+          <select
+            className="border rounded px-3 py-2 w-full"
+            value={hotelResortType}
+            onChange={(e) => setHotelResortType(e.target.value)}
+          >
+            <option value="">请选择 Hotel/Resort 类型</option>
+            {HOTEL_RESORT_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
         </div>
       )}
 
-      <AddressSearchInput value={addressObj} onChange={setAddressObj} />
+      {/* 你原本的“有多少个房型/layout” */}
+      <div className="relative w-40" ref={dropdownRef}>
+        <label className="block font-medium mb-1">
+          这个 Homestay / Hotel 有多少个房型 / layout？
+        </label>
 
-      <TypeSelector
-        value={typeValue}
-        onChange={setTypeValue}
-        // ✅✅✅（新增）把编辑读取到的 typeForm 传进去，让选择能回填
-        initialForm={typeForm}
-        rentBatchMode={allowRentBatchMode ? rentBatchMode : "no"}
-        onChangeRentBatchMode={(val) => {
-          if (!allowRentBatchMode) return;
-          setRentBatchMode(val);
-        }}
-        onFormChange={(form) => {
-          const nextJson = stableJson(form);
-          if (nextJson && nextJson === lastFormJsonRef.current) return;
-          lastFormJsonRef.current = nextJson;
-
-          setTypeForm((prev) => {
-            const prevJson = stableJson(prev);
-            if (prevJson === nextJson) return prev;
-            return form || null;
-          });
-
-          const nextSale = form?.saleType || "";
-          const nextStatus = form?.propertyStatus || "";
-          const nextRoom = form?.roomRentalMode || "whole";
-
-          const last = lastDerivedRef.current;
-          if (last.saleType !== nextSale) setSaleType(nextSale);
-          if (last.status !== nextStatus) setComputedStatus(nextStatus);
-          if (last.roomMode !== nextRoom) setRoomRentalMode(nextRoom);
-
-          lastDerivedRef.current = { saleType: nextSale, status: nextStatus, roomMode: nextRoom };
-        }}
-      />
-
-      {isHomestay ? (
-        // ✅✅✅ 关键修复：把 singleFormData / setSingleFormData 传进去，Homestay 才能“记住并保存”
-        <HomestayUploadForm
-          formData={singleFormData}
-          setFormData={setSingleFormData}
-          onFormChange={(patch) =>
-            setSingleFormData((prev) => ({ ...(prev || {}), ...(patch || {}) }))
-          }
+        <input
+          type="text"
+          value={roomCountInput}
+          onChange={(e) => {
+            const cleaned = e.target.value.replace(/[^\d]/g, "");
+            setRoomCountInput(cleaned);
+            const n = Number(cleaned);
+            if (n >= 1 && n <= 200) applyRoomCount(n);
+          }}
+          onFocus={() => setShowDropdown(true)}
+          placeholder="1 ~ 200"
+          className="border rounded px-3 py-2 w-full"
         />
-      ) : isHotel ? (
-        // ✅✅✅ 关键修复：把 singleFormData / setSingleFormData 传进去，Hotel 才能“记住并保存”
-        <HotelUploadForm
-          formData={singleFormData}
-          setFormData={setSingleFormData}
-          onFormChange={(patch) =>
-            setSingleFormData((prev) => ({ ...(prev || {}), ...(patch || {}) }))
-          }
-        />
-      ) : isProject ? (
-        <>
-          <ProjectUploadForm
-            saleType={saleType}
-            computedStatus={computedStatus}
-            isBulkRentProject={false}
-            projectCategory={projectCategory}
-            setProjectCategory={setProjectCategory}
-            projectSubType={projectSubType}
-            setProjectSubType={setProjectSubType}
-            unitLayouts={unitLayouts}
-            setUnitLayouts={setUnitLayouts}
-            enableProjectAutoCopy={computedStatus === "New Project / Under Construction"}
-            pickCommon={pickCommon}
-            commonHash={commonHash}
+
+        {showDropdown && (
+          <ul
+            className="absolute z-20 w-full max-h-60 bg-white border rounded shadow mt-1 overflow-y-auto"
+            onMouseDown={(e) => e.preventDefault()}
+          >
+            {Array.from({ length: 200 }, (_, i) => i + 1).map((n) => (
+              <li
+                key={n}
+                className="px-3 py-1 hover:bg-gray-100 cursor-pointer"
+                onClick={() => {
+                  applyRoomCount(n);
+                  setShowDropdown(false);
+                }}
+              >
+                {n}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* 每个房型表单 */}
+      {roomLayouts.map((layout, index) => (
+        <div
+          key={index}
+          className="border rounded-xl p-4 space-y-4 bg-white shadow-sm"
+        >
+          <h3 className="font-semibold text-lg mb-2">
+            房型 {index + 1} / {roomLayouts.length}
+          </h3>
+
+          {/* ✅ Layout 图纸（New Project 同款） */}
+          <BlueprintUploadSection
+            fileInputRef={getLayoutFileRef(index)}
+            onUpload={(e) => handleBlueprintUpload(index, e)}
           />
 
-          {shouldShowProjectTrustSection && (
-            <ListingTrustSection
-              mode={
-                computedStatus === "New Project / Under Construction"
-                  ? "new_project"
-                  : "completed_unit"
+          {/* ✅✅ 只新增：每个房型数量（1~3000，可编辑，千分位） */}
+          <div className="relative w-72" ref={getUnitCountRef(index)}>
+            <label className="block font-medium mb-1">
+              请问这个房型的数量有多少？
+            </label>
+
+            <input
+              type="text"
+              value={
+                layout.unitCountInput != null && layout.unitCountInput !== ""
+                  ? layout.unitCountInput
+                  : ""
               }
-              value={singleFormData?.trustSection || {}}
-              onChange={(next) =>
-                setSingleFormData((prev) => ({
-                  ...(prev || {}),
-                  trustSection: next,
-                }))
-              }
+              onChange={(e) => handleUnitCountInput(index, e.target.value)}
+              onFocus={() => setOpenUnitCountIndex(index)}
+              onBlur={() => handleUnitCountBlur(index)}
+              placeholder="1 ~ 3,000"
+              className="border rounded px-3 py-2 w-full"
             />
-          )}
-        </>
-      ) : saleTypeNorm === "rent" ? (
-        <RentUploadForm
-          saleType={saleType}
-          computedStatus={computedStatus}
-          roomRentalMode={roomRentalMode}
-          isRoomRental={roomRentalMode === "room"}
-          singleFormData={singleFormData}
-          setSingleFormData={setSingleFormData}
-          areaData={areaData}
-          setAreaData={setAreaData}
-          description={description}
-          setDescription={setDescription}
-          rentBatchMode={rentBatchMode}
-          layoutCount={isRentBatch ? batchLayoutCount : roomLayoutCount}
-          unitLayouts={unitLayouts}
-          setUnitLayouts={setUnitLayouts}
-          propertyCategory={typeForm?.category || typeForm?.propertyCategory || ""}
-        />
-      ) : (
-        <SaleUploadForm
-          saleType={saleType}
-          computedStatus={computedStatus}
-          singleFormData={singleFormData}
-          setSingleFormData={setSingleFormData}
-          areaData={areaData}
-          setAreaData={setAreaData}
-          description={description}
-          setDescription={setDescription}
-          propertyCategory={typeForm?.category || typeForm?.propertyCategory || ""}
-        />
-      )}
 
-      <Button
-        type="button"
-        onClick={handleSubmit}
-        disabled={submitting}
-        className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full disabled:opacity-60"
-      >
-        {submitting ? "处理中..." : isEditMode ? "保存修改" : "提交房源"}
-      </Button>
+            {openUnitCountIndex === index && (
+              <ul
+                className="absolute z-30 w-full max-h-60 bg-white border rounded shadow mt-1 overflow-y-auto"
+                onMouseDown={(e) => e.preventDefault()}
+              >
+                {Array.from({ length: 3000 }, (_, i) => i + 1).map((n) => (
+                  <li
+                    key={n}
+                    className="px-3 py-1 hover:bg-gray-100 cursor-pointer"
+                    onClick={() => selectUnitCount(index, n)}
+                  >
+                    {formatWithCommas(n)}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
 
-      {isEditMode && (
-        <Button
-          type="button"
-          onClick={handleDelete}
-          disabled={submitting}
-          variant="destructive"
-          className="w-full disabled:opacity-60"
-        >
-          {submitting ? "处理中..." : "删除房源"}
-        </Button>
-      )}
-    </div>
+          <HotelRoomTypeForm
+            index={index}
+            total={roomLayouts.length}
+            data={layout}
+            onChange={(patch) => handleRoomLayoutChange(index, patch)}
+          />
+        </div>
+      ))}
+
+      {/* 公共设施上传（保持你原本） */}
+      <div className="border rounded-xl p-4 space-y-3 bg-white shadow-sm">
+        <h3 className="font-semibold text-lg">这个酒店/度假屋的设施照片</h3>
+        <ImageUpload
+          config={{
+            id: "hotel_facility_images",
+            multiple: true,
+          }}
+          images={facilityImages}
+          setImages={setFacilityImages}
+        />
+      </div>
+
+      <Button type="submit">提交酒店 / 度假屋房源</Button>
+    </form>
   );
 }
