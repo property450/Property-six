@@ -65,7 +65,6 @@ const HOTEL_RESORT_TYPES = [
   "Shared Hotel",
   "Shared Accommodation",
   "Shared Hostel",
-  "Shared Accommodation",
 
   "Youth Hostel",
   "Youth Hotel",
@@ -79,8 +78,8 @@ const HOTEL_RESORT_TYPES = [
   "Homestay Lodge",
   "Farmstay",
   "Kampung Stay",
+  "Cultural / Heritage Stay",
   "Glamping",
-  "Tiny House Stay",
   "Container Stay",
 
   "Transit Hotel",
@@ -146,10 +145,6 @@ const createEmptyRoomLayout = () => ({
 
   // ✅ Layout 图纸（New Project 同款）
   layoutPhotos: [],
-
-  // ✅✅ 只新增：每个房型数量（1~3000，带逗号显示）
-  unitCount: 1,
-  unitCountInput: "1",
 });
 
 const SHARED_KEYS = [
@@ -164,32 +159,8 @@ const SHARED_KEYS = [
   "fees",
 ];
 
-function formatWithCommas(n) {
-  if (!Number.isFinite(n) || n <= 0) return "";
-  return n.toLocaleString("en-US");
-}
-
-function parseDigitsToInt(v) {
-  const cleaned = String(v ?? "").replace(/[^\d]/g, "");
-  const n = Number(cleaned);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function safeParseHotelFormData(v) {
-  if (!v) return null;
-  if (typeof v === "string") {
-    try {
-      return JSON.parse(v);
-    } catch {
-      return null;
-    }
-  }
-  if (typeof v === "object") return v;
-  return null;
-}
-
 export default function HotelUploadForm(props) {
-  // ✅✅✅ 关键：Homestay 模式隐藏 Hotel / Resort Type（只改这一处判断，不动其它逻辑）
+  // ✅✅✅ Homestay 模式隐藏 Hotel / Resort Type
   const shouldShowHotelResortType =
     props?.mode !== "homestay" &&
     !props?.hideHotelResortTypeSelector &&
@@ -200,49 +171,46 @@ export default function HotelUploadForm(props) {
 
   const [roomCount, setRoomCount] = useState(1);
   const [roomLayouts, setRoomLayouts] = useState([createEmptyRoomLayout()]);
-
   const [facilityImages, setFacilityImages] = useState({});
 
   const [roomCountInput, setRoomCountInput] = useState("1");
   const [showDropdown, setShowDropdown] = useState(false);
 
-  // ✅ 每个房型“数量下拉”当前展开的是哪一个
-  const [openUnitCountIndex, setOpenUnitCountIndex] = useState(null);
-
   const dropdownRef = useRef(null);
 
-  // ✅✅✅ 编辑回填：外层 formData 可能是异步拿到的，第一次有值时要灌回本地 state
+  // ✅✅✅ 关键修复：让 upload-property 的 singleFormData 真正能保存/回填（Hotel / Resort）
+  const formData = props?.formData || {};
+  const setFormData = props?.setFormData;
+  const onFormChange = props?.onFormChange;
+
   const didHydrateRef = useRef(false);
   useEffect(() => {
-    const parsed = safeParseHotelFormData(props?.formData);
-    if (!parsed) return;
-
+    if (!formData) return;
+    // 只在第一次拿到编辑数据时 hydrate，避免你在表单里操作时被覆盖
     if (didHydrateRef.current) return;
 
-    setHotelResortType(parsed?.hotelResortType || "");
-    const nextRoomLayouts =
-      Array.isArray(parsed?.roomLayouts) && parsed.roomLayouts.length > 0
-        ? parsed.roomLayouts
-        : [createEmptyRoomLayout()];
-    const nextRoomCount =
-      parsed?.roomCount ||
-      parsed?.roomLayouts?.length ||
-      nextRoomLayouts.length ||
-      1;
+    if (typeof formData.hotelResortType === "string") setHotelResortType(formData.hotelResortType);
 
-    setRoomCount(nextRoomCount);
-    setRoomCountInput(String(nextRoomCount));
-    setRoomLayouts(nextRoomLayouts);
+    if (typeof formData.roomCount === "number") {
+      setRoomCount(formData.roomCount);
+      setRoomCountInput(String(formData.roomCount));
+    }
 
-    setFacilityImages(parsed?.facilityImages || {});
+    if (Array.isArray(formData.roomLayouts) && formData.roomLayouts.length > 0) {
+      setRoomLayouts(formData.roomLayouts);
+    }
+
+    if (formData.facilityImages) {
+      setFacilityImages(formData.facilityImages || {});
+    }
 
     didHydrateRef.current = true;
-  }, [props?.formData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData]);
 
-  // ✅✅✅ 把本地选择同步回外层（让 upload-property 能保存/编辑回填）
+  // ✅ 把本地状态同步回父层（保存到 Supabase 的 singleFormData）
   useEffect(() => {
-    // 如果是编辑模式（有 formData），但还没 hydrate，就不要把初始空值写回去
-    if (props?.formData && !didHydrateRef.current) return;
+    if (typeof setFormData !== "function" && typeof onFormChange !== "function") return;
 
     const patch = {
       hotelResortType,
@@ -251,47 +219,17 @@ export default function HotelUploadForm(props) {
       facilityImages,
     };
 
-    if (typeof props?.setFormData === "function") {
-      props.setFormData((prev) => ({ ...(prev || {}), ...patch }));
+    if (typeof setFormData === "function") {
+      setFormData((prev) => ({ ...(prev || {}), ...patch }));
     }
-
-    if (typeof props?.onFormChange === "function") {
-      props.onFormChange(patch);
+    if (typeof onFormChange === "function") {
+      onFormChange(patch);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hotelResortType, roomCount, roomLayouts, facilityImages]);
 
-  // ✅ Layout 图纸上传 refs（每个房型一个）
-  const layoutFileInputRefs = useRef([]);
-  const unitCountDropdownRefs = useRef([]); // ✅ 每个房型数量框外层 ref
-
-  const getLayoutFileRef = (index) => {
-    if (!layoutFileInputRefs.current[index]) {
-      layoutFileInputRefs.current[index] = { current: null };
-    }
-    return layoutFileInputRefs.current[index];
-  };
-
-  const getUnitCountRef = (index) => {
-    if (!unitCountDropdownRefs.current[index]) {
-      unitCountDropdownRefs.current[index] = { current: null };
-    }
-    return unitCountDropdownRefs.current[index];
-  };
-
   useEffect(() => {
     const handleClickOutside = (e) => {
-      // 关闭房型数量 dropdown：只要点到任何一个数量框内就不关闭
-      const clickedInsideAnyUnitCount =
-        unitCountDropdownRefs.current?.some(
-          (r) => r?.current && r.current.contains(e.target)
-        ) || false;
-
-      if (!clickedInsideAnyUnitCount) {
-        setOpenUnitCountIndex(null);
-      }
-
-      // 关闭 layout 数量 dropdown（你原本的）
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setShowDropdown(false);
       }
@@ -301,13 +239,22 @@ export default function HotelUploadForm(props) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const getLayoutFileRef = (index, layoutFileInputRefs) => {
+    if (!layoutFileInputRefs.current[index]) {
+      layoutFileInputRefs.current[index] = { current: null };
+    }
+    return layoutFileInputRefs.current[index];
+  };
+
+  const layoutFileInputRefs = useRef([]);
+
   const applyRoomCount = (n) => {
     const safeN = Math.max(1, Math.min(200, n));
     setRoomCount(safeN);
     setRoomCountInput(String(safeN));
 
     setRoomLayouts((prev) => {
-      const arr = [...prev];
+      const arr = [...(Array.isArray(prev) ? prev : [])];
       if (arr.length < safeN) {
         while (arr.length < safeN) arr.push(createEmptyRoomLayout());
       } else if (arr.length > safeN) {
@@ -319,46 +266,29 @@ export default function HotelUploadForm(props) {
 
   const handleRoomLayoutChange = (index, patch) => {
     setRoomLayouts((prev) => {
-      const next = [...prev];
-      const updated = { ...next[index], ...patch };
+      const next = [...(Array.isArray(prev) ? prev : [])];
+      const updated = { ...(next[index] || createEmptyRoomLayout()), ...(patch || {}) };
       next[index] = updated;
       return next;
     });
   };
 
-  // ✅ Layout 数量建议：1~200
   const layoutOptions = Array.from({ length: 200 }, (_, i) => i + 1);
 
-  // ✅ 房型数量建议：1~3000
-  const unitCountOptions = useRef(Array.from({ length: 3000 }, (_, i) => i + 1));
-
-  const applyUnitCount = (index, n) => {
-    const safeN = Math.max(1, Math.min(3000, n));
-    setRoomLayouts((prev) => {
-      const next = [...prev];
-      const target = next[index] || createEmptyRoomLayout();
-      next[index] = {
-        ...target,
-        unitCount: safeN,
-        unitCountInput: formatWithCommas(safeN),
-      };
-      return next;
-    });
-    setOpenUnitCountIndex(null);
-  };
-
-  const handleUnitCountInputChange = (index, raw) => {
-    const digits = String(raw ?? "").replace(/[^\d]/g, "");
-    const n = parseDigitsToInt(digits);
+  const copySharedToAllRooms = () => {
+    if (!roomLayouts?.length) return;
+    const seed = roomLayouts[0] || createEmptyRoomLayout();
 
     setRoomLayouts((prev) => {
-      const next = [...prev];
-      const target = next[index] || createEmptyRoomLayout();
-      next[index] = {
-        ...target,
-        unitCountInput: digits ? formatWithCommas(n) : "",
-        unitCount: digits ? Math.max(1, Math.min(3000, n)) : 1,
-      };
+      const next = [...(Array.isArray(prev) ? prev : [])];
+      for (let i = 1; i < next.length; i++) {
+        const curr = next[i] || createEmptyRoomLayout();
+        const merged = { ...curr };
+        SHARED_KEYS.forEach((k) => {
+          merged[k] = seed[k];
+        });
+        next[i] = merged;
+      }
       return next;
     });
   };
@@ -367,9 +297,8 @@ export default function HotelUploadForm(props) {
     const fileArray = Array.from(files || []);
     if (fileArray.length === 0) return;
 
-    // ✅ 不动你原本逻辑：这里只是把文件对象保存到 layoutPhotos
     setRoomLayouts((prev) => {
-      const next = [...prev];
+      const next = [...(Array.isArray(prev) ? prev : [])];
       const curr = next[roomIndex] || createEmptyRoomLayout();
       const existing = Array.isArray(curr.layoutPhotos) ? curr.layoutPhotos : [];
       next[roomIndex] = { ...curr, layoutPhotos: [...existing, ...fileArray] };
@@ -379,43 +308,11 @@ export default function HotelUploadForm(props) {
 
   const handleRemoveLayoutPhoto = (roomIndex, photoIndex) => {
     setRoomLayouts((prev) => {
-      const next = [...prev];
+      const next = [...(Array.isArray(prev) ? prev : [])];
       const curr = next[roomIndex] || createEmptyRoomLayout();
       const arr = Array.isArray(curr.layoutPhotos) ? [...curr.layoutPhotos] : [];
       arr.splice(photoIndex, 1);
       next[roomIndex] = { ...curr, layoutPhotos: arr };
-      return next;
-    });
-  };
-
-  const handleRemoveFacilityPhoto = (labelKey, idx) => {
-    setFacilityImages((prev) => {
-      const next = { ...(prev || {}) };
-      const list = Array.isArray(next[labelKey]) ? [...next[labelKey]] : [];
-      list.splice(idx, 1);
-      next[labelKey] = list;
-      return next;
-    });
-  };
-
-  const handleSetFacilityPhotos = (labelKey, updated) => {
-    setFacilityImages((prev) => ({ ...(prev || {}), [labelKey]: updated }));
-  };
-
-  const copySharedToAllRooms = () => {
-    if (!roomLayouts?.length) return;
-    const seed = roomLayouts[0] || createEmptyRoomLayout();
-
-    setRoomLayouts((prev) => {
-      const next = [...prev];
-      for (let i = 1; i < next.length; i++) {
-        const curr = next[i] || createEmptyRoomLayout();
-        const merged = { ...curr };
-        SHARED_KEYS.forEach((k) => {
-          merged[k] = seed[k];
-        });
-        next[i] = merged;
-      }
       return next;
     });
   };
@@ -455,7 +352,7 @@ export default function HotelUploadForm(props) {
           onChange={(e) => {
             const digits = String(e.target.value).replace(/[^\d]/g, "");
             setRoomCountInput(digits);
-            const n = parseDigitsToInt(digits);
+            const n = Number(digits || 0);
             if (n) applyRoomCount(n);
           }}
           onFocus={() => setShowDropdown(true)}
@@ -492,40 +389,6 @@ export default function HotelUploadForm(props) {
       {/* ✅ 房型表单 */}
       {roomLayouts.map((layout, idx) => (
         <div key={idx}>
-          {/* ✅✅✅ 每个房型数量（1~3000） */}
-          <div className="relative mt-4" ref={getUnitCountRef(idx)}>
-            <label className="block text-sm font-medium mb-1">
-              这个房型的数量有多少？
-            </label>
-
-            <input
-              className="w-full border rounded p-2 bg-white"
-              value={layout?.unitCountInput ?? formatWithCommas(layout?.unitCount || 1)}
-              onChange={(e) => handleUnitCountInputChange(idx, e.target.value)}
-              onFocus={() => setOpenUnitCountIndex(idx)}
-              onClick={() => setOpenUnitCountIndex(idx)}
-              placeholder="例如：1 ~ 3,000"
-            />
-
-            {openUnitCountIndex === idx && (
-              <div className="absolute z-30 w-full mt-1 bg-white border rounded shadow max-h-60 overflow-auto">
-                {unitCountOptions.current.map((n) => (
-                  <div
-                    key={n}
-                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      applyUnitCount(idx, n);
-                    }}
-                  >
-                    {formatWithCommas(n)}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* ✅ 房型详情表单 */}
           <HotelRoomTypeForm
             index={idx}
             total={roomLayouts.length}
@@ -536,7 +399,7 @@ export default function HotelUploadForm(props) {
           {/* ✅ Layout 图纸上传（New Project 同款） */}
           <div className="mt-4">
             <BlueprintUploadSection
-              fileInputRef={getLayoutFileRef(idx)}
+              fileInputRef={getLayoutFileRef(idx, layoutFileInputRefs)}
               images={layout?.layoutPhotos || []}
               onUpload={(files) => handleUploadLayoutPhotos(idx, files)}
               onRemove={(photoIndex) => handleRemoveLayoutPhoto(idx, photoIndex)}
@@ -547,70 +410,18 @@ export default function HotelUploadForm(props) {
         </div>
       ))}
 
-      {/* ✅ 公共设施照片（不动你原本结构） */}
-      <div className="mt-6 space-y-3">
-        <p className="font-semibold">公共设施/环境照片（可选）</p>
-
+      {/* ✅✅✅ 你的原本照片上传设计：保持只有这一个（不再出现一堆框） */}
+      <div className="mt-4">
+        <label className="block text-sm font-medium mb-1">
+          上传设施 / 外观 / 环境照片
+        </label>
         <ImageUpload
           config={{
-            id: "hotel_facility_outdoor",
-            label: "酒店/民宿外观/环境",
+            id: "hotel_facility_images",
             multiple: true,
           }}
           images={facilityImages}
-          setImages={(updated) => handleSetFacilityPhotos("hotel_facility_outdoor", updated)}
-        />
-
-        <ImageUpload
-          config={{
-            id: "hotel_facility_lobby",
-            label: "大堂 / Lobby",
-            multiple: true,
-          }}
-          images={facilityImages}
-          setImages={(updated) => handleSetFacilityPhotos("hotel_facility_lobby", updated)}
-        />
-
-        <ImageUpload
-          config={{
-            id: "hotel_facility_pool",
-            label: "泳池 / Pool",
-            multiple: true,
-          }}
-          images={facilityImages}
-          setImages={(updated) => handleSetFacilityPhotos("hotel_facility_pool", updated)}
-        />
-
-        <ImageUpload
-          config={{
-            id: "hotel_facility_gym",
-            label: "健身房 / Gym",
-            multiple: true,
-          }}
-          images={facilityImages}
-          setImages={(updated) => handleSetFacilityPhotos("hotel_facility_gym", updated)}
-        />
-
-        <ImageUpload
-          config={{
-            id: "hotel_facility_restaurant",
-            label: "餐厅 / Restaurant",
-            multiple: true,
-          }}
-          images={facilityImages}
-          setImages={(updated) =>
-            handleSetFacilityPhotos("hotel_facility_restaurant", updated)
-          }
-        />
-
-        <ImageUpload
-          config={{
-            id: "hotel_facility_other",
-            label: "其它公共设施",
-            multiple: true,
-          }}
-          images={facilityImages}
-          setImages={(updated) => handleSetFacilityPhotos("hotel_facility_other", updated)}
+          setImages={setFacilityImages}
         />
       </div>
     </div>
