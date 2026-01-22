@@ -183,6 +183,23 @@ export default function HomestayUploadForm(props) {
   const storeysWrapRef = useRef(null);
   const [storeysCloseSignal, setStoreysCloseSignal] = useState(0);
 
+  // ✅✅✅ 编辑回填：外层 formData 可能是异步拿到的，第一次有值时要灌回本地 state
+  const didHydrateRef = useRef(false);
+  useEffect(() => {
+    const fd = props?.formData;
+    if (!fd || typeof fd !== "object") return;
+
+    if (didHydrateRef.current) return;
+
+    setHomestayType(fd?.homestayType || "");
+    setCategory(fd?.category || "");
+    setFinalType(fd?.finalType || "");
+    setStoreys(fd?.storeys || "");
+    setSubtype(safeArray(fd?.subtype));
+
+    didHydrateRef.current = true;
+  }, [props?.formData]);
+
   // 是否显示 Property Subtype（照你 TypeSelector 的逻辑）
   const shouldShowSubtype =
     category === "Apartment / Condo / Service Residence" ||
@@ -218,6 +235,7 @@ export default function HomestayUploadForm(props) {
 
     document.addEventListener("mousedown", onDocDown);
     document.addEventListener("touchstart", onDocDown, { passive: true });
+
     return () => {
       document.removeEventListener("mousedown", onDocDown);
       document.removeEventListener("touchstart", onDocDown);
@@ -338,16 +356,14 @@ export default function HomestayUploadForm(props) {
                   return (
                     <div
                       key={opt}
-                      className={`px-3 py-2 flex justify-between items-center cursor-pointer hover:bg-gray-100 ${
-                        selected ? "bg-gray-50 font-semibold" : ""
-                      }`}
+                      className="px-3 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2"
                       onMouseDown={(e) => {
                         e.preventDefault();
                         toggleSubtype(opt);
                       }}
                     >
+                      <input type="checkbox" checked={selected} readOnly />
                       <span>{opt}</span>
-                      {selected && <span className="text-green-600">✅</span>}
                     </div>
                   );
                 })}
@@ -357,18 +373,12 @@ export default function HomestayUploadForm(props) {
         )}
       </div>
 
-      {/* ✅ 下面：复用 Hotel/Resort 表单，但在 Homestay 模式隐藏 Hotel/Resort 的类型选择框 */}
+      {/* ✅✅✅ 复用 Hotel/Resort 表单（并隐藏 Hotel/Resort Type selector） */}
       <HotelUploadForm
         {...props}
         mode="homestay"
-        isHomestay
         hideHotelResortTypeSelector
-        hideHotelTypeSelector
-        hideHotelResortType
-        hideHotelResortType
-        showHotelResortType={false}
       />
     </div>
   );
 }
-
