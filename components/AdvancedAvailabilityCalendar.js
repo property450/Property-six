@@ -18,7 +18,8 @@ const ymd = (date) => {
   return `${y}-${m}-${d}`;
 };
 const digitsOnly = (s) => (s || "").replace(/[^\d]/g, "");
-const withCommas = (s) => (s ? String(s).replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "");
+const withCommas = (s) =>
+  s ? String(s).replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "";
 
 const toDisplayPrice = (num) => {
   if (!num) return undefined;
@@ -29,12 +30,33 @@ const toDisplayPrice = (num) => {
 
 const displayToNumber = (text) => {
   if (!text) return 0;
-  const s = text.toLowerCase().replace(/rm|\s|,/g, "");
+  const s = String(text).toLowerCase().replace(/rm|\s|,/g, "");
   if (s.endsWith("m")) return Math.round(parseFloat(s) * 1_000_000);
   if (s.endsWith("k")) return Math.round(parseFloat(s) * 1_000);
   const n = Number(s);
   return Number.isFinite(n) ? n : 0;
 };
+
+function safeParseValue(value) {
+  if (!value) return null;
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+  if (typeof value === "object") return value;
+  return null;
+}
+
+function isSamePrices(a, b) {
+  try {
+    return JSON.stringify(a || {}) === JSON.stringify(b || {});
+  } catch {
+    return false;
+  }
+}
 
 /** 日期单元格：显示价格 */
 const DayCell = React.memo(function DayCell({ date, prices }) {
@@ -42,7 +64,7 @@ const DayCell = React.memo(function DayCell({ date, prices }) {
   let currency = "";
   let amount = "";
   if (price) {
-    const parts = price.split(" ");
+    const parts = String(price).split(" ");
     currency = parts[0] || "";
     amount = parts.slice(1).join(" ") || "";
   }
@@ -61,7 +83,17 @@ const DayCell = React.memo(function DayCell({ date, prices }) {
   );
 });
 
-export default function AdvancedAvailabilityCalendar() {
+/**
+ * ✅✅✅ 现在支持受控：
+ * <AdvancedAvailabilityCalendar value={formData.availability} onChange={(next)=>...} />
+ *
+ * - value 可以是对象或 JSON 字符串
+ * - onChange 会回传：{ prices, checkInTime, checkOutTime }
+ *
+ * 不传 value/onChange 也能用（兼容你旧用法）
+ */
+export default function AdvancedAvailabilityCalendar({ value, onChange }) {
+  // ====== 内部状态（默认值） ======
   const [prices, setPrices] = useState({});
   const [range, setRange] = useState(null);
   const [tempPriceRaw, setTempPriceRaw] = useState("");
@@ -72,7 +104,49 @@ export default function AdvancedAvailabilityCalendar() {
   const panelRef = useRef(null);
   const calendarRef = useRef(null);
 
-  /** ✅ 点击空白处关闭面板（pointerdown + 捕获 + 阻止冒泡） */
+  // ✅ 防止 onChange + 父层 setState 引发循环：用 ref 保存最新 onChange
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  // ✅✅✅ 关键：当外层传入 value（编辑/回填）时，把值灌回日历 state
+  const didHydrateRef = useRef(false);
+  useEffect(() => {
+    const parsed = safeParseValue(value);
+    if (!parsed) return;
+
+    // 第一次有值就 hydrate；后续如果外层值变化也允许同步（但会做对比避免抖动）
+    const nextPrices = parsed?.prices || {};
+    const nextIn = parsed?.checkInTime || "15:00";
+    const nextOut = parsed?.checkOutTime || "11:00";
+
+    if (!didHydrateRef.current) {
+      setPrices(nextPrices);
+      setCheckInTime(nextIn);
+      setCheckOutTime(nextOut);
+      didHydrateRef.current = true;
+      return;
+    }
+
+    // 已 hydrate 过：只有外层真的变了才同步，避免覆盖用户正在编辑的输入
+    setPrices((prev) => (isSamePrices(prev, nextPrices) ? prev : nextPrices));
+    setCheckInTime((prev) => (prev === nextIn ? prev : nextIn));
+    setCheckOutTime((prev) => (prev === nextOut ? prev : nextOut));
+  }, [value]);
+
+  // ✅✅✅ 每当 prices / time 改变时，回写给外层（让 upload form 能保存进 supabase）
+  useEffect(() => {
+    const fn = onChangeRef.current;
+    if (typeof fn !== "function") return;
+    fn({
+      prices,
+      checkInTime,
+      checkOutTime,
+    });
+  }, [prices, checkInTime, checkOutTime]);
+
+  /** ✅ 点击空白处关闭面板（修正：add/remove 使用同一种事件） */
   useEffect(() => {
     const handleOutside = (e) => {
       const target = e.target;
@@ -87,9 +161,8 @@ export default function AdvancedAvailabilityCalendar() {
       setShowDropdown(false);
     };
 
-    // 用捕获阶段监听，避免输入框冒泡时触发
     document.addEventListener("mousedown", handleOutside);
-    return () => document.removeEventListener("pointerdown", handleOutside, true);
+    return () => document.removeEventListener("mousedown", handleOutside);
   }, []);
 
   const predefined = useMemo(
@@ -132,26 +205,37 @@ export default function AdvancedAvailabilityCalendar() {
 
   const handleSave = useCallback(() => {
     if (!range?.from || !range?.to) return;
+
     const num = Number(digitsOnly(tempPriceRaw));
     const display = toDisplayPrice(num);
-    const next = { ...prices };
-    const cursor = new Date(range.from);
-    while (cursor <= range.to) {
-      next[toKey(cursor)] = display;
-      cursor.setDate(cursor.getDate() + 1);
-    }
-    setPrices(next);
+
+    // ✅ 用函数式更新，避免闭包拿到旧 prices
+    setPrices((prev) => {
+      const next = { ...(prev || {}) };
+      const cursor = new Date(range.from);
+      while (cursor <= range.to) {
+        const k = toKey(cursor);
+        if (display) next[k] = display;
+        else delete next[k]; // 允许清空价格
+        cursor.setDate(cursor.getDate() + 1);
+      }
+      return next;
+    });
+
     setRange(null);
     setTempPriceRaw("");
     setShowDropdown(false);
-  }, [range, tempPriceRaw, prices]);
+  }, [range, tempPriceRaw]);
 
   const DayContent = useCallback(
     (props) => <DayCell {...props} prices={prices} />,
     [prices]
   );
 
-  const checkInText = useMemo(() => (range?.from ? ymd(range.from) : ""), [range]);
+  const checkInText = useMemo(
+    () => (range?.from ? ymd(range.from) : ""),
+    [range]
+  );
   const checkOutText = useMemo(
     () => (range?.to ? ymd(addDays(range.to, 1)) : ""),
     [range]
@@ -195,7 +279,7 @@ export default function AdvancedAvailabilityCalendar() {
         <div
           className="p-3 border rounded bg-gray-50 space-y-3 mt-3"
           ref={panelRef}
-          onPointerDown={(e) => e.stopPropagation()} // 👈 阻止点击面板内部时关闭
+          onPointerDown={(e) => e.stopPropagation()}
         >
           {/* Check-in/out 日期 */}
           <div className="flex items-center justify-between text-sm text-gray-700">
@@ -245,12 +329,8 @@ export default function AdvancedAvailabilityCalendar() {
                 setTempPriceRaw(digitsOnly(e.target.value));
                 setShowDropdown(false);
               }}
-              onFocus={() => {
-  setShowDropdown(true);
-}}
-onClick={() => {
-  setShowDropdown(true);
-}}
+              onFocus={() => setShowDropdown(true)}
+              onClick={() => setShowDropdown(true)}
               className="pl-10 border p-2 w-full rounded"
             />
             {showDropdown && (
@@ -285,4 +365,5 @@ onClick={() => {
       )}
     </div>
   );
-}
+            }
+                      
