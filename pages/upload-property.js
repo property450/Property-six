@@ -40,23 +40,12 @@ function stableJson(obj) {
   }
 }
 
-/**
- * ✅ Supabase 报错 PGRST204 时，会有类似：
- * "Could not find the 'xxx' column of 'properties' in the schema cache"
- * 我们把 column 名抓出来。
- */
 function extractMissingColumnName(error) {
   const msg = String(error?.message || "");
   const m = msg.match(/Could not find the '([^']+)' column/i);
   return m?.[1] || "";
 }
 
-/**
- * ✅✅✅ 关键修复：
- * - 以前：缺 column 就把 payload 字段删掉再重试 → 会导致“保存成功但数据没存”
- * - 现在：对关键字段（typeForm / singleFormData / areaData / unitLayouts）绝不自动删除，
- *         一旦缺就直接报错，让你去 Supabase 补 column。
- */
 const PROTECTED_COLUMNS = new Set([
   "typeForm",
   "type_form",
@@ -69,7 +58,6 @@ const PROTECTED_COLUMNS = new Set([
 ]);
 
 async function runWithAutoStripColumns({ mode, payload, editId, userId, maxTries = 8 }) {
-  // mode: "insert" | "update"
   let working = { ...(payload || {}) };
   let tries = 0;
   const removed = [];
@@ -88,19 +76,13 @@ async function runWithAutoStripColumns({ mode, payload, editId, userId, maxTries
       res = await supabase.from("properties").insert([working]);
     }
 
-    if (!res?.error) {
-      return { ok: true, removed, result: res };
-    }
+    if (!res?.error) return { ok: true, removed, result: res };
 
     const err = res.error;
-
-    // ✅ 把真正的错误打印出来
     console.error("[Supabase Error]", err);
 
-    // ✅ 只有 PGRST204（缺 column）才自动剔除
     const missing = extractMissingColumnName(err);
     if (err?.code === "PGRST204" && missing) {
-      // ✅✅✅ 关键字段：不允许自动剔除（否则会出现“保存成功但数据没存进去”）
       if (PROTECTED_COLUMNS.has(missing)) {
         return { ok: false, removed, error: err, protectedMissing: missing };
       }
@@ -108,6 +90,7 @@ async function runWithAutoStripColumns({ mode, payload, editId, userId, maxTries
       if (!Object.prototype.hasOwnProperty.call(working, missing)) {
         return { ok: false, removed, error: err };
       }
+
       delete working[missing];
       removed.push(missing);
       continue;
@@ -187,13 +170,17 @@ export default function UploadPropertyPage() {
   const lastFormJsonRef = useRef("");
   const lastDerivedRef = useRef({ saleType: "", status: "", roomMode: "" });
 
-  // ✅✅✅ 兼容你 Supabase 可能用 snake_case 建 column
+  // ✅✅✅ 兼容 Supabase snake_case
   const columnKeysRef = useRef({
     typeForm: "typeForm",
     singleFormData: "singleFormData",
     areaData: "areaData",
     unitLayouts: "unitLayouts",
   });
+
+  // ✅✅✅ 修复“闪”：只在【加载编辑数据那一刻】强制重挂载一次
+  const [typeSelectorSeed, setTypeSelectorSeed] = useState(0);
+  const didForceRemountRef = useRef(false);
 
   useEffect(() => {
     if (!isRentBatch) return;
@@ -224,7 +211,6 @@ export default function UploadPropertyPage() {
   const mustPickSaleType = !saleType;
   const mustPickAddress = !addressObj?.lat || !addressObj?.lng;
 
-  // ✅ 编辑模式：读取房源并回填
   useEffect(() => {
     if (!isEditMode) return;
     if (!user) return;
@@ -246,19 +232,20 @@ export default function UploadPropertyPage() {
           return;
         }
 
-        // ✅✅✅ 回填 TypeSelector 的整套选择（避免编辑保存后再进编辑又要重填）
-        // 兼容你 Supabase 可能用 snake_case 建 column
         const keys = columnKeysRef.current;
         if (data.typeForm === undefined && data.type_form !== undefined) keys.typeForm = "type_form";
-        if (data.singleFormData === undefined && data.single_form_data !== undefined) keys.singleFormData = "single_form_data";
+        if (data.singleFormData === undefined && data.single_form_data !== undefined)
+          keys.singleFormData = "single_form_data";
         if (data.areaData === undefined && data.area_data !== undefined) keys.areaData = "area_data";
-        if (data.unitLayouts === undefined && data.unit_layouts !== undefined) keys.unitLayouts = "unit_layouts";
+        if (data.unitLayouts === undefined && data.unit_layouts !== undefined)
+          keys.unitLayouts = "unit_layouts";
 
         const tfKey = keys.typeForm;
         const sfKey = keys.singleFormData;
         const adKey = keys.areaData;
         const ulKey = keys.unitLayouts;
 
+        // ✅ 回填
         setTypeForm(data?.[tfKey] || null);
 
         if (data.lat && data.lng) {
@@ -283,6 +270,12 @@ export default function UploadPropertyPage() {
         setSingleFormData(data?.[sfKey] || {});
         setAreaData(data?.[adKey] || areaData);
         setDescription(typeof data.description === "string" ? data.description : "");
+
+        // ✅✅✅ 只在第一次加载编辑数据时 force remount 一次（防止不回填）
+        if (!didForceRemountRef.current) {
+          didForceRemountRef.current = true;
+          setTypeSelectorSeed((s) => s + 1);
+        }
 
         toast.success("已进入编辑模式");
       } catch (e) {
@@ -336,7 +329,6 @@ export default function UploadPropertyPage() {
         roomRentalMode,
         rentBatchMode,
 
-        // ✅✅✅ 用正确的 column key 存（camel / snake 都能）
         [tfKey]: typeForm || null,
         [ulKey]: unitLayouts,
         [sfKey]: singleFormData,
@@ -357,12 +349,11 @@ export default function UploadPropertyPage() {
         });
 
         if (!out.ok) {
-          // ✅✅✅ 关键字段缺失：不允许自动删除，否则就会“保存成功但没存”
           if (out.protectedMissing) {
             toast.error(`保存失败：Supabase 缺少关键 column：${out.protectedMissing}`);
             alert(
               `保存失败：Supabase 缺少关键 column：${out.protectedMissing}\n\n` +
-                `✅ 这个 column 必须加（否则表单/日历价格不会被保存）\n` +
+                `✅ 必须加这个 column，否则表单/日历价格不会被保存\n` +
                 `（请看 Console 报错）`
             );
             return;
@@ -397,12 +388,11 @@ export default function UploadPropertyPage() {
       });
 
       if (!out.ok) {
-        // ✅✅✅ 关键字段缺失：不允许自动删除，否则就会“提交成功但没存”
         if (out.protectedMissing) {
           toast.error(`提交失败：Supabase 缺少关键 column：${out.protectedMissing}`);
           alert(
             `提交失败：Supabase 缺少关键 column：${out.protectedMissing}\n\n` +
-              `✅ 这个 column 必须加（否则表单/日历价格不会被保存）\n` +
+              `✅ 必须加这个 column，否则表单/日历价格不会被保存\n` +
               `（请看 Console 报错）`
           );
           return;
@@ -475,22 +465,12 @@ export default function UploadPropertyPage() {
     <div className="max-w-3xl mx-auto p-4 space-y-4">
       <h1 className="text-2xl font-bold">{isEditMode ? "编辑房源" : "上传房源"}</h1>
 
-      {(mustLogin || mustPickSaleType || mustPickAddress) && (
-        <div className="border rounded-xl bg-yellow-50 p-3 text-sm text-yellow-900">
-          <div className="font-semibold mb-1">当前还不能提交，因为：</div>
-          <ul className="list-disc pl-5 space-y-1">
-            {mustLogin && <li>你还没登录（user 还是 null）</li>}
-            {mustPickSaleType && <li>你还没选择 Sale / Rent / Homestay / Hotel</li>}
-            {mustPickAddress && <li>你还没选择地址（lat/lng 为空）</li>}
-          </ul>
-        </div>
-      )}
-
       <AddressSearchInput value={addressObj} onChange={setAddressObj} />
 
       <TypeSelector
-        // ✅ 强制重挂载：保证 initialForm 回填后 UI 一定更新（解决“看起来没记住”）
-        key={`${isEditMode ? editId : "new"}-${typeForm ? "hasForm" : "noForm"}`}
+        // ✅✅✅ 关键：key 稳定，不再因 typeForm 改变而重挂载 → 不闪
+        // 只在“刚加载编辑数据时”seed +1 重挂载一次
+        key={`${isEditMode ? editId : "new"}-${typeSelectorSeed}`}
         value={typeValue}
         onChange={setTypeValue}
         initialForm={typeForm}
