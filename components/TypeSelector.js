@@ -667,4 +667,87 @@ export default function TypeSelector({
                         value={roomCount}
                         onChange={(e) => setRoomCount(e.target.value)}
                       >
-                        {Array.from({ length: 19 }, (_, i) => String(i +
+                        {Array.from({ length: 19 }, (_, i) => String(i + 2)).map((n) => (
+                          <option key={n} value={n}>
+                            {n}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ✅ Rent：批量操作（2~20 保持不变） */}
+      {saleType === "Rent" && !!category && !hideBatchToggleBecauseRoomRental && (
+        <div className="mt-2 space-y-2">
+          <label className="block text-sm font-medium text-gray-700">需要批量操作吗？</label>
+          <select
+            className="border rounded w-full p-2"
+            value={rentBatchMode}
+            onChange={(e) => {
+              const v = e.target.value;
+              onChangeRentBatchMode?.(v);
+              setShowLayoutSuggest(false);
+            }}
+          >
+            <option value="no">否，只是单一房源</option>
+            <option value="yes">是，这个项目有多个房型</option>
+          </select>
+
+          {rentBatchMode === "yes" && (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                这个项目有多少个屋型 / Layout 数量
+              </label>
+
+              <div className="relative">
+                <input
+                  className="border rounded w-full p-2"
+                  value={layoutCountInput}
+                  onChange={(e) => {
+                    setLayoutCountInput(e.target.value);
+                    setShowLayoutSuggest(true);
+                  }}
+                  onFocus={() => setShowLayoutSuggest(true)}
+                  onBlur={() => {
+                    setTimeout(() => setShowLayoutSuggest(false), 120);
+                    const n = clamp(toIntFromInput(layoutCountInput), 2, 20);
+                    setLayoutCountInput(addCommas(String(n)));
+                  }}
+                  inputMode="numeric"
+                  placeholder="2 ~ 20"
+                />
+
+                {showLayoutSuggest && (
+                  <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-auto">
+                    {Array.from({ length: 19 }).map((_, i) => {
+                      const v = String(i + 2);
+                      return (
+                        <div
+                          key={v}
+                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setLayoutCountInput(v);
+                            setShowLayoutSuggest(false);
+                          }}
+                        >
+                          {v}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
