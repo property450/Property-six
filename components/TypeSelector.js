@@ -1,4 +1,4 @@
-// components/TypeSelector.js
+  // components/TypeSelector.js
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -22,7 +22,6 @@ const homestayOptions = [
   "Hostel / Guesthouse",
   "Capsule / Pod Stay",
 
-  // 🔥 新增（合理且常见）
   "Eco / Nature Stay",
   "Glamping",
   "Co-Living / Long Stay",
@@ -49,7 +48,6 @@ const hotelOptions = [
   "Hostel / Backpacker Hotel",
   "Airport Hotel",
 
-  // 🔥 新增
   "Eco Resort",
   "Beach Resort",
   "Mountain Resort",
@@ -83,23 +81,21 @@ const affordableTypeOptions = [
   "Rumah Idaman (Selangor)",
 ];
 
-const tenureOptions = ["Freehold", "Leasehold", "Bumi Lot", "Malay Reserved Land", "Private Lease Scheme", "State Lease Land", "Strata Leasehold", "Perpetual Lease"];
+const tenureOptions = [
+  "Freehold",
+  "Leasehold",
+  "Bumi Lot",
+  "Malay Reserved Land",
+  "Private Lease Scheme",
+  "State Lease Land",
+  "Strata Leasehold",
+  "Perpetual Lease",
+];
 
-// ✅✅✅ 这里就是你“之前的设计”的 categoryOptions（完全照回，不乱改）
+// ✅✅✅（你原本的 categoryOptions 保持不动）
 const categoryOptions = {
-  "Bungalow / Villa": [
-    "Bungalow",
-    "Link Bungalow",
-    "Twin Villa",
-    "Zero-Lot Bungalow",
-    "Bungalow land",
-  ],
-  "Apartment / Condo / Service Residence": [
-    "Apartment",
-    "Condominium",
-    "Flat",
-    "Service Residence",
-  ],
+  "Bungalow / Villa": ["Bungalow", "Link Bungalow", "Twin Villa", "Zero-Lot Bungalow", "Bungalow land"],
+  "Apartment / Condo / Service Residence": ["Apartment", "Condominium", "Flat", "Service Residence"],
   "Semi-Detached House": ["Cluster House", "Semi-Detached House"],
   "Terrace / Link House": ["Terrace House", "Link House", "Townhouse"],
   "Business Property": [
@@ -159,7 +155,7 @@ const categoryOptions = {
     "Showroom",
     "Warehouse Retail",
     "Supermarket / Hypermarket",
-],
+  ],
   "Industrial Property": [
     "Factory",
     "Warehouse",
@@ -180,7 +176,7 @@ const categoryOptions = {
     "Worker Quarters",
     "Factory Dormitory",
     "Industrial Hostel",
-],
+  ],
   Land: [
     "Residential Land",
     "Agricultural Land",
@@ -197,7 +193,7 @@ const categoryOptions = {
     "Fruit Orchard",
     "Paddy Field",
     "Vacant Agricultural Land",
-],
+  ],
 };
 
 const NEED_STOREYS_CATEGORY = new Set([
@@ -239,7 +235,7 @@ export default function TypeSelector({
   onFormChange,
   rentBatchMode,
   onChangeRentBatchMode,
-  // ✅✅✅【最小新增】编辑模式回填用
+  // ✅✅✅（新增）编辑模式回填用
   initialForm,
 }) {
   const [saleType, setSaleType] = useState("");
@@ -257,27 +253,13 @@ export default function TypeSelector({
   const [storeys, setStoreys] = useState("");
   const [propertyTitle, setPropertyTitle] = useState("");
 
-  // Rent room rental
-  const [roomRentalMode, setRoomRentalMode] = useState("whole");
-  const [roomCountMode, setRoomCountMode] = useState("single");
-  const [roomCount, setRoomCount] = useState("1");
-
-  // Rent batch: layout count（✅只用于 Rent 批量，范围保持 2~20）
-  const [layoutCountInput, setLayoutCountInput] = useState("2");
-  const [showLayoutSuggest, setShowLayoutSuggest] = useState(false);
-  const layoutCount = clamp(toIntFromInput(layoutCountInput), 2, 20);
-
-  const subtypeRef = useRef(null);
-  const [subtypeOpen, setSubtypeOpen] = useState(false);
-
-  // ✅✅✅【最小新增】当进入编辑模式时，把 DB 里的 typeForm 回填到所有相关 state
-  const hydratedRef = useRef("");
+  // ✅✅✅（新增）编辑模式：把 DB 的 typeForm 回填进来，避免每次都要重填
+  const _hydratedRef = useRef("");
   useEffect(() => {
     if (!initialForm || typeof initialForm !== "object") return;
-
     const sig = JSON.stringify(initialForm);
-    if (!sig || sig === hydratedRef.current) return;
-    hydratedRef.current = sig;
+    if (!sig || sig === _hydratedRef.current) return;
+    _hydratedRef.current = sig;
 
     setSaleType(initialForm.saleType || "");
     setUsage(initialForm.usage || "");
@@ -298,6 +280,19 @@ export default function TypeSelector({
 
     if (initialForm.layoutCount) setLayoutCountInput(String(initialForm.layoutCount));
   }, [initialForm]);
+
+  // Rent room rental
+  const [roomRentalMode, setRoomRentalMode] = useState("whole");
+  const [roomCountMode, setRoomCountMode] = useState("single");
+  const [roomCount, setRoomCount] = useState("1");
+
+  // Rent batch: layout count
+  const [layoutCountInput, setLayoutCountInput] = useState("2");
+  const [showLayoutSuggest, setShowLayoutSuggest] = useState(false);
+  const layoutCount = clamp(toIntFromInput(layoutCountInput), 2, 20);
+
+  const subtypeRef = useRef(null);
+  const [subtypeOpen, setSubtypeOpen] = useState(false);
 
   useEffect(() => {
     const shouldShow =
@@ -359,17 +354,12 @@ export default function TypeSelector({
     setSubtype([]);
     setAuctionDate("");
     setStoreys("");
-    // ✅✅✅【最小新增】reset 时也清 propertyTitle（避免切换 saleType 后残留）
     setPropertyTitle("");
-
     setRoomRentalMode("whole");
     setRoomCountMode("single");
     setRoomCount("1");
-
-    // Rent batch 的默认仍然是 2（你的原设定）
     setLayoutCountInput("2");
     setShowLayoutSuggest(false);
-
     onChangeRentBatchMode?.("no");
   };
 
@@ -377,7 +367,7 @@ export default function TypeSelector({
     onFormChange?.({
       saleType,
       usage,
-      // ✅✅✅【最小新增】把 propertyTitle 一起传出去，让它能被保存进 typeForm
+      // ✅✅✅（新增）propertyTitle 一起传出去，不然它永远存不了
       propertyTitle,
       propertyStatus,
       affordable,
@@ -393,7 +383,6 @@ export default function TypeSelector({
       roomCountMode,
       roomCount: Number(roomCount) || 1,
 
-      // ✅只给 Rent batch 使用
       layoutCount,
     });
   }, [
@@ -455,10 +444,7 @@ export default function TypeSelector({
             </select>
           </div>
 
-          <PropertyTitleSelector
-            value={propertyTitle}
-            onChange={(val) => setPropertyTitle(val)}
-          />
+          <PropertyTitleSelector value={propertyTitle} onChange={(val) => setPropertyTitle(val)} />
 
           <div>
             <label className="block font-medium">Property Status / Sale Type</label>
