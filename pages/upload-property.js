@@ -229,10 +229,15 @@ export default function UploadPropertyPage() {
         // ✅ 类型（把 DB 的 type 映射回 typeValue）
         if (typeof data.type === "string") setTypeValue(data.type);
 
+        // ✅✅✅【最小新增】回填 typeForm，让 TypeSelector 能记住你之前保存的选择
+        setTypeForm(data.typeForm || null);
+
         // ✅ 模式
-        setSaleType(data.saleType || data.sale_type || "");
-        setComputedStatus(data.propertyStatus || data.property_status || "");
-        setRoomRentalMode(data.roomRentalMode || data.room_rental_mode || "whole");
+        // 优先用 typeForm 里的（如果有），没有再用旧字段（兼容你旧数据）
+        const tf = data.typeForm || null;
+        setSaleType((tf && tf.saleType) || data.saleType || data.sale_type || "");
+        setComputedStatus((tf && tf.propertyStatus) || data.propertyStatus || data.property_status || "");
+        setRoomRentalMode((tf && tf.roomRentalMode) || data.roomRentalMode || data.room_rental_mode || "whole");
         if (typeof data.rentBatchMode === "string") setRentBatchMode(data.rentBatchMode);
 
         // ✅ 这些只有在你 DB 确实有 json 字段时才会存在；不存在也不会影响
@@ -280,7 +285,7 @@ export default function UploadPropertyPage() {
 
     setSubmitting(true);
     try {
-      // ✅ 你的原 payload 保持不动，只是“自动剔除不存在 column”避免 400
+      // ✅ 你的原 payload 保持不动，只【最小新增】写入 typeForm（用于“记住选择”）
       const payload = {
         user_id: user.id,
         address: addressObj?.address || "",
@@ -291,6 +296,9 @@ export default function UploadPropertyPage() {
         propertyStatus: computedStatus,
 
         type: typeValue,
+
+        // ✅✅✅【最小新增】把 TypeSelector 的所有选择一次性存进去
+        typeForm: typeForm || null,
 
         roomRentalMode,
         rentBatchMode,
@@ -425,6 +433,8 @@ export default function UploadPropertyPage() {
       <TypeSelector
         value={typeValue}
         onChange={setTypeValue}
+        // ✅✅✅【最小新增】把编辑读取到的 typeForm 传进去，让 TypeSelector 回填
+        initialForm={typeForm}
         rentBatchMode={allowRentBatchMode ? rentBatchMode : "no"}
         onChangeRentBatchMode={(val) => {
           if (!allowRentBatchMode) return;
