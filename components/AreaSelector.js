@@ -58,7 +58,7 @@ function formatNumberLikeInput(input) {
   return n.toLocaleString(undefined, { maximumFractionDigits: 3 });
 }
 
-/** ✅ 加回：把当前输入值 + unit 换算成 sqft（只用于显示 "= xxx sqft"） */
+/** ✅ 把当前输入值 + unit 换算成 sqft（只用于显示 "= xxx sqft"） */
 function toSqft(val, unit) {
   const raw = String(val ?? "").replace(/,/g, "").trim();
   const n = Number(raw);
@@ -66,19 +66,11 @@ function toSqft(val, unit) {
 
   const u = String(unit || "").toLowerCase();
 
-  // sqft
   if (u.includes("square feet") || u.includes("sqft")) return n;
-
-  // sqm -> sqft
   if (u.includes("square meter") || u.includes("sqm")) return n * 10.763910416709722;
-
-  // acres -> sqft
   if (u.includes("acres")) return n * 43560;
-
-  // hectares -> sqft
   if (u.includes("hectares")) return n * 107639.1041670972;
 
-  // fallback
   return 0;
 }
 
@@ -91,7 +83,6 @@ export default function AreaSelector({
   onChange = () => {},
   initialValue,
   value,
-  // ✅ 关键：从外部传入当前 propertyCategory
   propertyCategory,
 }) {
   const incoming = useMemo(
@@ -101,9 +92,11 @@ export default function AreaSelector({
 
   // ✅ onChange 用 ref，避免 parent inline function 导致无限循环
   const onChangeRef = useRef(onChange);
-  useEffect(() => {
-    onChangeRef.current = onChange;
-  }, [onChange]);
+  useEffect(() => PurelySetRef(onChangeRef, onChange), [onChange]);
+
+  function PurelySetRef(refObj, fn) {
+    refObj.current = fn;
+  }
 
   const [selectedTypes, setSelectedTypes] = useState(incoming.types);
   const [units, setUnits] = useState(incoming.units);
@@ -139,7 +132,6 @@ export default function AreaSelector({
   }, [incoming]);
 
   // ✅ propertyCategory 变化时：Land -> 只勾 land；非 Land -> 只勾 buildUp
-  // ✅【你之前要的默认切换修复：只改这一行确保首次也会触发】
   const lastCatRef = useRef(undefined);
   useEffect(() => {
     if (propertyCategory === undefined) return;
@@ -172,15 +164,31 @@ export default function AreaSelector({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ✅ 回传给父组件（不把 onChange 放 deps）
+  // ✅✅✅ 修复：避免“回传->父setState->再同步->再回传”的无限循环
+  const lastEmittedRef = useRef("");
   useEffect(() => {
-    onChangeRef.current?.({
+    const outgoing = normalizeAreaValue({
       types: selectedTypes.length ? selectedTypes : ["buildUp"],
       units,
       values: areaValues,
     });
+
+    const outSig = JSON.stringify(outgoing);
+    const inSig = JSON.stringify(incoming);
+
+    // 1) 如果这次回传内容和 incoming 一样（即只是 props 同步进来），不要回传
+    if (outSig === inSig) {
+      lastEmittedRef.current = outSig;
+      return;
+    }
+
+    // 2) 如果跟上一次已经回传过的一样，也不要重复回传
+    if (outSig === lastEmittedRef.current) return;
+
+    lastEmittedRef.current = outSig;
+    onChangeRef.current?.(outgoing);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTypes, units, areaValues]);
+  }, [selectedTypes, units, areaValues, incoming]);
 
   const toggleType = (type) => {
     setSelectedTypes((prev) => {
@@ -222,7 +230,6 @@ export default function AreaSelector({
     const unit = units[type];
     const displayVal = displayValues[type] || "";
 
-    // ✅ 加回：显示 "= xxx sqft"
     const sqft = toSqft(areaValues?.[type], unit);
     const sqftText = formatSqft(sqft);
 
@@ -299,4 +306,4 @@ export default function AreaSelector({
       {selectedTypes.map((type) => renderAreaInput(type))}
     </div>
   );
-}
+    }
