@@ -8,7 +8,6 @@ const AREA_TYPES = [
   { label: "Land Area", value: "land" },
 ];
 
-// ✅ 兼容你项目里现有的单位写法（Square Feet (sqft) 等）
 const UNITS = [
   "Square Feet (sqft)",
   "Square Meter (sqm)",
@@ -20,12 +19,11 @@ const UNITS = [
   "hectares",
 ];
 
-const COMMON_VALUES = Array.from({ length: 149 }, (_, i) => 200 + i * 200); // 200–30,000
+const COMMON_VALUES = Array.from({ length: 149 }, (_, i) => 200 + i * 200);
 
 function isLandCategory(category) {
   const raw = String(category || "").toLowerCase().trim();
   if (!raw) return false;
-  // ✅ 只要包含 land 就算 land 类别（兼容：Residential Land / Industrial Land / Land）
   return raw.includes("land");
 }
 
@@ -58,7 +56,6 @@ function formatNumberLikeInput(input) {
   return n.toLocaleString(undefined, { maximumFractionDigits: 3 });
 }
 
-/** ✅ 把当前输入值 + unit 换算成 sqft（只用于显示 "= xxx sqft"） */
 function toSqft(val, unit) {
   const raw = String(val ?? "").replace(/,/g, "").trim();
   const n = Number(raw);
@@ -90,13 +87,10 @@ export default function AreaSelector({
     [value, initialValue]
   );
 
-  // ✅ onChange 用 ref，避免 parent inline function 导致无限循环
   const onChangeRef = useRef(onChange);
-  useEffect(() => PurelySetRef(onChangeRef, onChange), [onChange]);
-
-  function PurelySetRef(refObj, fn) {
-    refObj.current = fn;
-  }
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   const [selectedTypes, setSelectedTypes] = useState(incoming.types);
   const [units, setUnits] = useState(incoming.units);
@@ -131,15 +125,38 @@ export default function AreaSelector({
     });
   }, [incoming]);
 
-  // ✅ propertyCategory 变化时：Land -> 只勾 land；非 Land -> 只勾 buildUp
+  /**
+   * ✅✅✅ 关键修复：编辑模式回填时，如果 land/buildUp 已经有值或 incoming.types 已包含，
+   * 一定要自动展开对应输入框（selectedTypes 必须包含它）。
+   *
+   * 只有当 incoming 完全没选 & 没值时，才根据 propertyCategory 给默认：
+   * - land 类别 -> ["land"]
+   * - 非 land -> ["buildUp"]
+   */
   const lastCatRef = useRef(undefined);
   useEffect(() => {
     if (propertyCategory === undefined) return;
     if (lastCatRef.current === propertyCategory) return;
     lastCatRef.current = propertyCategory;
 
-    const land = isLandCategory(propertyCategory);
-    const nextTypes = land ? ["land"] : ["buildUp"];
+    const hasLandValue = String(incoming.values?.land ?? "").trim() !== "";
+    const hasBuildUpValue = String(incoming.values?.buildUp ?? "").trim() !== "";
+    const incomingHasLand = Array.isArray(incoming.types) && incoming.types.includes("land");
+    const incomingHasBuildUp = Array.isArray(incoming.types) && incoming.types.includes("buildUp");
+
+    // ✅ 优先：尊重 DB 回填（有值/有 types 就必须展开）
+    let nextTypes = [];
+    if (incomingHasLand || hasLandValue) nextTypes.push("land");
+    if (incomingHasBuildUp || hasBuildUpValue) nextTypes.push("buildUp");
+
+    // ✅ 如果 DB 回填完全没有，就用 propertyCategory 默认
+    if (nextTypes.length === 0) {
+      const land = isLandCategory(propertyCategory);
+      nextTypes = land ? ["land"] : ["buildUp"];
+    }
+
+    // ✅ 保证至少一个
+    if (nextTypes.length === 0) nextTypes = ["buildUp"];
 
     setSelectedTypes((prev) => {
       const prevKey = (Array.isArray(prev) ? prev : []).join("|");
@@ -148,7 +165,7 @@ export default function AreaSelector({
     });
 
     setDropdownOpen({ buildUp: false, land: false });
-  }, [propertyCategory]);
+  }, [propertyCategory, incoming]);
 
   // ✅ 点击外部关闭下拉
   useEffect(() => {
@@ -176,13 +193,10 @@ export default function AreaSelector({
     const outSig = JSON.stringify(outgoing);
     const inSig = JSON.stringify(incoming);
 
-    // 1) 如果这次回传内容和 incoming 一样（即只是 props 同步进来），不要回传
     if (outSig === inSig) {
       lastEmittedRef.current = outSig;
       return;
     }
-
-    // 2) 如果跟上一次已经回传过的一样，也不要重复回传
     if (outSig === lastEmittedRef.current) return;
 
     lastEmittedRef.current = outSig;
@@ -199,7 +213,7 @@ export default function AreaSelector({
       if (has) next = arr.filter((x) => x !== type);
       else next = [...arr, type];
 
-      if (next.length === 0) next = ["buildUp"]; // 至少保留一个
+      if (next.length === 0) next = ["buildUp"];
       return next;
     });
   };
@@ -306,4 +320,4 @@ export default function AreaSelector({
       {selectedTypes.map((type) => renderAreaInput(type))}
     </div>
   );
-    }
+}
