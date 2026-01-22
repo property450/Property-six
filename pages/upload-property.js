@@ -440,9 +440,23 @@ export default function UploadPropertyPage() {
       />
 
       {isHomestay ? (
-        <HomestayUploadForm />
+        // ✅✅✅ 关键修复：把 singleFormData / setSingleFormData 传进去，Homestay 才能“记住并保存”
+        <HomestayUploadForm
+          formData={singleFormData}
+          setFormData={setSingleFormData}
+          onFormChange={(patch) =>
+            setSingleFormData((prev) => ({ ...(prev || {}), ...(patch || {}) }))
+          }
+        />
       ) : isHotel ? (
-        <HotelUploadForm />
+        // ✅✅✅ 关键修复：把 singleFormData / setSingleFormData 传进去，Hotel 才能“记住并保存”
+        <HotelUploadForm
+          formData={singleFormData}
+          setFormData={setSingleFormData}
+          onFormChange={(patch) =>
+            setSingleFormData((prev) => ({ ...(prev || {}), ...(patch || {}) }))
+          }
+        />
       ) : isProject ? (
         <>
           <ProjectUploadForm
