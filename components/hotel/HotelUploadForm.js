@@ -174,6 +174,12 @@ function parseDigitsToInt(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
+// ✅ 小工具：判断 formData 是否真的有内容（避免空对象覆盖用户输入）
+function hasAnyValue(obj) {
+  if (!obj || typeof obj !== "object") return false;
+  return Object.keys(obj).length > 0;
+}
+
 export default function HotelUploadForm(props) {
   // ✅✅✅ 关键：Homestay 模式隐藏 Hotel / Resort Type（只改这一处判断，不动其它逻辑）
   const shouldShowHotelResortType =
@@ -214,6 +220,64 @@ export default function HotelUploadForm(props) {
     }
     return unitCountDropdownRefs.current[index];
   };
+
+  // ✅✅✅【核心修复 1】编辑模式/回填：从 props.formData 初始化一次（支持异步加载后再回填）
+  const didInitFromPropsRef = useRef(false);
+  useEffect(() => {
+    if (didInitFromPropsRef.current) return;
+
+    const d = props?.formData;
+    if (!hasAnyValue(d)) return;
+
+    // hotelResortType
+    if (typeof d.hotelResortType === "string") {
+      setHotelResortType(d.hotelResortType);
+    }
+
+    // roomLayouts（如果存在）
+    if (Array.isArray(d.roomLayouts) && d.roomLayouts.length > 0) {
+      const normalized = d.roomLayouts.map((l) => {
+        const base = { ...createEmptyRoomLayout(), ...(l || {}) };
+
+        // 补 unitCountInput（防止旧数据没有这个字段）
+        const unitCountNum = Number(base.unitCount);
+        if ((!base.unitCountInput || base.unitCountInput === "") && Number.isFinite(unitCountNum) && unitCountNum > 0) {
+          base.unitCountInput = formatWithCommas(unitCountNum);
+        }
+        return base;
+      });
+
+      setRoomLayouts(normalized);
+      setRoomCount(normalized.length);
+      setRoomCountInput(String(normalized.length));
+    }
+
+    // facilityImages
+    if (d.facilityImages && typeof d.facilityImages === "object") {
+      setFacilityImages(d.facilityImages);
+    }
+
+    didInitFromPropsRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props?.formData]);
+
+  // ✅✅✅【核心修复 2】实时同步回父层（让 upload-property 的 singleFormData 记住并能保存）
+  useEffect(() => {
+    const patch = {
+      hotelResortType,
+      roomLayouts,
+      facilityImages,
+      // roomCount 可选（不影响你逻辑，但对回填有帮助）
+      roomCount,
+    };
+
+    if (typeof props?.setFormData === "function") {
+      props.setFormData((prev) => ({ ...(prev || {}), ...patch }));
+    }
+    if (typeof props?.onFormChange === "function") {
+      props.onFormChange(patch);
+    }
+  }, [hotelResortType, roomLayouts, facilityImages, roomCount, props]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -466,4 +530,3 @@ export default function HotelUploadForm(props) {
     </form>
   );
 }
-
