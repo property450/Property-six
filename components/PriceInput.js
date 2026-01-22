@@ -70,9 +70,9 @@ export default function PriceInput({
   const [showDropdownMax, setShowDropdownMax] = useState(false);
 
   // ---------- 3. 初始化：根据 value 填充 ----------
+  // ✅ 修复：编辑模式 value 更新时也要回填（原本只监听 isRange，会导致“价格不记住”）
   useEffect(() => {
     if (isRange) {
-      // value 可能是 {min, max}
       const v = value && typeof value === "object" ? value : {};
       setMin(v.min ? String(v.min) : "");
       setMax(v.max ? String(v.max) : "");
@@ -83,7 +83,7 @@ export default function PriceInput({
       setMax("");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isRange]);
+  }, [isRange, value]);
 
   // ---------- 4. 点击外部关闭下拉 ----------
   useEffect(() => {
@@ -216,7 +216,6 @@ export default function PriceInput({
       </label>
 
       {isRange ? (
-        // ---- 范围价格：New Project / Developer Unit / Completed Unit ----
         <>
           <div className="grid grid-cols-2 gap-2">
             {/* Min */}
@@ -281,7 +280,6 @@ export default function PriceInput({
           ) : null}
         </>
       ) : (
-        // ---- 单一价格：Subsale / Rent ----
         <div className="relative">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
             RM
