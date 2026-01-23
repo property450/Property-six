@@ -32,14 +32,6 @@ const pickCommon = (l) => ({
 });
 const commonHash = (l) => JSON.stringify(pickCommon(l));
 
-function stableJson(obj) {
-  try {
-    return JSON.stringify(obj ?? null);
-  } catch {
-    return "";
-  }
-}
-
 function isJsonLikeString(s) {
   if (typeof s !== "string") return false;
   const t = s.trim();
@@ -58,6 +50,14 @@ function safeParseMaybeJson(v) {
   return v;
 }
 
+function stableJson(obj) {
+  try {
+    return JSON.stringify(obj ?? null);
+  } catch {
+    return "";
+  }
+}
+
 // ✅ 判断“有没有内容”（避免 {} 抢优先级导致读不到真正数据）
 function hasAnyValue(v) {
   if (!v) return false;
@@ -73,6 +73,10 @@ function pickPreferNonEmpty(camel, snake, fallback) {
   return fallback;
 }
 
+/**
+ * Supabase 报错 PGRST204 时，通常类似：
+ * "Could not find the 'xxx' column of 'properties' in the schema cache"
+ */
 function extractMissingColumnName(error) {
   const msg = String(error?.message || "");
   const m = msg.match(/Could not find the '([^']+)' column/i);
@@ -105,13 +109,11 @@ function getCounterpartKey(k) {
   return "";
 }
 
-// ✅ 当缺的是 protected key：如果对偶 key 存在（且有数据），就删掉缺失的那一份副本继续（不影响核心数据）
 function dropProtectedIfCounterpartExists(working, missing) {
   const other = getCounterpartKey(missing);
   if (!other) return false;
   if (!Object.prototype.hasOwnProperty.call(working, other)) return false;
 
-  // 对偶有内容，就允许删掉缺失那份
   if (hasAnyValue(working[other])) {
     delete working[missing];
     return true;
@@ -170,28 +172,6 @@ async function runWithAutoStripColumns({ mode, payload, editId, userId, maxTries
   }
 
   return { ok: false, removed, error: new Error("自动处理次数用尽（请看 Console 报错）") };
-}
-
-// ✅ 把对象变成“跟 DB 现状一致”的格式：
-// - 如果 DB 之前是字符串 JSON，就继续 stringify
-// - 如果 DB 之前是对象(json/jsonb)，就保持对象
-function encodeByDbMode(value, shouldStringify) {
-  if (!shouldStringify) return value ?? null;
-  try {
-    return JSON.stringify(value ?? null);
-  } catch {
-    return JSON.stringify(null);
-  }
-}
-
-// ✅ 保存后读回验证：如果读回还是空/没变，就不跳转，直接告诉你数据库没存
-function normalizeForCompare(v) {
-  const parsed = safeParseMaybeJson(v);
-  try {
-    return JSON.stringify(parsed ?? null);
-  } catch {
-    return String(parsed);
-  }
 }
 
 export default function UploadPropertyPage() {
@@ -259,14 +239,6 @@ export default function UploadPropertyPage() {
   const lastFormJsonRef = useRef("");
   const lastDerivedRef = useRef({ saleType: "", status: "", roomMode: "" });
 
-  // ✅ 记住 DB 这四个字段到底是“对象”还是“JSON 字符串”
-  const dbJsonStringModeRef = useRef({
-    typeForm: false,
-    singleFormData: false,
-    areaData: false,
-    unitLayouts: false,
-  });
-
   useEffect(() => {
     if (!isRentBatch) return;
     const n = batchLayoutCount;
@@ -292,7 +264,7 @@ export default function UploadPropertyPage() {
     });
   }, [saleTypeNorm, roomRentalMode, isRentBatch, roomLayoutCount]);
 
-  // ✅ 编辑模式：读取房源并回填（最关键：优先取“有内容”的那一个 + 支持 JSON 字符串）
+  // ✅ 编辑模式：读取房源并回填（支持 areaData.__backup 兜底）
   useEffect(() => {
     if (!isEditMode) return;
     if (!user) return;
@@ -314,25 +286,24 @@ export default function UploadPropertyPage() {
           return;
         }
 
-        // 记录 DB 是否是“字符串 JSON”
-        dbJsonStringModeRef.current.typeForm =
-          typeof data.typeForm === "string" || typeof data.type_form === "string";
-        dbJsonStringModeRef.current.singleFormData =
-          typeof data.singleFormData === "string" || typeof data.single_form_data === "string";
-        dbJsonStringModeRef.current.areaData =
-          typeof data.areaData === "string" || typeof data.area_data === "string";
-        dbJsonStringModeRef.current.unitLayouts =
-          typeof data.unitLayouts === "string" || typeof data.unit_layouts === "string";
-
+        // ✅✅✅ 关键：不再让 {} 抢优先级
         const tfRaw = pickPreferNonEmpty(data.typeForm, data.type_form, null);
         const sfdRaw = pickPreferNonEmpty(data.singleFormData, data.single_form_data, {});
         const adRaw = pickPreferNonEmpty(data.areaData, data.area_data, areaData);
         const ulsRaw = pickPreferNonEmpty(data.unitLayouts, data.unit_layouts, []);
 
-        const tf = safeParseMaybeJson(tfRaw);
-        const sfd = safeParseMaybeJson(sfdRaw);
-        const ad = safeParseMaybeJson(adRaw);
-        const uls = safeParseMaybeJson(ulsRaw);
+        const tfParsed = safeParseMaybeJson(tfRaw);
+        const sfdParsed = safeParseMaybeJson(sfdRaw);
+        const adParsed = safeParseMaybeJson(adRaw);
+        const ulsParsed = safeParseMaybeJson(ulsRaw);
+
+        // ✅ DB 端如果一直覆盖 typeForm / singleFormData：我们把它们“备份”存在 areaData.__backup 里
+        const backup = adParsed && typeof adParsed === "object" ? adParsed.__backup : null;
+
+        const tf = hasAnyValue(tfParsed) ? tfParsed : (backup?.typeForm || null);
+        const sfd = hasAnyValue(sfdParsed) ? sfdParsed : (backup?.singleFormData || {});
+        const ad = adParsed || areaData;
+        const uls = ulsParsed || [];
 
         setTypeForm(tf);
 
@@ -354,8 +325,8 @@ export default function UploadPropertyPage() {
         setProjectCategory(data.projectCategory || "");
         setProjectSubType(data.projectSubType || "");
         setUnitLayouts(Array.isArray(uls) ? uls : []);
-        setSingleFormData((sfd && typeof sfd === "object") ? sfd : {});
-        setAreaData((ad && typeof ad === "object") ? ad : areaData);
+        setSingleFormData(sfd || {});
+        setAreaData(ad || areaData);
         setDescription(typeof data.description === "string" ? data.description : "");
 
         toast.success("已进入编辑模式");
@@ -394,13 +365,16 @@ export default function UploadPropertyPage() {
 
     setSubmitting(true);
     try {
-      const mode = dbJsonStringModeRef.current;
-
-      // ✅✅✅ 关键：按 DB 现状决定是否 stringify（否则永远保存了读不回）
-      const tfPayload = encodeByDbMode(typeForm || null, mode.typeForm);
-      const sfdPayload = encodeByDbMode(singleFormData, mode.singleFormData);
-      const adPayload = encodeByDbMode(areaData, mode.areaData);
-      const ulsPayload = encodeByDbMode(unitLayouts, mode.unitLayouts);
+      const areaWithBackup =
+        areaData && typeof areaData === "object"
+          ? {
+              ...(areaData || {}),
+              __backup: {
+                typeForm: typeForm || null,
+                singleFormData: singleFormData || {},
+              },
+            }
+          : areaData;
 
       const payload = {
         user_id: user.id,
@@ -413,21 +387,22 @@ export default function UploadPropertyPage() {
 
         type: typeValue,
 
-        // 同时写入 camel + snake（但值类型跟 DB 当前一致）
-        typeForm: tfPayload,
-        type_form: tfPayload,
+        // 这两列 DB 可能覆盖，但我们还是写；真正兜底在 areaData.__backup
+        typeForm: typeForm || null,
+        type_form: typeForm || null,
 
         roomRentalMode,
         rentBatchMode,
 
-        unitLayouts: ulsPayload,
-        unit_layouts: ulsPayload,
+        unitLayouts,
+        unit_layouts: unitLayouts,
 
-        singleFormData: sfdPayload,
-        single_form_data: sfdPayload,
+        singleFormData,
+        single_form_data: singleFormData,
 
-        areaData: adPayload,
-        area_data: adPayload,
+        // ✅ 关键：把表单“备份”进 areaData 里（areaData 你已经确认能存）
+        areaData: areaWithBackup,
+        area_data: areaWithBackup,
 
         description,
         updated_at: new Date().toISOString(),
@@ -447,7 +422,7 @@ export default function UploadPropertyPage() {
             toast.error(`保存失败：Supabase 缺少关键 column：${out.protectedMissing}`);
             alert(
               `保存失败：Supabase 缺少关键 column：${out.protectedMissing}\n\n` +
-                `这个 column 必须存在（建议 jsonb 或 text 存 JSON 字符串）。\n\n` +
+                `✅ 这个 column 必须存在（建议 jsonb）。否则表单/日历价格一定不会记住。\n\n` +
                 `（请看 Console 的 [Supabase Error]）`
             );
             return;
@@ -464,52 +439,47 @@ export default function UploadPropertyPage() {
           return;
         }
 
-        // ✅✅✅ 保存后立刻读回验证（不再允许“假成功”）
-        const { data: after, error: afterErr } = await supabase
-          .from("properties")
-          .select("typeForm,type_form,singleFormData,single_form_data,areaData,area_data,unitLayouts,unit_layouts")
-          .eq("id", editId)
-          .eq("user_id", user.id)
-          .single();
+        if (out.removed?.length) {
+          console.log("[Save] Removed columns:", out.removed);
+        }
 
-        if (afterErr) {
-          console.error("[Readback Error]", afterErr);
+        // ✅ 保存后读回验证（允许从 areaData.__backup 取回 typeForm/singleFormData）
+        try {
+          const { data: after, error: afterErr } = await supabase
+            .from("properties")
+            .select("typeForm,type_form,singleFormData,single_form_data,areaData,area_data,unitLayouts,unit_layouts")
+            .eq("id", editId)
+            .eq("user_id", user.id)
+            .single();
+
+          if (afterErr) throw afterErr;
+
+          const afterAdParsed = safeParseMaybeJson(pickPreferNonEmpty(after?.areaData, after?.area_data, {}));
+          const afterBackup = afterAdParsed && typeof afterAdParsed === "object" ? afterAdParsed.__backup : null;
+
+          const afterTfParsed = safeParseMaybeJson(pickPreferNonEmpty(after?.typeForm, after?.type_form, null));
+          const afterSfdParsed = safeParseMaybeJson(pickPreferNonEmpty(after?.singleFormData, after?.single_form_data, {}));
+
+          const afterTf = hasAnyValue(afterTfParsed) ? afterTfParsed : (afterBackup?.typeForm || null);
+          const afterSfd = hasAnyValue(afterSfdParsed) ? afterSfdParsed : (afterBackup?.singleFormData || {});
+
+          const okTf = stableJson(afterTf) === stableJson(typeForm || null);
+          const okSfd = stableJson(afterSfd) === stableJson(singleFormData || {});
+          if (!okTf || !okSfd) {
+            console.error("[SAVE READBACK MISMATCH]", { okTf, okSfd, expected: { typeForm, singleFormData }, got: { afterTf, afterSfd }, rawAfter: after });
+            toast.error("保存后读取不一致（请看 Console: SAVE READBACK MISMATCH）");
+            alert("保存后读取不一致（请看 Console: SAVE READBACK MISMATCH）");
+            return;
+          }
+        } catch (e) {
+          console.error("[Readback Error]", e);
           toast.error("保存后读取失败（请看 Console）");
           alert("保存后读取失败（请看 Console）");
           return;
         }
 
-        const afterSfd = safeParseMaybeJson(pickPreferNonEmpty(after?.singleFormData, after?.single_form_data, {}));
-        const afterTf = safeParseMaybeJson(pickPreferNonEmpty(after?.typeForm, after?.type_form, null));
-        const afterAd = safeParseMaybeJson(pickPreferNonEmpty(after?.areaData, after?.area_data, {}));
-        const afterUls = safeParseMaybeJson(pickPreferNonEmpty(after?.unitLayouts, after?.unit_layouts, []));
-
-        const okSfd = normalizeForCompare(afterSfd) === normalizeForCompare(singleFormData);
-        const okTf = normalizeForCompare(afterTf) === normalizeForCompare(typeForm || null);
-        const okAd = normalizeForCompare(afterAd) === normalizeForCompare(areaData);
-        const okUls = normalizeForCompare(afterUls) === normalizeForCompare(unitLayouts);
-
-        if (!okSfd || !okTf || !okAd || !okUls) {
-          console.error("[SAVE READBACK MISMATCH]", {
-            okSfd,
-            okTf,
-            okAd,
-            okUls,
-            expected: { typeForm, singleFormData, areaData, unitLayouts },
-            got: { afterTf, afterSfd, afterAd, afterUls },
-            rawAfter: after,
-          });
-
-          toast.error("保存失败：数据库读回的内容还是空/不一致（不是前端没记住）");
-          alert(
-            "保存失败：数据库读回的内容还是空/不一致。\n\n" +
-              "✅ 这说明问题在 Supabase（列类型/trigger/RLS 覆盖），不是你有没有选。\n" +
-              "我已经把差异打印在 Console：SAVE READBACK MISMATCH"
-          );
-          return;
-        }
-
         toast.success("保存修改成功");
+        alert("保存修改成功");
         router.push("/my-profile");
         return;
       }
@@ -526,7 +496,7 @@ export default function UploadPropertyPage() {
           toast.error(`提交失败：Supabase 缺少关键 column：${out.protectedMissing}`);
           alert(
             `提交失败：Supabase 缺少关键 column：${out.protectedMissing}\n\n` +
-              `这个 column 必须存在（建议 jsonb 或 text 存 JSON 字符串）。\n\n` +
+              `✅ 这个 column 必须存在（建议 jsonb）。否则表单/日历价格一定不会记住。\n\n` +
               `（请看 Console 的 [Supabase Error]）`
           );
           return;
@@ -544,6 +514,7 @@ export default function UploadPropertyPage() {
       }
 
       toast.success("提交成功");
+      alert("提交成功");
       router.push("/");
     } catch (e) {
       console.error(e);
@@ -576,6 +547,7 @@ export default function UploadPropertyPage() {
       if (error) throw error;
 
       toast.success("房源已删除");
+      alert("房源已删除");
       router.push("/my-profile");
     } catch (e) {
       console.error(e);
@@ -733,4 +705,4 @@ export default function UploadPropertyPage() {
     </div>
   );
 }
-  
+     
