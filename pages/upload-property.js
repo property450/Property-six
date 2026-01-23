@@ -40,19 +40,25 @@ function stableJson(obj) {
   }
 }
 
-/**
- * ✅ Supabase 报错 PGRST204 时，会有类似：
- * "Could not find the 'propertyStatus' column of 'properties' in the schema cache"
- * 我们把 column 名抓出来，然后从 payload 删除再重试。
- */
 function extractMissingColumnName(error) {
   const msg = String(error?.message || "");
   const m = msg.match(/Could not find the '([^']+)' column/i);
   return m?.[1] || "";
 }
 
+// ✅✅✅ 关键字段：绝对不允许被 auto-strip
+const PROTECTED_COLUMNS = new Set([
+  "typeForm",
+  "type_form",
+  "singleFormData",
+  "single_form_data",
+  "areaData",
+  "area_data",
+  "unitLayouts",
+  "unit_layouts",
+]);
+
 async function runWithAutoStripColumns({ mode, payload, editId, userId, maxTries = 8 }) {
-  // mode: "insert" | "update"
   let working = { ...(payload || {}) };
   let tries = 0;
   const removed = [];
@@ -62,23 +68,28 @@ async function runWithAutoStripColumns({ mode, payload, editId, userId, maxTries
 
     let res;
     if (mode === "update") {
-      res = await supabase.from("properties").update(working).eq("id", editId).eq("user_id", userId);
+      res = await supabase
+        .from("properties")
+        .update(working)
+        .eq("id", editId)
+        .eq("user_id", userId);
     } else {
       res = await supabase.from("properties").insert([working]);
     }
 
-    if (!res?.error) {
-      return { ok: true, removed, result: res };
-    }
+    if (!res?.error) return { ok: true, removed, result: res };
 
     const err = res.error;
-
-    // ✅ 把真正的错误打印出来
     console.error("[Supabase Error]", err);
 
-    // ✅ 只有 PGRST204（缺 column）才自动剔除
     const missing = extractMissingColumnName(err);
     if (err?.code === "PGRST204" && missing) {
+      // ✅✅✅ 关键字段缺失：直接失败（否则会“保存成功但实际没存”）
+      if (PROTECTED_COLUMNS.has(missing)) {
+        return { ok: false, removed, error: err, protectedMissing: missing };
+      }
+
+      // 非关键字段：允许自动剔除（保持你原本策略）
       if (!Object.prototype.hasOwnProperty.call(working, missing)) {
         return { ok: false, removed, error: err };
       }
@@ -161,6 +172,14 @@ export default function UploadPropertyPage() {
   const lastFormJsonRef = useRef("");
   const lastDerivedRef = useRef({ saleType: "", status: "", roomMode: "" });
 
+  // ✅✅✅ 兼容你 Supabase 可能用 snake_case 建 column
+  const columnKeysRef = useRef({
+    typeForm: "typeForm",
+    singleFormData: "singleFormData",
+    areaData: "areaData",
+    unitLayouts: "unitLayouts",
+  });
+
   useEffect(() => {
     if (!isRentBatch) return;
     const n = batchLayoutCount;
@@ -186,7 +205,7 @@ export default function UploadPropertyPage() {
     });
   }, [saleTypeNorm, roomRentalMode, isRentBatch, roomLayoutCount]);
 
-  // ✅ 编辑模式：读取房源并回填
+  // ✅ 编辑模式：读取房源并回填（camel / snake 都能读）
   useEffect(() => {
     if (!isEditMode) return;
     if (!user) return;
@@ -208,8 +227,20 @@ export default function UploadPropertyPage() {
           return;
         }
 
-        // ✅✅✅（新增）回填 TypeSelector 的整套选择（避免编辑保存后再进编辑又要重填）
-        setTypeForm(data?.typeForm || null);
+        const keys = columnKeysRef.current;
+        if (data.typeForm === undefined && data.type_form !== undefined) keys.typeForm = "type_form";
+        if (data.singleFormData === undefined && data.single_form_data !== undefined)
+          keys.singleFormData = "single_form_data";
+        if (data.areaData === undefined && data.area_data !== undefined) keys.areaData = "area_data";
+        if (data.unitLayouts === undefined && data.unit_layouts !== undefined)
+          keys.unitLayouts = "unit_layouts";
+
+        const tfKey = keys.typeForm;
+        const sfKey = keys.singleFormData;
+        const adKey = keys.areaData;
+        const ulKey = keys.unitLayouts;
+
+        setTypeForm(data?.[tfKey] || null);
 
         if (data.lat && data.lng) {
           setAddressObj({
@@ -221,7 +252,7 @@ export default function UploadPropertyPage() {
 
         if (typeof data.type === "string") setTypeValue(data.type);
 
-        const tf = data.typeForm || null;
+        const tf = data?.[tfKey] || null;
         setSaleType((tf && tf.saleType) || data.saleType || data.sale_type || "");
         setComputedStatus((tf && tf.propertyStatus) || data.propertyStatus || data.property_status || "");
         setRoomRentalMode((tf && tf.roomRentalMode) || data.roomRentalMode || data.room_rental_mode || "whole");
@@ -229,9 +260,10 @@ export default function UploadPropertyPage() {
 
         setProjectCategory(data.projectCategory || "");
         setProjectSubType(data.projectSubType || "");
-        setUnitLayouts(Array.isArray(data.unitLayouts) ? data.unitLayouts : []);
-        setSingleFormData(data.singleFormData || {});
-        setAreaData(data.areaData || areaData);
+
+        setUnitLayouts(Array.isArray(data?.[ulKey]) ? data?.[ulKey] : []);
+        setSingleFormData(data?.[sfKey] || {}); // ✅✅✅ Hotel/Homestay 表单都靠这个回填
+        setAreaData(data?.[adKey] || areaData);
         setDescription(typeof data.description === "string" ? data.description : "");
 
         toast.success("已进入编辑模式");
@@ -253,23 +285,29 @@ export default function UploadPropertyPage() {
   const handleSubmit = async () => {
     if (mustLogin) {
       toast.error("请先登录");
-      alert("请先登录（你现在 user 还是 null）");
+      alert("请先登录");
       return;
     }
     if (mustPickSaleType) {
       toast.error("请选择 Sale / Rent / Homestay / Hotel");
-      alert("请选择 Sale / Rent / Homestay / Hotel（你现在 saleType 还是空）");
+      alert("请选择 Sale / Rent / Homestay / Hotel");
       return;
     }
     if (mustPickAddress) {
       toast.error("请选择地址");
-      alert("请选择地址（你现在 lat/lng 还是空）");
+      alert("请选择地址");
       return;
     }
     if (submitting) return;
 
     setSubmitting(true);
     try {
+      const keys = columnKeysRef.current;
+      const tfKey = keys.typeForm;
+      const sfKey = keys.singleFormData;
+      const adKey = keys.areaData;
+      const ulKey = keys.unitLayouts;
+
       const payload = {
         user_id: user.id,
         address: addressObj?.address || "",
@@ -280,17 +318,17 @@ export default function UploadPropertyPage() {
         propertyStatus: computedStatus,
 
         type: typeValue,
-        // ✅✅✅（新增）把 TypeSelector 的所有选择一次性存进 Supabase
-        typeForm: typeForm || null,
 
         roomRentalMode,
         rentBatchMode,
 
-        unitLayouts,
-        singleFormData,
-        areaData,
-        description,
+        // ✅✅✅ 关键：这些必须真的存进 Supabase，否则“编辑不记住”
+        [tfKey]: typeForm || null,
+        [ulKey]: unitLayouts,
+        [sfKey]: singleFormData, // ✅✅✅ Hotel/Homestay + 日历价格都在这里
+        [adKey]: areaData,
 
+        description,
         updated_at: new Date().toISOString(),
       };
 
@@ -304,15 +342,30 @@ export default function UploadPropertyPage() {
         });
 
         if (!out.ok) {
+          if (out.protectedMissing) {
+            const col = out.protectedMissing;
+            toast.error(`保存失败：Supabase 缺少关键 column：${col}`);
+            alert(
+              `保存失败：Supabase 缺少关键 column：${col}\n\n` +
+                `✅ 你必须在 Supabase properties 表新增这个 column（类型建议 jsonb），不然表单/日历价格一定记不住。\n\n` +
+                `（请看 Console 报错）`
+            );
+            return;
+          }
+
           const missing = extractMissingColumnName(out.error);
           if (missing) {
-            toast.error(`提交失败：Supabase 缺少 column：${missing}`);
-            alert(`提交失败：Supabase 缺少 column：${missing}\n（请看 Console 报错）`);
+            toast.error(`保存失败：Supabase 缺少 column：${missing}`);
+            alert(`保存失败：Supabase 缺少 column：${missing}\n（请看 Console 报错）`);
           } else {
-            toast.error("提交失败（请看 Console 报错）");
-            alert("提交失败（请看 Console 报错）");
+            toast.error("保存失败（请看 Console 报错）");
+            alert("保存失败（请看 Console 报错）");
           }
           return;
+        }
+
+        if (Array.isArray(out.removed) && out.removed.length > 0) {
+          toast(`已自动忽略缺少的 columns：${out.removed.join(", ")}`);
         }
 
         toast.success("保存修改成功");
@@ -329,6 +382,17 @@ export default function UploadPropertyPage() {
       });
 
       if (!out.ok) {
+        if (out.protectedMissing) {
+          const col = out.protectedMissing;
+          toast.error(`提交失败：Supabase 缺少关键 column：${col}`);
+          alert(
+            `提交失败：Supabase 缺少关键 column：${col}\n\n` +
+              `✅ 你必须在 Supabase properties 表新增这个 column（类型建议 jsonb），不然表单/日历价格一定记不住。\n\n` +
+              `（请看 Console 报错）`
+          );
+          return;
+        }
+
         const missing = extractMissingColumnName(out.error);
         if (missing) {
           toast.error(`提交失败：Supabase 缺少 column：${missing}`);
@@ -338,6 +402,10 @@ export default function UploadPropertyPage() {
           alert("提交失败（请看 Console 报错）");
         }
         return;
+      }
+
+      if (Array.isArray(out.removed) && out.removed.length > 0) {
+        toast(`已自动忽略缺少的 columns：${out.removed.join(", ")}`);
       }
 
       toast.success("提交成功");
@@ -392,23 +460,11 @@ export default function UploadPropertyPage() {
     <div className="max-w-3xl mx-auto p-4 space-y-4">
       <h1 className="text-2xl font-bold">{isEditMode ? "编辑房源" : "上传房源"}</h1>
 
-      {(mustLogin || mustPickSaleType || mustPickAddress) && (
-        <div className="border rounded-xl bg-yellow-50 p-3 text-sm text-yellow-900">
-          <div className="font-semibold mb-1">当前还不能提交，因为：</div>
-          <ul className="list-disc pl-5 space-y-1">
-            {mustLogin && <li>你还没登录（user 还是 null）</li>}
-            {mustPickSaleType && <li>你还没选择 Sale / Rent / Homestay / Hotel</li>}
-            {mustPickAddress && <li>你还没选择地址（lat/lng 为空）</li>}
-          </ul>
-        </div>
-      )}
-
       <AddressSearchInput value={addressObj} onChange={setAddressObj} />
 
       <TypeSelector
         value={typeValue}
         onChange={setTypeValue}
-        // ✅✅✅（新增）把编辑读取到的 typeForm 传进去，让选择能回填
         initialForm={typeForm}
         rentBatchMode={allowRentBatchMode ? rentBatchMode : "no"}
         onChangeRentBatchMode={(val) => {
@@ -439,8 +495,8 @@ export default function UploadPropertyPage() {
         }}
       />
 
+      {/* ✅✅✅ 关键：Hotel/Homestay 必须接入 singleFormData 才能“记住并保存” */}
       {isHomestay ? (
-        // ✅✅✅ 关键修复：把 singleFormData / setSingleFormData 传进去，Homestay 才能“记住并保存”
         <HomestayUploadForm
           formData={singleFormData}
           setFormData={setSingleFormData}
@@ -449,7 +505,6 @@ export default function UploadPropertyPage() {
           }
         />
       ) : isHotel ? (
-        // ✅✅✅ 关键修复：把 singleFormData / setSingleFormData 传进去，Hotel 才能“记住并保存”
         <HotelUploadForm
           formData={singleFormData}
           setFormData={setSingleFormData}
