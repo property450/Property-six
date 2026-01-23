@@ -55,16 +55,11 @@ function stableJson(obj) {
 
   const sortDeep = (v) => {
     if (v === null || v === undefined) return v;
-
-    // Date -> ISO
     if (v instanceof Date) return v.toISOString();
-
-    // Array
     if (Array.isArray(v)) return v.map(sortDeep);
 
-    // Object
     if (typeof v === "object") {
-      if (seen.has(v)) return null; // 防循环引用
+      if (seen.has(v)) return null;
       seen.add(v);
 
       const out = {};
@@ -72,14 +67,14 @@ function stableJson(obj) {
         .sort()
         .forEach((k) => {
           const val = v[k];
-          if (val === undefined) return; // undefined 不存
-          if (typeof val === "function") return; // function 不存
+          if (val === undefined) return;
+          if (typeof val === "function") return;
           out[k] = sortDeep(val);
         });
       return out;
     }
 
-    return v; // string/number/boolean
+    return v;
   };
 
   try {
@@ -89,7 +84,6 @@ function stableJson(obj) {
   }
 }
 
-// ✅ 判断“有没有内容”（避免 {} 抢优先级）
 function hasAnyValue(v) {
   if (!v) return false;
   if (typeof v !== "object") return true;
@@ -97,17 +91,12 @@ function hasAnyValue(v) {
   return Object.keys(v).length > 0;
 }
 
-// ✅ 从多个候选里选“非空”的
 function pickPreferNonEmpty(a, b, fallback) {
   if (hasAnyValue(a)) return a;
   if (hasAnyValue(b)) return b;
   return fallback;
 }
 
-/**
- * Supabase 报错 PGRST204 时，通常类似：
- * "Could not find the 'xxx' column of 'properties' in the schema cache"
- */
 function extractMissingColumnName(error) {
   const msg = String(error?.message || "");
   const m = msg.match(/Could not find the '([^']+)' column/i);
@@ -123,7 +112,6 @@ const PROTECTED_KEYS = new Set([
   "area_data",
   "unitLayouts",
   "unit_layouts",
-  // ✅ v2 也算关键列（如果你没加 SQL，会提示你去加）
   "type_form_v2",
   "single_form_data_v2",
 ]);
@@ -236,6 +224,9 @@ export default function UploadPropertyPage() {
   });
   const [description, setDescription] = useState("");
 
+  // ✅ 关键：编辑模式必须等数据 fetch 完再渲染表单，否则 initialForm 不会回填
+  const [editHydrated, setEditHydrated] = useState(!isEditMode);
+
   const saleTypeNorm = String(saleType || "").toLowerCase();
   const isHomestay = saleTypeNorm.includes("homestay");
   const isHotel = saleTypeNorm.includes("hotel");
@@ -290,11 +281,18 @@ export default function UploadPropertyPage() {
 
   // ✅ 编辑模式：读取房源并回填（优先用 v2）
   useEffect(() => {
-    if (!isEditMode) return;
+    if (!isEditMode) {
+      setEditHydrated(true);
+      return;
+    }
     if (!user) return;
     if (!editId) return;
 
+    let cancelled = false;
+
     const fetchForEdit = async () => {
+      setEditHydrated(false);
+
       try {
         const { data, error } = await supabase
           .from("properties")
@@ -310,8 +308,11 @@ export default function UploadPropertyPage() {
           return;
         }
 
-        // ✅ 优先读 v2（绕开旧列被覆盖）
-        const tfRaw = pickPreferNonEmpty(data.type_form_v2, pickPreferNonEmpty(data.typeForm, data.type_form, null), null);
+        const tfRaw = pickPreferNonEmpty(
+          data.type_form_v2,
+          pickPreferNonEmpty(data.typeForm, data.type_form, null),
+          null
+        );
         const sfdRaw = pickPreferNonEmpty(
           data.single_form_data_v2,
           pickPreferNonEmpty(data.singleFormData, data.single_form_data, {}),
@@ -325,6 +326,8 @@ export default function UploadPropertyPage() {
         const sfd = safeParseMaybeJson(sfdRaw);
         const ad = safeParseMaybeJson(adRaw);
         const uls = safeParseMaybeJson(ulsRaw);
+
+        if (cancelled) return;
 
         setTypeForm(tf);
 
@@ -355,10 +358,16 @@ export default function UploadPropertyPage() {
         console.error(e);
         toast.error("无法加载房源进行编辑");
         alert("无法加载房源进行编辑（请看 Console 报错）");
+      } finally {
+        if (!cancelled) setEditHydrated(true);
       }
     };
 
     fetchForEdit();
+
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditMode, editId, user]);
 
@@ -397,11 +406,9 @@ export default function UploadPropertyPage() {
 
         type: typeValue,
 
-        // ✅ v2：真正用来“记住”的列
         type_form_v2: typeForm || null,
         single_form_data_v2: singleFormData || {},
 
-        // ✅ 旧列继续写（不影响你原本结构）
         typeForm: typeForm || null,
         type_form: typeForm || null,
 
@@ -455,11 +462,6 @@ export default function UploadPropertyPage() {
         if (out.removed?.length) {
           console.log("[Save] Removed columns:", out.removed);
         }
-
-        // ✅（已移除 readback 校验）
-        // 之前的“保存后读回严格比对”会因为对象重建/Key 顺序/空字段等原因误报，
-        // 导致你明明保存成功却被弹窗拦截，体验像“没记住”。
-        // 现在：只以 Supabase update 成功为准（真正最稳）。
 
         toast.success("保存修改成功");
         alert("保存修改成功");
@@ -539,8 +541,21 @@ export default function UploadPropertyPage() {
 
   const shouldShowProjectTrustSection = isProject && Array.isArray(unitLayouts) && unitLayouts.length > 0;
 
+  // ✅ 关键：编辑模式等待 hydration，避免 initialForm 失效
+  if (isEditMode && !editHydrated) {
+    return (
+      <div className="max-w-3xl mx-auto p-4 space-y-4">
+        <h1 className="text-2xl font-bold">编辑房源</h1>
+        <div className="text-sm text-gray-600">加载中…</div>
+      </div>
+    );
+  }
+
+  // ✅ 用 key 强制在“数据已到”后重新 mount 一次（TypeSelector/日历组件才会吃到初始值）
+  const formMountKey = isEditMode ? `edit-${editId}-${editHydrated ? "1" : "0"}` : "new";
+
   return (
-    <div className="max-w-3xl mx-auto p-4 space-y-4">
+    <div className="max-w-3xl mx-auto p-4 space-y-4" key={formMountKey}>
       <h1 className="text-2xl font-bold">{isEditMode ? "编辑房源" : "上传房源"}</h1>
 
       <AddressSearchInput value={addressObj} onChange={setAddressObj} />
