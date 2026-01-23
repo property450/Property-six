@@ -647,4 +647,90 @@ export default function UploadPropertyPage() {
       ) : isProject ? (
         <>
           <ProjectUploadForm
+            saleType={saleType}
+            computedStatus={computedStatus}
+            isBulkRentProject={false}
+            projectCategory={projectCategory}
+            setProjectCategory={setProjectCategory}
+            projectSubType={projectSubType}
+            setProjectSubType={setProjectSubType}
+            unitLayouts={unitLayouts}
+            setUnitLayouts={setUnitLayouts}
+            enableProjectAutoCopy={computedStatus === "New Project / Under Construction"}
+            pickCommon={pickCommon}
+            commonHash={commonHash}
+          />
+
+          {shouldShowProjectTrustSection && (
+            <ListingTrustSection
+              mode={
+                computedStatus === "New Project / Under Construction"
+                  ? "new_project"
+                  : "completed_unit"
+              }
+              value={singleFormData?.trustSection || {}}
+              onChange={(next) =>
+                setSingleFormData((prev) => ({
+                  ...(prev || {}),
+                  trustSection: next,
+                }))
+              }
+            />
+          )}
+        </>
+      ) : saleTypeNorm === "rent" ? (
+        <RentUploadForm
+          saleType={saleType}
+          computedStatus={computedStatus}
+          roomRentalMode={roomRentalMode}
+          isRoomRental={roomRentalMode === "room"}
+          singleFormData={singleFormData}
+          setSingleFormData={setSingleFormData}
+          areaData={areaData}
+          setAreaData={setAreaData}
+          description={description}
+          setDescription={setDescription}
+          rentBatchMode={rentBatchMode}
+          layoutCount={isRentBatch ? batchLayoutCount : roomLayoutCount}
+          unitLayouts={unitLayouts}
+          setUnitLayouts={setUnitLayouts}
+          propertyCategory={typeForm?.category || typeForm?.propertyCategory || ""}
+        />
+      ) : (
+        <SaleUploadForm
+          saleType={saleType}
+          computedStatus={computedStatus}
+          singleFormData={singleFormData}
+          setSingleFormData={setSingleFormData}
+          areaData={areaData}
+          setAreaData={setAreaData}
+          description={description}
+          setDescription={setDescription}
+          propertyCategory={typeForm?.category || typeForm?.propertyCategory || ""}
+        />
+      )}
+
+      <Button
+        type="button"
+        onClick={handleSubmit}
+        disabled={submitting}
+        className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full disabled:opacity-60"
+      >
+        {submitting ? "处理中..." : isEditMode ? "保存修改" : "提交房源"}
+      </Button>
+
+      {isEditMode && (
+        <Button
+          type="button"
+          onClick={handleDelete}
+          disabled={submitting}
+          variant="destructive"
+          className="w-full disabled:opacity-60"
+        >
+          {submitting ? "处理中..." : "删除房源"}
+        </Button>
+      )}
+    </div>
+  );
+}
   
