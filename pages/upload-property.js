@@ -654,4 +654,8 @@ export default function UploadPropertyPage() {
         className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full disabled:opacity-60"
       >
         {submitting ? "处理中..." : isEditMode ? "保存修改" : "提交房源"}
-      </Bu
+      </Button>
+      )}
+    </div>
+  );
+}
