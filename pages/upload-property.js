@@ -40,13 +40,20 @@ function stableJson(obj) {
   }
 }
 
+/**
+ * Supabase PGRST204 通常类似：
+ * "Could not find the 'xxx' column of 'properties' in the schema cache"
+ */
 function extractMissingColumnName(error) {
   const msg = String(error?.message || "");
   const m = msg.match(/Could not find the '([^']+)' column/i);
   return m?.[1] || "";
 }
 
-// ✅✅✅ 关键字段：绝对不允许被 auto-strip
+/**
+ * ✅✅✅ 关键字段（这些不保存 = 你说的“编辑不记住/日历价格不记住”）
+ * 如果 Supabase 缺这些 column，绝对不能“自动删除再继续保存”，否则会出现“看起来保存成功但其实没存”。
+ */
 const PROTECTED_COLUMNS = new Set([
   "typeForm",
   "type_form",
@@ -59,6 +66,7 @@ const PROTECTED_COLUMNS = new Set([
 ]);
 
 async function runWithAutoStripColumns({ mode, payload, editId, userId, maxTries = 8 }) {
+  // mode: "insert" | "update"
   let working = { ...(payload || {}) };
   let tries = 0;
   const removed = [];
@@ -77,19 +85,25 @@ async function runWithAutoStripColumns({ mode, payload, editId, userId, maxTries
       res = await supabase.from("properties").insert([working]);
     }
 
-    if (!res?.error) return { ok: true, removed, result: res };
+    if (!res?.error) {
+      return { ok: true, removed, result: res };
+    }
 
     const err = res.error;
+
+    // ✅ 打印真实 Supabase error
     console.error("[Supabase Error]", err);
 
     const missing = extractMissingColumnName(err);
+
+    // ✅ 只有 PGRST204（缺 column）才尝试剔除
     if (err?.code === "PGRST204" && missing) {
-      // ✅✅✅ 关键字段缺失：直接失败（否则会“保存成功但实际没存”）
+      // ✅✅✅ 关键字段缺失：直接失败（避免“假成功”）
       if (PROTECTED_COLUMNS.has(missing)) {
         return { ok: false, removed, error: err, protectedMissing: missing };
       }
 
-      // 非关键字段：允许自动剔除（保持你原本策略）
+      // 非关键字段：才允许自动剔除
       if (!Object.prototype.hasOwnProperty.call(working, missing)) {
         return { ok: false, removed, error: err };
       }
@@ -146,9 +160,7 @@ export default function UploadPropertyPage() {
 
   const isProject =
     saleTypeNorm === "sale" &&
-    ["New Project / Under Construction", "Completed Unit / Developer Unit"].includes(
-      computedStatus
-    );
+    ["New Project / Under Construction", "Completed Unit / Developer Unit"].includes(computedStatus);
 
   const rentCategorySelected = !!(typeForm && (typeForm.category || typeForm.propertyCategory));
   const allowRentBatchMode = saleTypeNorm === "rent" && rentCategorySelected;
@@ -156,10 +168,7 @@ export default function UploadPropertyPage() {
   const isRentBatch = saleTypeNorm === "rent" && rentBatchMode === "yes" && roomRentalMode !== "room";
 
   const rawLayoutCount = Number(typeForm?.layoutCount);
-  const batchLayoutCount = Math.max(
-    2,
-    Math.min(20, Number.isFinite(rawLayoutCount) ? rawLayoutCount : 2)
-  );
+  const batchLayoutCount = Math.max(2, Math.min(20, Number.isFinite(rawLayoutCount) ? rawLayoutCount : 2));
 
   const rawRoomCount = Number(typeForm?.roomCount);
   const roomLayoutCount =
@@ -172,7 +181,7 @@ export default function UploadPropertyPage() {
   const lastFormJsonRef = useRef("");
   const lastDerivedRef = useRef({ saleType: "", status: "", roomMode: "" });
 
-  // ✅✅✅ 兼容你 Supabase 可能用 snake_case 建 column
+  // ✅✅✅ 自动识别你 Supabase 表到底是 camelCase 还是 snake_case
   const columnKeysRef = useRef({
     typeForm: "typeForm",
     singleFormData: "singleFormData",
@@ -205,7 +214,7 @@ export default function UploadPropertyPage() {
     });
   }, [saleTypeNorm, roomRentalMode, isRentBatch, roomLayoutCount]);
 
-  // ✅ 编辑模式：读取房源并回填（camel / snake 都能读）
+  // ✅ 编辑模式：读取房源并回填
   useEffect(() => {
     if (!isEditMode) return;
     if (!user) return;
@@ -227,6 +236,7 @@ export default function UploadPropertyPage() {
           return;
         }
 
+        // ✅ 自动侦测 column key
         const keys = columnKeysRef.current;
         if (data.typeForm === undefined && data.type_form !== undefined) keys.typeForm = "type_form";
         if (data.singleFormData === undefined && data.single_form_data !== undefined)
@@ -260,9 +270,8 @@ export default function UploadPropertyPage() {
 
         setProjectCategory(data.projectCategory || "");
         setProjectSubType(data.projectSubType || "");
-
         setUnitLayouts(Array.isArray(data?.[ulKey]) ? data?.[ulKey] : []);
-        setSingleFormData(data?.[sfKey] || {}); // ✅✅✅ Hotel/Homestay 表单都靠这个回填
+        setSingleFormData(data?.[sfKey] || {});
         setAreaData(data?.[adKey] || areaData);
         setDescription(typeof data.description === "string" ? data.description : "");
 
@@ -285,17 +294,17 @@ export default function UploadPropertyPage() {
   const handleSubmit = async () => {
     if (mustLogin) {
       toast.error("请先登录");
-      alert("请先登录");
+      alert("请先登录（你现在 user 还是 null）");
       return;
     }
     if (mustPickSaleType) {
       toast.error("请选择 Sale / Rent / Homestay / Hotel");
-      alert("请选择 Sale / Rent / Homestay / Hotel");
+      alert("请选择 Sale / Rent / Homestay / Hotel（你现在 saleType 还是空）");
       return;
     }
     if (mustPickAddress) {
       toast.error("请选择地址");
-      alert("请选择地址");
+      alert("请选择地址（你现在 lat/lng 还是空）");
       return;
     }
     if (submitting) return;
@@ -319,16 +328,17 @@ export default function UploadPropertyPage() {
 
         type: typeValue,
 
+        // ✅✅✅ 用正确 column key 存（camel / snake 都能）
+        [tfKey]: typeForm || null,
+        [ulKey]: unitLayouts,
+        [sfKey]: singleFormData,
+        [adKey]: areaData,
+
         roomRentalMode,
         rentBatchMode,
 
-        // ✅✅✅ 关键：这些必须真的存进 Supabase，否则“编辑不记住”
-        [tfKey]: typeForm || null,
-        [ulKey]: unitLayouts,
-        [sfKey]: singleFormData, // ✅✅✅ Hotel/Homestay + 日历价格都在这里
-        [adKey]: areaData,
-
         description,
+
         updated_at: new Date().toISOString(),
       };
 
@@ -343,11 +353,10 @@ export default function UploadPropertyPage() {
 
         if (!out.ok) {
           if (out.protectedMissing) {
-            const col = out.protectedMissing;
-            toast.error(`保存失败：Supabase 缺少关键 column：${col}`);
+            toast.error(`保存失败：Supabase 缺少关键 column：${out.protectedMissing}`);
             alert(
-              `保存失败：Supabase 缺少关键 column：${col}\n\n` +
-                `✅ 你必须在 Supabase properties 表新增这个 column（类型建议 jsonb），不然表单/日历价格一定记不住。\n\n` +
+              `保存失败：Supabase 缺少关键 column：${out.protectedMissing}\n\n` +
+                `✅ 你必须在 Supabase 的 properties 表新增这个 column（建议 jsonb），否则“保存后不记住”永远不会好。\n\n` +
                 `（请看 Console 报错）`
             );
             return;
@@ -355,17 +364,44 @@ export default function UploadPropertyPage() {
 
           const missing = extractMissingColumnName(out.error);
           if (missing) {
-            toast.error(`保存失败：Supabase 缺少 column：${missing}`);
-            alert(`保存失败：Supabase 缺少 column：${missing}\n（请看 Console 报错）`);
+            toast.error(`提交失败：Supabase 缺少 column：${missing}`);
+            alert(`提交失败：Supabase 缺少 column：${missing}\n（请看 Console 报错）`);
           } else {
-            toast.error("保存失败（请看 Console 报错）");
-            alert("保存失败（请看 Console 报错）");
+            toast.error("提交失败（请看 Console 报错）");
+            alert("提交失败（请看 Console 报错）");
           }
           return;
         }
 
         if (Array.isArray(out.removed) && out.removed.length > 0) {
           toast(`已自动忽略缺少的 columns：${out.removed.join(", ")}`);
+        }
+
+        // ✅✅✅ 保存后验证：立刻读回 DB，确认 singleFormData 真的写进去了
+        try {
+          const { data: verify, error: vErr } = await supabase
+            .from("properties")
+            .select(`${sfKey},${tfKey},${adKey},${ulKey}`)
+            .eq("id", editId)
+            .eq("user_id", user.id)
+            .single();
+
+          if (vErr) throw vErr;
+
+          const wroteSingle = stableJson(verify?.[sfKey] || {});
+          const localSingle = stableJson(singleFormData || {});
+          if (wroteSingle !== localSingle) {
+            toast.error("保存后验证失败：数据没有写进数据库（请看 Console）");
+            console.error("[Verify Failed] DB:", verify?.[sfKey], "Local:", singleFormData);
+            alert(
+              "保存后验证失败：数据没有真正写进数据库。\n\n" +
+                "请打开 Console 看 [Supabase Error] / [Verify Failed]，把截图发我，我就能一次定位是缺 column 或被 RLS/触发器覆盖。"
+            );
+            return;
+          }
+        } catch (e) {
+          console.error("[Verify Error]", e);
+          toast("保存成功，但验证读取失败（请看 Console）");
         }
 
         toast.success("保存修改成功");
@@ -383,11 +419,10 @@ export default function UploadPropertyPage() {
 
       if (!out.ok) {
         if (out.protectedMissing) {
-          const col = out.protectedMissing;
-          toast.error(`提交失败：Supabase 缺少关键 column：${col}`);
+          toast.error(`提交失败：Supabase 缺少关键 column：${out.protectedMissing}`);
           alert(
-            `提交失败：Supabase 缺少关键 column：${col}\n\n` +
-              `✅ 你必须在 Supabase properties 表新增这个 column（类型建议 jsonb），不然表单/日历价格一定记不住。\n\n` +
+            `提交失败：Supabase 缺少关键 column：${out.protectedMissing}\n\n` +
+              `✅ 你必须在 Supabase 的 properties 表新增这个 column（建议 jsonb），否则表单/日历价格不会被保存。\n\n` +
               `（请看 Console 报错）`
           );
           return;
@@ -453,8 +488,7 @@ export default function UploadPropertyPage() {
     }
   };
 
-  const shouldShowProjectTrustSection =
-    isProject && Array.isArray(unitLayouts) && unitLayouts.length > 0;
+  const shouldShowProjectTrustSection = isProject && Array.isArray(unitLayouts) && unitLayouts.length > 0;
 
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-4">
@@ -495,7 +529,6 @@ export default function UploadPropertyPage() {
         }}
       />
 
-      {/* ✅✅✅ 关键：Hotel/Homestay 必须接入 singleFormData 才能“记住并保存” */}
       {isHomestay ? (
         <HomestayUploadForm
           formData={singleFormData}
@@ -531,11 +564,7 @@ export default function UploadPropertyPage() {
 
           {shouldShowProjectTrustSection && (
             <ListingTrustSection
-              mode={
-                computedStatus === "New Project / Under Construction"
-                  ? "new_project"
-                  : "completed_unit"
-              }
+              mode={computedStatus === "New Project / Under Construction" ? "new_project" : "completed_unit"}
               value={singleFormData?.trustSection || {}}
               onChange={(next) =>
                 setSingleFormData((prev) => ({
