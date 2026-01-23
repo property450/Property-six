@@ -51,8 +51,39 @@ function safeParseMaybeJson(v) {
 }
 
 function stableJson(obj) {
+  const seen = new WeakSet();
+
+  const sortDeep = (v) => {
+    if (v === null || v === undefined) return v;
+
+    // Date -> ISO
+    if (v instanceof Date) return v.toISOString();
+
+    // Array
+    if (Array.isArray(v)) return v.map(sortDeep);
+
+    // Object
+    if (typeof v === "object") {
+      if (seen.has(v)) return null; // 防循环引用
+      seen.add(v);
+
+      const out = {};
+      Object.keys(v)
+        .sort()
+        .forEach((k) => {
+          const val = v[k];
+          if (val === undefined) return; // undefined 不存
+          if (typeof val === "function") return; // function 不存
+          out[k] = sortDeep(val);
+        });
+      return out;
+    }
+
+    return v; // string/number/boolean
+  };
+
   try {
-    return JSON.stringify(obj ?? null);
+    return JSON.stringify(sortDeep(obj ?? null));
   } catch {
     return "";
   }
