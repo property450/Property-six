@@ -174,6 +174,7 @@ function parseDigitsToInt(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
+// ✅ 小工具：判断 formData 是否真的有内容（避免空对象覆盖用户输入）
 function hasAnyValue(obj) {
   if (!obj || typeof obj !== "object") return false;
   return Object.keys(obj).length > 0;
@@ -191,6 +192,7 @@ export default function HotelUploadForm(props) {
 
   const [roomCount, setRoomCount] = useState(1);
   const [roomLayouts, setRoomLayouts] = useState([createEmptyRoomLayout()]);
+
   const [facilityImages, setFacilityImages] = useState({});
 
   const [roomCountInput, setRoomCountInput] = useState("1");
@@ -204,15 +206,6 @@ export default function HotelUploadForm(props) {
   // ✅ Layout 图纸上传 refs（每个房型一个）
   const layoutFileInputRefs = useRef([]);
   const unitCountDropdownRefs = useRef([]); // ✅ 每个房型数量框外层 ref
-
-  // ✅✅✅ 修复无限循环：把父层传进来的函数放进 ref，不放进 useEffect 依赖
-  const setFormDataRef = useRef(props?.setFormData);
-  const onFormChangeRef = useRef(props?.onFormChange);
-
-  useEffect(() => {
-    setFormDataRef.current = props?.setFormData;
-    onFormChangeRef.current = props?.onFormChange;
-  }, [props?.setFormData, props?.onFormChange]);
 
   const getLayoutFileRef = (index) => {
     if (!layoutFileInputRefs.current[index]) {
@@ -236,19 +229,19 @@ export default function HotelUploadForm(props) {
     const d = props?.formData;
     if (!hasAnyValue(d)) return;
 
+    // hotelResortType
     if (typeof d.hotelResortType === "string") {
       setHotelResortType(d.hotelResortType);
     }
 
+    // roomLayouts（如果存在）
     if (Array.isArray(d.roomLayouts) && d.roomLayouts.length > 0) {
       const normalized = d.roomLayouts.map((l) => {
         const base = { ...createEmptyRoomLayout(), ...(l || {}) };
+
+        // 补 unitCountInput（防止旧数据没有这个字段）
         const unitCountNum = Number(base.unitCount);
-        if (
-          (!base.unitCountInput || base.unitCountInput === "") &&
-          Number.isFinite(unitCountNum) &&
-          unitCountNum > 0
-        ) {
+        if ((!base.unitCountInput || base.unitCountInput === "") && Number.isFinite(unitCountNum) && unitCountNum > 0) {
           base.unitCountInput = formatWithCommas(unitCountNum);
         }
         return base;
@@ -259,6 +252,7 @@ export default function HotelUploadForm(props) {
       setRoomCountInput(String(normalized.length));
     }
 
+    // facilityImages
     if (d.facilityImages && typeof d.facilityImages === "object") {
       setFacilityImages(d.facilityImages);
     }
@@ -267,30 +261,23 @@ export default function HotelUploadForm(props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props?.formData]);
 
-  // ✅✅✅【核心修复 2】实时同步回父层（不会再无限循环）
-  // 重点：
-  // - 不把 props 放进依赖
-  // - 用 ref 拿 setFormData / onFormChange
-  // - 有 setFormData 就优先用它（避免 setFormData + onFormChange 双重更新）
+  // ✅✅✅【核心修复 2】实时同步回父层（让 upload-property 的 singleFormData 记住并能保存）
   useEffect(() => {
     const patch = {
       hotelResortType,
       roomLayouts,
       facilityImages,
+      // roomCount 可选（不影响你逻辑，但对回填有帮助）
       roomCount,
     };
 
-    const setFn = setFormDataRef.current;
-    const onFn = onFormChangeRef.current;
-
-    if (typeof setFn === "function") {
-      setFn((prev) => ({ ...(prev || {}), ...patch }));
-      return;
+    if (typeof props?.setFormData === "function") {
+      props.setFormData((prev) => ({ ...(prev || {}), ...patch }));
     }
-    if (typeof onFn === "function") {
-      onFn(patch);
+    if (typeof props?.onFormChange === "function") {
+      props.onFormChange(patch);
     }
-  }, [hotelResortType, roomLayouts, facilityImages, roomCount]);
+  }, [hotelResortType, roomLayouts, facilityImages, roomCount, props]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
