@@ -655,6 +655,17 @@ export default function UploadPropertyPage() {
       >
         {submitting ? "处理中..." : isEditMode ? "保存修改" : "提交房源"}
       </Button>
+
+      {isEditMode && (
+        <Button
+          type="button"
+          onClick={handleDelete}
+          disabled={submitting}
+          variant="destructive"
+          className="w-full disabled:opacity-60"
+        >
+          {submitting ? "处理中..." : "删除房源"}
+        </Button>
       )}
     </div>
   );
