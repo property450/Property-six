@@ -58,7 +58,7 @@ function stableJson(obj) {
   }
 }
 
-// ✅ 判断“有没有内容”（避免 {} 抢优先级导致读不到真正数据）
+// ✅ 判断“有没有内容”（避免 {} 抢优先级）
 function hasAnyValue(v) {
   if (!v) return false;
   if (typeof v !== "object") return true;
@@ -66,10 +66,10 @@ function hasAnyValue(v) {
   return Object.keys(v).length > 0;
 }
 
-// ✅ 从 camel/snake 里选“有内容的那一个”
-function pickPreferNonEmpty(camel, snake, fallback) {
-  if (hasAnyValue(camel)) return camel;
-  if (hasAnyValue(snake)) return snake;
+// ✅ 从多个候选里选“非空”的
+function pickPreferNonEmpty(a, b, fallback) {
+  if (hasAnyValue(a)) return a;
+  if (hasAnyValue(b)) return b;
   return fallback;
 }
 
@@ -92,6 +92,9 @@ const PROTECTED_KEYS = new Set([
   "area_data",
   "unitLayouts",
   "unit_layouts",
+  // ✅ v2 也算关键列（如果你没加 SQL，会提示你去加）
+  "type_form_v2",
+  "single_form_data_v2",
 ]);
 
 const KEY_PAIRS = [
@@ -131,11 +134,7 @@ async function runWithAutoStripColumns({ mode, payload, editId, userId, maxTries
 
     let res;
     if (mode === "update") {
-      res = await supabase
-        .from("properties")
-        .update(working)
-        .eq("id", editId)
-        .eq("user_id", userId);
+      res = await supabase.from("properties").update(working).eq("id", editId).eq("user_id", userId);
     } else {
       res = await supabase.from("properties").insert([working]);
     }
@@ -212,21 +211,15 @@ export default function UploadPropertyPage() {
 
   const isProject =
     saleTypeNorm === "sale" &&
-    ["New Project / Under Construction", "Completed Unit / Developer Unit"].includes(
-      computedStatus
-    );
+    ["New Project / Under Construction", "Completed Unit / Developer Unit"].includes(computedStatus);
 
   const rentCategorySelected = !!(typeForm && (typeForm.category || typeForm.propertyCategory));
   const allowRentBatchMode = saleTypeNorm === "rent" && rentCategorySelected;
 
-  const isRentBatch =
-    saleTypeNorm === "rent" && rentBatchMode === "yes" && roomRentalMode !== "room";
+  const isRentBatch = saleTypeNorm === "rent" && rentBatchMode === "yes" && roomRentalMode !== "room";
 
   const rawLayoutCount = Number(typeForm?.layoutCount);
-  const batchLayoutCount = Math.max(
-    2,
-    Math.min(20, Number.isFinite(rawLayoutCount) ? rawLayoutCount : 2)
-  );
+  const batchLayoutCount = Math.max(2, Math.min(20, Number.isFinite(rawLayoutCount) ? rawLayoutCount : 2));
 
   const rawRoomCount = Number(typeForm?.roomCount);
   const roomLayoutCount =
@@ -264,7 +257,7 @@ export default function UploadPropertyPage() {
     });
   }, [saleTypeNorm, roomRentalMode, isRentBatch, roomLayoutCount]);
 
-  // ✅ 编辑模式：读取房源并回填（支持 areaData.__backup 兜底）
+  // ✅ 编辑模式：读取房源并回填（优先用 v2）
   useEffect(() => {
     if (!isEditMode) return;
     if (!user) return;
@@ -286,24 +279,21 @@ export default function UploadPropertyPage() {
           return;
         }
 
-        // ✅✅✅ 关键：不再让 {} 抢优先级
-        const tfRaw = pickPreferNonEmpty(data.typeForm, data.type_form, null);
-        const sfdRaw = pickPreferNonEmpty(data.singleFormData, data.single_form_data, {});
+        // ✅ 优先读 v2（绕开旧列被覆盖）
+        const tfRaw = pickPreferNonEmpty(data.type_form_v2, pickPreferNonEmpty(data.typeForm, data.type_form, null), null);
+        const sfdRaw = pickPreferNonEmpty(
+          data.single_form_data_v2,
+          pickPreferNonEmpty(data.singleFormData, data.single_form_data, {}),
+          {}
+        );
+
         const adRaw = pickPreferNonEmpty(data.areaData, data.area_data, areaData);
         const ulsRaw = pickPreferNonEmpty(data.unitLayouts, data.unit_layouts, []);
 
-        const tfParsed = safeParseMaybeJson(tfRaw);
-        const sfdParsed = safeParseMaybeJson(sfdRaw);
-        const adParsed = safeParseMaybeJson(adRaw);
-        const ulsParsed = safeParseMaybeJson(ulsRaw);
-
-        // ✅ DB 端如果一直覆盖 typeForm / singleFormData：我们把它们“备份”存在 areaData.__backup 里
-        const backup = adParsed && typeof adParsed === "object" ? adParsed.__backup : null;
-
-        const tf = hasAnyValue(tfParsed) ? tfParsed : (backup?.typeForm || null);
-        const sfd = hasAnyValue(sfdParsed) ? sfdParsed : (backup?.singleFormData || {});
-        const ad = adParsed || areaData;
-        const uls = ulsParsed || [];
+        const tf = safeParseMaybeJson(tfRaw);
+        const sfd = safeParseMaybeJson(sfdRaw);
+        const ad = safeParseMaybeJson(adRaw);
+        const uls = safeParseMaybeJson(ulsRaw);
 
         setTypeForm(tf);
 
@@ -365,17 +355,6 @@ export default function UploadPropertyPage() {
 
     setSubmitting(true);
     try {
-      const areaWithBackup =
-        areaData && typeof areaData === "object"
-          ? {
-              ...(areaData || {}),
-              __backup: {
-                typeForm: typeForm || null,
-                singleFormData: singleFormData || {},
-              },
-            }
-          : areaData;
-
       const payload = {
         user_id: user.id,
         address: addressObj?.address || "",
@@ -387,7 +366,11 @@ export default function UploadPropertyPage() {
 
         type: typeValue,
 
-        // 这两列 DB 可能覆盖，但我们还是写；真正兜底在 areaData.__backup
+        // ✅ v2：真正用来“记住”的列
+        type_form_v2: typeForm || null,
+        single_form_data_v2: singleFormData || {},
+
+        // ✅ 旧列继续写（不影响你原本结构）
         typeForm: typeForm || null,
         type_form: typeForm || null,
 
@@ -400,9 +383,8 @@ export default function UploadPropertyPage() {
         singleFormData,
         single_form_data: singleFormData,
 
-        // ✅ 关键：把表单“备份”进 areaData 里（areaData 你已经确认能存）
-        areaData: areaWithBackup,
-        area_data: areaWithBackup,
+        areaData,
+        area_data: areaData,
 
         description,
         updated_at: new Date().toISOString(),
@@ -422,7 +404,7 @@ export default function UploadPropertyPage() {
             toast.error(`保存失败：Supabase 缺少关键 column：${out.protectedMissing}`);
             alert(
               `保存失败：Supabase 缺少关键 column：${out.protectedMissing}\n\n` +
-                `✅ 这个 column 必须存在（建议 jsonb）。否则表单/日历价格一定不会记住。\n\n` +
+                `✅ 你必须先在 Supabase SQL Editor 加上：type_form_v2 和 single_form_data_v2（jsonb）。\n\n` +
                 `（请看 Console 的 [Supabase Error]）`
             );
             return;
@@ -443,30 +425,31 @@ export default function UploadPropertyPage() {
           console.log("[Save] Removed columns:", out.removed);
         }
 
-        // ✅ 保存后读回验证（允许从 areaData.__backup 取回 typeForm/singleFormData）
+        // ✅ 保存后读回验证：只验证 v2（这样不会再被旧列覆盖影响）
         try {
           const { data: after, error: afterErr } = await supabase
             .from("properties")
-            .select("typeForm,type_form,singleFormData,single_form_data,areaData,area_data,unitLayouts,unit_layouts")
+            .select("type_form_v2,single_form_data_v2")
             .eq("id", editId)
             .eq("user_id", user.id)
             .single();
 
           if (afterErr) throw afterErr;
 
-          const afterAdParsed = safeParseMaybeJson(pickPreferNonEmpty(after?.areaData, after?.area_data, {}));
-          const afterBackup = afterAdParsed && typeof afterAdParsed === "object" ? afterAdParsed.__backup : null;
-
-          const afterTfParsed = safeParseMaybeJson(pickPreferNonEmpty(after?.typeForm, after?.type_form, null));
-          const afterSfdParsed = safeParseMaybeJson(pickPreferNonEmpty(after?.singleFormData, after?.single_form_data, {}));
-
-          const afterTf = hasAnyValue(afterTfParsed) ? afterTfParsed : (afterBackup?.typeForm || null);
-          const afterSfd = hasAnyValue(afterSfdParsed) ? afterSfdParsed : (afterBackup?.singleFormData || {});
+          const afterTf = safeParseMaybeJson(after?.type_form_v2);
+          const afterSfd = safeParseMaybeJson(after?.single_form_data_v2);
 
           const okTf = stableJson(afterTf) === stableJson(typeForm || null);
           const okSfd = stableJson(afterSfd) === stableJson(singleFormData || {});
+
           if (!okTf || !okSfd) {
-            console.error("[SAVE READBACK MISMATCH]", { okTf, okSfd, expected: { typeForm, singleFormData }, got: { afterTf, afterSfd }, rawAfter: after });
+            console.error("[SAVE READBACK MISMATCH]", {
+              okTf,
+              okSfd,
+              expected: { typeForm, singleFormData },
+              got: { afterTf, afterSfd },
+              rawAfter: after,
+            });
             toast.error("保存后读取不一致（请看 Console: SAVE READBACK MISMATCH）");
             alert("保存后读取不一致（请看 Console: SAVE READBACK MISMATCH）");
             return;
@@ -496,7 +479,7 @@ export default function UploadPropertyPage() {
           toast.error(`提交失败：Supabase 缺少关键 column：${out.protectedMissing}`);
           alert(
             `提交失败：Supabase 缺少关键 column：${out.protectedMissing}\n\n` +
-              `✅ 这个 column 必须存在（建议 jsonb）。否则表单/日历价格一定不会记住。\n\n` +
+              `✅ 你必须先在 Supabase SQL Editor 加上：type_form_v2 和 single_form_data_v2（jsonb）。\n\n` +
               `（请看 Console 的 [Supabase Error]）`
           );
           return;
@@ -538,11 +521,7 @@ export default function UploadPropertyPage() {
 
     try {
       setSubmitting(true);
-      const { error } = await supabase
-        .from("properties")
-        .delete()
-        .eq("id", editId)
-        .eq("user_id", user.id);
+      const { error } = await supabase.from("properties").delete().eq("id", editId).eq("user_id", user.id);
 
       if (error) throw error;
 
@@ -558,8 +537,7 @@ export default function UploadPropertyPage() {
     }
   };
 
-  const shouldShowProjectTrustSection =
-    isProject && Array.isArray(unitLayouts) && unitLayouts.length > 0;
+  const shouldShowProjectTrustSection = isProject && Array.isArray(unitLayouts) && unitLayouts.length > 0;
 
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-4">
@@ -604,17 +582,13 @@ export default function UploadPropertyPage() {
         <HomestayUploadForm
           formData={singleFormData}
           setFormData={setSingleFormData}
-          onFormChange={(patch) =>
-            setSingleFormData((prev) => ({ ...(prev || {}), ...(patch || {}) }))
-          }
+          onFormChange={(patch) => setSingleFormData((prev) => ({ ...(prev || {}), ...(patch || {}) }))}
         />
       ) : isHotel ? (
         <HotelUploadForm
           formData={singleFormData}
           setFormData={setSingleFormData}
-          onFormChange={(patch) =>
-            setSingleFormData((prev) => ({ ...(prev || {}), ...(patch || {}) }))
-          }
+          onFormChange={(patch) => setSingleFormData((prev) => ({ ...(prev || {}), ...(patch || {}) }))}
         />
       ) : isProject ? (
         <>
@@ -635,18 +609,9 @@ export default function UploadPropertyPage() {
 
           {shouldShowProjectTrustSection && (
             <ListingTrustSection
-              mode={
-                computedStatus === "New Project / Under Construction"
-                  ? "new_project"
-                  : "completed_unit"
-              }
+              mode={computedStatus === "New Project / Under Construction" ? "new_project" : "completed_unit"}
               value={singleFormData?.trustSection || {}}
-              onChange={(next) =>
-                setSingleFormData((prev) => ({
-                  ...(prev || {}),
-                  trustSection: next,
-                }))
-              }
+              onChange={(next) => setSingleFormData((prev) => ({ ...(prev || {}), trustSection: next }))}
             />
           )}
         </>
@@ -705,4 +670,3 @@ export default function UploadPropertyPage() {
     </div>
   );
 }
-     
