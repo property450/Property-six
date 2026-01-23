@@ -40,6 +40,21 @@ function stableJson(obj) {
   }
 }
 
+// ✅ 判断“有没有内容”（避免 {} 抢优先级导致读不到真正数据）
+function hasAnyValue(v) {
+  if (!v) return false;
+  if (typeof v !== "object") return true;
+  if (Array.isArray(v)) return v.length > 0;
+  return Object.keys(v).length > 0;
+}
+
+// ✅ 从 camel/snake 里选“有内容的那一个”
+function pickPreferNonEmpty(camel, snake, fallback) {
+  if (hasAnyValue(camel)) return camel;
+  if (hasAnyValue(snake)) return snake;
+  return fallback;
+}
+
 /**
  * Supabase 报错 PGRST204 时，通常类似：
  * "Could not find the 'xxx' column of 'properties' in the schema cache"
@@ -51,10 +66,9 @@ function extractMissingColumnName(error) {
 }
 
 /**
- * ✅ 关键字段：这些一旦没写进 DB，就会出现你说的：
- * “保存后不记住 / 回编辑又要重选 / 日历价格不记住”
- *
- * 重点：这些字段绝对不能像你现在那样被 auto-strip 删除。
+ * ✅ 关键字段：这些没写进 DB 就会“不记住”
+ * 注意：我们现在会“同时写入 camel + snake 两份”
+ * 所以当其中一个 column 缺失时，允许删掉“缺失的那一份副本”，但不能删真正数据。
  */
 const PROTECTED_KEYS = new Set([
   "typeForm",
@@ -67,42 +81,40 @@ const PROTECTED_KEYS = new Set([
   "unit_layouts",
 ]);
 
-/**
- * ✅ 当 Supabase 缺 column，但只是命名不一致（camel vs snake）时：
- * - missing = "typeForm"   -> 把 payload.typeForm 改名为 payload.type_form 再重试
- * - missing = "type_form"  -> 反过来
- *
- * 这样你不用猜你 DB 里到底是哪一个 column。
- */
-function trySwapProtectedKey(working, missing) {
-  const pairs = [
-    ["typeForm", "type_form"],
-    ["singleFormData", "single_form_data"],
-    ["areaData", "area_data"],
-    ["unitLayouts", "unit_layouts"],
-  ];
+// camel <-> snake 配对
+const KEY_PAIRS = [
+  ["typeForm", "type_form"],
+  ["singleFormData", "single_form_data"],
+  ["areaData", "area_data"],
+  ["unitLayouts", "unit_layouts"],
+];
 
-  for (const [camel, snake] of pairs) {
-    if (missing === camel && Object.prototype.hasOwnProperty.call(working, camel)) {
-      working[snake] = working[camel];
-      delete working[camel];
-      return { swapped: true, from: camel, to: snake };
-    }
-    if (missing === snake && Object.prototype.hasOwnProperty.call(working, snake)) {
-      working[camel] = working[snake];
-      delete working[snake];
-      return { swapped: true, from: snake, to: camel };
-    }
+// 找对偶 key
+function getCounterpartKey(k) {
+  for (const [camel, snake] of KEY_PAIRS) {
+    if (k === camel) return snake;
+    if (k === snake) return camel;
   }
-  return { swapped: false };
+  return "";
+}
+
+// ✅ 当缺的是 protected key：如果对偶 key 存在（且有数据），就删掉缺失的那一份副本继续（不影响核心数据）
+function dropProtectedIfCounterpartExists(working, missing) {
+  const other = getCounterpartKey(missing);
+  if (!other) return false;
+  if (!Object.prototype.hasOwnProperty.call(working, other)) return false;
+  // 对偶有内容，就允许删掉缺失那份
+  if (hasAnyValue(working[other])) {
+    delete working[missing];
+    return true;
+  }
+  return false;
 }
 
 async function runWithAutoStripColumns({ mode, payload, editId, userId, maxTries = 10 }) {
-  // mode: "insert" | "update"
   let working = { ...(payload || {}) };
   let tries = 0;
   const removed = [];
-  const swapped = [];
 
   while (tries < maxTries) {
     tries += 1;
@@ -119,7 +131,7 @@ async function runWithAutoStripColumns({ mode, payload, editId, userId, maxTries
     }
 
     if (!res?.error) {
-      return { ok: true, removed, swapped, result: res };
+      return { ok: true, removed, result: res };
     }
 
     const err = res.error;
@@ -127,29 +139,21 @@ async function runWithAutoStripColumns({ mode, payload, editId, userId, maxTries
 
     const missing = extractMissingColumnName(err);
 
-    // 只处理“缺 column”错误
     if (err?.code === "PGRST204" && missing) {
-      // ✅✅✅ 关键字段：不允许删除！先尝试 camel/snake 互换后重试
+      // ✅ protected：允许“删掉缺失的副本字段”（只要对偶字段存在且有内容）
       if (PROTECTED_KEYS.has(missing)) {
-        const s = trySwapProtectedKey(working, missing);
-        if (s.swapped) {
-          swapped.push(`${s.from} -> ${s.to}`);
+        const dropped = dropProtectedIfCounterpartExists(working, missing);
+        if (dropped) {
+          removed.push(`${missing} (missing, kept counterpart)`);
           continue;
         }
-
-        // 没法互换（说明 DB 真的缺这个关键 column）
-        return {
-          ok: false,
-          removed,
-          swapped,
-          error: err,
-          protectedMissing: missing,
-        };
+        // 对偶也没有，说明真的缺关键字段（这时必须报错）
+        return { ok: false, removed, error: err, protectedMissing: missing };
       }
 
-      // ✅ 非关键字段：才允许 auto-strip（保留你原来的策略）
+      // 非关键字段：允许 auto-strip
       if (!Object.prototype.hasOwnProperty.call(working, missing)) {
-        return { ok: false, removed, swapped, error: err };
+        return { ok: false, removed, error: err };
       }
 
       delete working[missing];
@@ -157,15 +161,10 @@ async function runWithAutoStripColumns({ mode, payload, editId, userId, maxTries
       continue;
     }
 
-    return { ok: false, removed, swapped, error: err };
+    return { ok: false, removed, error: err };
   }
 
-  return {
-    ok: false,
-    removed,
-    swapped,
-    error: new Error("自动处理次数用尽（请看 Console 报错）"),
-  };
+  return { ok: false, removed, error: new Error("自动处理次数用尽（请看 Console 报错）") };
 }
 
 export default function UploadPropertyPage() {
@@ -258,7 +257,7 @@ export default function UploadPropertyPage() {
     });
   }, [saleTypeNorm, roomRentalMode, isRentBatch, roomLayoutCount]);
 
-  // ✅ 编辑模式：读取房源并回填（支持 camel/snake 两种）
+  // ✅ 编辑模式：读取房源并回填（最关键：优先取“有内容”的那一个）
   useEffect(() => {
     if (!isEditMode) return;
     if (!user) return;
@@ -280,11 +279,11 @@ export default function UploadPropertyPage() {
           return;
         }
 
-        // ✅ 回填关键：优先 camel，不存在就用 snake
-        const tf = data.typeForm ?? data.type_form ?? null;
-        const sfd = data.singleFormData ?? data.single_form_data ?? {};
-        const ad = data.areaData ?? data.area_data ?? areaData;
-        const uls = data.unitLayouts ?? data.unit_layouts ?? [];
+        // ✅✅✅ 关键：不再让 {} 抢优先级
+        const tf = pickPreferNonEmpty(data.typeForm, data.type_form, null);
+        const sfd = pickPreferNonEmpty(data.singleFormData, data.single_form_data, {});
+        const ad = pickPreferNonEmpty(data.areaData, data.area_data, areaData);
+        const uls = pickPreferNonEmpty(data.unitLayouts, data.unit_layouts, []);
 
         setTypeForm(tf);
 
@@ -346,8 +345,7 @@ export default function UploadPropertyPage() {
 
     setSubmitting(true);
     try {
-      // ✅✅✅ 关键：先用 camelCase 发起保存
-      // 如果 DB 实际是 snake_case，会在 runWithAutoStripColumns 里自动 swap 再重试
+      // ✅✅✅ 关键：同时写入 camel + snake（避免你其它页面/旧代码读不到）
       const payload = {
         user_id: user.id,
         address: addressObj?.address || "",
@@ -360,15 +358,21 @@ export default function UploadPropertyPage() {
         type: typeValue,
 
         typeForm: typeForm || null,
+        type_form: typeForm || null,
 
         roomRentalMode,
         rentBatchMode,
 
         unitLayouts,
-        singleFormData,
-        areaData,
-        description,
+        unit_layouts: unitLayouts,
 
+        singleFormData,
+        single_form_data: singleFormData,
+
+        areaData,
+        area_data: areaData,
+
+        description,
         updated_at: new Date().toISOString(),
       };
 
@@ -382,12 +386,11 @@ export default function UploadPropertyPage() {
         });
 
         if (!out.ok) {
-          // ✅ 缺关键 column：明确告诉你缺哪个（不会再“假成功”）
           if (out.protectedMissing) {
             toast.error(`保存失败：Supabase 缺少关键 column：${out.protectedMissing}`);
             alert(
               `保存失败：Supabase 缺少关键 column：${out.protectedMissing}\n\n` +
-                `你必须在 Supabase properties 表新增这个 column（建议类型 jsonb），不然“保存后不记住”一定会发生。\n\n` +
+                `✅ 这个 column 必须存在（建议 jsonb）。否则表单/日历价格一定不会记住。\n\n` +
                 `（请看 Console 的 [Supabase Error]）`
             );
             return;
@@ -404,11 +407,8 @@ export default function UploadPropertyPage() {
           return;
         }
 
-        if (out.swapped?.length) {
-          console.log("[Save] swapped keys:", out.swapped);
-        }
         if (out.removed?.length) {
-          console.log("[Save] removed non-critical keys:", out.removed);
+          console.log("[Save] Removed columns:", out.removed);
         }
 
         toast.success("保存修改成功");
@@ -429,7 +429,7 @@ export default function UploadPropertyPage() {
           toast.error(`提交失败：Supabase 缺少关键 column：${out.protectedMissing}`);
           alert(
             `提交失败：Supabase 缺少关键 column：${out.protectedMissing}\n\n` +
-              `你必须在 Supabase properties 表新增这个 column（建议类型 jsonb），不然“保存后不记住”一定会发生。\n\n` +
+              `✅ 这个 column 必须存在（建议 jsonb）。否则表单/日历价格一定不会记住。\n\n` +
               `（请看 Console 的 [Supabase Error]）`
           );
           return;
