@@ -647,9 +647,25 @@ export default function UploadPropertyPage() {
         />
       )}
 
-      <Button
+            <Button
         type="button"
         onClick={handleSubmit}
         disabled={submitting}
         className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full disabled:opacity-60"
-      
+      >
+        {submitting ? "提交中..." : isEditMode ? "保存修改" : "提交房源"}
+      </Button>
+
+      {isEditMode && (
+        <Button
+          type="button"
+          onClick={handleDelete}
+          disabled={submitting}
+          className="bg-red-600 text-white p-3 rounded hover:bg-red-700 w-full disabled:opacity-60"
+        >
+          删除房源
+        </Button>
+      )}
+    </div>
+  );
+}
