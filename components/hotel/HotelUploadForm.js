@@ -193,6 +193,23 @@ export default function HotelUploadForm(props) {
   const [roomLayouts, setRoomLayouts] = useState([createEmptyRoomLayout()]);
   const [facilityImages, setFacilityImages] = useState({});
 
+  // ✅✅✅ 防止“编辑回填前”把默认值写回父层导致不记住/闪烁
+  const [isHydrated, setIsHydrated] = useState(() => {
+    const d = props?.formData;
+    if (!d || typeof d !== "object") return true;
+
+    const hasRelevant =
+      (typeof d?.hotelResortType === "string" && d.hotelResortType !== "") ||
+      (typeof d?.hotelType === "string" && d.hotelType !== "") ||
+      (Array.isArray(d?.roomLayouts) && d.roomLayouts.length > 0) ||
+      (d?.facilityImages &&
+        typeof d.facilityImages === "object" &&
+        Object.keys(d.facilityImages).length > 0);
+
+    // 有编辑数据 -> 先等 hydrate 完再允许同步
+    return !hasRelevant;
+  });
+
   const [roomCountInput, setRoomCountInput] = useState("1");
   const [showDropdown, setShowDropdown] = useState(false);
 
@@ -229,17 +246,39 @@ export default function HotelUploadForm(props) {
   };
 
   // ✅✅✅【核心修复 1】编辑模式/回填：从 props.formData 初始化一次（支持异步加载后再回填）
+  // ⚠️ 关键：只有在 hydrate 完成后，才允许把 state 同步回父层（避免默认值覆盖已保存的数据）
   const didInitFromPropsRef = useRef(false);
   useEffect(() => {
     if (didInitFromPropsRef.current) return;
 
     const d = props?.formData;
-    if (!hasAnyValue(d)) return;
-
-    if (typeof d.hotelResortType === "string") {
-      setHotelResortType(d.hotelResortType);
+    if (!d || typeof d !== "object") {
+      setIsHydrated(true);
+      didInitFromPropsRef.current = true;
+      return;
     }
 
+    const hasRelevant =
+      (typeof d?.hotelResortType === "string" && d.hotelResortType !== "") ||
+      (typeof d?.hotelType === "string" && d.hotelType !== "") ||
+      (Array.isArray(d?.roomLayouts) && d.roomLayouts.length > 0) ||
+      (d?.facilityImages &&
+        typeof d.facilityImages === "object" &&
+        Object.keys(d.facilityImages).length > 0);
+
+    // 没有酒店相关数据：直接放行同步（不会覆盖什么）
+    if (!hasRelevant) {
+      setIsHydrated(true);
+      didInitFromPropsRef.current = true;
+      return;
+    }
+
+    // ✅ 1) hotel type（兼容旧 key：hotelType）
+    const ht = typeof d?.hotelResortType === "string" ? d.hotelResortType : "";
+    const ht2 = typeof d?.hotelType === "string" ? d.hotelType : "";
+    setHotelResortType(ht || ht2 || "");
+
+    // ✅ 2) room layouts
     if (Array.isArray(d.roomLayouts) && d.roomLayouts.length > 0) {
       const normalized = d.roomLayouts.map((l) => {
         const base = { ...createEmptyRoomLayout(), ...(l || {}) };
@@ -259,10 +298,13 @@ export default function HotelUploadForm(props) {
       setRoomCountInput(String(normalized.length));
     }
 
+    // ✅ 3) facility images
     if (d.facilityImages && typeof d.facilityImages === "object") {
       setFacilityImages(d.facilityImages);
     }
 
+    // ✅ hydrate 完成后才允许同步回父层
+    setIsHydrated(true);
     didInitFromPropsRef.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props?.formData]);
@@ -273,6 +315,8 @@ export default function HotelUploadForm(props) {
   // - 用 ref 拿 setFormData / onFormChange
   // - 有 setFormData 就优先用它（避免 setFormData + onFormChange 双重更新）
   useEffect(() => {
+    if (!isHydrated) return;
+
     const patch = {
       hotelResortType,
       roomLayouts,
@@ -290,15 +334,13 @@ export default function HotelUploadForm(props) {
     if (typeof onFn === "function") {
       onFn(patch);
     }
-  }, [hotelResortType, roomLayouts, facilityImages, roomCount]);
+  }, [isHydrated, hotelResortType, roomLayouts, facilityImages, roomCount]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
       // 关闭房型数量 dropdown：只要点到任何一个数量框内就不关闭
       const clickedInsideAnyUnitCount =
-        unitCountDropdownRefs.current?.some(
-          (r) => r?.current && r.current.contains(e.target)
-        ) || false;
+        unitCountDropdownRefs.current?.some((r) => r?.current && r.current.contains(e.target)) || false;
 
       if (!clickedInsideAnyUnitCount) {
         setOpenUnitCountIndex(null);
@@ -424,9 +466,7 @@ export default function HotelUploadForm(props) {
 
       {/* 你原本的“有多少个房型/layout” */}
       <div className="relative w-40" ref={dropdownRef}>
-        <label className="block font-medium mb-1">
-          这个 Homestay / Hotel 有多少个房型 / layout？
-        </label>
+        <label className="block font-medium mb-1">这个 Homestay / Hotel 有多少个房型 / layout？</label>
 
         <input
           type="text"
@@ -465,33 +505,21 @@ export default function HotelUploadForm(props) {
 
       {/* 每个房型表单 */}
       {roomLayouts.map((layout, index) => (
-        <div
-          key={index}
-          className="border rounded-xl p-4 space-y-4 bg-white shadow-sm"
-        >
+        <div key={index} className="border rounded-xl p-4 space-y-4 bg-white shadow-sm">
           <h3 className="font-semibold text-lg mb-2">
             房型 {index + 1} / {roomLayouts.length}
           </h3>
 
           {/* ✅ Layout 图纸（New Project 同款） */}
-          <BlueprintUploadSection
-            fileInputRef={getLayoutFileRef(index)}
-            onUpload={(e) => handleBlueprintUpload(index, e)}
-          />
+          <BlueprintUploadSection fileInputRef={getLayoutFileRef(index)} onUpload={(e) => handleBlueprintUpload(index, e)} />
 
           {/* ✅✅ 只新增：每个房型数量（1~3000，可编辑，千分位） */}
           <div className="relative w-72" ref={getUnitCountRef(index)}>
-            <label className="block font-medium mb-1">
-              请问这个房型的数量有多少？
-            </label>
+            <label className="block font-medium mb-1">请问这个房型的数量有多少？</label>
 
             <input
               type="text"
-              value={
-                layout.unitCountInput != null && layout.unitCountInput !== ""
-                  ? layout.unitCountInput
-                  : ""
-              }
+              value={layout.unitCountInput != null && layout.unitCountInput !== "" ? layout.unitCountInput : ""}
               onChange={(e) => handleUnitCountInput(index, e.target.value)}
               onFocus={() => setOpenUnitCountIndex(index)}
               onBlur={() => handleUnitCountBlur(index)}
@@ -517,12 +545,7 @@ export default function HotelUploadForm(props) {
             )}
           </div>
 
-          <HotelRoomTypeForm
-            index={index}
-            total={roomLayouts.length}
-            data={layout}
-            onChange={(patch) => handleRoomLayoutChange(index, patch)}
-          />
+          <HotelRoomTypeForm index={index} total={roomLayouts.length} data={layout} onChange={(patch) => handleRoomLayoutChange(index, patch)} />
         </div>
       ))}
 
