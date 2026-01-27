@@ -1,4 +1,4 @@
-// pages/upload-property.js
+//upload-property.js
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -80,21 +80,6 @@ function stableJson(obj) {
   } catch {
     return "";
   }
-}
-
-// ✅ 判断“有没有内容”（避免 {} 抢优先级）
-function hasAnyValue(v) {
-  if (!v) return false;
-  if (typeof v !== "object") return true;
-  if (Array.isArray(v)) return v.length > 0;
-  return Object.keys(v).length > 0;
-}
-
-// ✅ 从多个候选里选“非空”的
-function pickPreferNonEmpty(a, b, fallback) {
-  if (hasAnyValue(a)) return a;
-  if (hasAnyValue(b)) return b;
-  return fallback;
 }
 
 function extractMissingColumnName(error) {
@@ -280,19 +265,11 @@ export default function UploadPropertyPage() {
           return;
         }
 
-        const tfRaw = pickPreferNonEmpty(
-          data.type_form_v2,
-          pickPreferNonEmpty(data.typeForm, data.type_form, null),
-          null
-        );
-        const sfdRaw = pickPreferNonEmpty(
-          data.single_form_data_v2,
-          pickPreferNonEmpty(data.singleFormData, data.single_form_data, {}),
-          {}
-        );
+        const tfRaw = data.type_form_v2 || data.typeForm || data.type_form || null;
+        const sfdRaw = data.single_form_data_v2 || data.singleFormData || data.single_form_data || {};
 
-        const adRaw = pickPreferNonEmpty(data.areaData, data.area_data, areaData);
-        const ulsRaw = pickPreferNonEmpty(data.unitLayouts, data.unit_layouts, []);
+        const adRaw = data.areaData || data.area_data || areaData;
+        const ulsRaw = data.unitLayouts || data.unit_layouts || [];
 
         const tf = safeParseMaybeJson(tfRaw);
         const sfd = safeParseMaybeJson(sfdRaw);
@@ -495,7 +472,6 @@ export default function UploadPropertyPage() {
           formData={singleFormData}
           setFormData={setSingleFormData}
           onFormChange={(patch) => setSingleFormData((prev) => ({ ...(prev || {}), ...(patch || {}) }))}
-          onPrimarySubmit={handleSubmit}
         />
       ) : isHotel ? (
         <HotelUploadForm
@@ -503,7 +479,6 @@ export default function UploadPropertyPage() {
           formData={singleFormData}
           setFormData={setSingleFormData}
           onFormChange={(patch) => setSingleFormData((prev) => ({ ...(prev || {}), ...(patch || {}) }))}
-          onPrimarySubmit={handleSubmit}
         />
       ) : isProject ? (
         <>
@@ -570,11 +545,7 @@ export default function UploadPropertyPage() {
         />
       </div>
 
-      <Button
-        className="w-full"
-        disabled={submitting}
-        onClick={handleSubmit}
-      >
+      <Button className="w-full" disabled={submitting} onClick={handleSubmit}>
         {submitting ? "提交中..." : isEditMode ? "保存修改" : "提交房源"}
       </Button>
     </div>
