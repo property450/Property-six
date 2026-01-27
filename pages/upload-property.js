@@ -1,7 +1,7 @@
 // pages/upload-property.js
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/router";
 import dynamic from "next/dynamic";
 import { supabase } from "../supabaseClient";
@@ -55,31 +55,24 @@ function stableJson(obj) {
 
   const sortDeep = (v) => {
     if (v === null || v === undefined) return v;
-
-    // Date -> ISO
     if (v instanceof Date) return v.toISOString();
-
-    // Array
     if (Array.isArray(v)) return v.map(sortDeep);
 
-    // Object
     if (typeof v === "object") {
-      if (seen.has(v)) return null; // 防循环引用
+      if (seen.has(v)) return null;
       seen.add(v);
-
       const out = {};
       Object.keys(v)
         .sort()
         .forEach((k) => {
           const val = v[k];
-          if (val === undefined) return; // undefined 不存
-          if (typeof val === "function") return; // function 不存
+          if (val === undefined) return;
+          if (typeof val === "function") return;
           out[k] = sortDeep(val);
         });
       return out;
     }
-
-    return v; // string/number/boolean
+    return v;
   };
 
   try {
@@ -104,10 +97,6 @@ function pickPreferNonEmpty(a, b, fallback) {
   return fallback;
 }
 
-/**
- * Supabase 报错 PGRST204 时，通常类似：
- * "Could not find the 'xxx' column of 'properties' in the schema cache"
- */
 function extractMissingColumnName(error) {
   const msg = String(error?.message || "");
   const m = msg.match(/Could not find the '([^']+)' column/i);
@@ -123,7 +112,6 @@ const PROTECTED_KEYS = new Set([
   "area_data",
   "unitLayouts",
   "unit_layouts",
-  // ✅ v2 也算关键列（如果你没加 SQL，会提示你去加）
   "type_form_v2",
   "single_form_data_v2",
 ]);
@@ -170,9 +158,7 @@ async function runWithAutoStripColumns({ mode, payload, editId, userId, maxTries
       res = await supabase.from("properties").insert([working]);
     }
 
-    if (!res?.error) {
-      return { ok: true, removed, result: res };
-    }
+    if (!res?.error) return { ok: true, removed, result: res };
 
     const err = res.error;
     console.error("[Supabase Error]", err);
@@ -213,10 +199,6 @@ export default function UploadPropertyPage() {
   const isEditMode = String(edit || "") === "1" && !!editId;
 
   const [submitting, setSubmitting] = useState(false);
-
-  // ✅ 关键：用于“编辑回填后强制重挂载”
-  const [hydrateKey, setHydrateKey] = useState(0);
-
   const [addressObj, setAddressObj] = useState(null);
 
   const [typeValue, setTypeValue] = useState("");
@@ -266,6 +248,30 @@ export default function UploadPropertyPage() {
   const lastFormJsonRef = useRef("");
   const lastDerivedRef = useRef({ saleType: "", status: "", roomMode: "" });
 
+  // ✅ 关键：把 onFormChange 固定，避免“函数引用变化 → TypeSelector effect 反复触发 → 闪烁”
+  const handleTypeFormChange = useCallback((form) => {
+    const nextJson = stableJson(form);
+    if (nextJson && nextJson === lastFormJsonRef.current) return;
+    lastFormJsonRef.current = nextJson;
+
+    setTypeForm((prev) => {
+      const prevJson = stableJson(prev);
+      if (prevJson === nextJson) return prev;
+      return form || null;
+    });
+
+    const nextSale = form?.saleType || "";
+    const nextStatus = form?.propertyStatus || "";
+    const nextRoom = form?.roomRentalMode || "whole";
+
+    const last = lastDerivedRef.current;
+    if (last.saleType !== nextSale) setSaleType(nextSale);
+    if (last.status !== nextStatus) setComputedStatus(nextStatus);
+    if (last.roomMode !== nextRoom) setRoomRentalMode(nextRoom);
+
+    lastDerivedRef.current = { saleType: nextSale, status: nextStatus, roomMode: nextRoom };
+  }, []);
+
   useEffect(() => {
     if (!isRentBatch) return;
     const n = batchLayoutCount;
@@ -313,7 +319,6 @@ export default function UploadPropertyPage() {
           return;
         }
 
-        // ✅ 优先读 v2（绕开旧列被覆盖）
         const tfRaw = pickPreferNonEmpty(
           data.type_form_v2,
           pickPreferNonEmpty(data.typeForm, data.type_form, null),
@@ -357,8 +362,13 @@ export default function UploadPropertyPage() {
         setAreaData(ad || areaData);
         setDescription(typeof data.description === "string" ? data.description : "");
 
-        // ✅ 关键：回填完以后强制重挂载，让 TypeSelector/Hotel/Homestay 真正显示已保存的选择
-        setHydrateKey((k) => k + 1);
+        // ✅ 同步 lastDerived，避免第一次 TypeSelector onFormChange 又触发一轮不必要的 setState
+        lastDerivedRef.current = {
+          saleType: (tf && tf.saleType) || "",
+          status: (tf && tf.propertyStatus) || "",
+          roomMode: (tf && tf.roomRentalMode) || "whole",
+        };
+        lastFormJsonRef.current = stableJson(tf);
 
         toast.success("已进入编辑模式");
       } catch (e) {
@@ -407,11 +417,9 @@ export default function UploadPropertyPage() {
 
         type: typeValue,
 
-        // ✅ v2：真正用来“记住”的列
         type_form_v2: typeForm || null,
         single_form_data_v2: singleFormData || {},
 
-        // ✅ 旧列继续写（不影响你原本结构）
         typeForm: typeForm || null,
         type_form: typeForm || null,
 
@@ -462,9 +470,7 @@ export default function UploadPropertyPage() {
           return;
         }
 
-        if (out.removed?.length) {
-          console.log("[Save] Removed columns:", out.removed);
-        }
+        if (out.removed?.length) console.log("[Save] Removed columns:", out.removed);
 
         toast.success("保存修改成功");
         alert("保存修改成功");
@@ -527,7 +533,6 @@ export default function UploadPropertyPage() {
     try {
       setSubmitting(true);
       const { error } = await supabase.from("properties").delete().eq("id", editId).eq("user_id", user.id);
-
       if (error) throw error;
 
       toast.success("房源已删除");
@@ -551,7 +556,6 @@ export default function UploadPropertyPage() {
       <AddressSearchInput value={addressObj} onChange={setAddressObj} />
 
       <TypeSelector
-        key={`type-${hydrateKey}`}
         value={typeValue}
         onChange={setTypeValue}
         initialForm={typeForm}
@@ -560,40 +564,17 @@ export default function UploadPropertyPage() {
           if (!allowRentBatchMode) return;
           setRentBatchMode(val);
         }}
-        onFormChange={(form) => {
-          const nextJson = stableJson(form);
-          if (nextJson && nextJson === lastFormJsonRef.current) return;
-          lastFormJsonRef.current = nextJson;
-
-          setTypeForm((prev) => {
-            const prevJson = stableJson(prev);
-            if (prevJson === nextJson) return prev;
-            return form || null;
-          });
-
-          const nextSale = form?.saleType || "";
-          const nextStatus = form?.propertyStatus || "";
-          const nextRoom = form?.roomRentalMode || "whole";
-
-          const last = lastDerivedRef.current;
-          if (last.saleType !== nextSale) setSaleType(nextSale);
-          if (last.status !== nextStatus) setComputedStatus(nextStatus);
-          if (last.roomMode !== nextRoom) setRoomRentalMode(nextRoom);
-
-          lastDerivedRef.current = { saleType: nextSale, status: nextStatus, roomMode: nextRoom };
-        }}
+        onFormChange={handleTypeFormChange}
       />
 
       {isHomestay ? (
         <HomestayUploadForm
-          key={`home-${hydrateKey}`}
           formData={singleFormData}
           setFormData={setSingleFormData}
           onFormChange={(patch) => setSingleFormData((prev) => ({ ...(prev || {}), ...(patch || {}) }))}
         />
       ) : isHotel ? (
         <HotelUploadForm
-          key={`hotel-${hydrateKey}`}
           formData={singleFormData}
           setFormData={setSingleFormData}
           onFormChange={(patch) => setSingleFormData((prev) => ({ ...(prev || {}), ...(patch || {}) }))}
