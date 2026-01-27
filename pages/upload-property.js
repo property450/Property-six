@@ -221,6 +221,9 @@ export default function UploadPropertyPage() {
   });
   const [description, setDescription] = useState("");
 
+  // ✅✅✅ 关键：编辑回填后强制重挂载 Homestay/Hotel 表单，让内部 state 重新吃到 formData
+  const [hydrateKey, setHydrateKey] = useState(0);
+
   const saleTypeNorm = String(saleType || "").toLowerCase();
   const isHomestay = saleTypeNorm.includes("homestay");
   const isHotel = saleTypeNorm.includes("hotel");
@@ -369,6 +372,9 @@ export default function UploadPropertyPage() {
           roomMode: (tf && tf.roomRentalMode) || "whole",
         };
         lastFormJsonRef.current = stableJson(tf);
+
+        // ✅✅✅ 关键：回填完成后强制重挂载 Homestay/Hotel 表单，让它们重新读入 formData
+        setHydrateKey((k) => k + 1);
 
         toast.success("已进入编辑模式");
       } catch (e) {
@@ -569,12 +575,14 @@ export default function UploadPropertyPage() {
 
       {isHomestay ? (
         <HomestayUploadForm
+          key={`home-${hydrateKey}`}
           formData={singleFormData}
           setFormData={setSingleFormData}
           onFormChange={(patch) => setSingleFormData((prev) => ({ ...(prev || {}), ...(patch || {}) }))}
         />
       ) : isHotel ? (
         <HotelUploadForm
+          key={`hotel-${hydrateKey}`}
           formData={singleFormData}
           setFormData={setSingleFormData}
           onFormChange={(patch) => setSingleFormData((prev) => ({ ...(prev || {}), ...(patch || {}) }))}
