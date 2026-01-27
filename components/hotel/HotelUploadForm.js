@@ -252,33 +252,9 @@ export default function HotelUploadForm(props) {
     if (didInitFromPropsRef.current) return;
 
     const d = props?.formData;
-    if (!d || typeof d !== "object") {
-      setIsHydrated(true);
-      didInitFromPropsRef.current = true;
-      return;
-    }
+    if (!hasAnyValue(d)) return;
 
-    const hasRelevant =
-      (typeof d?.hotelResortType === "string" && d.hotelResortType !== "") ||
-      (typeof d?.hotelType === "string" && d.hotelType !== "") ||
-      (Array.isArray(d?.roomLayouts) && d.roomLayouts.length > 0) ||
-      (d?.facilityImages &&
-        typeof d.facilityImages === "object" &&
-        Object.keys(d.facilityImages).length > 0);
-
-    // 没有酒店相关数据：直接放行同步（不会覆盖什么）
-    if (!hasRelevant) {
-      setIsHydrated(true);
-      didInitFromPropsRef.current = true;
-      return;
-    }
-
-    // ✅ 1) hotel type（兼容旧 key：hotelType）
-    const ht = typeof d?.hotelResortType === "string" ? d.hotelResortType : "";
-    const ht2 = typeof d?.hotelType === "string" ? d.hotelType : "";
-    setHotelResortType(ht || ht2 || "");
-
-    // ✅ 2) room layouts
+    if (typeof d.hotelResortType === "string") setHotelResortType(d.hotelResortType);
     if (Array.isArray(d.roomLayouts) && d.roomLayouts.length > 0) {
       const normalized = d.roomLayouts.map((l) => {
         const base = { ...createEmptyRoomLayout(), ...(l || {}) };
@@ -298,22 +274,16 @@ export default function HotelUploadForm(props) {
       setRoomCountInput(String(normalized.length));
     }
 
-    // ✅ 3) facility images
     if (d.facilityImages && typeof d.facilityImages === "object") {
       setFacilityImages(d.facilityImages);
     }
 
-    // ✅ hydrate 完成后才允许同步回父层
     setIsHydrated(true);
     didInitFromPropsRef.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props?.formData]);
 
   // ✅✅✅【核心修复 2】实时同步回父层（不会再无限循环）
-  // 重点：
-  // - 不把 props 放进依赖
-  // - 用 ref 拿 setFormData / onFormChange
-  // - 有 setFormData 就优先用它（避免 setFormData + onFormChange 双重更新）
   useEffect(() => {
     if (!isHydrated) return;
 
@@ -439,7 +409,14 @@ export default function HotelUploadForm(props) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // ✅ 仅新增：把 hotelResortType 也打印出来（不影响你其它逻辑）
+
+    // ✅✅✅ 关键修复：你点这个按钮，也会触发 pages/upload-property.js 的主保存
+    if (typeof props?.onPrimarySubmit === "function") {
+      props.onPrimarySubmit();
+      return;
+    }
+
+    // ✅ 保底：外层没传就继续按你原本（只 console）
     console.log("提交数据", { hotelResortType, roomLayouts, facilityImages });
   };
 
