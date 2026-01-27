@@ -214,6 +214,9 @@ export default function UploadPropertyPage() {
 
   const [submitting, setSubmitting] = useState(false);
 
+  // ✅ 关键：用于“编辑回填后强制重挂载”
+  const [hydrateKey, setHydrateKey] = useState(0);
+
   const [addressObj, setAddressObj] = useState(null);
 
   const [typeValue, setTypeValue] = useState("");
@@ -311,7 +314,11 @@ export default function UploadPropertyPage() {
         }
 
         // ✅ 优先读 v2（绕开旧列被覆盖）
-        const tfRaw = pickPreferNonEmpty(data.type_form_v2, pickPreferNonEmpty(data.typeForm, data.type_form, null), null);
+        const tfRaw = pickPreferNonEmpty(
+          data.type_form_v2,
+          pickPreferNonEmpty(data.typeForm, data.type_form, null),
+          null
+        );
         const sfdRaw = pickPreferNonEmpty(
           data.single_form_data_v2,
           pickPreferNonEmpty(data.singleFormData, data.single_form_data, {}),
@@ -349,6 +356,9 @@ export default function UploadPropertyPage() {
         setSingleFormData(sfd || {});
         setAreaData(ad || areaData);
         setDescription(typeof data.description === "string" ? data.description : "");
+
+        // ✅ 关键：回填完以后强制重挂载，让 TypeSelector/Hotel/Homestay 真正显示已保存的选择
+        setHydrateKey((k) => k + 1);
 
         toast.success("已进入编辑模式");
       } catch (e) {
@@ -456,11 +466,6 @@ export default function UploadPropertyPage() {
           console.log("[Save] Removed columns:", out.removed);
         }
 
-        // ✅❗️最稳：不要再做“保存后读回比对”。
-        // 你现在遇到的 SAVE READBACK MISMATCH，多数是 Supabase/trigger/列同步/返回形态导致“读回不一致”，
-        // 但实际 update 已经成功，继续拦截只会让你误以为没保存。
-        // 这里直接以 Supabase update 成功与否为准（上面 runWithAutoStripColumns 已经做了真正的错误拦截）。
-
         toast.success("保存修改成功");
         alert("保存修改成功");
         router.push("/my-profile");
@@ -546,6 +551,7 @@ export default function UploadPropertyPage() {
       <AddressSearchInput value={addressObj} onChange={setAddressObj} />
 
       <TypeSelector
+        key={`type-${hydrateKey}`}
         value={typeValue}
         onChange={setTypeValue}
         initialForm={typeForm}
@@ -580,12 +586,14 @@ export default function UploadPropertyPage() {
 
       {isHomestay ? (
         <HomestayUploadForm
+          key={`home-${hydrateKey}`}
           formData={singleFormData}
           setFormData={setSingleFormData}
           onFormChange={(patch) => setSingleFormData((prev) => ({ ...(prev || {}), ...(patch || {}) }))}
         />
       ) : isHotel ? (
         <HotelUploadForm
+          key={`hotel-${hydrateKey}`}
           formData={singleFormData}
           setFormData={setSingleFormData}
           onFormChange={(patch) => setSingleFormData((prev) => ({ ...(prev || {}), ...(patch || {}) }))}
@@ -647,7 +655,7 @@ export default function UploadPropertyPage() {
         />
       )}
 
-            <Button
+      <Button
         type="button"
         onClick={handleSubmit}
         disabled={submitting}
