@@ -27,19 +27,8 @@ export const homestayOptions = [
 const subtypeOptions = ["Penthouse", "Duplex", "Triplex", "Dual Key"];
 
 const categoryOptions = {
-  "Bungalow / Villa": [
-    "Bungalow",
-    "Link Bungalow",
-    "Twin Villa",
-    "Zero-Lot Bungalow",
-    "Bungalow land",
-  ],
-  "Apartment / Condo / Service Residence": [
-    "Apartment",
-    "Condominium",
-    "Flat",
-    "Service Residence",
-  ],
+  "Bungalow / Villa": ["Bungalow", "Link Bungalow", "Twin Villa", "Zero-Lot Bungalow", "Bungalow land"],
+  "Apartment / Condo / Service Residence": ["Apartment", "Condominium", "Flat", "Service Residence"],
   "Semi-Detached House": ["Cluster House", "Semi-Detached House"],
   "Terrace / Link House": ["Terrace House", "Link House", "Townhouse"],
   "Business Property": [
@@ -165,15 +154,23 @@ export default function HomestayUploadForm(props) {
   const onFormChange = props?.onFormChange;
 
   // ✅ 新增：Homestay Type
-  const [homestayType, setHomestayType] = useState(
-    formData?.homestayType || ""
-  );
+  const [homestayType, setHomestayType] = useState(formData?.homestayType || "");
 
   // 从外部已有值初始化（如果外层已经存过）
-  const [category, setCategory] = useState(formData?.category || "");
-  const [finalType, setFinalType] = useState(formData?.finalType || "");
-  const [storeys, setStoreys] = useState(formData?.storeys || "");
-  const [subtype, setSubtype] = useState(safeArray(formData?.subtype));
+  // ✅ 兼容旧/新 key：category / propertyCategory / homestayCategory
+  const [category, setCategory] = useState(
+    formData?.category || formData?.homestayCategory || formData?.propertyCategory || ""
+  );
+  // ✅ 兼容旧/新 key：finalType / subType / homestaySubType
+  const [finalType, setFinalType] = useState(
+    formData?.finalType || formData?.homestaySubType || formData?.subType || ""
+  );
+  // ✅ 兼容旧/新 key：storeys / homestayStoreys
+  const [storeys, setStoreys] = useState(formData?.storeys || formData?.homestayStoreys || "");
+  // ✅ 兼容旧/新 key：subtype / propertySubtype / homestaySubtype
+  const [subtype, setSubtype] = useState(
+    safeArray(formData?.subtype || formData?.homestaySubtype || formData?.propertySubtype)
+  );
 
   // property subtype dropdown
   const subtypeRef = useRef(null);
@@ -183,31 +180,68 @@ export default function HomestayUploadForm(props) {
   const storeysWrapRef = useRef(null);
   const [storeysCloseSignal, setStoreysCloseSignal] = useState(0);
 
+  // ✅✅✅ 防止“编辑回填前”把默认值写回父层导致不记住/闪烁
+  const [isHydrated, setIsHydrated] = useState(() => {
+    const fd = props?.formData;
+    if (!fd || typeof fd !== "object") return true;
+
+    const hasRelevant =
+      (typeof fd?.homestayType === "string" && fd.homestayType !== "") ||
+      (typeof fd?.category === "string" && fd.category !== "") ||
+      (typeof fd?.propertyCategory === "string" && fd.propertyCategory !== "") ||
+      (typeof fd?.homestayCategory === "string" && fd.homestayCategory !== "") ||
+      (typeof fd?.finalType === "string" && fd.finalType !== "") ||
+      (typeof fd?.subType === "string" && fd.subType !== "") ||
+      (typeof fd?.homestaySubType === "string" && fd.homestaySubType !== "") ||
+      (typeof fd?.storeys === "string" && fd.storeys !== "") ||
+      (typeof fd?.homestayStoreys === "string" && fd.homestayStoreys !== "") ||
+      (Array.isArray(fd?.subtype) && fd.subtype.length > 0) ||
+      (Array.isArray(fd?.propertySubtype) && fd.propertySubtype.length > 0) ||
+      (Array.isArray(fd?.homestaySubtype) && fd.homestaySubtype.length > 0);
+
+    return !hasRelevant;
+  });
+
   // ✅✅✅ 编辑回填：外层 formData 可能是异步拿到的，第一次有值时要灌回本地 state
   const didHydrateRef = useRef(false);
   useEffect(() => {
     const fd = props?.formData;
-    if (!fd || typeof fd !== "object") return;
+    if (!fd || typeof fd !== "object") {
+      setIsHydrated(true);
+      return;
+    }
 
-    // ✅✅✅ 关键修复：只有当 fd 真的带有编辑数据时才 hydrate（避免空对象时就锁死）
+    // ✅✅✅ 关键修复：只有当 fd 真的带有 Homestay 编辑数据时才 hydrate（避免空对象时就锁死）
     const hasData =
       (typeof fd?.homestayType === "string" && fd.homestayType !== "") ||
       (typeof fd?.category === "string" && fd.category !== "") ||
+      (typeof fd?.propertyCategory === "string" && fd.propertyCategory !== "") ||
+      (typeof fd?.homestayCategory === "string" && fd.homestayCategory !== "") ||
       (typeof fd?.finalType === "string" && fd.finalType !== "") ||
+      (typeof fd?.subType === "string" && fd.subType !== "") ||
+      (typeof fd?.homestaySubType === "string" && fd.homestaySubType !== "") ||
       (typeof fd?.storeys === "string" && fd.storeys !== "") ||
-      (Array.isArray(fd?.subtype) && fd.subtype.length > 0);
+      (typeof fd?.homestayStoreys === "string" && fd.homestayStoreys !== "") ||
+      (Array.isArray(fd?.subtype) && fd.subtype.length > 0) ||
+      (Array.isArray(fd?.propertySubtype) && fd.propertySubtype.length > 0) ||
+      (Array.isArray(fd?.homestaySubtype) && fd.homestaySubtype.length > 0);
 
-    if (!hasData) return;
+    // 没有 homestay 相关数据：直接放行同步（不会覆盖什么）
+    if (!hasData) {
+      setIsHydrated(true);
+      return;
+    }
 
     if (didHydrateRef.current) return;
 
     setHomestayType(fd?.homestayType || "");
-    setCategory(fd?.category || "");
-    setFinalType(fd?.finalType || "");
-    setStoreys(fd?.storeys || "");
-    setSubtype(safeArray(fd?.subtype));
+    setCategory(fd?.category || fd?.homestayCategory || fd?.propertyCategory || "");
+    setFinalType(fd?.finalType || fd?.homestaySubType || fd?.subType || "");
+    setStoreys(fd?.storeys || fd?.homestayStoreys || "");
+    setSubtype(safeArray(fd?.subtype || fd?.homestaySubtype || fd?.propertySubtype));
 
     didHydrateRef.current = true;
+    setIsHydrated(true);
   }, [props?.formData]);
 
   // 是否显示 Property Subtype（照你 TypeSelector 的逻辑）
@@ -254,12 +288,27 @@ export default function HomestayUploadForm(props) {
 
   // ✅ 把选择同步回外层（不改变你外层结构，只做 merge）
   useEffect(() => {
+    if (!isHydrated) return;
+
+    // ✅ 同时写入两套 key（不改 UI / 不改你的选项，只保证编辑回填一定找得到）
     const patch = {
       homestayType,
+
+      // 你现在用的 key
       category,
       finalType,
       storeys,
       subtype,
+
+      // 兼容旧 key（避免你其他表单/旧数据用另一套 key 导致“记不住”）
+      homestayCategory: category,
+      homestaySubType: finalType,
+      homestayStoreys: storeys,
+      homestaySubtype: subtype,
+
+      propertyCategory: category,
+      subType: finalType,
+      propertySubtype: subtype,
     };
 
     if (typeof setFormData === "function") {
@@ -270,7 +319,7 @@ export default function HomestayUploadForm(props) {
       onFormChange(patch);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [homestayType, category, finalType, storeys, subtype]);
+  }, [isHydrated, homestayType, category, finalType, storeys, subtype]);
 
   return (
     <div className="space-y-4">
