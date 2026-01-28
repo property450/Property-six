@@ -320,6 +320,9 @@ export default function HotelUploadForm(props) {
       setRoomLayouts(normalized);
       setRoomCount(normalized.length);
       setRoomCountInput(String(normalized.length));
+    } else {
+      // ✅✅✅（只补齐一致性）：如果没带 layouts，至少让 input 跟 roomCount 对齐
+      setRoomCountInput((prev) => (prev && prev !== "" ? prev : String(roomCount || 1)));
     }
 
     const _facilityImages = pickAny(d, ["facilityImages", "facility_images"], null);
@@ -327,11 +330,18 @@ export default function HotelUploadForm(props) {
       setFacilityImages(_facilityImages);
     }
 
+    // ✅✅✅ 关键修复：lastInitHashRef 必须跟 current 的字段一致（否则会误判 didUserEdit）
+    const initLayouts =
+      Array.isArray(_layouts) && _layouts.length > 0 ? _layouts : [createEmptyRoomLayout()];
+    const initRoomCount = Array.isArray(_layouts) && _layouts.length ? _layouts.length : 1;
+    const initRoomCountInput = Array.isArray(_layouts) && _layouts.length ? String(_layouts.length) : String(initRoomCount);
+
     lastInitHashRef.current = stableJson({
       hotelResortType: typeof _hotelType === "string" ? _hotelType : "",
-      roomLayouts: Array.isArray(_layouts) && _layouts.length ? _layouts : [createEmptyRoomLayout()],
+      roomLayouts: initLayouts,
       facilityImages: _facilityImages && typeof _facilityImages === "object" ? _facilityImages : {},
-      roomCount: Array.isArray(_layouts) && _layouts.length ? _layouts.length : 1,
+      roomCount: initRoomCount,
+      roomCountInput: initRoomCountInput, // ✅✅✅ 修复点：补上它
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props?.formData]);
