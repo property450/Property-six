@@ -167,8 +167,9 @@ async function runWithAutoStripColumns({ mode, payload, editId, userId, maxTries
 
     if (err?.code === "PGRST204" && missing) {
       if (PROTECTED_KEYS.has(missing)) {
-        const dropped = dropProtectedIfCounterpartExists(working, missing);
-        if (dropped) {
+        const other = getCounterpartKey(missing);
+        if (other && Object.prototype.hasOwnProperty.call(working, other) && hasAnyValue(working[other])) {
+          delete working[missing];
           removed.push(`${missing} (missing, kept counterpart)`);
           continue;
         }
@@ -204,6 +205,9 @@ export default function UploadPropertyPage() {
   const [typeValue, setTypeValue] = useState("");
   const [rentBatchMode, setRentBatchMode] = useState("no");
   const [typeForm, setTypeForm] = useState(null);
+
+  // ✅✅✅【核心修复】TypeSelector 的 initialForm 只在“编辑回填”给一次
+  const [typeSelectorInitialForm, setTypeSelectorInitialForm] = useState(null);
 
   const [saleType, setSaleType] = useState("");
   const [computedStatus, setComputedStatus] = useState("");
@@ -248,7 +252,6 @@ export default function UploadPropertyPage() {
   const lastFormJsonRef = useRef("");
   const lastDerivedRef = useRef({ saleType: "", status: "", roomMode: "" });
 
-  // ✅ 关键：把 onFormChange 固定，避免“函数引用变化 → TypeSelector effect 反复触发 → 闪烁”
   const handleTypeFormChange = useCallback((form) => {
     const nextJson = stableJson(form);
     if (nextJson && nextJson === lastFormJsonRef.current) return;
@@ -337,6 +340,9 @@ export default function UploadPropertyPage() {
         const sfd = safeParseMaybeJson(sfdRaw);
         const ad = safeParseMaybeJson(adRaw);
         const uls = safeParseMaybeJson(ulsRaw);
+
+        // ✅✅✅ 只在这里给一次 initialForm（避免 TypeSelector 重置闪烁）
+        setTypeSelectorInitialForm(tf);
 
         setTypeForm(tf);
 
@@ -448,16 +454,6 @@ export default function UploadPropertyPage() {
         });
 
         if (!out.ok) {
-          if (out.protectedMissing) {
-            toast.error(`保存失败：Supabase 缺少关键 column：${out.protectedMissing}`);
-            alert(
-              `保存失败：Supabase 缺少关键 column：${out.protectedMissing}\n\n` +
-                `✅ 你必须先在 Supabase SQL Editor 加上：type_form_v2 和 single_form_data_v2（jsonb）。\n\n` +
-                `（请看 Console 的 [Supabase Error]）`
-            );
-            return;
-          }
-
           const missing = extractMissingColumnName(out.error);
           if (missing) {
             toast.error(`提交失败：Supabase 缺少 column：${missing}`);
@@ -468,8 +464,6 @@ export default function UploadPropertyPage() {
           }
           return;
         }
-
-        if (out.removed?.length) console.log("[Save] Removed columns:", out.removed);
 
         toast.success("保存修改成功");
         alert("保存修改成功");
@@ -485,16 +479,6 @@ export default function UploadPropertyPage() {
       });
 
       if (!out.ok) {
-        if (out.protectedMissing) {
-          toast.error(`提交失败：Supabase 缺少关键 column：${out.protectedMissing}`);
-          alert(
-            `提交失败：Supabase 缺少关键 column：${out.protectedMissing}\n\n` +
-              `✅ 你必须先在 Supabase SQL Editor 加上：type_form_v2 和 single_form_data_v2（jsonb）。\n\n` +
-              `（请看 Console 的 [Supabase Error]）`
-          );
-          return;
-        }
-
         const missing = extractMissingColumnName(out.error);
         if (missing) {
           toast.error(`提交失败：Supabase 缺少 column：${missing}`);
@@ -518,46 +502,20 @@ export default function UploadPropertyPage() {
     }
   };
 
-  const handleDelete = async () => {
-    if (!user) {
-      toast.error("请先登录");
-      alert("请先登录");
-      return;
-    }
-    if (!isEditMode) return;
-
-    const ok = confirm("确定要删除这个房源吗？此操作不可恢复。");
-    if (!ok) return;
-
-    try {
-      setSubmitting(true);
-      const { error } = await supabase.from("properties").delete().eq("id", editId).eq("user_id", user.id);
-      if (error) throw error;
-
-      toast.success("房源已删除");
-      alert("房源已删除");
-      router.push("/my-profile");
-    } catch (e) {
-      console.error(e);
-      toast.error("删除失败");
-      alert("删除失败（请看 Console 报错）");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   const shouldShowProjectTrustSection = isProject && Array.isArray(unitLayouts) && unitLayouts.length > 0;
 
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-4">
       <h1 className="text-2xl font-bold">{isEditMode ? "编辑房源" : "上传房源"}</h1>
 
+      {/* ✅ 地址搜索保持在表单最前面（你原本的设计） */}
       <AddressSearchInput value={addressObj} onChange={setAddressObj} />
 
       <TypeSelector
         value={typeValue}
         onChange={setTypeValue}
-        initialForm={typeForm}
+        // ✅✅✅ 关键：不再用 typeForm 当 initialForm（否则会闪）
+        initialForm={typeSelectorInitialForm}
         rentBatchMode={allowRentBatchMode ? rentBatchMode : "no"}
         onChangeRentBatchMode={(val) => {
           if (!allowRentBatchMode) return;
@@ -643,17 +601,6 @@ export default function UploadPropertyPage() {
       >
         {submitting ? "提交中..." : isEditMode ? "保存修改" : "提交房源"}
       </Button>
-
-      {isEditMode && (
-        <Button
-          type="button"
-          onClick={handleDelete}
-          disabled={submitting}
-          className="bg-red-600 text-white p-3 rounded hover:bg-red-700 w-full disabled:opacity-60"
-        >
-          删除房源
-        </Button>
-      )}
     </div>
   );
 }
