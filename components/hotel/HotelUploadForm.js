@@ -216,6 +216,33 @@ function stableJson(obj) {
   }
 }
 
+// ✅ 兼容：有些旧数据会把 JSON 存成 string
+function isJsonLikeString(s) {
+  if (typeof s !== "string") return false;
+  const t = s.trim();
+  return (t.startsWith("{") && t.endsWith("}")) || (t.startsWith("[") && t.endsWith("]"));
+}
+function safeParseMaybeJson(v) {
+  if (v == null) return v;
+  if (typeof v === "string" && isJsonLikeString(v)) {
+    try {
+      return JSON.parse(v);
+    } catch {
+      return v;
+    }
+  }
+  return v;
+}
+
+// ✅✅✅ 关键：兼容 camelCase / snake_case（这就是你“不记住”的核心）
+function pickAny(obj, keys, fallback) {
+  if (!obj || typeof obj !== "object") return fallback;
+  for (const k of keys) {
+    if (obj[k] !== undefined && obj[k] !== null) return obj[k];
+  }
+  return fallback;
+}
+
 export default function HotelUploadForm(props) {
   // ✅✅✅ 关键：Homestay 模式隐藏 Hotel / Resort Type（只改这一处判断，不动其它逻辑）
   const shouldShowHotelResortType =
@@ -270,98 +297,98 @@ export default function HotelUploadForm(props) {
   const didUserEditRef = useRef(false);
 
   // ✅✅✅ 防止“编辑回填之前”就把默认值写回父层导致数据被覆盖：
-  // - 编辑模式：等我们成功把 props.formData hydrate 到本地 state 后，才允许同步回父层
-  // - 新建模式：如果 props.formData 一开始就是空的，就立刻允许同步（正常写入）
   const readyToSyncRef = useRef(false);
 
-  // ✅✅✅ 新建 vs 编辑：决定什么时候可以开始把本地 state 同步回父层
   useEffect(() => {
-    // 如果父层一开始就没给任何 formData（新建），那就允许立即同步
-    // 如果父层 later 才拿到编辑数据，我们会在 hydrate 成功后再开启同步
+    // 新建：父层一开始就没给任何 formData（空），允许立即同步
     if (!hasAnyValue(props?.formData)) {
       readyToSyncRef.current = true;
     }
-    // 只需要看 props.formData 是否有内容，不需要在这里依赖其它 state
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props?.formData]);
 
   // 任何本地输入变化都标记为“用户已编辑”，防止后续 props 回填覆盖
   useEffect(() => {
-    // 初始 render 不算编辑（用 hash 来判断）
     const current = stableJson({ hotelResortType, roomCount, roomLayouts, facilityImages, roomCountInput });
     if (!current) return;
-    // 如果已经初始化过并且 current != initHash，那就算用户编辑过
     if (lastInitHashRef.current && current !== lastInitHashRef.current) {
       didUserEditRef.current = true;
     }
   }, [hotelResortType, roomCount, roomLayouts, facilityImages, roomCountInput]);
 
+  // ✅✅✅【核心修复：从 props.formData 回填时，兼容两套 key】
   useEffect(() => {
-    const d = props?.formData;
-    if (!hasAnyValue(d)) return;
+    const d0 = props?.formData;
+    if (!hasAnyValue(d0)) return;
+
+    // 有些旧数据是 string JSON
+    const d = safeParseMaybeJson(d0) || {};
 
     const incomingHash = stableJson(d);
     if (!incomingHash) return;
 
-    // 如果同一份内容就不重复回填
     if (incomingHash === lastInitHashRef.current) return;
-
-    // 如果用户已经在编辑，就不要覆盖
     if (didUserEditRef.current) return;
 
     // ✅ 成功接收到编辑数据，开启后续同步
     readyToSyncRef.current = true;
 
-    if (typeof d.hotelResortType === "string") {
-      setHotelResortType(d.hotelResortType);
-    } else {
-      setHotelResortType("");
-    }
+    const t = pickAny(d, ["hotelResortType", "hotel_resort_type"], "");
+    setHotelResortType(typeof t === "string" ? t : "");
 
-    if (Array.isArray(d.roomLayouts) && d.roomLayouts.length > 0) {
-      const normalized = d.roomLayouts.map((l) => {
+    const layoutsRaw = pickAny(d, ["roomLayouts", "room_layouts"], null);
+    const layoutsParsed = safeParseMaybeJson(layoutsRaw);
+    if (Array.isArray(layoutsParsed) && layoutsParsed.length > 0) {
+      const normalized = layoutsParsed.map((l) => {
         const base = { ...createEmptyRoomLayout(), ...(l || {}) };
         const unitCountNum = Number(base.unitCount);
-        if (
-          (!base.unitCountInput || base.unitCountInput === "") &&
-          Number.isFinite(unitCountNum) &&
-          unitCountNum > 0
-        ) {
+        if ((!base.unitCountInput || base.unitCountInput === "") && Number.isFinite(unitCountNum) && unitCountNum > 0) {
           base.unitCountInput = formatWithCommas(unitCountNum);
         }
         return base;
       });
 
       setRoomLayouts(normalized);
-      setRoomCount(normalized.length);
-      setRoomCountInput(String(normalized.length));
+
+      const rc = pickAny(d, ["roomCount", "room_count"], normalized.length);
+      const safeRC = Number.isFinite(Number(rc)) ? Number(rc) : normalized.length;
+      setRoomCount(safeRC);
+      setRoomCountInput(String(safeRC));
     }
 
-    if (d.facilityImages && typeof d.facilityImages === "object") {
-      setFacilityImages(d.facilityImages);
+    const fiRaw = pickAny(d, ["facilityImages", "facility_images"], {});
+    const fi = safeParseMaybeJson(fiRaw);
+    if (fi && typeof fi === "object") {
+      setFacilityImages(fi);
     }
 
     // 记录这次“回填后的状态 hash”，用于判定用户是否改动过
     lastInitHashRef.current = stableJson({
-      hotelResortType: typeof d.hotelResortType === "string" ? d.hotelResortType : "",
-      roomLayouts: Array.isArray(d.roomLayouts) && d.roomLayouts.length ? d.roomLayouts : [createEmptyRoomLayout()],
-      facilityImages: d.facilityImages && typeof d.facilityImages === "object" ? d.facilityImages : {},
-      roomCount: Array.isArray(d.roomLayouts) && d.roomLayouts.length ? d.roomLayouts.length : 1,
+      hotelResortType: typeof t === "string" ? t : "",
+      roomLayouts: Array.isArray(layoutsParsed) && layoutsParsed.length ? layoutsParsed : [createEmptyRoomLayout()],
+      facilityImages: fi && typeof fi === "object" ? fi : {},
+      roomCount: Array.isArray(layoutsParsed) && layoutsParsed.length ? layoutsParsed.length : 1,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props?.formData]);
 
-  // ✅✅✅【核心修复：同步回父层时做“去重”→ 防止闪烁】
+  // ✅✅✅【核心修复：同步回父层时写两套 key】→ 解决“保存了但回填读不到”
   const lastSentRef = useRef("");
   useEffect(() => {
-    // ✅✅✅ 关键：没 ready 前不要写回父层（否则会把已保存的数据用默认值覆盖）
     if (!readyToSyncRef.current) return;
 
     const patch = {
+      // camelCase（你现在 UI 用的）
       hotelResortType,
       roomLayouts,
       facilityImages,
       roomCount,
+
+      // snake_case（兼容旧数据/旧读取逻辑，确保一定能读回）
+      hotel_resort_type: hotelResortType,
+      room_layouts: roomLayouts,
+      facility_images: facilityImages,
+      room_count: roomCount,
     };
 
     const nextHash = stableJson(patch);
@@ -374,7 +401,6 @@ export default function HotelUploadForm(props) {
     if (typeof setFn === "function") {
       setFn((prev) => {
         const merged = { ...(prev || {}), ...patch };
-        // 再次去重：如果合并后跟 prev 一样就不触发更新
         const mergedHash = stableJson(merged);
         const prevHash = stableJson(prev || {});
         if (mergedHash && prevHash && mergedHash === prevHash) return prev;
