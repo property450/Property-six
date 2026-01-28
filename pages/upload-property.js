@@ -82,6 +82,21 @@ function stableJson(obj) {
   }
 }
 
+// ✅ 判断“有没有内容”（避免 {} 抢优先级）
+function hasAnyValue(v) {
+  if (!v) return false;
+  if (typeof v !== "object") return true;
+  if (Array.isArray(v)) return v.length > 0;
+  return Object.keys(v).length > 0;
+}
+
+// ✅ 从多个候选里选“非空”的
+function pickPreferNonEmpty(a, b, fallback) {
+  if (hasAnyValue(a)) return a;
+  if (hasAnyValue(b)) return b;
+  return fallback;
+}
+
 function extractMissingColumnName(error) {
   const msg = String(error?.message || "");
   const m = msg.match(/Could not find the '([^']+)' column/i);
@@ -106,144 +121,183 @@ const KEY_PAIRS = [
   ["singleFormData", "single_form_data"],
   ["areaData", "area_data"],
   ["unitLayouts", "unit_layouts"],
-  ["type_form_v2", "type_form_v2"],
-  ["single_form_data_v2", "single_form_data_v2"],
 ];
 
+function getCounterpartKey(k) {
+  for (const [camel, snake] of KEY_PAIRS) {
+    if (k === camel) return snake;
+    if (k === snake) return camel;
+  }
+  return "";
+}
+
+function dropProtectedIfCounterpartExists(working, missing) {
+  const other = getCounterpartKey(missing);
+  if (!other) return false;
+  if (!Object.prototype.hasOwnProperty.call(working, other)) return false;
+
+  if (hasAnyValue(working[other])) {
+    delete working[missing];
+    return true;
+  }
+  return false;
+}
+
 async function runWithAutoStripColumns({ mode, payload, editId, userId, maxTries = 10 }) {
-  let working = { ...payload };
+  let working = { ...(payload || {}) };
   let tries = 0;
+  const removed = [];
 
   while (tries < maxTries) {
-    tries++;
+    tries += 1;
 
-    try {
-      let q = supabase.from("properties");
-
-      if (mode === "update") {
-        q = q.update(working).eq("id", editId).eq("user_id", userId);
-      } else {
-        q = q.insert(working);
-      }
-
-      const { data, error } = await q.select("*").single();
-
-      if (!error) return { ok: true, data };
-
-      console.error("[Supabase Error]", error);
-
-      const missing = extractMissingColumnName(error);
-
-      if (missing) {
-        if (PROTECTED_KEYS.has(missing)) {
-          return { ok: false, error, protectedMissing: missing };
-        }
-
-        // ✅ 自动删掉缺失 column，并继续重试
-        const next = { ...working };
-        delete next[missing];
-
-        // 同时删除同义 key（例如：singleFormData / single_form_data）
-        for (const [a, b] of KEY_PAIRS) {
-          if (missing === a) delete next[b];
-          if (missing === b) delete next[a];
-        }
-
-        working = next;
-        continue;
-      }
-
-      return { ok: false, error };
-    } catch (e) {
-      console.error("[Supabase Unexpected]", e);
-      return { ok: false, error: e };
+    let res;
+    if (mode === "update") {
+      res = await supabase.from("properties").update(working).eq("id", editId).eq("user_id", userId);
+    } else {
+      res = await supabase.from("properties").insert([working]);
     }
+
+    if (!res?.error) return { ok: true, removed, result: res };
+
+    const err = res.error;
+    console.error("[Supabase Error]", err);
+
+    const missing = extractMissingColumnName(err);
+
+    if (err?.code === "PGRST204" && missing) {
+      if (PROTECTED_KEYS.has(missing)) {
+        const dropped = dropProtectedIfCounterpartExists(working, missing);
+        if (dropped) {
+          removed.push(`${missing} (missing, kept counterpart)`);
+          continue;
+        }
+        return { ok: false, removed, error: err, protectedMissing: missing };
+      }
+
+      if (!Object.prototype.hasOwnProperty.call(working, missing)) {
+        return { ok: false, removed, error: err };
+      }
+
+      delete working[missing];
+      removed.push(missing);
+      continue;
+    }
+
+    return { ok: false, removed, error: err };
   }
 
-  return { ok: false, error: new Error("Too many tries") };
+  return { ok: false, removed, error: new Error("自动处理次数用尽（请看 Console 报错）") };
 }
 
 export default function UploadPropertyPage() {
   const router = useRouter();
   const user = useUser();
 
-  const editId = router.query?.id ? String(router.query.id) : "";
-  const isEditMode = router.query?.edit === "1" && !!editId;
+  const edit = router?.query?.edit;
+  const editId = router?.query?.id;
+  const isEditMode = String(edit || "") === "1" && !!editId;
 
   const [submitting, setSubmitting] = useState(false);
+  const [addressObj, setAddressObj] = useState(null);
 
+  const [typeValue, setTypeValue] = useState("");
+  const [rentBatchMode, setRentBatchMode] = useState("no");
   const [typeForm, setTypeForm] = useState(null);
+
   const [saleType, setSaleType] = useState("");
   const [computedStatus, setComputedStatus] = useState("");
-  const [typeValue, setTypeValue] = useState("");
-
   const [roomRentalMode, setRoomRentalMode] = useState("whole");
-  const [rentBatchMode, setRentBatchMode] = useState("no");
 
   const [projectCategory, setProjectCategory] = useState("");
   const [projectSubType, setProjectSubType] = useState("");
-
-  const [addressObj, setAddressObj] = useState(null);
-
-  const lastDerivedRef = useRef({
-    saleType: "",
-    status: "",
-    roomRentalMode: "",
-    rentBatchMode: "",
-  });
-
   const [unitLayouts, setUnitLayouts] = useState([]);
+
   const [singleFormData, setSingleFormData] = useState({});
   const [areaData, setAreaData] = useState({
-    showBuildUp: true,
-    showLand: false,
-    buildUp: { unit: "sqft", value: "" },
-    land: { unit: "sqft", value: "" },
+    types: ["buildUp"],
+    units: { buildUp: "Square Feet (sqft)", land: "Square Feet (sqft)" },
+    values: { buildUp: "", land: "" },
   });
   const [description, setDescription] = useState("");
-
-  // ✅✅✅ 关键：编辑回填后强制重挂载 Homestay/Hotel 表单，让内部 state 重新吃到 formData
-  const [hydrateKey, setHydrateKey] = useState(0);
 
   const saleTypeNorm = String(saleType || "").toLowerCase();
   const isHomestay = saleTypeNorm.includes("homestay");
   const isHotel = saleTypeNorm.includes("hotel");
 
-  const isProject = saleTypeNorm.includes("sale") && (computedStatus || "").toLowerCase().includes("project");
-  const isRent = saleTypeNorm.includes("rent");
-  const isSale = saleTypeNorm.includes("sale");
+  const isProject =
+    saleTypeNorm === "sale" &&
+    ["New Project / Under Construction", "Completed Unit / Developer Unit"].includes(computedStatus);
 
-  const mustLogin = !user;
-  const mustPickSaleType = !saleType;
-  const mustPickAddress = !addressObj?.lat || !addressObj?.lng;
-  const mustPickType = !typeValue;
+  const rentCategorySelected = !!(typeForm && (typeForm.category || typeForm.propertyCategory));
+  const allowRentBatchMode = saleTypeNorm === "rent" && rentCategorySelected;
 
-  const handleTypeFormChange = useCallback(
-    (next) => {
-      setTypeForm(next);
+  const isRentBatch = saleTypeNorm === "rent" && rentBatchMode === "yes" && roomRentalMode !== "room";
 
-      const nextSaleType = next?.saleType || "";
-      const nextStatus = next?.propertyStatus || "";
-      const nextRoomRentalMode = next?.roomRentalMode || "whole";
-      const nextRentBatchMode = next?.rentBatchMode || "no";
+  const rawLayoutCount = Number(typeForm?.layoutCount);
+  const batchLayoutCount = Math.max(2, Math.min(20, Number.isFinite(rawLayoutCount) ? rawLayoutCount : 2));
 
-      const last = lastDerivedRef.current;
+  const rawRoomCount = Number(typeForm?.roomCount);
+  const roomLayoutCount =
+    roomRentalMode === "room"
+      ? typeForm?.roomCountMode === "multi"
+        ? Math.max(2, Math.min(20, Number.isFinite(rawRoomCount) ? rawRoomCount : 2))
+        : 1
+      : 1;
 
-      if (nextSaleType !== last.saleType) setSaleType(nextSaleType);
-      if (nextStatus !== last.status) setComputedStatus(nextStatus);
-      if (nextRoomRentalMode !== last.roomRentalMode) setRoomRentalMode(nextRoomRentalMode);
-      if (nextRentBatchMode !== last.rentBatchMode) setRentBatchMode(nextRentBatchMode);
+  const lastFormJsonRef = useRef("");
+  const lastDerivedRef = useRef({ saleType: "", status: "", roomMode: "" });
 
-      lastDerivedRef.current = {
-        saleType: nextSaleType,
-        status: nextStatus,
-        roomRentalMode: nextRoomRentalMode,
-        rentBatchMode: nextRentBatchMode,
-      };
-    },
-    [setTypeForm]
-  );
+  // ✅ 关键：把 onFormChange 固定，避免“函数引用变化 → TypeSelector effect 反复触发 → 闪烁”
+  const handleTypeFormChange = useCallback((form) => {
+    const nextJson = stableJson(form);
+    if (nextJson && nextJson === lastFormJsonRef.current) return;
+    lastFormJsonRef.current = nextJson;
 
+    setTypeForm((prev) => {
+      const prevJson = stableJson(prev);
+      if (prevJson === nextJson) return prev;
+      return form || null;
+    });
+
+    const nextSale = form?.saleType || "";
+    const nextStatus = form?.propertyStatus || "";
+    const nextRoom = form?.roomRentalMode || "whole";
+
+    const last = lastDerivedRef.current;
+    if (last.saleType !== nextSale) setSaleType(nextSale);
+    if (last.status !== nextStatus) setComputedStatus(nextStatus);
+    if (last.roomMode !== nextRoom) setRoomRentalMode(nextRoom);
+
+    lastDerivedRef.current = { saleType: nextSale, status: nextStatus, roomMode: nextRoom };
+  }, []);
+
+  useEffect(() => {
+    if (!isRentBatch) return;
+    const n = batchLayoutCount;
+    setUnitLayouts((prev) => {
+      const prevArr = Array.isArray(prev) ? prev : [];
+      return Array.from({ length: n }).map((_, i) => prevArr[i] || {});
+    });
+  }, [isRentBatch, batchLayoutCount]);
+
+  useEffect(() => {
+    if (saleTypeNorm !== "rent") return;
+    if (roomRentalMode !== "room") return;
+    if (isRentBatch) return;
+
+    if (roomLayoutCount <= 1) {
+      setUnitLayouts?.([]);
+      return;
+    }
+
+    setUnitLayouts?.((prev) => {
+      const prevArr = Array.isArray(prev) ? prev : [];
+      return Array.from({ length: roomLayoutCount }).map((_, i) => prevArr[i] || {});
+    });
+  }, [saleTypeNorm, roomRentalMode, isRentBatch, roomLayoutCount]);
+
+  // ✅ 编辑模式：读取房源并回填（优先用 v2）
   useEffect(() => {
     if (!isEditMode) return;
     if (!user) return;
@@ -265,10 +319,19 @@ export default function UploadPropertyPage() {
           return;
         }
 
-        const tfRaw = data.type_form_v2 || data.typeForm || data.type_form || null;
-        const sfdRaw = data.single_form_data_v2 || data.singleFormData || data.single_form_data || {};
-        const adRaw = data.areaData || data.area_data || areaData;
-        const ulsRaw = data.unitLayouts || data.unit_layouts || [];
+        const tfRaw = pickPreferNonEmpty(
+          data.type_form_v2,
+          pickPreferNonEmpty(data.typeForm, data.type_form, null),
+          null
+        );
+        const sfdRaw = pickPreferNonEmpty(
+          data.single_form_data_v2,
+          pickPreferNonEmpty(data.singleFormData, data.single_form_data, {}),
+          {}
+        );
+
+        const adRaw = pickPreferNonEmpty(data.areaData, data.area_data, areaData);
+        const ulsRaw = pickPreferNonEmpty(data.unitLayouts, data.unit_layouts, []);
 
         const tf = safeParseMaybeJson(tfRaw);
         const sfd = safeParseMaybeJson(sfdRaw);
@@ -299,27 +362,28 @@ export default function UploadPropertyPage() {
         setAreaData(ad || areaData);
         setDescription(typeof data.description === "string" ? data.description : "");
 
-        // ✅ 同步 lastDerived，避免第一次 TypeSelector onFormChange 又触发一轮不必要的 setState
         lastDerivedRef.current = {
           saleType: (tf && tf.saleType) || "",
           status: (tf && tf.propertyStatus) || "",
-          roomRentalMode: (tf && tf.roomRentalMode) || "whole",
-          rentBatchMode: (tf && tf.rentBatchMode) || "no",
+          roomMode: (tf && tf.roomRentalMode) || "whole",
         };
-
-        // ✅✅✅ 关键：回填完成后强制重挂载 Homestay/Hotel 表单，让它们重新读入 formData
-        setHydrateKey((k) => k + 1);
+        lastFormJsonRef.current = stableJson(tf);
 
         toast.success("已进入编辑模式");
       } catch (e) {
         console.error(e);
-        toast.error("进入编辑失败（请看 Console）");
-        alert("进入编辑失败（请看 Console）");
+        toast.error("无法加载房源进行编辑");
+        alert("无法加载房源进行编辑（请看 Console 报错）");
       }
     };
 
     fetchForEdit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditMode, editId, user]);
+
+  const mustLogin = !user;
+  const mustPickSaleType = !saleType;
+  const mustPickAddress = !addressObj?.lat || !addressObj?.lng;
 
   const handleSubmit = async () => {
     if (mustLogin) {
@@ -404,82 +468,115 @@ export default function UploadPropertyPage() {
           }
           return;
         }
-      } else {
-        const out = await runWithAutoStripColumns({
-          mode: "insert",
-          payload,
-          editId: "",
-          userId: user.id,
-          maxTries: 10,
-        });
 
-        if (!out.ok) {
-          if (out.protectedMissing) {
-            toast.error(`保存失败：Supabase 缺少关键 column：${out.protectedMissing}`);
-            alert(
-              `保存失败：Supabase 缺少关键 column：${out.protectedMissing}\n\n` +
-                `✅ 你必须先在 Supabase SQL Editor 加上：type_form_v2 和 single_form_data_v2（jsonb）。\n\n` +
-                `（请看 Console 的 [Supabase Error]）`
-            );
-            return;
-          }
+        if (out.removed?.length) console.log("[Save] Removed columns:", out.removed);
 
-          const missing = extractMissingColumnName(out.error);
-          if (missing) {
-            toast.error(`提交失败：Supabase 缺少 column：${missing}`);
-            alert(`提交失败：Supabase 缺少 column：${missing}\n（请看 Console 报错）`);
-          } else {
-            toast.error("提交失败（请看 Console 报错）");
-            alert("提交失败（请看 Console 报错）");
-          }
-          return;
-        }
+        toast.success("保存修改成功");
+        alert("保存修改成功");
+        router.push("/my-profile");
+        return;
       }
 
-      toast.success(isEditMode ? "保存修改成功" : "上传成功");
-      router.push("/my-properties");
+      const out = await runWithAutoStripColumns({
+        mode: "insert",
+        payload: { ...payload, created_at: new Date().toISOString() },
+        userId: user.id,
+        maxTries: 10,
+      });
+
+      if (!out.ok) {
+        if (out.protectedMissing) {
+          toast.error(`提交失败：Supabase 缺少关键 column：${out.protectedMissing}`);
+          alert(
+            `提交失败：Supabase 缺少关键 column：${out.protectedMissing}\n\n` +
+              `✅ 你必须先在 Supabase SQL Editor 加上：type_form_v2 和 single_form_data_v2（jsonb）。\n\n` +
+              `（请看 Console 的 [Supabase Error]）`
+          );
+          return;
+        }
+
+        const missing = extractMissingColumnName(out.error);
+        if (missing) {
+          toast.error(`提交失败：Supabase 缺少 column：${missing}`);
+          alert(`提交失败：Supabase 缺少 column：${missing}\n（请看 Console 报错）`);
+        } else {
+          toast.error("提交失败（请看 Console 报错）");
+          alert("提交失败（请看 Console 报错）");
+        }
+        return;
+      }
+
+      toast.success("提交成功");
+      alert("提交成功");
+      router.push("/");
     } catch (e) {
       console.error(e);
-      toast.error("提交失败（请看 Console 报错）");
+      toast.error("提交失败");
       alert("提交失败（请看 Console 报错）");
     } finally {
       setSubmitting(false);
     }
   };
 
+  const handleDelete = async () => {
+    if (!user) {
+      toast.error("请先登录");
+      alert("请先登录");
+      return;
+    }
+    if (!isEditMode) return;
+
+    const ok = confirm("确定要删除这个房源吗？此操作不可恢复。");
+    if (!ok) return;
+
+    try {
+      setSubmitting(true);
+      const { error } = await supabase.from("properties").delete().eq("id", editId).eq("user_id", user.id);
+      if (error) throw error;
+
+      toast.success("房源已删除");
+      alert("房源已删除");
+      router.push("/my-profile");
+    } catch (e) {
+      console.error(e);
+      toast.error("删除失败");
+      alert("删除失败（请看 Console 报错）");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const shouldShowProjectTrustSection = isProject && Array.isArray(unitLayouts) && unitLayouts.length > 0;
+
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-3xl mx-auto p-4 space-y-4">
+      <h1 className="text-2xl font-bold">{isEditMode ? "编辑房源" : "上传房源"}</h1>
+
+      <AddressSearchInput value={addressObj} onChange={setAddressObj} />
+
       <TypeSelector
-        typeForm={typeForm}
-        setTypeForm={setTypeForm}
-        saleType={saleType}
-        setSaleType={setSaleType}
-        computedStatus={computedStatus}
-        setComputedStatus={setComputedStatus}
-        typeValue={typeValue}
-        setTypeValue={setTypeValue}
-        roomRentalMode={roomRentalMode}
-        setRoomRentalMode={setRoomRentalMode}
-        rentBatchMode={rentBatchMode}
-        setRentBatchMode={setRentBatchMode}
+        value={typeValue}
+        onChange={setTypeValue}
+        initialForm={typeForm}
+        rentBatchMode={allowRentBatchMode ? rentBatchMode : "no"}
+        onChangeRentBatchMode={(val) => {
+          if (!allowRentBatchMode) return;
+          setRentBatchMode(val);
+        }}
         onFormChange={handleTypeFormChange}
       />
 
       {isHomestay ? (
         <HomestayUploadForm
-          key={`homestay-${hydrateKey}`}
           formData={singleFormData}
           setFormData={setSingleFormData}
           onFormChange={(patch) => setSingleFormData((prev) => ({ ...(prev || {}), ...(patch || {}) }))}
-          onPrimarySubmit={handleSubmit}
         />
       ) : isHotel ? (
         <HotelUploadForm
-          key={`hotel-${hydrateKey}`}
           formData={singleFormData}
           setFormData={setSingleFormData}
           onFormChange={(patch) => setSingleFormData((prev) => ({ ...(prev || {}), ...(patch || {}) }))}
-          onPrimarySubmit={handleSubmit}
         />
       ) : isProject ? (
         <>
@@ -493,62 +590,70 @@ export default function UploadPropertyPage() {
             setProjectSubType={setProjectSubType}
             unitLayouts={unitLayouts}
             setUnitLayouts={setUnitLayouts}
-            singleFormData={singleFormData}
-            setSingleFormData={setSingleFormData}
-            areaData={areaData}
-            setAreaData={setAreaData}
+            enableProjectAutoCopy={computedStatus === "New Project / Under Construction"}
+            pickCommon={pickCommon}
+            commonHash={commonHash}
           />
 
-          <ListingTrustSection
-            singleFormData={singleFormData}
-            setSingleFormData={setSingleFormData}
-            layoutCount={Array.isArray(unitLayouts) ? unitLayouts.length : 0}
-          />
+          {shouldShowProjectTrustSection && (
+            <ListingTrustSection
+              mode={computedStatus === "New Project / Under Construction" ? "new_project" : "completed_unit"}
+              value={singleFormData?.trustSection || {}}
+              onChange={(next) => setSingleFormData((prev) => ({ ...(prev || {}), trustSection: next }))}
+            />
+          )}
         </>
-      ) : isRent ? (
+      ) : saleTypeNorm === "rent" ? (
         <RentUploadForm
           saleType={saleType}
           computedStatus={computedStatus}
           roomRentalMode={roomRentalMode}
-          rentBatchMode={rentBatchMode}
-          unitLayouts={unitLayouts}
-          setUnitLayouts={setUnitLayouts}
+          isRoomRental={roomRentalMode === "room"}
           singleFormData={singleFormData}
           setSingleFormData={setSingleFormData}
           areaData={areaData}
           setAreaData={setAreaData}
+          description={description}
+          setDescription={setDescription}
+          rentBatchMode={rentBatchMode}
+          layoutCount={isRentBatch ? batchLayoutCount : roomLayoutCount}
+          unitLayouts={unitLayouts}
+          setUnitLayouts={setUnitLayouts}
+          propertyCategory={typeForm?.category || typeForm?.propertyCategory || ""}
         />
-      ) : isSale ? (
+      ) : (
         <SaleUploadForm
           saleType={saleType}
           computedStatus={computedStatus}
-          unitLayouts={unitLayouts}
-          setUnitLayouts={setUnitLayouts}
           singleFormData={singleFormData}
           setSingleFormData={setSingleFormData}
           areaData={areaData}
           setAreaData={setAreaData}
+          description={description}
+          setDescription={setDescription}
+          propertyCategory={typeForm?.category || typeForm?.propertyCategory || ""}
         />
-      ) : null}
+      )}
 
-      <div className="space-y-2">
-        <label className="block font-semibold">地址</label>
-        <AddressSearchInput value={addressObj} onChange={setAddressObj} />
-      </div>
-
-      <div className="space-y-2">
-        <label className="block font-semibold">房源描述</label>
-        <textarea
-          className="w-full border rounded p-3 min-h-[120px]"
-          placeholder="请输入房源详细描述..."
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-        />
-      </div>
-
-      <Button className="w-full" disabled={submitting} onClick={handleSubmit}>
+      <Button
+        type="button"
+        onClick={handleSubmit}
+        disabled={submitting}
+        className="bg-blue-600 text-white p-3 rounded hover:bg-blue-700 w-full disabled:opacity-60"
+      >
         {submitting ? "提交中..." : isEditMode ? "保存修改" : "提交房源"}
       </Button>
+
+      {isEditMode && (
+        <Button
+          type="button"
+          onClick={handleDelete}
+          disabled={submitting}
+          className="bg-red-600 text-white p-3 rounded hover:bg-red-700 w-full disabled:opacity-60"
+        >
+          删除房源
+        </Button>
+      )}
     </div>
   );
 }
