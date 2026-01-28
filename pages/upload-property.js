@@ -781,8 +781,8 @@ export default function UploadPropertyPage() {
           className="bg-red-600 text-white p-3 rounded hover:bg-red-700 w-full disabled:opacity-60"
         >
           删除房源
-        Button>
+        </Button>
       )}
     </div>
   );
-      }
+}
