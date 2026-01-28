@@ -104,7 +104,6 @@ const HOTEL_RESORT_TYPES = [
   "Pet-Friendly Hotel",
   "Adults Only Hotel",
   "Family Friendly Hotel",
-  "Family Friendly Resort",
 ];
 
 const createEmptyRoomLayout = () => ({
@@ -175,6 +174,48 @@ function parseDigitsToInt(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
+function hasAnyValue(obj) {
+  if (!obj || typeof obj !== "object") return false;
+  return Object.keys(obj).length > 0;
+}
+
+// ✅ 用来比较“内容有没有变化”，避免一直 setFormData 导致闪烁
+function stableJson(obj) {
+  const seen = new WeakSet();
+
+  const sortDeep = (v) => {
+    if (v === null || v === undefined) return v;
+    if (v instanceof Date) return v.toISOString();
+    if (Array.isArray(v)) return v.map(sortDeep);
+
+    if (typeof v === "object") {
+      // File / Blob 不做深比较，避免序列化炸裂
+      if (typeof File !== "undefined" && v instanceof File) return `[File:${v.name}]`;
+      if (typeof Blob !== "undefined" && v instanceof Blob) return "[Blob]";
+
+      if (seen.has(v)) return null;
+      seen.add(v);
+      const out = {};
+      Object.keys(v)
+        .sort()
+        .forEach((k) => {
+          const val = v[k];
+          if (val === undefined) return;
+          if (typeof val === "function") return;
+          out[k] = sortDeep(val);
+        });
+      return out;
+    }
+    return v;
+  };
+
+  try {
+    return JSON.stringify(sortDeep(obj ?? null));
+  } catch {
+    return "";
+  }
+}
+
 export default function HotelUploadForm(props) {
   // ✅✅✅ 关键：Homestay 模式隐藏 Hotel / Resort Type（只改这一处判断，不动其它逻辑）
   const shouldShowHotelResortType =
@@ -189,7 +230,6 @@ export default function HotelUploadForm(props) {
   const [roomLayouts, setRoomLayouts] = useState([createEmptyRoomLayout()]);
   const [facilityImages, setFacilityImages] = useState({});
 
-  // ✅ 房型数量输入框 + 下拉控制
   const [roomCountInput, setRoomCountInput] = useState("1");
   const [showDropdown, setShowDropdown] = useState(false);
 
@@ -200,7 +240,16 @@ export default function HotelUploadForm(props) {
 
   // ✅ Layout 图纸上传 refs（每个房型一个）
   const layoutFileInputRefs = useRef([]);
-  const unitCountDropdownRefs = useRef([]); // ✅ 每个房型数量框外层 ref
+  const unitCountDropdownRefs = useRef([]);
+
+  // ✅✅✅ 修复闪烁：父层函数放 ref，避免 useEffect 依赖变化
+  const setFormDataRef = useRef(props?.setFormData);
+  const onFormChangeRef = useRef(props?.onFormChange);
+
+  useEffect(() => {
+    setFormDataRef.current = props?.setFormData;
+    onFormChangeRef.current = props?.onFormChange;
+  }, [props?.setFormData, props?.onFormChange]);
 
   const getLayoutFileRef = (index) => {
     if (!layoutFileInputRefs.current[index]) {
@@ -216,13 +265,41 @@ export default function HotelUploadForm(props) {
     return unitCountDropdownRefs.current[index];
   };
 
-  // ✅ 读取编辑数据（回填）
+  // ✅✅✅【核心修复：编辑回填 + 不覆盖正在编辑】
+  const lastInitHashRef = useRef("");
+  const didUserEditRef = useRef(false);
+
+  // 任何本地输入变化都标记为“用户已编辑”，防止后续 props 回填覆盖
+  useEffect(() => {
+    // 初始 render 不算编辑（用 hash 来判断）
+    const current = stableJson({ hotelResortType, roomCount, roomLayouts, facilityImages, roomCountInput });
+    if (!current) return;
+    // 如果已经初始化过并且 current != initHash，那就算用户编辑过
+    if (lastInitHashRef.current && current !== lastInitHashRef.current) {
+      didUserEditRef.current = true;
+    }
+  }, [hotelResortType, roomCount, roomLayouts, facilityImages, roomCountInput]);
+
   useEffect(() => {
     const d = props?.formData;
+    if (!hasAnyValue(d)) return;
 
-    if (typeof d?.hotelResortType === "string") setHotelResortType(d.hotelResortType);
+    const incomingHash = stableJson(d);
+    if (!incomingHash) return;
 
-    if (Array.isArray(d?.roomLayouts) && d.roomLayouts.length > 0) {
+    // 如果同一份内容就不重复回填
+    if (incomingHash === lastInitHashRef.current) return;
+
+    // 如果用户已经在编辑，就不要覆盖
+    if (didUserEditRef.current) return;
+
+    if (typeof d.hotelResortType === "string") {
+      setHotelResortType(d.hotelResortType);
+    } else {
+      setHotelResortType("");
+    }
+
+    if (Array.isArray(d.roomLayouts) && d.roomLayouts.length > 0) {
       const normalized = d.roomLayouts.map((l) => {
         const base = { ...createEmptyRoomLayout(), ...(l || {}) };
         const unitCountNum = Number(base.unitCount);
@@ -241,38 +318,55 @@ export default function HotelUploadForm(props) {
       setRoomCountInput(String(normalized.length));
     }
 
-    if (d?.facilityImages && typeof d.facilityImages === "object") {
+    if (d.facilityImages && typeof d.facilityImages === "object") {
       setFacilityImages(d.facilityImages);
     }
+
+    // 记录这次“回填后的状态 hash”，用于判定用户是否改动过
+    lastInitHashRef.current = stableJson({
+      hotelResortType: typeof d.hotelResortType === "string" ? d.hotelResortType : "",
+      roomLayouts: Array.isArray(d.roomLayouts) && d.roomLayouts.length ? d.roomLayouts : [createEmptyRoomLayout()],
+      facilityImages: d.facilityImages && typeof d.facilityImages === "object" ? d.facilityImages : {},
+      roomCount: Array.isArray(d.roomLayouts) && d.roomLayouts.length ? d.roomLayouts.length : 1,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props?.formData]);
 
-  // ✅ 同步回父层
+  // ✅✅✅【核心修复：同步回父层时做“去重”→ 防止闪烁】
+  const lastSentRef = useRef("");
   useEffect(() => {
-    if (typeof props?.setFormData === "function") {
-      props.setFormData((prev) => ({
-        ...(prev || {}),
-        hotelResortType,
-        roomLayouts,
-        facilityImages,
-        roomCount,
-      }));
+    const patch = {
+      hotelResortType,
+      roomLayouts,
+      facilityImages,
+      roomCount,
+    };
+
+    const nextHash = stableJson(patch);
+    if (nextHash && nextHash === lastSentRef.current) return;
+    lastSentRef.current = nextHash;
+
+    const setFn = setFormDataRef.current;
+    const onFn = onFormChangeRef.current;
+
+    if (typeof setFn === "function") {
+      setFn((prev) => {
+        const merged = { ...(prev || {}), ...patch };
+        // 再次去重：如果合并后跟 prev 一样就不触发更新
+        const mergedHash = stableJson(merged);
+        const prevHash = stableJson(prev || {});
+        if (mergedHash && prevHash && mergedHash === prevHash) return prev;
+        return merged;
+      });
       return;
     }
-    if (typeof props?.onFormChange === "function") {
-      props.onFormChange({
-        hotelResortType,
-        roomLayouts,
-        facilityImages,
-        roomCount,
-      });
+    if (typeof onFn === "function") {
+      onFn(patch);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hotelResortType, roomLayouts, facilityImages, roomCount]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
-      // 关闭房型数量 dropdown：只要点到任何一个数量框内就不关闭
       const clickedInsideAnyUnitCount =
         unitCountDropdownRefs.current?.some((r) => r?.current && r.current.contains(e.target)) || false;
 
@@ -280,7 +374,6 @@ export default function HotelUploadForm(props) {
         setOpenUnitCountIndex(null);
       }
 
-      // 关闭 layout 数量 dropdown（你原本的）
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setShowDropdown(false);
       }
@@ -336,7 +429,6 @@ export default function HotelUploadForm(props) {
   const handleUnitCountInput = (index, raw) => {
     const n = parseDigitsToInt(raw);
 
-    // 允许空值输入过程（比如用户正在删）
     if (raw === "" || raw == null) {
       handleRoomLayoutChange(index, {
         unitCountInput: "",
@@ -373,14 +465,6 @@ export default function HotelUploadForm(props) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    // ✅✅✅ 关键修复：点击 Hotel/Homestay 表单里的提交按钮，也要触发 pages/upload-property.js 的主保存
-    if (typeof props?.onPrimarySubmit === "function") {
-      props.onPrimarySubmit();
-      return;
-    }
-
-    // ✅ 仅新增：把 hotelResortType 也打印出来（不影响你其它逻辑）
     console.log("提交数据", { hotelResortType, roomLayouts, facilityImages });
   };
 
@@ -452,10 +536,7 @@ export default function HotelUploadForm(props) {
           </h3>
 
           {/* ✅ Layout 图纸（New Project 同款） */}
-          <BlueprintUploadSection
-            fileInputRef={getLayoutFileRef(index)}
-            onUpload={(e) => handleBlueprintUpload(index, e)}
-          />
+          <BlueprintUploadSection fileInputRef={getLayoutFileRef(index)} onUpload={(e) => handleBlueprintUpload(index, e)} />
 
           {/* ✅✅ 只新增：每个房型数量（1~3000，可编辑，千分位） */}
           <div className="relative w-72" ref={getUnitCountRef(index)}>
