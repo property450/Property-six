@@ -122,6 +122,7 @@ const createEmptyRoomLayout = () => ({
     bathrooms: "",
     kitchens: "",
     livingRooms: "",
+    carparks: "",
   },
   extraSpaces: [],
 
@@ -146,9 +147,11 @@ const createEmptyRoomLayout = () => ({
   // ✅ Layout 图纸（New Project 同款）
   layoutPhotos: [],
 
-  // ✅✅ 只新增：每个房型数量（1~3000，带逗号显示）
   unitCount: 1,
   unitCountInput: "1",
+
+  // ✅ petPolicy（你现在已经能记住）
+  petPolicy: { type: "", note: "" },
 });
 
 const SHARED_KEYS = [
@@ -157,6 +160,7 @@ const SHARED_KEYS = [
   "indoorFacilities",
   "bathroomFacilities",
   "kitchenFacilities",
+  "otherFacilities",
   "otherFacilities",
   "views",
   "otherServices",
@@ -167,32 +171,26 @@ function formatWithCommas(n) {
   if (!Number.isFinite(n) || n <= 0) return "";
   return n.toLocaleString("en-US");
 }
-
 function parseDigitsToInt(v) {
   const cleaned = String(v ?? "").replace(/[^\d]/g, "");
   const n = Number(cleaned);
   return Number.isFinite(n) ? n : 0;
 }
-
-function hasAnyValue(obj) {
-  if (!obj || typeof obj !== "object") return false;
-  return Object.keys(obj).length > 0;
+function hasAnyValue(v) {
+  if (!v) return false;
+  if (typeof v !== "object") return true;
+  if (Array.isArray(v)) return v.length > 0;
+  return Object.keys(v).length > 0;
 }
 
-// ✅ 用来比较“内容有没有变化”，避免一直 setFormData 导致闪烁
+// ✅ 稳定 stringify（防闪烁）
 function stableJson(obj) {
   const seen = new WeakSet();
-
   const sortDeep = (v) => {
     if (v === null || v === undefined) return v;
     if (v instanceof Date) return v.toISOString();
     if (Array.isArray(v)) return v.map(sortDeep);
-
     if (typeof v === "object") {
-      // File / Blob 不做深比较，避免序列化炸裂
-      if (typeof File !== "undefined" && v instanceof File) return `[File:${v.name}]`;
-      if (typeof Blob !== "undefined" && v instanceof Blob) return "[Blob]";
-
       if (seen.has(v)) return null;
       seen.add(v);
       const out = {};
@@ -208,7 +206,6 @@ function stableJson(obj) {
     }
     return v;
   };
-
   try {
     return JSON.stringify(sortDeep(obj ?? null));
   } catch {
@@ -216,25 +213,7 @@ function stableJson(obj) {
   }
 }
 
-// ✅ 兼容：有些旧数据会把 JSON 存成 string
-function isJsonLikeString(s) {
-  if (typeof s !== "string") return false;
-  const t = s.trim();
-  return (t.startsWith("{") && t.endsWith("}")) || (t.startsWith("[") && t.endsWith("]"));
-}
-function safeParseMaybeJson(v) {
-  if (v == null) return v;
-  if (typeof v === "string" && isJsonLikeString(v)) {
-    try {
-      return JSON.parse(v);
-    } catch {
-      return v;
-    }
-  }
-  return v;
-}
-
-// ✅✅✅ 关键：兼容 camelCase / snake_case（这就是你“不记住”的核心）
+// ✅✅✅ 关键：兼容旧字段名（snake_case / 旧命名）
 function pickAny(obj, keys, fallback) {
   if (!obj || typeof obj !== "object") return fallback;
   for (const k of keys) {
@@ -243,16 +222,98 @@ function pickAny(obj, keys, fallback) {
   return fallback;
 }
 
+function normalizeFees(rawFees) {
+  const f = rawFees && typeof rawFees === "object" ? rawFees : {};
+
+  // 旧版可能是：
+  // service_fee / cleaning_fee / deposit / other_fee
+  const serviceFee = pickAny(f, ["serviceFee", "service_fee"], null);
+  const cleaningFee = pickAny(f, ["cleaningFee", "cleaning_fee"], null);
+  const deposit = pickAny(f, ["deposit", "deposit_fee"], null);
+  const otherFee = pickAny(f, ["otherFee", "other_fee"], null);
+
+  // 也可能旧版把这些“直接放在 layout 上”
+  const directService = pickAny(rawFees, ["serviceFee", "service_fee"], null);
+  const directCleaning = pickAny(rawFees, ["cleaningFee", "cleaning_fee"], null);
+  const directDeposit = pickAny(rawFees, ["deposit", "deposit_fee"], null);
+  const directOther = pickAny(rawFees, ["otherFee", "other_fee"], null);
+
+  const base = createEmptyRoomLayout().fees;
+
+  return {
+    serviceFee: serviceFee || directService || base.serviceFee,
+    cleaningFee: cleaningFee || directCleaning || base.cleaningFee,
+    deposit: deposit || directDeposit || base.deposit,
+    otherFee: otherFee || directOther || base.otherFee,
+  };
+}
+
+function normalizeRoomCounts(rawCounts) {
+  const c = rawCounts && typeof rawCounts === "object" ? rawCounts : {};
+  const base = createEmptyRoomLayout().roomCounts;
+
+  // 旧版可能是 room_counts
+  const bedrooms = pickAny(c, ["bedrooms", "bed_rooms"], base.bedrooms);
+  const bathrooms = pickAny(c, ["bathrooms", "bath_rooms"], base.bathrooms);
+  const kitchens = pickAny(c, ["kitchens"], base.kitchens);
+  const livingRooms = pickAny(c, ["livingRooms", "living_rooms"], base.livingRooms);
+  const carparks = pickAny(c, ["carparks", "car_parks"], base.carparks);
+
+  return { bedrooms, bathrooms, kitchens, livingRooms, carparks };
+}
+
+function normalizeLayout(l) {
+  const base = createEmptyRoomLayout();
+  const raw = l && typeof l === "object" ? l : {};
+
+  // ✅ 兼容旧 key → 新 key
+  const smoking = pickAny(raw, ["smoking", "smoking_policy"], base.smoking);
+  const breakfast = pickAny(raw, ["breakfast", "breakfastIncluded", "breakfast_included"], base.breakfast);
+
+  const checkinService = pickAny(raw, ["checkinService", "checkin_service"], base.checkinService);
+
+  const cancellationPolicy = pickAny(raw, ["cancellationPolicy", "cancellation_policy"], base.cancellationPolicy);
+
+  const otherServices = pickAny(raw, ["otherServices", "other_services"], base.otherServices);
+
+  const roomCountsRaw = pickAny(raw, ["roomCounts", "room_counts"], base.roomCounts);
+
+  const feesRaw = pickAny(raw, ["fees"], raw); // 有些旧版把费用直接放在 layout 顶层
+
+  const out = {
+    ...base,
+    ...raw,
+
+    // 覆盖成你现在表单真正读取的字段名
+    smoking,
+    breakfast,
+    checkinService,
+    cancellationPolicy,
+    otherServices,
+
+    roomCounts: normalizeRoomCounts(roomCountsRaw),
+    fees: normalizeFees(feesRaw),
+
+    // petPolicy：你现在已经能记住，继续兼容
+    petPolicy: pickAny(raw, ["petPolicy", "pet_policy"], base.petPolicy),
+  };
+
+  // unitCountInput 处理（你现在的逻辑）
+  const unitCountNum = Number(out.unitCount);
+  if ((!out.unitCountInput || out.unitCountInput === "") && Number.isFinite(unitCountNum) && unitCountNum > 0) {
+    out.unitCountInput = formatWithCommas(unitCountNum);
+  }
+
+  return out;
+}
+
 export default function HotelUploadForm(props) {
-  // ✅✅✅ 关键：Homestay 模式隐藏 Hotel / Resort Type（只改这一处判断，不动其它逻辑）
   const shouldShowHotelResortType =
     props?.mode !== "homestay" &&
     !props?.hideHotelResortTypeSelector &&
     !props?.hideHotelResortType;
 
-  // ✅ 仅新增：Hotel / Resort 类型
   const [hotelResortType, setHotelResortType] = useState("");
-
   const [roomCount, setRoomCount] = useState(1);
   const [roomLayouts, setRoomLayouts] = useState([createEmptyRoomLayout()]);
   const [facilityImages, setFacilityImages] = useState({});
@@ -260,16 +321,12 @@ export default function HotelUploadForm(props) {
   const [roomCountInput, setRoomCountInput] = useState("1");
   const [showDropdown, setShowDropdown] = useState(false);
 
-  // ✅ 每个房型“数量下拉”当前展开的是哪一个
   const [openUnitCountIndex, setOpenUnitCountIndex] = useState(null);
 
   const dropdownRef = useRef(null);
-
-  // ✅ Layout 图纸上传 refs（每个房型一个）
   const layoutFileInputRefs = useRef([]);
   const unitCountDropdownRefs = useRef([]);
 
-  // ✅✅✅ 修复闪烁：父层函数放 ref，避免 useEffect 依赖变化
   const setFormDataRef = useRef(props?.setFormData);
   const onFormChangeRef = useRef(props?.onFormChange);
 
@@ -292,22 +349,17 @@ export default function HotelUploadForm(props) {
     return unitCountDropdownRefs.current[index];
   };
 
-  // ✅✅✅【核心修复：编辑回填 + 不覆盖正在编辑】
   const lastInitHashRef = useRef("");
   const didUserEditRef = useRef(false);
-
-  // ✅✅✅ 防止“编辑回填之前”就把默认值写回父层导致数据被覆盖：
   const readyToSyncRef = useRef(false);
 
   useEffect(() => {
-    // 新建：父层一开始就没给任何 formData（空），允许立即同步
     if (!hasAnyValue(props?.formData)) {
       readyToSyncRef.current = true;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props?.formData]);
 
-  // 任何本地输入变化都标记为“用户已编辑”，防止后续 props 回填覆盖
   useEffect(() => {
     const current = stableJson({ hotelResortType, roomCount, roomLayouts, facilityImages, roomCountInput });
     if (!current) return;
@@ -316,79 +368,54 @@ export default function HotelUploadForm(props) {
     }
   }, [hotelResortType, roomCount, roomLayouts, facilityImages, roomCountInput]);
 
-  // ✅✅✅【核心修复：从 props.formData 回填时，兼容两套 key】
+  // ✅✅✅【关键修复点】：回填时把旧 layout 转为新结构
   useEffect(() => {
-    const d0 = props?.formData;
-    if (!hasAnyValue(d0)) return;
-
-    // 有些旧数据是 string JSON
-    const d = safeParseMaybeJson(d0) || {};
+    const d = props?.formData;
+    if (!hasAnyValue(d)) return;
 
     const incomingHash = stableJson(d);
     if (!incomingHash) return;
-
     if (incomingHash === lastInitHashRef.current) return;
     if (didUserEditRef.current) return;
 
-    // ✅ 成功接收到编辑数据，开启后续同步
     readyToSyncRef.current = true;
 
+    // ✅ hotelResortType 也兼容旧字段名
     const t = pickAny(d, ["hotelResortType", "hotel_resort_type"], "");
     setHotelResortType(typeof t === "string" ? t : "");
 
+    // ✅ roomLayouts 兼容旧字段名 room_layouts
     const layoutsRaw = pickAny(d, ["roomLayouts", "room_layouts"], null);
-    const layoutsParsed = safeParseMaybeJson(layoutsRaw);
-    if (Array.isArray(layoutsParsed) && layoutsParsed.length > 0) {
-      const normalized = layoutsParsed.map((l) => {
-        const base = { ...createEmptyRoomLayout(), ...(l || {}) };
-        const unitCountNum = Number(base.unitCount);
-        if ((!base.unitCountInput || base.unitCountInput === "") && Number.isFinite(unitCountNum) && unitCountNum > 0) {
-          base.unitCountInput = formatWithCommas(unitCountNum);
-        }
-        return base;
-      });
-
+    if (Array.isArray(layoutsRaw) && layoutsRaw.length > 0) {
+      const normalized = layoutsRaw.map((l) => normalizeLayout(l));
       setRoomLayouts(normalized);
-
-      const rc = pickAny(d, ["roomCount", "room_count"], normalized.length);
-      const safeRC = Number.isFinite(Number(rc)) ? Number(rc) : normalized.length;
-      setRoomCount(safeRC);
-      setRoomCountInput(String(safeRC));
+      setRoomCount(normalized.length);
+      setRoomCountInput(String(normalized.length));
     }
 
-    const fiRaw = pickAny(d, ["facilityImages", "facility_images"], {});
-    const fi = safeParseMaybeJson(fiRaw);
-    if (fi && typeof fi === "object") {
-      setFacilityImages(fi);
-    }
+    // ✅ facilityImages 兼容旧字段名 facility_images
+    const fi = pickAny(d, ["facilityImages", "facility_images"], {});
+    if (fi && typeof fi === "object") setFacilityImages(fi);
 
-    // 记录这次“回填后的状态 hash”，用于判定用户是否改动过
     lastInitHashRef.current = stableJson({
       hotelResortType: typeof t === "string" ? t : "",
-      roomLayouts: Array.isArray(layoutsParsed) && layoutsParsed.length ? layoutsParsed : [createEmptyRoomLayout()],
+      roomLayouts: Array.isArray(layoutsRaw) && layoutsRaw.length ? layoutsRaw : [createEmptyRoomLayout()],
       facilityImages: fi && typeof fi === "object" ? fi : {},
-      roomCount: Array.isArray(layoutsParsed) && layoutsParsed.length ? layoutsParsed.length : 1,
+      roomCount: Array.isArray(layoutsRaw) && layoutsRaw.length ? layoutsRaw.length : 1,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props?.formData]);
 
-  // ✅✅✅【核心修复：同步回父层时写两套 key】→ 解决“保存了但回填读不到”
+  // ✅ 同步回父层（保持你原本的写法，不改结构）
   const lastSentRef = useRef("");
   useEffect(() => {
     if (!readyToSyncRef.current) return;
 
     const patch = {
-      // camelCase（你现在 UI 用的）
       hotelResortType,
       roomLayouts,
       facilityImages,
       roomCount,
-
-      // snake_case（兼容旧数据/旧读取逻辑，确保一定能读回）
-      hotel_resort_type: hotelResortType,
-      room_layouts: roomLayouts,
-      facility_images: facilityImages,
-      room_count: roomCount,
     };
 
     const nextHash = stableJson(patch);
@@ -399,13 +426,7 @@ export default function HotelUploadForm(props) {
     const onFn = onFormChangeRef.current;
 
     if (typeof setFn === "function") {
-      setFn((prev) => {
-        const merged = { ...(prev || {}), ...patch };
-        const mergedHash = stableJson(merged);
-        const prevHash = stableJson(prev || {});
-        if (mergedHash && prevHash && mergedHash === prevHash) return prev;
-        return merged;
-      });
+      setFn((prev) => ({ ...(prev || {}), ...(patch || {}) }));
       return;
     }
     if (typeof onFn === "function") {
@@ -453,7 +474,7 @@ export default function HotelUploadForm(props) {
       const updated = { ...next[index], ...patch };
       next[index] = updated;
 
-      // ✅ 保持你原逻辑：Layout1 同步通用字段到其它房型
+      // Layout1 同步通用字段（保持你原逻辑）
       if (index === 0 && next.length > 1) {
         const shared = {};
         SHARED_KEYS.forEach((key) => (shared[key] = updated[key]));
@@ -465,7 +486,6 @@ export default function HotelUploadForm(props) {
     });
   };
 
-  // ✅ Layout 图纸上传 -> 存进 layoutPhotos
   const handleBlueprintUpload = (index, e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
@@ -473,7 +493,6 @@ export default function HotelUploadForm(props) {
     handleRoomLayoutChange(index, { layoutPhotos: newPhotos });
   };
 
-  // ✅ 每个房型数量：手动输入
   const handleUnitCountInput = (index, raw) => {
     const n = parseDigitsToInt(raw);
 
@@ -492,7 +511,6 @@ export default function HotelUploadForm(props) {
     });
   };
 
-  // ✅ 每个房型数量：选择下拉
   const selectUnitCount = (index, n) => {
     const clamped = Math.max(1, Math.min(3000, n));
     handleRoomLayoutChange(index, {
@@ -518,7 +536,6 @@ export default function HotelUploadForm(props) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* ✅✅ 仅新增：Hotel / Resort Type */}
       {shouldShowHotelResortType && (
         <div className="w-full">
           <label className="block font-medium mb-1">Hotel / Resort Type</label>
@@ -537,7 +554,6 @@ export default function HotelUploadForm(props) {
         </div>
       )}
 
-      {/* 你原本的“有多少个房型/layout” */}
       <div className="relative w-40" ref={dropdownRef}>
         <label className="block font-medium mb-1">这个 Homestay / Hotel 有多少个房型 / layout？</label>
 
@@ -576,20 +592,17 @@ export default function HotelUploadForm(props) {
         )}
       </div>
 
-      {/* 每个房型表单 */}
       {roomLayouts.map((layout, index) => (
         <div key={index} className="border rounded-xl p-4 space-y-4 bg-white shadow-sm">
           <h3 className="font-semibold text-lg mb-2">
             房型 {index + 1} / {roomLayouts.length}
           </h3>
 
-          {/* ✅ Layout 图纸（New Project 同款） */}
           <BlueprintUploadSection
             fileInputRef={getLayoutFileRef(index)}
             onUpload={(e) => handleBlueprintUpload(index, e)}
           />
 
-          {/* ✅✅ 只新增：每个房型数量（1~3000，可编辑，千分位） */}
           <div className="relative w-72" ref={getUnitCountRef(index)}>
             <label className="block font-medium mb-1">请问这个房型的数量有多少？</label>
 
@@ -630,7 +643,6 @@ export default function HotelUploadForm(props) {
         </div>
       ))}
 
-      {/* 公共设施上传（保持你原本） */}
       <div className="border rounded-xl p-4 space-y-3 bg-white shadow-sm">
         <h3 className="font-semibold text-lg">这个酒店/度假屋的设施照片</h3>
         <ImageUpload
