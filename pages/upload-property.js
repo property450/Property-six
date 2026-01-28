@@ -1,4 +1,4 @@
-//upload-property.js
+// pages/upload-property.js
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -267,7 +267,6 @@ export default function UploadPropertyPage() {
 
         const tfRaw = data.type_form_v2 || data.typeForm || data.type_form || null;
         const sfdRaw = data.single_form_data_v2 || data.singleFormData || data.single_form_data || {};
-
         const adRaw = data.areaData || data.area_data || areaData;
         const ulsRaw = data.unitLayouts || data.unit_layouts || [];
 
@@ -468,10 +467,11 @@ export default function UploadPropertyPage() {
 
       {isHomestay ? (
         <HomestayUploadForm
-          key={`home-${hydrateKey}`}
+          key={`homestay-${hydrateKey}`}
           formData={singleFormData}
           setFormData={setSingleFormData}
           onFormChange={(patch) => setSingleFormData((prev) => ({ ...(prev || {}), ...(patch || {}) }))}
+          onPrimarySubmit={handleSubmit}
         />
       ) : isHotel ? (
         <HotelUploadForm
@@ -479,6 +479,7 @@ export default function UploadPropertyPage() {
           formData={singleFormData}
           setFormData={setSingleFormData}
           onFormChange={(patch) => setSingleFormData((prev) => ({ ...(prev || {}), ...(patch || {}) }))}
+          onPrimarySubmit={handleSubmit}
         />
       ) : isProject ? (
         <>
