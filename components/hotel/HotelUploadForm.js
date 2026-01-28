@@ -269,6 +269,22 @@ export default function HotelUploadForm(props) {
   const lastInitHashRef = useRef("");
   const didUserEditRef = useRef(false);
 
+  // ✅✅✅ 防止“编辑回填之前”就把默认值写回父层导致数据被覆盖：
+  // - 编辑模式：等我们成功把 props.formData hydrate 到本地 state 后，才允许同步回父层
+  // - 新建模式：如果 props.formData 一开始就是空的，就立刻允许同步（正常写入）
+  const readyToSyncRef = useRef(false);
+
+  // ✅✅✅ 新建 vs 编辑：决定什么时候可以开始把本地 state 同步回父层
+  useEffect(() => {
+    // 如果父层一开始就没给任何 formData（新建），那就允许立即同步
+    // 如果父层 later 才拿到编辑数据，我们会在 hydrate 成功后再开启同步
+    if (!hasAnyValue(props?.formData)) {
+      readyToSyncRef.current = true;
+    }
+    // 只需要看 props.formData 是否有内容，不需要在这里依赖其它 state
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props?.formData]);
+
   // 任何本地输入变化都标记为“用户已编辑”，防止后续 props 回填覆盖
   useEffect(() => {
     // 初始 render 不算编辑（用 hash 来判断）
@@ -292,6 +308,9 @@ export default function HotelUploadForm(props) {
 
     // 如果用户已经在编辑，就不要覆盖
     if (didUserEditRef.current) return;
+
+    // ✅ 成功接收到编辑数据，开启后续同步
+    readyToSyncRef.current = true;
 
     if (typeof d.hotelResortType === "string") {
       setHotelResortType(d.hotelResortType);
@@ -335,6 +354,9 @@ export default function HotelUploadForm(props) {
   // ✅✅✅【核心修复：同步回父层时做“去重”→ 防止闪烁】
   const lastSentRef = useRef("");
   useEffect(() => {
+    // ✅✅✅ 关键：没 ready 前不要写回父层（否则会把已保存的数据用默认值覆盖）
+    if (!readyToSyncRef.current) return;
+
     const patch = {
       hotelResortType,
       roomLayouts,
@@ -536,7 +558,10 @@ export default function HotelUploadForm(props) {
           </h3>
 
           {/* ✅ Layout 图纸（New Project 同款） */}
-          <BlueprintUploadSection fileInputRef={getLayoutFileRef(index)} onUpload={(e) => handleBlueprintUpload(index, e)} />
+          <BlueprintUploadSection
+            fileInputRef={getLayoutFileRef(index)}
+            onUpload={(e) => handleBlueprintUpload(index, e)}
+          />
 
           {/* ✅✅ 只新增：每个房型数量（1~3000，可编辑，千分位） */}
           <div className="relative w-72" ref={getUnitCountRef(index)}>
