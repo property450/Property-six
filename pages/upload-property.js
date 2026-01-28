@@ -190,6 +190,69 @@ async function runWithAutoStripColumns({ mode, payload, editId, userId, maxTries
   return { ok: false, removed, error: new Error("自动处理次数用尽（请看 Console 报错）") };
 }
 
+/** ✅ 把 singleFormData 里 Homestay/Hotel 相关字段拆出来，写入新 column（不影响你原本 single_form_data_v2） */
+function buildHomestayFormFromSingle(singleFormData) {
+  const s = singleFormData || {};
+  const out = {
+    homestayType: s.homestayType ?? "",
+    category: s.category ?? s.homestayCategory ?? s.propertyCategory ?? "",
+    finalType: s.finalType ?? s.homestaySubType ?? s.subType ?? "",
+    storeys: s.storeys ?? s.homestayStoreys ?? "",
+    subtype: s.subtype ?? s.homestaySubtype ?? s.propertySubtype ?? [],
+  };
+  // 避免写入一堆空
+  return hasAnyValue(out) ? out : null;
+}
+
+function buildHotelFormFromSingle(singleFormData) {
+  const s = singleFormData || {};
+  const out = {
+    hotelResortType: s.hotelResortType ?? s.hotel_resort_type ?? "",
+    roomLayouts: s.roomLayouts ?? s.room_layouts ?? null,
+    facilityImages: s.facilityImages ?? s.facility_images ?? {},
+    roomCount: s.roomCount ?? s.room_count ?? null,
+  };
+  return hasAnyValue(out) ? out : null;
+}
+
+function mergeFormsIntoSingle(singleFormData, homestayForm, hotelForm) {
+  const base = { ...(singleFormData || {}) };
+  const h1 = homestayForm && typeof homestayForm === "object" ? homestayForm : null;
+  const h2 = hotelForm && typeof hotelForm === "object" ? hotelForm : null;
+
+  if (h1) {
+    base.homestayType = base.homestayType ?? h1.homestayType ?? "";
+    base.category = base.category ?? h1.category ?? "";
+    base.finalType = base.finalType ?? h1.finalType ?? "";
+    base.storeys = base.storeys ?? h1.storeys ?? "";
+    base.subtype = base.subtype ?? h1.subtype ?? [];
+
+    // 兼容旧 key
+    base.homestayCategory = base.homestayCategory ?? h1.category ?? "";
+    base.homestaySubType = base.homestaySubType ?? h1.finalType ?? "";
+    base.homestayStoreys = base.homestayStoreys ?? h1.storeys ?? "";
+    base.homestaySubtype = base.homestaySubtype ?? h1.subtype ?? [];
+    base.propertyCategory = base.propertyCategory ?? h1.category ?? "";
+    base.subType = base.subType ?? h1.finalType ?? "";
+    base.propertySubtype = base.propertySubtype ?? h1.subtype ?? [];
+  }
+
+  if (h2) {
+    base.hotelResortType = base.hotelResortType ?? h2.hotelResortType ?? "";
+    base.roomLayouts = base.roomLayouts ?? h2.roomLayouts ?? null;
+    base.facilityImages = base.facilityImages ?? h2.facilityImages ?? {};
+    base.roomCount = base.roomCount ?? h2.roomCount ?? null;
+
+    // 兼容旧 key
+    base.hotel_resort_type = base.hotel_resort_type ?? h2.hotelResortType ?? "";
+    base.room_layouts = base.room_layouts ?? h2.roomLayouts ?? null;
+    base.facility_images = base.facility_images ?? h2.facilityImages ?? {};
+    base.room_count = base.room_count ?? h2.roomCount ?? null;
+  }
+
+  return base;
+}
+
 export default function UploadPropertyPage() {
   const router = useRouter();
   const user = useUser();
@@ -353,6 +416,17 @@ export default function UploadPropertyPage() {
         const ad = safeParseMaybeJson(adRaw);
         const uls = safeParseMaybeJson(ulsRaw);
 
+        // ✅✅✅ 新增：把你新 column 的数据合并回 singleFormData（这样表单一定能回填）
+        const homestayForm = safeParseMaybeJson(data.homestay_form);
+        const hotelForm = safeParseMaybeJson(data.hotel_resort_form);
+        const availability = safeParseMaybeJson(data.availability);
+        const calendarPrices = safeParseMaybeJson(data.calendar_prices);
+
+        let mergedSfd = mergeFormsIntoSingle(sfd || {}, homestayForm, hotelForm);
+        // 日历也合并到 singleFormData（如果你表单内部是从 singleFormData 读）
+        if (availability && typeof availability === "object") mergedSfd.availability = mergedSfd.availability ?? availability;
+        if (calendarPrices && typeof calendarPrices === "object") mergedSfd.calendar_prices = mergedSfd.calendar_prices ?? calendarPrices;
+
         // ✅✅✅【修复闪烁核心】只在编辑回填时给 TypeSelector initialForm 一次
         setTypeSelectorInitialForm(tf);
 
@@ -376,7 +450,7 @@ export default function UploadPropertyPage() {
         setProjectCategory(data.projectCategory || "");
         setProjectSubType(data.projectSubType || "");
         setUnitLayouts(Array.isArray(uls) ? uls : []);
-        setSingleFormData(sfd || {});
+        setSingleFormData(mergedSfd || {});
         setAreaData(ad || areaData);
         setDescription(typeof data.description === "string" ? data.description : "");
 
@@ -427,6 +501,10 @@ export default function UploadPropertyPage() {
 
     setSubmitting(true);
     try {
+      // ✅✅✅ 新增：把 singleFormData 拆出两份，写入你新建的 column
+      const homestay_form = buildHomestayFormFromSingle(singleFormData);
+      const hotel_resort_form = buildHotelFormFromSingle(singleFormData);
+
       const payload = {
         user_id: user.id,
         address: addressObj?.address || "",
@@ -458,6 +536,14 @@ export default function UploadPropertyPage() {
 
         description,
         updated_at: new Date().toISOString(),
+
+        // ✅✅✅ 关键：把 Homestay/Hotel 表单选择写进 Supabase 独立 column（你看表就会有值）
+        homestay_form: homestay_form,
+        hotel_resort_form: hotel_resort_form,
+
+        // ✅✅✅ 日历字段（如果你已经在 Supabase 加了 column）
+        availability: singleFormData?.availability ?? singleFormData?.availability_data ?? null,
+        calendar_prices: singleFormData?.calendar_prices ?? singleFormData?.calendarPrices ?? null,
       };
 
       if (isEditMode) {
@@ -589,74 +675,75 @@ export default function UploadPropertyPage() {
         onFormChange={handleTypeFormChange}
       />
 
-      {(!isEditMode || editHydrated) && (isHomestay ? (
-        <HomestayUploadForm
-          formData={singleFormData}
-          setFormData={setSingleFormData}
-          onFormChange={(patch) => setSingleFormData((prev) => ({ ...(prev || {}), ...(patch || {}) }))}
-        />
-      ) : isHotel ? (
-        <HotelUploadForm
-          formData={singleFormData}
-          setFormData={setSingleFormData}
-          onFormChange={(patch) => setSingleFormData((prev) => ({ ...(prev || {}), ...(patch || {}) }))}
-        />
-      ) : isProject ? (
-        <>
-          <ProjectUploadForm
+      {(!isEditMode || editHydrated) &&
+        (isHomestay ? (
+          <HomestayUploadForm
+            formData={singleFormData}
+            setFormData={setSingleFormData}
+            onFormChange={(patch) => setSingleFormData((prev) => ({ ...(prev || {}), ...(patch || {}) }))}
+          />
+        ) : isHotel ? (
+          <HotelUploadForm
+            formData={singleFormData}
+            setFormData={setSingleFormData}
+            onFormChange={(patch) => setSingleFormData((prev) => ({ ...(prev || {}), ...(patch || {}) }))}
+          />
+        ) : isProject ? (
+          <>
+            <ProjectUploadForm
+              saleType={saleType}
+              computedStatus={computedStatus}
+              isBulkRentProject={false}
+              projectCategory={projectCategory}
+              setProjectCategory={setProjectCategory}
+              projectSubType={projectSubType}
+              setProjectSubType={setProjectSubType}
+              unitLayouts={unitLayouts}
+              setUnitLayouts={setUnitLayouts}
+              enableProjectAutoCopy={computedStatus === "New Project / Under Construction"}
+              pickCommon={pickCommon}
+              commonHash={commonHash}
+            />
+
+            {shouldShowProjectTrustSection && (
+              <ListingTrustSection
+                mode={computedStatus === "New Project / Under Construction" ? "new_project" : "completed_unit"}
+                value={singleFormData?.trustSection || {}}
+                onChange={(next) => setSingleFormData((prev) => ({ ...(prev || {}), trustSection: next }))}
+              />
+            )}
+          </>
+        ) : saleTypeNorm === "rent" ? (
+          <RentUploadForm
             saleType={saleType}
             computedStatus={computedStatus}
-            isBulkRentProject={false}
-            projectCategory={projectCategory}
-            setProjectCategory={setProjectCategory}
-            projectSubType={projectSubType}
-            setProjectSubType={setProjectSubType}
+            roomRentalMode={roomRentalMode}
+            isRoomRental={roomRentalMode === "room"}
+            singleFormData={singleFormData}
+            setSingleFormData={setSingleFormData}
+            areaData={areaData}
+            setAreaData={setAreaData}
+            description={description}
+            setDescription={setDescription}
+            rentBatchMode={rentBatchMode}
+            layoutCount={isRentBatch ? batchLayoutCount : roomLayoutCount}
             unitLayouts={unitLayouts}
             setUnitLayouts={setUnitLayouts}
-            enableProjectAutoCopy={computedStatus === "New Project / Under Construction"}
-            pickCommon={pickCommon}
-            commonHash={commonHash}
+            propertyCategory={typeForm?.category || typeForm?.propertyCategory || ""}
           />
-
-          {shouldShowProjectTrustSection && (
-            <ListingTrustSection
-              mode={computedStatus === "New Project / Under Construction" ? "new_project" : "completed_unit"}
-              value={singleFormData?.trustSection || {}}
-              onChange={(next) => setSingleFormData((prev) => ({ ...(prev || {}), trustSection: next }))}
-            />
-          )}
-        </>
-      ) : saleTypeNorm === "rent" ? (
-        <RentUploadForm
-          saleType={saleType}
-          computedStatus={computedStatus}
-          roomRentalMode={roomRentalMode}
-          isRoomRental={roomRentalMode === "room"}
-          singleFormData={singleFormData}
-          setSingleFormData={setSingleFormData}
-          areaData={areaData}
-          setAreaData={setAreaData}
-          description={description}
-          setDescription={setDescription}
-          rentBatchMode={rentBatchMode}
-          layoutCount={isRentBatch ? batchLayoutCount : roomLayoutCount}
-          unitLayouts={unitLayouts}
-          setUnitLayouts={setUnitLayouts}
-          propertyCategory={typeForm?.category || typeForm?.propertyCategory || ""}
-        />
-      ) : (
-        <SaleUploadForm
-          saleType={saleType}
-          computedStatus={computedStatus}
-          singleFormData={singleFormData}
-          setSingleFormData={setSingleFormData}
-          areaData={areaData}
-          setAreaData={setAreaData}
-          description={description}
-          setDescription={setDescription}
-          propertyCategory={typeForm?.category || typeForm?.propertyCategory || ""}
-        />
-      ))}
+        ) : (
+          <SaleUploadForm
+            saleType={saleType}
+            computedStatus={computedStatus}
+            singleFormData={singleFormData}
+            setSingleFormData={setSingleFormData}
+            areaData={areaData}
+            setAreaData={setAreaData}
+            description={description}
+            setDescription={setDescription}
+            propertyCategory={typeForm?.category || typeForm?.propertyCategory || ""}
+          />
+        ))}
 
       <Button
         type="button"
