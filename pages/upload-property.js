@@ -215,39 +215,56 @@ function buildHotelFormFromSingle(singleFormData) {
   return hasAnyValue(out) ? out : null;
 }
 
+// ✅✅✅ 关键修复：把 homestay_form / hotel_resort_form 合并回 singleFormData 时，必须“空值也允许覆盖”
+// 否则 single_form_data_v2 里的 "" / [] / {} 会挡住真正数据
 function mergeFormsIntoSingle(singleFormData, homestayForm, hotelForm) {
   const base = { ...(singleFormData || {}) };
   const h1 = homestayForm && typeof homestayForm === "object" ? homestayForm : null;
   const h2 = hotelForm && typeof hotelForm === "object" ? hotelForm : null;
 
+  const isEmpty = (v) => {
+    if (v === null || v === undefined) return true;
+    if (typeof v === "string") return v.trim() === "";
+    if (Array.isArray(v)) return v.length === 0;
+    if (typeof v === "object") return Object.keys(v).length === 0;
+    return false;
+  };
+
+  const fill = (key, val) => {
+    if (val === undefined) return;
+    if (isEmpty(base[key])) base[key] = val;
+  };
+
   if (h1) {
-    base.homestayType = base.homestayType ?? h1.homestayType ?? "";
-    base.category = base.category ?? h1.category ?? "";
-    base.finalType = base.finalType ?? h1.finalType ?? "";
-    base.storeys = base.storeys ?? h1.storeys ?? "";
-    base.subtype = base.subtype ?? h1.subtype ?? [];
+    // 主 key
+    fill("homestayType", h1.homestayType ?? "");
+    fill("category", h1.category ?? "");
+    fill("finalType", h1.finalType ?? "");
+    fill("storeys", h1.storeys ?? "");
+    fill("subtype", Array.isArray(h1.subtype) ? h1.subtype : []);
 
     // 兼容旧 key
-    base.homestayCategory = base.homestayCategory ?? h1.category ?? "";
-    base.homestaySubType = base.homestaySubType ?? h1.finalType ?? "";
-    base.homestayStoreys = base.homestayStoreys ?? h1.storeys ?? "";
-    base.homestaySubtype = base.homestaySubtype ?? h1.subtype ?? [];
-    base.propertyCategory = base.propertyCategory ?? h1.category ?? "";
-    base.subType = base.subType ?? h1.finalType ?? "";
-    base.propertySubtype = base.propertySubtype ?? h1.subtype ?? [];
+    fill("homestayCategory", h1.category ?? "");
+    fill("homestaySubType", h1.finalType ?? "");
+    fill("homestayStoreys", h1.storeys ?? "");
+    fill("homestaySubtype", Array.isArray(h1.subtype) ? h1.subtype : []);
+
+    fill("propertyCategory", h1.category ?? "");
+    fill("subType", h1.finalType ?? "");
+    fill("propertySubtype", Array.isArray(h1.subtype) ? h1.subtype : []);
   }
 
   if (h2) {
-    base.hotelResortType = base.hotelResortType ?? h2.hotelResortType ?? "";
-    base.roomLayouts = base.roomLayouts ?? h2.roomLayouts ?? null;
-    base.facilityImages = base.facilityImages ?? h2.facilityImages ?? {};
-    base.roomCount = base.roomCount ?? h2.roomCount ?? null;
+    fill("hotelResortType", h2.hotelResortType ?? "");
+    fill("roomLayouts", Array.isArray(h2.roomLayouts) ? h2.roomLayouts : null);
+    fill("facilityImages", h2.facilityImages && typeof h2.facilityImages === "object" ? h2.facilityImages : {});
+    fill("roomCount", h2.roomCount ?? null);
 
     // 兼容旧 key
-    base.hotel_resort_type = base.hotel_resort_type ?? h2.hotelResortType ?? "";
-    base.room_layouts = base.room_layouts ?? h2.roomLayouts ?? null;
-    base.facility_images = base.facility_images ?? h2.facilityImages ?? {};
-    base.room_count = base.room_count ?? h2.roomCount ?? null;
+    fill("hotel_resort_type", h2.hotelResortType ?? "");
+    fill("room_layouts", Array.isArray(h2.roomLayouts) ? h2.roomLayouts : null);
+    fill("facility_images", h2.facilityImages && typeof h2.facilityImages === "object" ? h2.facilityImages : {});
+    fill("room_count", h2.roomCount ?? null);
   }
 
   return base;
@@ -767,3 +784,4 @@ export default function UploadPropertyPage() {
     </div>
   );
 }
+  
