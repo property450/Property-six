@@ -433,11 +433,7 @@ export default function HomestayUploadForm(props) {
       </div>
 
       {/* ✅✅✅ 复用 Hotel/Resort 表单（并隐藏 Hotel/Resort Type selector） */}
-      <HotelUploadForm
-        {...props}
-        mode="homestay"
-        hideHotelResortTypeSelector
-      />
+      <HotelUploadForm {...props} mode="homestay" hideHotelResortTypeSelector />
     </div>
   );
 }
