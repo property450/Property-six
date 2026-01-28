@@ -269,11 +269,20 @@ export default function HotelUploadForm(props) {
 
   // ✅✅✅ 新建 vs 编辑：决定什么时候可以开始把本地 state 同步回父层
   useEffect(() => {
-    if (!hasAnyValue(props?.formData)) {
-      readyToSyncRef.current = true;
+    const editing = !!props?.isEditing;
+
+    // ✅ 新增：编辑模式不要在 formData 还是空对象时就开始同步（会把默认值写回父层覆盖掉刚回填的数据）
+    if (editing) {
+      if (hasAnyValue(props?.formData)) {
+        readyToSyncRef.current = true;
+      }
+      return;
     }
+
+    // ✅ 新建模式：允许立即同步
+    readyToSyncRef.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props?.formData]);
+  }, [props?.formData, props?.isEditing]);
 
   // 任何本地输入变化都标记为“用户已编辑”，防止后续 props 回填覆盖
   useEffect(() => {
