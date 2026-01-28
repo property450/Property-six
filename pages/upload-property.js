@@ -198,6 +198,9 @@ export default function UploadPropertyPage() {
   const editId = router?.query?.id;
   const isEditMode = String(edit || "") === "1" && !!editId;
 
+  // ✅✅✅ 编辑页面：等 Supabase 数据回填完成后才渲染表单，避免子组件用默认值覆盖已保存数据
+  const [editHydrated, setEditHydrated] = useState(false);
+
   const [submitting, setSubmitting] = useState(false);
   const [addressObj, setAddressObj] = useState(null);
 
@@ -276,6 +279,14 @@ export default function UploadPropertyPage() {
   }, []);
 
   useEffect(() => {
+    if (!isEditMode) {
+      setEditHydrated(true);
+    } else {
+      setEditHydrated(false);
+    }
+  }, [isEditMode, editId]);
+
+  useEffect(() => {
     if (!isRentBatch) return;
     const n = batchLayoutCount;
     setUnitLayouts((prev) => {
@@ -319,6 +330,7 @@ export default function UploadPropertyPage() {
         if (!data) {
           toast.error("找不到该房源");
           alert("找不到该房源");
+          setEditHydrated(true);
           return;
         }
 
@@ -376,9 +388,12 @@ export default function UploadPropertyPage() {
         };
         lastFormJsonRef.current = stableJson(tf);
 
+        setEditHydrated(true);
+
         toast.success("已进入编辑模式");
       } catch (e) {
         console.error(e);
+        setEditHydrated(true);
         toast.error("无法加载房源进行编辑");
         alert("无法加载房源进行编辑（请看 Console 报错）");
       }
@@ -574,7 +589,7 @@ export default function UploadPropertyPage() {
         onFormChange={handleTypeFormChange}
       />
 
-      {isHomestay ? (
+      {(!isEditMode || editHydrated) && (isHomestay ? (
         <HomestayUploadForm
           formData={singleFormData}
           setFormData={setSingleFormData}
@@ -641,7 +656,7 @@ export default function UploadPropertyPage() {
           setDescription={setDescription}
           propertyCategory={typeForm?.category || typeForm?.propertyCategory || ""}
         />
-      )}
+      ))}
 
       <Button
         type="button"
