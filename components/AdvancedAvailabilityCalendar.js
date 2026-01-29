@@ -50,12 +50,21 @@ function safeParseValue(value) {
   return null;
 }
 
+// ✅ 更稳：不靠 JSON.stringify（key 顺序不同也会被当成不同），改成 key/value 对比
 function isSamePrices(a, b) {
-  try {
-    return JSON.stringify(a || {}) === JSON.stringify(b || {});
-  } catch {
-    return false;
+  const A = a || {};
+  const B = b || {};
+  const aKeys = Object.keys(A);
+  const bKeys = Object.keys(B);
+  if (aKeys.length !== bKeys.length) return false;
+  aKeys.sort();
+  bKeys.sort();
+  for (let i = 0; i < aKeys.length; i++) {
+    if (aKeys[i] !== bKeys[i]) return false;
+    const k = aKeys[i];
+    if (String(A[k]) !== String(B[k])) return false;
   }
+  return true;
 }
 
 /** 日期单元格：显示价格 */
@@ -105,6 +114,13 @@ export default function AdvancedAvailabilityCalendar({ value, onChange }) {
     onChangeRef.current = onChange;
   }, [onChange]);
 
+  // ✅✅✅ 关键修复：Hydrate 完成前，不允许把默认值写回父层（否则就会闪烁）
+  const [isHydrated, setIsHydrated] = useState(() => {
+    // 如果一开始就有 value（编辑模式同步给到），直接算已 hydrate
+    const parsed = safeParseValue(value);
+    return !!parsed;
+  });
+
   // ✅ 回填（编辑模式）
   const didHydrateRef = useRef(false);
   useEffect(() => {
@@ -120,20 +136,30 @@ export default function AdvancedAvailabilityCalendar({ value, onChange }) {
       setCheckInTime(nextIn);
       setCheckOutTime(nextOut);
       didHydrateRef.current = true;
+
+      // ✅ 现在才允许写回父层
+      setIsHydrated(true);
       return;
     }
 
     setPrices((prev) => (isSamePrices(prev, nextPrices) ? prev : nextPrices));
     setCheckInTime((prev) => (prev === nextIn ? prev : nextIn));
     setCheckOutTime((prev) => (prev === nextOut ? prev : nextOut));
+
+    // ✅ 只要父层真的给到 value，就视为 hydrate 完成
+    setIsHydrated(true);
   }, [value]);
 
   // ✅ 写回父层（让 Supabase 能保存）
   useEffect(() => {
+    // ✅✅✅ 没 hydrate 前不写回，避免默认值覆盖 -> 闪烁
+    if (!isHydrated) return;
+
     const fn = onChangeRef.current;
     if (typeof fn !== "function") return;
+
     fn({ prices, checkInTime, checkOutTime });
-  }, [prices, checkInTime, checkOutTime]);
+  }, [prices, checkInTime, checkOutTime, isHydrated]);
 
   // ✅ 点击空白关闭
   useEffect(() => {
@@ -190,6 +216,9 @@ export default function AdvancedAvailabilityCalendar({ value, onChange }) {
 
   const handleSave = useCallback(() => {
     if (!range?.from || !range?.to) return;
+
+    // ✅ 新建模式：用户一旦开始操作，就允许写回
+    setIsHydrated(true);
 
     const num = Number(digitsOnly(tempPriceRaw));
     const display = toDisplayPrice(num);
@@ -280,7 +309,10 @@ export default function AdvancedAvailabilityCalendar({ value, onChange }) {
               <input
                 type="time"
                 value={checkInTime}
-                onChange={(e) => setCheckInTime(e.target.value)}
+                onChange={(e) => {
+                  setIsHydrated(true);
+                  setCheckInTime(e.target.value);
+                }}
                 className="border rounded px-2 py-1"
               />
             </div>
@@ -289,7 +321,10 @@ export default function AdvancedAvailabilityCalendar({ value, onChange }) {
               <input
                 type="time"
                 value={checkOutTime}
-                onChange={(e) => setCheckOutTime(e.target.value)}
+                onChange={(e) => {
+                  setIsHydrated(true);
+                  setCheckOutTime(e.target.value);
+                }}
                 className="border rounded px-2 py-1"
               />
             </div>
@@ -305,6 +340,7 @@ export default function AdvancedAvailabilityCalendar({ value, onChange }) {
               placeholder="输入价格"
               value={withCommas(digitsOnly(tempPriceRaw))}
               onChange={(e) => {
+                setIsHydrated(true);
                 setTempPriceRaw(digitsOnly(e.target.value));
                 setShowDropdown(false);
               }}
@@ -319,6 +355,7 @@ export default function AdvancedAvailabilityCalendar({ value, onChange }) {
                     key={p}
                     onPointerDown={(e) => {
                       e.stopPropagation();
+                      setIsHydrated(true);
                       setTempPriceRaw(String(p));
                       setShowDropdown(false);
                     }}
