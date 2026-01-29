@@ -267,22 +267,29 @@ export default function HotelUploadForm(props) {
   const readyToSyncRef = useRef(false);
   const lastSentRef = useRef("");
 
-  // ✅✅✅ 新建 vs 编辑：决定什么时候可以开始把本地 state 同步回父层
+  // ✅✅✅ 【新增】编辑模式：必须等“回填完成后”才能把 state 同步回父层
+  const hydratedFromPropsRef = useRef(false);
+  const skipNextSyncRef = useRef(false);
+
+  // ✅✅✅ 新建 vs 编辑：初始化同步开关（编辑先关，等回填）
   useEffect(() => {
     const editing = !!props?.isEditing;
 
-    // ✅ 新增：编辑模式不要在 formData 还是空对象时就开始同步（会把默认值写回父层覆盖掉刚回填的数据）
     if (editing) {
-      if (hasAnyValue(props?.formData)) {
-        readyToSyncRef.current = true;
-      }
+      readyToSyncRef.current = false;
+      hydratedFromPropsRef.current = false;
+      skipNextSyncRef.current = false;
+
+      didUserEditRef.current = false;
+      lastInitHashRef.current = "";
+      lastSentRef.current = "";
       return;
     }
 
     // ✅ 新建模式：允许立即同步
     readyToSyncRef.current = true;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props?.formData, props?.isEditing]);
+    hydratedFromPropsRef.current = true;
+  }, [props?.isEditing]);
 
   // 任何本地输入变化都标记为“用户已编辑”，防止后续 props 回填覆盖
   useEffect(() => {
@@ -301,11 +308,16 @@ export default function HotelUploadForm(props) {
     const incomingHash = stableJson(d);
     if (!incomingHash) return;
 
+    // ✅ 只要拿到过一次 props 数据，就算“已回填”
+    hydratedFromPropsRef.current = true;
+    // ✅ 编辑模式开始允许同步（但要跳过紧接着的那一次同步，避免默认值覆盖）
+    readyToSyncRef.current = true;
+
     if (incomingHash === lastInitHashRef.current) return;
     if (didUserEditRef.current) return;
 
-    // ✅ 成功接收到编辑数据，开启后续同步
-    readyToSyncRef.current = true;
+    // ✅✅✅ 关键：这一次回填会 setState，紧接着的同步要跳过一次
+    skipNextSyncRef.current = true;
 
     const _hotelType = pickAny(d, ["hotelResortType", "hotel_resort_type"], "");
     if (typeof _hotelType === "string") setHotelResortType(_hotelType);
@@ -339,7 +351,7 @@ export default function HotelUploadForm(props) {
       setFacilityImages(_facilityImages);
     }
 
-    // ✅✅✅ 关键修复：lastInitHashRef 必须跟 current 的字段一致（否则会误判 didUserEdit）
+    // ✅✅✅ 关键：lastInitHashRef 必须跟 current 的字段一致（否则会误判 didUserEdit）
     const initLayouts =
       Array.isArray(_layouts) && _layouts.length > 0 ? _layouts : [createEmptyRoomLayout()];
     const initRoomCount = Array.isArray(_layouts) && _layouts.length ? _layouts.length : 1;
@@ -350,7 +362,7 @@ export default function HotelUploadForm(props) {
       roomLayouts: initLayouts,
       facilityImages: _facilityImages && typeof _facilityImages === "object" ? _facilityImages : {},
       roomCount: initRoomCount,
-      roomCountInput: initRoomCountInput, // ✅✅✅ 修复点：补上它
+      roomCountInput: initRoomCountInput,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props?.formData]);
@@ -358,6 +370,15 @@ export default function HotelUploadForm(props) {
   // ✅✅✅ 同步回父层（同时写 camel + snake，确保保存/回填都不丢）
   useEffect(() => {
     if (!readyToSyncRef.current) return;
+
+    // ✅✅✅ 编辑模式：没完成回填前禁止同步
+    if (props?.isEditing && !hydratedFromPropsRef.current) return;
+
+    // ✅✅✅ 跳过“回填 setState 后紧接着的那一次同步”，避免默认值覆盖
+    if (skipNextSyncRef.current) {
+      skipNextSyncRef.current = false;
+      return;
+    }
 
     const patch = {
       hotelResortType,
@@ -392,7 +413,7 @@ export default function HotelUploadForm(props) {
     if (typeof onFn === "function") {
       onFn(patch);
     }
-  }, [hotelResortType, roomLayouts, facilityImages, roomCount]);
+  }, [hotelResortType, roomLayouts, facilityImages, roomCount, props?.isEditing]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
