@@ -200,7 +200,6 @@ function buildHomestayFormFromSingle(singleFormData) {
     storeys: s.storeys ?? s.homestayStoreys ?? "",
     subtype: s.subtype ?? s.homestaySubtype ?? s.propertySubtype ?? [],
   };
-  // 避免写入一堆空
   return hasAnyValue(out) ? out : null;
 }
 
@@ -216,7 +215,6 @@ function buildHotelFormFromSingle(singleFormData) {
 }
 
 // ✅✅✅ 关键修复：把 homestay_form / hotel_resort_form 合并回 singleFormData 时，必须“空值也允许覆盖”
-// 否则 single_form_data_v2 里的 "" / [] / {} 会挡住真正数据
 function mergeFormsIntoSingle(singleFormData, homestayForm, hotelForm) {
   const base = { ...(singleFormData || {}) };
   const h1 = homestayForm && typeof homestayForm === "object" ? homestayForm : null;
@@ -236,14 +234,12 @@ function mergeFormsIntoSingle(singleFormData, homestayForm, hotelForm) {
   };
 
   if (h1) {
-    // 主 key
     fill("homestayType", h1.homestayType ?? "");
     fill("category", h1.category ?? "");
     fill("finalType", h1.finalType ?? "");
     fill("storeys", h1.storeys ?? "");
     fill("subtype", Array.isArray(h1.subtype) ? h1.subtype : []);
 
-    // 兼容旧 key
     fill("homestayCategory", h1.category ?? "");
     fill("homestaySubType", h1.finalType ?? "");
     fill("homestayStoreys", h1.storeys ?? "");
@@ -260,7 +256,6 @@ function mergeFormsIntoSingle(singleFormData, homestayForm, hotelForm) {
     fill("facilityImages", h2.facilityImages && typeof h2.facilityImages === "object" ? h2.facilityImages : {});
     fill("roomCount", h2.roomCount ?? null);
 
-    // 兼容旧 key
     fill("hotel_resort_type", h2.hotelResortType ?? "");
     fill("room_layouts", Array.isArray(h2.roomLayouts) ? h2.roomLayouts : null);
     fill("facility_images", h2.facilityImages && typeof h2.facilityImages === "object" ? h2.facilityImages : {});
@@ -268,6 +263,104 @@ function mergeFormsIntoSingle(singleFormData, homestayForm, hotelForm) {
   }
 
   return base;
+}
+
+/** ✅✅✅ 新增：保存时按“当前模式”清空其它模式 column，避免混资料 */
+function buildCleanupPayloadByMode({ saleTypeNorm, roomRentalMode }) {
+  const isHomestay = saleTypeNorm.includes("homestay");
+  const isHotel = saleTypeNorm.includes("hotel");
+  const isSale = saleTypeNorm === "sale";
+  const isRent = saleTypeNorm === "rent";
+  const isRentRoom = isRent && String(roomRentalMode || "").toLowerCase() === "room";
+
+  // 默认先全部清空“住宿模式相关”
+  const cleanup = {
+    homestay_form: null,
+    hotel_resort_form: null,
+    availability: null,
+    calendar_prices: null,
+
+    // 如果你之后用这些顶层列，也一起清掉（你表里确实有）
+    homestay_type: null,
+    hotel_resort_type: null,
+    max_guests: null,
+    bed_types: null,
+    house_rules: null,
+    check_in_out: null,
+  };
+
+  // Homestay / Hotel 才允许保存日历 & 对应 form
+  if (isHomestay || isHotel) {
+    // 不清空（由 submit 时写入）
+    return cleanup; // 这里返回的 cleanup 仍然是“先清空”，submit 里会再覆盖写入当前模式需要的值
+  }
+
+  // Sale / Rent（不管整间还是房间）都必须保证住宿字段清空
+  if (isSale || isRent || isRentRoom) {
+    return cleanup;
+  }
+
+  // 其他未知模式也安全：清空住宿相关
+  return cleanup;
+}
+
+/** ✅✅✅ 新增：写入 single_form_data_v2 前，按模式剔除“旧模式残留 key” */
+function stripSingleFormDataByMode({ saleTypeNorm }, singleFormData) {
+  const s = { ...(singleFormData || {}) };
+
+  const isHomestay = saleTypeNorm.includes("homestay");
+  const isHotel = saleTypeNorm.includes("hotel");
+
+  // 这批 key 是你系统里明确存在、且最容易造成“混模式”的
+  const HOTEL_KEYS = [
+    "hotelResortType",
+    "hotel_resort_type",
+    "roomLayouts",
+    "room_layouts",
+    "facilityImages",
+    "facility_images",
+    "roomCount",
+    "room_count",
+  ];
+
+  const HOMESTAY_KEYS = [
+    "homestayType",
+    "homestayCategory",
+    "homestaySubType",
+    "homestayStoreys",
+    "homestaySubtype",
+    // 你也在用这些通用 key
+    "propertyCategory",
+    "subType",
+    "propertySubtype",
+  ];
+
+  const CALENDAR_KEYS = [
+    "availability",
+    "availability_data",
+    "calendar_prices",
+    "calendarPrices",
+  ];
+
+  // 当前不是 homestay/hotel → 必须移除住宿相关 key
+  if (!isHomestay && !isHotel) {
+    [...HOTEL_KEYS, ...HOMESTAY_KEYS, ...CALENDAR_KEYS].forEach((k) => delete s[k]);
+    return s;
+  }
+
+  // homestay：移除 hotel 专用（但保留日历）
+  if (isHomestay) {
+    HOTEL_KEYS.forEach((k) => delete s[k]);
+    return s;
+  }
+
+  // hotel：移除 homestay 专用（但保留日历）
+  if (isHotel) {
+    HOMESTAY_KEYS.forEach((k) => delete s[k]);
+    return s;
+  }
+
+  return s;
 }
 
 export default function UploadPropertyPage() {
@@ -278,7 +371,7 @@ export default function UploadPropertyPage() {
   const editId = router?.query?.id;
   const isEditMode = String(edit || "") === "1" && !!editId;
 
-  // ✅✅✅ 编辑页面：等 Supabase 数据回填完成后才渲染表单，避免子组件用默认值覆盖已保存数据
+  // ✅✅✅ 编辑页面：等 Supabase 数据回填完成后才渲染表单
   const [editHydrated, setEditHydrated] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
@@ -334,7 +427,7 @@ export default function UploadPropertyPage() {
   const lastFormJsonRef = useRef("");
   const lastDerivedRef = useRef({ saleType: "", status: "", roomMode: "" });
 
-  // ✅ 关键：把 onFormChange 固定，避免“函数引用变化 → TypeSelector effect 反复触发 → 闪烁”
+  // ✅ 关键：把 onFormChange 固定，避免闪烁
   const handleTypeFormChange = useCallback((form) => {
     const nextJson = stableJson(form);
     if (nextJson && nextJson === lastFormJsonRef.current) return;
@@ -433,20 +526,16 @@ export default function UploadPropertyPage() {
         const ad = safeParseMaybeJson(adRaw);
         const uls = safeParseMaybeJson(ulsRaw);
 
-        // ✅✅✅ 新增：把你新 column 的数据合并回 singleFormData（这样表单一定能回填）
         const homestayForm = safeParseMaybeJson(data.homestay_form);
         const hotelForm = safeParseMaybeJson(data.hotel_resort_form);
         const availability = safeParseMaybeJson(data.availability);
         const calendarPrices = safeParseMaybeJson(data.calendar_prices);
 
         let mergedSfd = mergeFormsIntoSingle(sfd || {}, homestayForm, hotelForm);
-        // 日历也合并到 singleFormData（如果你表单内部是从 singleFormData 读）
         if (availability && typeof availability === "object") mergedSfd.availability = mergedSfd.availability ?? availability;
         if (calendarPrices && typeof calendarPrices === "object") mergedSfd.calendar_prices = mergedSfd.calendar_prices ?? calendarPrices;
 
-        // ✅✅✅【修复闪烁核心】只在编辑回填时给 TypeSelector initialForm 一次
         setTypeSelectorInitialForm(tf);
-
         setTypeForm(tf);
 
         if (data.lat && data.lng) {
@@ -471,7 +560,6 @@ export default function UploadPropertyPage() {
         setAreaData(ad || areaData);
         setDescription(typeof data.description === "string" ? data.description : "");
 
-        // ✅ 同步 lastDerived，避免第一次 TypeSelector onFormChange 又触发一轮不必要的 setState
         lastDerivedRef.current = {
           saleType: (tf && tf.saleType) || "",
           status: (tf && tf.propertyStatus) || "",
@@ -480,7 +568,6 @@ export default function UploadPropertyPage() {
         lastFormJsonRef.current = stableJson(tf);
 
         setEditHydrated(true);
-
         toast.success("已进入编辑模式");
       } catch (e) {
         console.error(e);
@@ -518,11 +605,34 @@ export default function UploadPropertyPage() {
 
     setSubmitting(true);
     try {
-      // ✅✅✅ 新增：把 singleFormData 拆出两份，写入你新建的 column
-      const homestay_form = buildHomestayFormFromSingle(singleFormData);
-      const hotel_resort_form = buildHotelFormFromSingle(singleFormData);
+      // ✅✅✅ 1) 保存前：按模式清理 singleFormData（避免旧模式残留被带去保存）
+      const cleanedSingleFormData = stripSingleFormDataByMode(
+        { saleTypeNorm },
+        singleFormData || {}
+      );
+
+      // ✅✅✅ 2) 保存前：构建清空其它模式 column 的 payload（mode isolation）
+      const cleanup = buildCleanupPayloadByMode({ saleTypeNorm, roomRentalMode });
+
+      // ✅✅✅ 3) 只在对应模式才生成对应的 form column
+      const homestay_form = isHomestay ? buildHomestayFormFromSingle(cleanedSingleFormData) : null;
+      const hotel_resort_form = isHotel ? buildHotelFormFromSingle(cleanedSingleFormData) : null;
+
+      // ✅✅✅ 4) 日历字段：只在 Homestay / Hotel 保存（否则强制清空）
+      const availability =
+        (isHomestay || isHotel)
+          ? (cleanedSingleFormData?.availability ?? cleanedSingleFormData?.availability_data ?? null)
+          : null;
+
+      const calendar_prices =
+        (isHomestay || isHotel)
+          ? (cleanedSingleFormData?.calendar_prices ?? cleanedSingleFormData?.calendarPrices ?? null)
+          : null;
 
       const payload = {
+        // ✅ 先清空其它模式（再由下面覆盖写入当前模式）
+        ...cleanup,
+
         user_id: user.id,
         address: addressObj?.address || "",
         lat: addressObj?.lat,
@@ -534,8 +644,9 @@ export default function UploadPropertyPage() {
         type: typeValue,
 
         type_form_v2: typeForm || null,
-        single_form_data_v2: singleFormData || {},
+        single_form_data_v2: cleanedSingleFormData || {},
 
+        // 你原本保留的兼容列（不动）
         typeForm: typeForm || null,
         type_form: typeForm || null,
 
@@ -545,8 +656,8 @@ export default function UploadPropertyPage() {
         unitLayouts,
         unit_layouts: unitLayouts,
 
-        singleFormData,
-        single_form_data: singleFormData,
+        singleFormData: cleanedSingleFormData || {},
+        single_form_data: cleanedSingleFormData || {},
 
         areaData,
         area_data: areaData,
@@ -554,13 +665,13 @@ export default function UploadPropertyPage() {
         description,
         updated_at: new Date().toISOString(),
 
-        // ✅✅✅ 关键：把 Homestay/Hotel 表单选择写进 Supabase 独立 column（你看表就会有值）
-        homestay_form: homestay_form,
-        hotel_resort_form: hotel_resort_form,
+        // ✅ 当前模式的独立 column
+        homestay_form,
+        hotel_resort_form,
 
-        // ✅✅✅ 日历字段（如果你已经在 Supabase 加了 column）
-        availability: singleFormData?.availability ?? singleFormData?.availability_data ?? null,
-        calendar_prices: singleFormData?.calendar_prices ?? singleFormData?.calendarPrices ?? null,
+        // ✅ 当前模式的日历 column（非 homestay/hotel 已强制 null）
+        availability,
+        calendar_prices,
       };
 
       if (isEditMode) {
@@ -682,7 +793,6 @@ export default function UploadPropertyPage() {
       <TypeSelector
         value={typeValue}
         onChange={setTypeValue}
-        // ✅✅✅ 不再用 typeForm 当 initialForm（否则每次都重置导致闪烁）
         initialForm={typeSelectorInitialForm}
         rentBatchMode={allowRentBatchMode ? rentBatchMode : "no"}
         onChangeRentBatchMode={(val) => {
