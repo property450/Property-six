@@ -18,8 +18,7 @@ const ymd = (date) => {
   return `${y}-${m}-${d}`;
 };
 const digitsOnly = (s) => (s || "").replace(/[^\d]/g, "");
-const withCommas = (s) =>
-  s ? String(s).replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "";
+const withCommas = (s) => (s ? String(s).replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "");
 
 const toDisplayPrice = (num) => {
   if (!num) return undefined;
@@ -50,21 +49,36 @@ function safeParseValue(value) {
   return null;
 }
 
-// ✅ 更稳：不靠 JSON.stringify（key 顺序不同也会被当成不同），改成 key/value 对比
-function isSamePrices(a, b) {
-  const A = a || {};
-  const B = b || {};
-  const aKeys = Object.keys(A);
-  const bKeys = Object.keys(B);
-  if (aKeys.length !== bKeys.length) return false;
-  aKeys.sort();
-  bKeys.sort();
-  for (let i = 0; i < aKeys.length; i++) {
-    if (aKeys[i] !== bKeys[i]) return false;
-    const k = aKeys[i];
-    if (String(A[k]) !== String(B[k])) return false;
+// 深度稳定序列化（排序 key，避免顺序变化导致“看起来不同”）
+function stableJson(obj) {
+  const seen = new WeakSet();
+  const sortDeep = (v) => {
+    if (v === null || v === undefined) return v;
+    if (v instanceof Date) return v.toISOString();
+    if (Array.isArray(v)) return v.map(sortDeep);
+
+    if (typeof v === "object") {
+      if (seen.has(v)) return null;
+      seen.add(v);
+      const out = {};
+      Object.keys(v)
+        .sort()
+        .forEach((k) => {
+          const val = v[k];
+          if (val === undefined) return;
+          if (typeof val === "function") return;
+          out[k] = sortDeep(val);
+        });
+      return out;
+    }
+    return v;
+  };
+
+  try {
+    return JSON.stringify(sortDeep(obj ?? null));
+  } catch {
+    return "";
   }
-  return true;
 }
 
 /** 日期单元格：显示价格 */
@@ -80,14 +94,8 @@ const DayCell = React.memo(function DayCell({ date, prices }) {
   return (
     <div className="flex flex-col items-center w-full h-full py-0.5 leading-tight">
       <span className="text-sm">{date.getDate()}</span>
-      {currency && (
-        <span className="text-[8px] text-gray-500 leading-none mt-0.5">
-          {currency}
-        </span>
-      )}
-      {amount && (
-        <span className="text-[9px] text-gray-700 leading-none">{amount}</span>
-      )}
+      {currency && <span className="text-[8px] text-gray-500 leading-none mt-0.5">{currency}</span>}
+      {amount && <span className="text-[9px] text-gray-700 leading-none">{amount}</span>}
     </div>
   );
 });
@@ -109,57 +117,80 @@ export default function AdvancedAvailabilityCalendar({ value, onChange }) {
   const panelRef = useRef(null);
   const calendarRef = useRef(null);
 
+  // ✅ 固定 onChange 引用
   const onChangeRef = useRef(onChange);
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
 
-  // ✅✅✅ 关键修复：Hydrate 完成前，不允许把默认值写回父层（否则就会闪烁）
-  const [isHydrated, setIsHydrated] = useState(() => {
-    // 如果一开始就有 value（编辑模式同步给到），直接算已 hydrate
-    const parsed = safeParseValue(value);
-    return !!parsed;
-  });
-
-  // ✅ 回填（编辑模式）
+  // ✅✅✅ 关键：编辑回填完成前，不允许写回父层（否则父层/子层互相覆盖导致闪烁）
   const didHydrateRef = useRef(false);
+  const readyToSyncRef = useRef(false);
+  const skipNextSyncRef = useRef(false);
+
+  // ✅ 去重：props value hash / 已发送 hash
+  const lastIncomingHashRef = useRef("");
+  const lastSentHashRef = useRef("");
+
+  // ✅ 回填（编辑模式 + 新建模式也兼容）
   useEffect(() => {
     const parsed = safeParseValue(value);
-    if (!parsed) return;
-
-    const nextPrices = parsed?.prices || {};
-    const nextIn = parsed?.checkInTime || "15:00";
-    const nextOut = parsed?.checkOutTime || "11:00";
-
-    if (!didHydrateRef.current) {
-      setPrices(nextPrices);
-      setCheckInTime(nextIn);
-      setCheckOutTime(nextOut);
-      didHydrateRef.current = true;
-
-      // ✅ 现在才允许写回父层
-      setIsHydrated(true);
+    // 没有 value：新建模式直接允许同步（但不会立刻写回，因为我们有去重）
+    if (!parsed) {
+      readyToSyncRef.current = true;
       return;
     }
 
-    setPrices((prev) => (isSamePrices(prev, nextPrices) ? prev : nextPrices));
-    setCheckInTime((prev) => (prev === nextIn ? prev : nextIn));
-    setCheckOutTime((prev) => (prev === nextOut ? prev : nextOut));
+    const next = {
+      prices: parsed?.prices || {},
+      checkInTime: parsed?.checkInTime || "15:00",
+      checkOutTime: parsed?.checkOutTime || "11:00",
+    };
 
-    // ✅ 只要父层真的给到 value，就视为 hydrate 完成
-    setIsHydrated(true);
+    const incomingHash = stableJson(next);
+    if (incomingHash && incomingHash === lastIncomingHashRef.current) {
+      // props 虽然是新 object，但内容没变：不要重复 setState
+      readyToSyncRef.current = true;
+      return;
+    }
+    lastIncomingHashRef.current = incomingHash;
+
+    // ✅ 这次是“从父层灌回子层”，接下来紧挨着的写回要跳过一次
+    skipNextSyncRef.current = true;
+
+    // 首次 hydrate
+    if (!didHydrateRef.current) didHydrateRef.current = true;
+
+    setPrices(next.prices);
+    setCheckInTime(next.checkInTime);
+    setCheckOutTime(next.checkOutTime);
+
+    // ✅ 回填完成，允许同步
+    readyToSyncRef.current = true;
   }, [value]);
 
-  // ✅ 写回父层（让 Supabase 能保存）
+  // ✅ 写回父层（去重 + 跳过回填那一轮）
   useEffect(() => {
-    // ✅✅✅ 没 hydrate 前不写回，避免默认值覆盖 -> 闪烁
-    if (!isHydrated) return;
+    if (!readyToSyncRef.current) return;
+
+    // ✅ 跳过“props 回填 setState 后紧接着的那次 effect”
+    if (skipNextSyncRef.current) {
+      skipNextSyncRef.current = false;
+      return;
+    }
 
     const fn = onChangeRef.current;
     if (typeof fn !== "function") return;
 
-    fn({ prices, checkInTime, checkOutTime });
-  }, [prices, checkInTime, checkOutTime, isHydrated]);
+    const payload = { prices, checkInTime, checkOutTime };
+    const nextHash = stableJson(payload);
+
+    // ✅ 去重：内容一样就不再写回（避免父层反复 setFormData → value 变动 → 又回填 → 闪）
+    if (nextHash && nextHash === lastSentHashRef.current) return;
+    lastSentHashRef.current = nextHash;
+
+    fn(payload);
+  }, [prices, checkInTime, checkOutTime]);
 
   // ✅ 点击空白关闭
   useEffect(() => {
@@ -180,10 +211,7 @@ export default function AdvancedAvailabilityCalendar({ value, onChange }) {
     return () => document.removeEventListener("mousedown", handleOutside);
   }, []);
 
-  const predefined = useMemo(
-    () => Array.from({ length: 1000 }, (_, i) => (i + 1) * 50),
-    []
-  );
+  const predefined = useMemo(() => Array.from({ length: 1000 }, (_, i) => (i + 1) * 50), []);
 
   const handleDayClick = useCallback(
     (day) => {
@@ -217,9 +245,6 @@ export default function AdvancedAvailabilityCalendar({ value, onChange }) {
   const handleSave = useCallback(() => {
     if (!range?.from || !range?.to) return;
 
-    // ✅ 新建模式：用户一旦开始操作，就允许写回
-    setIsHydrated(true);
-
     const num = Number(digitsOnly(tempPriceRaw));
     const display = toDisplayPrice(num);
 
@@ -240,19 +265,10 @@ export default function AdvancedAvailabilityCalendar({ value, onChange }) {
     setShowDropdown(false);
   }, [range, tempPriceRaw]);
 
-  const DayContent = useCallback(
-    (props) => <DayCell {...props} prices={prices} />,
-    [prices]
-  );
+  const DayContent = useCallback((props) => <DayCell {...props} prices={prices} />, [prices]);
 
-  const checkInText = useMemo(
-    () => (range?.from ? ymd(range.from) : ""),
-    [range]
-  );
-  const checkOutText = useMemo(
-    () => (range?.to ? ymd(addDays(range.to, 1)) : ""),
-    [range]
-  );
+  const checkInText = useMemo(() => (range?.from ? ymd(range.from) : ""), [range]);
+  const checkOutText = useMemo(() => (range?.to ? ymd(addDays(range.to, 1)) : ""), [range]);
 
   return (
     <div>
@@ -309,10 +325,7 @@ export default function AdvancedAvailabilityCalendar({ value, onChange }) {
               <input
                 type="time"
                 value={checkInTime}
-                onChange={(e) => {
-                  setIsHydrated(true);
-                  setCheckInTime(e.target.value);
-                }}
+                onChange={(e) => setCheckInTime(e.target.value)}
                 className="border rounded px-2 py-1"
               />
             </div>
@@ -321,10 +334,7 @@ export default function AdvancedAvailabilityCalendar({ value, onChange }) {
               <input
                 type="time"
                 value={checkOutTime}
-                onChange={(e) => {
-                  setIsHydrated(true);
-                  setCheckOutTime(e.target.value);
-                }}
+                onChange={(e) => setCheckOutTime(e.target.value)}
                 className="border rounded px-2 py-1"
               />
             </div>
@@ -340,7 +350,6 @@ export default function AdvancedAvailabilityCalendar({ value, onChange }) {
               placeholder="输入价格"
               value={withCommas(digitsOnly(tempPriceRaw))}
               onChange={(e) => {
-                setIsHydrated(true);
                 setTempPriceRaw(digitsOnly(e.target.value));
                 setShowDropdown(false);
               }}
@@ -355,7 +364,6 @@ export default function AdvancedAvailabilityCalendar({ value, onChange }) {
                     key={p}
                     onPointerDown={(e) => {
                       e.stopPropagation();
-                      setIsHydrated(true);
                       setTempPriceRaw(String(p));
                       setShowDropdown(false);
                     }}
@@ -369,7 +377,6 @@ export default function AdvancedAvailabilityCalendar({ value, onChange }) {
           </div>
 
           <div className="flex gap-2">
-            {/* ✅✅ 关键：避免在 form 内触发 submit */}
             <button
               type="button"
               onClick={(e) => {
