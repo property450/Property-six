@@ -222,11 +222,12 @@ export default function MyProfile() {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((property) => (
+        // ✅✅✅ 改这里：从 Grid 改成纵向 List（1、2、3 往下）
+        <div className="flex flex-col gap-4">
+          {filtered.map((property, index) => (
             <div
               key={property.id}
-              className="border rounded-2xl bg-white overflow-hidden shadow-sm"
+              className="seller-row border rounded-2xl bg-white overflow-hidden shadow-sm"
             >
               {/* 你原本的展示卡片 */}
               <PropertyCard property={property} />
@@ -235,12 +236,12 @@ export default function MyProfile() {
               <div className="p-3 pt-0">
                 <div className="grid grid-cols-3 gap-2">
                   <Button asChild className="w-full" variant="outline">
-  <Link href={`/property/${property.id}`}>查看</Link>
-</Button>
+                    <Link href={`/property/${property.id}`}>查看</Link>
+                  </Button>
 
-<Button asChild className="w-full" variant="outline">
-  <Link href={`/upload-property?edit=1&id=${property.id}`}>编辑</Link>
-</Button>
+                  <Button asChild className="w-full" variant="outline">
+                    <Link href={`/upload-property?edit=1&id=${property.id}`}>编辑</Link>
+                  </Button>
 
                   <Button
                     className="w-full"
@@ -253,11 +254,9 @@ export default function MyProfile() {
                 </div>
 
                 <div className="flex items-center justify-between mt-3 text-xs text-gray-500">
-                  <div>ID: {property.id}</div>
+                  <div>#{index + 1} · ID: {property.id}</div>
                   <div>
-                    {property.created_at
-                      ? new Date(property.created_at).toLocaleDateString()
-                      : ""}
+                    {property.created_at ? new Date(property.created_at).toLocaleDateString() : ""}
                   </div>
                 </div>
               </div>
@@ -265,6 +264,20 @@ export default function MyProfile() {
           ))}
         </div>
       )}
+
+      {/* ✅ 只影响卖家后台：确保卡片看起来是“长方形横向” */}
+      <style jsx>{`
+        .seller-row > :global(div.group) {
+          display: flex !important;
+          flex-direction: row !important;
+        }
+        .seller-row :global(img) {
+          width: 220px;
+          height: 140px;
+          object-fit: cover;
+          flex-shrink: 0;
+        }
+      `}</style>
     </div>
   );
 }
