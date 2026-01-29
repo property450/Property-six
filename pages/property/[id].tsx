@@ -194,10 +194,14 @@ export default function PropertyDetail() {
     }
   };
 
-  if (!property) return <div className="p-4">载入中...</div>;
+  const summary = useMemo(() => {
+  if (!property) return null;
+  return getDetailSummary(property);
+}, [property]);
 
-  // ✅ 统一解析
-  const summary = useMemo(() => getDetailSummary(property), [property]);
+if (!property) {
+  return <div className="p-4">载入中...</div>;
+}
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6">
