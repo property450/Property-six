@@ -480,4 +480,16 @@ export default function MyProfilePage() {
           <div className="space-y-4">
             {properties.map((p) => (
               <SellerPropertyCard
-                k
+                key={p.id}
+                property={p}
+                onView={onView}
+                onEdit={onEdit}
+                onDelete={onDelete}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
