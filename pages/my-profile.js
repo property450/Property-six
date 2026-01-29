@@ -2,282 +2,482 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/router";
 import { supabase } from "../supabaseClient";
 import { useUser } from "@supabase/auth-helpers-react";
 import { toast } from "react-hot-toast";
 
-import PropertyCard from "@/components/PropertyCard";
-import { Button } from "@/components/ui/button";
+function isNonEmpty(v) {
+  if (v === null || v === undefined) return false;
+  if (typeof v === "string") return v.trim() !== "";
+  if (Array.isArray(v)) return v.length > 0;
+  if (typeof v === "object") return Object.keys(v).length > 0;
+  return true; // number/boolean
+}
 
-export default function MyProfile() {
-  const router = useRouter();
-  const user = useUser();
+function toText(v) {
+  if (v === null || v === undefined) return "";
+  if (typeof v === "boolean") return v ? "是" : "否";
+  if (Array.isArray(v)) return v.filter(isNonEmpty).join(", ");
+  if (typeof v === "object") return JSON.stringify(v);
+  return String(v);
+}
 
-  const [loading, setLoading] = useState(true);
-  const [myProperties, setMyProperties] = useState([]);
-  const [deletingId, setDeletingId] = useState(null);
+function money(v) {
+  if (!isNonEmpty(v)) return "";
+  const n = Number(v);
+  if (Number.isNaN(n)) return String(v);
+  return "RM " + n.toLocaleString("en-MY");
+}
 
-  // ✅ UI: 搜索 & 排序（不动原数据）
-  const [keyword, setKeyword] = useState("");
-  const [sort, setSort] = useState("new"); // new | old
+// 从各种可能的结构里“尽量读出”公共交通 Yes/No
+function getTransitYesNo(property) {
+  // 你项目里常见：transit / transit_info / transitData / unit_layouts 内嵌
+  const t =
+    property?.transit ??
+    property?.transit_info ??
+    property?.transitData ??
+    property?.transit_data;
 
-  const total = useMemo(() => myProperties?.length || 0, [myProperties]);
-
-  const stats = useMemo(() => {
-    const published = myProperties.filter((p) => p?.status === "published").length;
-    const draft = myProperties.filter((p) => p?.status === "draft").length;
-
-    const latest = myProperties[0]?.created_at || myProperties[0]?.updated_at || null;
-
-    return { published, draft, latest };
-  }, [myProperties]);
-
-  const filtered = useMemo(() => {
-    const k = (keyword || "").trim().toLowerCase();
-
-    let list = [...(Array.isArray(myProperties) ? myProperties : [])];
-
-    // 搜索：标题 + 地点
-    if (k) {
-      list = list.filter((p) => {
-        const title = (p?.title || "").toLowerCase();
-        const location = (p?.location || "").toLowerCase();
-        return title.includes(k) || location.includes(k);
-      });
-    }
-
-    // 排序：最新/最旧
-    list.sort((a, b) => {
-      const ta = new Date(a?.created_at || a?.updated_at || 0).getTime();
-      const tb = new Date(b?.created_at || b?.updated_at || 0).getTime();
-      return sort === "new" ? tb - ta : ta - tb;
-    });
-
-    return list;
-  }, [myProperties, keyword, sort]);
-
-  useEffect(() => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-    fetchMyProperties();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
-
-  async function fetchMyProperties() {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("properties")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setMyProperties(Array.isArray(data) ? data : []);
-    } catch (e) {
-      console.error(e);
-      toast.error("加载我的房源失败");
-      setMyProperties([]);
-    } finally {
-      setLoading(false);
-    }
+  if (typeof t === "boolean") return t ? "是" : "否";
+  if (typeof t === "string") return t;
+  if (t && typeof t === "object") {
+    const v =
+      t.walkableToTransit ??
+      t.walkable ??
+      t.isWalkable ??
+      t.hasTransit ??
+      t.answer ??
+      t.yesNo;
+    if (typeof v === "boolean") return v ? "是" : "否";
+    if (typeof v === "string") return v;
   }
 
-  async function handleDelete(property) {
-    if (!property?.id) return;
-
-    const ok = confirm(
-      `确定要删除这条房源吗？\n\n标题：${property.title || "(无标题)"}\n\n此操作无法撤销。`
-    );
-    if (!ok) return;
-
-    try {
-      setDeletingId(property.id);
-
-      // ✅ 安全：同时加上 user_id 条件，避免误删别人的
-      const { error } = await supabase
-        .from("properties")
-        .delete()
-        .eq("id", property.id)
-        .eq("user_id", user.id);
-
-      if (error) throw error;
-
-      setMyProperties((prev) => prev.filter((p) => p.id !== property.id));
-      toast.success("已删除房源");
-    } catch (e) {
-      console.error(e);
-      toast.error("删除失败（请确认你有权限 / RLS 设置正确）");
-    } finally {
-      setDeletingId(null);
+  // 有些人把它放在 unit_layouts（layout 1）
+  const ul = property?.unit_layouts ?? property?.unitLayouts;
+  try {
+    const arr = typeof ul === "string" ? JSON.parse(ul) : ul;
+    if (Array.isArray(arr) && arr[0]) {
+      const t2 = arr[0]?.transit ?? arr[0]?.transitData ?? arr[0]?.transit_info;
+      if (typeof t2 === "boolean") return t2 ? "是" : "否";
+      if (t2 && typeof t2 === "object") {
+        const v2 = t2.walkableToTransit ?? t2.walkable ?? t2.isWalkable ?? t2.answer ?? t2.yesNo;
+        if (typeof v2 === "boolean") return v2 ? "是" : "否";
+        if (typeof v2 === "string") return v2;
+      }
     }
+  } catch (e) {}
+
+  return "";
+}
+
+// 日历价格概览：只做“概览”，不改你原本日历逻辑
+function getCalendarPriceSummary(property) {
+  // 常见结构：availability / calendar / dayPrices / datePrices
+  const a =
+    property?.availability ??
+    property?.calendar ??
+    property?.dayPrices ??
+    property?.datePrices ??
+    property?.availability_data;
+
+  if (!a) return "";
+
+  // 如果是字符串 JSON
+  let data = a;
+  try {
+    if (typeof a === "string") data = JSON.parse(a);
+  } catch (e) {}
+
+  // 支持几种常见形态：
+  // 1) { pricesByDate: { "2026-01-01": 200, ... } }
+  // 2) { dayPrices: [{date:"2026-01-01", price:200}, ...] }
+  // 3) 直接就是 {"2026-01-01": 200, ...}
+  let pricesMap = null;
+  let list = null;
+
+  if (data?.pricesByDate && typeof data.pricesByDate === "object") pricesMap = data.pricesByDate;
+  else if (data?.dayPrices && Array.isArray(data.dayPrices)) list = data.dayPrices;
+  else if (data?.prices && typeof data.prices === "object") pricesMap = data.prices;
+  else if (typeof data === "object" && !Array.isArray(data)) pricesMap = data;
+
+  let prices = [];
+
+  if (pricesMap) {
+    for (const k of Object.keys(pricesMap)) {
+      const p = pricesMap[k];
+      const n = Number(p);
+      if (!Number.isNaN(n)) prices.push(n);
+    }
+    if (prices.length === 0) return "";
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    const days = prices.length;
+    if (min === max) return `日历价格：${money(min)}（${days}天）`;
+    return `日历价格：${money(min)} ~ ${money(max)}（${days}天）`;
   }
 
-  if (!user) {
-    return (
-      <div className="p-4 max-w-6xl mx-auto">
-        <div className="border rounded-2xl bg-white p-6">
-          <h2 className="text-2xl font-bold mb-2">🏠 我的房源（卖家后台）</h2>
-          <p className="text-gray-600 mb-4">请先登录后再查看你上传的房源。</p>
-          <Button onClick={() => router.push("/login")}>去登录</Button>
-        </div>
-      </div>
-    );
+  if (list) {
+    for (const item of list) {
+      const n = Number(item?.price);
+      if (!Number.isNaN(n)) prices.push(n);
+    }
+    if (prices.length === 0) return "";
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    const days = prices.length;
+    if (min === max) return `日历价格：${money(min)}（${days}天）`;
+    return `日历价格：${money(min)} ~ ${money(max)}（${days}天）`;
   }
 
+  return "";
+}
+
+// 把“想显示的字段”统一走这一层：有值才渲染
+function MetaLine({ label, value }) {
+  if (!isNonEmpty(value)) return null;
   return (
-    <div className="p-4 max-w-6xl mx-auto space-y-4">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <h2 className="text-2xl font-bold">🏠 我的房源（卖家后台）</h2>
-          <p className="text-gray-600 text-sm mt-1">
-            你目前共上传 <span className="font-semibold">{total}</span> 条房源
-          </p>
-        </div>
-
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={fetchMyProperties} disabled={loading}>
-            {loading ? "刷新中..." : "刷新"}
-          </Button>
-
-          <Button onClick={() => router.push("/upload-property")}>+ 上传新房源</Button>
-        </div>
-      </div>
-
-      {/* Stats cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="border rounded-2xl bg-white p-4">
-          <div className="text-xs text-gray-500">总房源</div>
-          <div className="text-2xl font-bold mt-1">{total}</div>
-        </div>
-
-        <div className="border rounded-2xl bg-white p-4">
-          <div className="text-xs text-gray-500">已发布</div>
-          <div className="text-2xl font-bold mt-1">{stats.published}</div>
-        </div>
-
-        <div className="border rounded-2xl bg-white p-4">
-          <div className="text-xs text-gray-500">草稿</div>
-          <div className="text-2xl font-bold mt-1">{stats.draft}</div>
-        </div>
-
-        <div className="border rounded-2xl bg-white p-4">
-          <div className="text-xs text-gray-500">最近时间</div>
-          <div className="text-sm font-semibold mt-2 text-gray-800">
-            {stats.latest ? new Date(stats.latest).toLocaleString() : "-"}
-          </div>
-        </div>
-      </div>
-
-      {/* Search & sort */}
-      <div className="border rounded-2xl bg-white p-4 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
-        <div className="flex-1">
-          <div className="text-sm font-semibold text-gray-700 mb-2">搜索</div>
-          <input
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            placeholder="输入标题或地点..."
-            className="w-full border rounded-xl px-3 py-2"
-          />
-        </div>
-
-        <div className="min-w-[180px]">
-          <div className="text-sm font-semibold text-gray-700 mb-2">排序</div>
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value)}
-            className="w-full border rounded-xl px-3 py-2 bg-white"
-          >
-            <option value="new">最新优先</option>
-            <option value="old">最旧优先</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Content */}
-      {loading ? (
-        <div className="p-4 text-gray-600">加载中...</div>
-      ) : filtered.length === 0 ? (
-        <div className="p-6 border rounded-2xl bg-white space-y-3">
-          <div className="text-lg font-semibold">
-            {myProperties.length === 0 ? "你还没有上传任何房源" : "没有匹配的结果"}
-          </div>
-          <div className="text-gray-600 text-sm">
-            {myProperties.length === 0
-              ? "点击右上角「上传新房源」，开始发布你的第一条房源。"
-              : "换个关键词试试看，或清空搜索框。"}
-          </div>
-          <div className="flex gap-2">
-            <Button onClick={() => router.push("/upload-property")}>去上传</Button>
-            {myProperties.length !== 0 && (
-              <Button variant="outline" onClick={() => setKeyword("")}>
-                清空搜索
-              </Button>
-            )}
-          </div>
-        </div>
-      ) : (
-        // ✅✅✅ 改这里：从 Grid 改成纵向 List（1、2、3 往下）
-        <div className="flex flex-col gap-4">
-          {filtered.map((property, index) => (
-            <div
-              key={property.id}
-              className="seller-row border rounded-2xl bg-white overflow-hidden shadow-sm"
-            >
-              {/* 你原本的展示卡片 */}
-              <PropertyCard property={property} />
-
-              {/* ✅ 管理按钮区（更像后台） */}
-              <div className="p-3 pt-0">
-                <div className="grid grid-cols-3 gap-2">
-                  <Button asChild className="w-full" variant="outline">
-                    <Link href={`/property/${property.id}`}>查看</Link>
-                  </Button>
-
-                  <Button asChild className="w-full" variant="outline">
-                    <Link href={`/upload-property?edit=1&id=${property.id}`}>编辑</Link>
-                  </Button>
-
-                  <Button
-                    className="w-full"
-                    variant="destructive"
-                    onClick={() => handleDelete(property)}
-                    disabled={deletingId === property.id}
-                  >
-                    {deletingId === property.id ? "删除中..." : "删除"}
-                  </Button>
-                </div>
-
-                <div className="flex items-center justify-between mt-3 text-xs text-gray-500">
-                  <div>#{index + 1} · ID: {property.id}</div>
-                  <div>
-                    {property.created_at ? new Date(property.created_at).toLocaleDateString() : ""}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* ✅ 只影响卖家后台：确保卡片看起来是“长方形横向” */}
-      <style jsx>{`
-        .seller-row > :global(div.group) {
-          display: flex !important;
-          flex-direction: row !important;
-        }
-        .seller-row :global(img) {
-          width: 220px;
-          height: 140px;
-          object-fit: cover;
-          flex-shrink: 0;
-        }
-      `}</style>
+    <div className="text-sm text-gray-700 leading-6">
+      <span className="text-gray-500">{label}：</span>
+      <span className="text-gray-800">{toText(value)}</span>
     </div>
   );
 }
+
+// 统一从 property 里读取常见字段（尽量兼容 snake_case / camelCase）
+function pick(property, keys) {
+  for (const k of keys) {
+    const v = property?.[k];
+    if (isNonEmpty(v)) return v;
+  }
+  return "";
+}
+
+function getSaleType(property) {
+  return pick(property, ["saleType", "sale_type", "type", "listing_type"]);
+}
+
+function getRoomRentalMode(property) {
+  // 你的项目里可能是：roomRentalMode = "whole" | "room"
+  // 或：isRoomRental = true/false
+  const m = pick(property, ["roomRentalMode", "room_rental_mode"]);
+  if (isNonEmpty(m)) return m; // "whole"/"room"
+  const b = pick(property, ["isRoomRental", "is_room_rental", "room_rental"]);
+  if (typeof b === "boolean") return b ? "room" : "whole";
+  return "";
+}
+
+function SellerPropertyCard({ property, onView, onEdit, onDelete }) {
+  const saleType = getSaleType(property);
+  const roomRentalMode = getRoomRentalMode(property); // rent only
+
+  // === 基础你已经有的：标题 / 地点 / 价格 / 房间浴室车位 ===
+  const title = pick(property, ["title", "name", "property_title_text"]);
+  const locationText = pick(property, ["location", "address", "city", "area", "state", "full_address"]);
+  const price = pick(property, ["price", "rent", "amount", "base_price"]);
+
+  const bedrooms = pick(property, ["bedrooms", "bedroom_count", "roomCount", "room_count"]);
+  const bathrooms = pick(property, ["bathrooms", "bathroom_count"]);
+  const carparks = pick(property, ["carparks", "carpark_count", "parking_count"]);
+
+  // Studio 显示逻辑：如果你保存的是 "Studio" 就原样显示
+  const bedroomLabel = isNonEmpty(bedrooms) ? toText(bedrooms) : "";
+
+  // === 通用字段 ===
+  const propertyUsage = pick(property, ["usage", "property_usage"]);
+  const propertyTitle = pick(property, ["propertyTitle", "property_title"]);
+  const propertyStatus = pick(property, ["propertyStatus", "property_status", "saleStatus", "sale_status"]);
+  const saleTypeDetail = pick(property, ["saleTypeDetail", "sale_type_detail", "sale_type_name"]);
+  const affordableHousing = pick(property, ["affordableHousing", "affordable_housing"]);
+  const affordableHousingType = pick(property, ["affordableHousingType", "affordable_housing_type"]);
+  const tenureType = pick(property, ["tenureType", "tenure_type", "tenure"]);
+
+  const category = pick(property, ["category", "propertyCategory", "property_category"]);
+  const subType = pick(property, ["subType", "sub_type", "property_sub_type"]);
+  const storeys = pick(property, ["storeys", "storey", "floor_count"]);
+  const propertySubtype = pick(property, ["propertySubtype", "property_subtype"]); // Penthouse/Duplex...
+
+  const buildUpArea = pick(property, ["buildUpArea", "build_up_area", "built_up_area"]);
+  const landArea = pick(property, ["landArea", "land_area"]);
+  const psf = pick(property, ["psf", "price_per_sqft"]);
+
+  const transitYesNo = getTransitYesNo(property);
+  const completedYear = pick(property, ["completedYear", "completed_year", "completion_year"]);
+  const expectedYear = pick(property, ["expectedCompletedYear", "expected_completed_year", "expected_completion_year"]);
+
+  // === Rent房间模式字段 ===
+  const roomType = pick(property, ["roomType", "room_type"]); // 这是什么房？
+  const bathroomSharing = pick(property, ["bathroomSharing", "bathroom_sharing"]); // 共用/独立
+  const bedType = pick(property, ["bedType", "bed_type", "bedTypes", "bed_types"]); // 床型(可能多选)
+  const roomPrivacy = pick(property, ["roomPrivacy", "room_privacy"]); // 独立/共用房间
+  const genderMix = pick(property, ["genderMix", "gender_mix"]); // 是否男女混住
+  const allowPets = pick(property, ["allowPets", "allow_pets", "petsAllowed", "pets_allowed"]);
+  const allowCooking = pick(property, ["allowCooking", "allow_cooking", "cookingAllowed", "cooking_allowed"]);
+  const rentIncludes = pick(property, ["rentIncludes", "rent_includes"]); // 租金包括
+  const cleaningService = pick(property, ["cleaningService", "cleaning_service"]);
+  const preferredRace = pick(property, ["preferredRace", "preferred_race", "racePreference", "race_preference"]);
+  const acceptedTenure = pick(property, ["acceptedTenure", "accepted_tenure", "leaseTerm", "lease_term"]); // 接受的租期
+  const availableFrom = pick(property, ["availableFrom", "available_from", "move_in_date"]); // 几时开始可以入住
+
+  // === Homestay / Hotel 字段 ===
+  const homestayType = pick(property, ["homestayType", "homestay_type"]);
+  const hotelResortType = pick(property, ["hotelResortType", "hotel_resort_type"]);
+
+  const guestCount = pick(property, ["guestCount", "guest_count", "capacity", "guest_capacity"]); // 能住几个人
+  const smokingAllowed = pick(property, ["smokingAllowed", "smoking_allowed"]);
+  const checkinService = pick(property, ["checkinService", "checkin_service"]); // 入住服务
+  const breakfastIncluded = pick(property, ["breakfastIncluded", "breakfast_included"]);
+  const freeCancellation = pick(property, ["freeCancellation", "free_cancellation"]);
+
+  const serviceFee = pick(property, ["serviceFee", "service_fee"]);
+  const cleaningFee = pick(property, ["cleaningFee", "cleaning_fee"]);
+  const deposit = pick(property, ["deposit", "security_deposit"]);
+  const otherFees = pick(property, ["otherFees", "other_fees", "extra_fees"]);
+
+  const calendarSummary = getCalendarPriceSummary(property);
+
+  // ========= 渲染：按模式显示 =========
+  const showSaleMeta = saleType === "Sale";
+  const showRentMeta = saleType === "Rent";
+  const showHomestayMeta = saleType === "Homestay";
+  const showHotelMeta = saleType === "Hotel/Resort" || saleType === "Hotel" || saleType === "Resort";
+
+  const isRentRoom = showRentMeta && (roomRentalMode === "room" || roomRentalMode === "Room");
+
+  return (
+    <div className="w-full bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+      {/* 顶部基础信息 */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-lg font-semibold text-gray-900 truncate">{title || "（未命名房源）"}</div>
+          {isNonEmpty(locationText) && (
+            <div className="text-sm text-gray-600 mt-1 truncate">{locationText}</div>
+          )}
+          {isNonEmpty(price) && (
+            <div className="text-base font-semibold text-blue-700 mt-2">{money(price)}</div>
+          )}
+
+          {/* 你原本已经有的：房/厕/车 */}
+          <div className="text-sm text-gray-700 mt-2 flex flex-wrap gap-x-4 gap-y-1">
+            {isNonEmpty(bedroomLabel) && <span>🛏 {bedroomLabel}</span>}
+            {isNonEmpty(bathrooms) && <span>🛁 {toText(bathrooms)}</span>}
+            {isNonEmpty(carparks) && <span>🚗 {toText(carparks)}</span>}
+          </div>
+
+          {/* ✅ 这里开始：你要新增的「有值才显示」 */}
+          <div className="mt-3 space-y-1">
+            {/* ====== SALE ====== */}
+            {showSaleMeta && (
+              <>
+                <MetaLine label="Sale / Rent" value={saleType} />
+                <MetaLine label="Property Usage" value={propertyUsage} />
+                <MetaLine label="Property Title" value={propertyTitle} />
+                <MetaLine label="Property Status / Sale Type" value={propertyStatus || saleTypeDetail} />
+                <MetaLine label="Affordable Housing" value={affordableHousing} />
+                <MetaLine label="Affordable Housing Type" value={affordableHousingType} />
+                <MetaLine label="Tenure Type" value={tenureType} />
+                <MetaLine label="Property Category" value={category} />
+                <MetaLine label="Sub Type" value={subType} />
+                <MetaLine label="Storeys" value={storeys} />
+                <MetaLine label="Property Subtype" value={propertySubtype} />
+                <MetaLine label="Build Up Area" value={buildUpArea} />
+                <MetaLine label="Land Area" value={landArea} />
+                <MetaLine label="PSF" value={psf} />
+                <MetaLine label="你的产业步行能到达公共交通吗？" value={transitYesNo} />
+                <MetaLine label="完成年份" value={completedYear} />
+                <MetaLine label="预计完成年份" value={expectedYear} />
+              </>
+            )}
+
+            {/* ====== RENT（整间） ====== */}
+            {showRentMeta && !isRentRoom && (
+              <>
+                <MetaLine label="Sale / Rent" value={saleType} />
+                <MetaLine label="Property Category" value={category} />
+                <MetaLine label="Storeys" value={storeys} />
+                <MetaLine label="Property Subtype" value={propertySubtype} />
+                <MetaLine label="房间数量" value={bedrooms} />
+                <MetaLine label="浴室数量" value={bathrooms} />
+                <MetaLine label="停车位数量" value={carparks} />
+                <MetaLine label="Build Up Area" value={buildUpArea} />
+                <MetaLine label="Land Area" value={landArea} />
+                <MetaLine label="PSF" value={psf} />
+                <MetaLine label="你的产业步行能到达公共交通吗？" value={transitYesNo} />
+              </>
+            )}
+
+            {/* ====== RENT（出租房间） ====== */}
+            {showRentMeta && isRentRoom && (
+              <>
+                <MetaLine label="租金" value={price} />
+                <MetaLine label="Property Category" value={category} />
+                <MetaLine label="Storeys" value={storeys} />
+                <MetaLine label="Property Subtype" value={propertySubtype} />
+                <MetaLine label="Build Up Area" value={buildUpArea} />
+                <MetaLine label="Land Area" value={landArea} />
+                <MetaLine label="PSF" value={psf} />
+                <MetaLine label="这是什么房？" value={roomType} />
+                <MetaLine label="卫生间" value={bathroomSharing} />
+                <MetaLine label="床型" value={bedType} />
+                <MetaLine label="是独立房间还是共用房间？" value={roomPrivacy} />
+                <MetaLine label="是否男女混住" value={genderMix} />
+                <MetaLine label="是否允许宠物" value={allowPets} />
+                <MetaLine label="是否允许烹饪" value={allowCooking} />
+                <MetaLine label="租金包括" value={rentIncludes} />
+                <MetaLine label="清洁服务" value={cleaningService} />
+                <MetaLine label="停车位数量" value={carparks} />
+                <MetaLine label="偏向的种族" value={preferredRace} />
+                <MetaLine label="接受的租期" value={acceptedTenure} />
+                <MetaLine label="几时开始可以入住" value={availableFrom} />
+                <MetaLine label="你的产业步行能到达公共交通吗？" value={transitYesNo} />
+              </>
+            )}
+
+            {/* ====== HOMESTAY ====== */}
+            {showHomestayMeta && (
+              <>
+                <MetaLine label="Homestay Type" value={homestayType} />
+                <MetaLine label="Property Category" value={category} />
+                <MetaLine label="床型" value={bedType} />
+                <MetaLine label="能住几个人" value={guestCount} />
+                <MetaLine label="室内能否吸烟" value={smokingAllowed} />
+                <MetaLine label="入住服务" value={checkinService} />
+                <MetaLine label="房型是否包含早餐" value={breakfastIncluded} />
+                <MetaLine label="房型是否允许宠物入住" value={allowPets} />
+                <MetaLine label="是否能免费取消" value={freeCancellation} />
+                <MetaLine label="卧室数量" value={bedrooms} />
+                <MetaLine label="浴室数量" value={bathrooms} />
+                <MetaLine label="停车位数量" value={carparks} />
+                <MetaLine label="日历价格" value={calendarSummary} />
+                <MetaLine label="服务费" value={isNonEmpty(serviceFee) ? money(serviceFee) : ""} />
+                <MetaLine label="清洁费" value={isNonEmpty(cleaningFee) ? money(cleaningFee) : ""} />
+                <MetaLine label="押金" value={isNonEmpty(deposit) ? money(deposit) : ""} />
+                <MetaLine label="其它费用" value={otherFees} />
+              </>
+            )}
+
+            {/* ====== HOTEL / RESORT ====== */}
+            {showHotelMeta && (
+              <>
+                <MetaLine label="Hotel/Resort Type" value={hotelResortType} />
+                <MetaLine label="Property Category" value={category} />
+                <MetaLine label="床型" value={bedType} />
+                <MetaLine label="能住几个人" value={guestCount} />
+                <MetaLine label="室内能否吸烟" value={smokingAllowed} />
+                <MetaLine label="入住服务" value={checkinService} />
+                <MetaLine label="房型是否包含早餐" value={breakfastIncluded} />
+                <MetaLine label="房型是否允许宠物入住" value={allowPets} />
+                <MetaLine label="是否能免费取消" value={freeCancellation} />
+                <MetaLine label="卧室数量" value={bedrooms} />
+                <MetaLine label="浴室数量" value={bathrooms} />
+                <MetaLine label="停车位数量" value={carparks} />
+                <MetaLine label="日历价格" value={calendarSummary} />
+                <MetaLine label="服务费" value={isNonEmpty(serviceFee) ? money(serviceFee) : ""} />
+                <MetaLine label="清洁费" value={isNonEmpty(cleaningFee) ? money(cleaningFee) : ""} />
+                <MetaLine label="押金" value={isNonEmpty(deposit) ? money(deposit) : ""} />
+                <MetaLine label="其它费用" value={otherFees} />
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* 右上角：收藏之类你原本有的话就保留，这里我不乱加 */}
+      </div>
+
+      {/* ✅ 移除「查看详情」按钮：你要删的就是这里（我已不放了） */}
+
+      {/* 底部 1/2/3 大按钮：查看 / 编辑 / 删除（顺序保持 123） */}
+      <div className="mt-4 grid grid-cols-3 gap-3">
+        <button
+          onClick={() => onView(property)}
+          className="h-11 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700"
+        >
+          查看
+        </button>
+        <button
+          onClick={() => onEdit(property)}
+          className="h-11 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700"
+        >
+          编辑
+        </button>
+        <button
+          onClick={() => onDelete(property)}
+          className="h-11 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700"
+        >
+          删除
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default function MyProfilePage() {
+  const router = useRouter();
+  const user = useUser();
+  const [loading, setLoading] = useState(true);
+  const [properties, setProperties] = useState([]);
+
+  const fetchMyProperties = async () => {
+    if (!user?.id) return;
+
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("properties")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("fetchMyProperties error:", error);
+      toast.error(error.message || "加载失败");
+      setLoading(false);
+      return;
+    }
+
+    setProperties(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchMyProperties();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  const onView = (p) => {
+    // 你原本的查看逻辑：保持
+    router.push(`/property/${p.id}`);
+  };
+
+  const onEdit = (p) => {
+    // 你原本的编辑逻辑：保持（你常用 upload-property?edit=1&id=xx）
+    router.push(`/upload-property?edit=1&id=${p.id}`);
+  };
+
+  const onDelete = async (p) => {
+    if (!confirm("确定要删除这个房源吗？")) return;
+
+    const { error } = await supabase.from("properties").delete().eq("id", p.id);
+    if (error) {
+      console.error("delete error:", error);
+      toast.error(error.message || "删除失败");
+      return;
+    }
+
+    toast.success("已删除");
+    fetchMyProperties();
+  };
+
+  return (
+    <div className="max-w-6xl mx-auto px-4 py-6">
+      <div className="text-2xl font-bold text-gray-900">我的房源（卖家后台）</div>
+
+      <div className="mt-6">
+        {loading ? (
+          <div className="text-gray-600">加载中...</div>
+        ) : properties.length === 0 ? (
+          <div className="text-gray-600">你还没有上传任何房源。</div>
+        ) : (
+          <div className="space-y-4">
+            {properties.map((p) => (
+              <SellerPropertyCard
+                k
