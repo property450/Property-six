@@ -273,14 +273,12 @@ function buildCleanupPayloadByMode({ saleTypeNorm, roomRentalMode }) {
   const isRent = saleTypeNorm === "rent";
   const isRentRoom = isRent && String(roomRentalMode || "").toLowerCase() === "room";
 
-  // 默认先全部清空“住宿模式相关”
   const cleanup = {
     homestay_form: null,
     hotel_resort_form: null,
     availability: null,
     calendar_prices: null,
 
-    // 如果你之后用这些顶层列，也一起清掉（你表里确实有）
     homestay_type: null,
     hotel_resort_type: null,
     max_guests: null,
@@ -289,18 +287,8 @@ function buildCleanupPayloadByMode({ saleTypeNorm, roomRentalMode }) {
     check_in_out: null,
   };
 
-  // Homestay / Hotel 才允许保存日历 & 对应 form
-  if (isHomestay || isHotel) {
-    // 不清空（由 submit 时写入）
-    return cleanup; // 这里返回的 cleanup 仍然是“先清空”，submit 里会再覆盖写入当前模式需要的值
-  }
-
-  // Sale / Rent（不管整间还是房间）都必须保证住宿字段清空
-  if (isSale || isRent || isRentRoom) {
-    return cleanup;
-  }
-
-  // 其他未知模式也安全：清空住宿相关
+  if (isHomestay || isHotel) return cleanup;
+  if (isSale || isRent || isRentRoom) return cleanup;
   return cleanup;
 }
 
@@ -311,7 +299,6 @@ function stripSingleFormDataByMode({ saleTypeNorm }, singleFormData) {
   const isHomestay = saleTypeNorm.includes("homestay");
   const isHotel = saleTypeNorm.includes("hotel");
 
-  // 这批 key 是你系统里明确存在、且最容易造成“混模式”的
   const HOTEL_KEYS = [
     "hotelResortType",
     "hotel_resort_type",
@@ -329,32 +316,23 @@ function stripSingleFormDataByMode({ saleTypeNorm }, singleFormData) {
     "homestaySubType",
     "homestayStoreys",
     "homestaySubtype",
-    // 你也在用这些通用 key
     "propertyCategory",
     "subType",
     "propertySubtype",
   ];
 
-  const CALENDAR_KEYS = [
-    "availability",
-    "availability_data",
-    "calendar_prices",
-    "calendarPrices",
-  ];
+  const CALENDAR_KEYS = ["availability", "availability_data", "calendar_prices", "calendarPrices"];
 
-  // 当前不是 homestay/hotel → 必须移除住宿相关 key
   if (!isHomestay && !isHotel) {
     [...HOTEL_KEYS, ...HOMESTAY_KEYS, ...CALENDAR_KEYS].forEach((k) => delete s[k]);
     return s;
   }
 
-  // homestay：移除 hotel 专用（但保留日历）
   if (isHomestay) {
     HOTEL_KEYS.forEach((k) => delete s[k]);
     return s;
   }
 
-  // hotel：移除 homestay 专用（但保留日历）
   if (isHotel) {
     HOMESTAY_KEYS.forEach((k) => delete s[k]);
     return s;
@@ -379,24 +357,21 @@ function getActiveFormKey({ saleTypeNorm, computedStatus, roomRentalMode }) {
     if (status === "Completed Unit / Developer Unit") return "sale_completed_unit";
     if (status === "Auction Property") return "sale_auction";
     if (status === "Rent-to-Own Scheme") return "sale_rent_to_own";
-    // 默认：Subsale / Secondary Market
     return "sale_subsale";
   }
 
   return "unknown";
 }
 
-/** ✅✅✅ 清理 typeForm：严格只保留“当前表单”需要的字段，防止 finalType/roomRentalMode 等残留污染卡片 */
+/** ✅✅✅ 清理 typeForm：严格只保留“当前表单”需要的字段，防止残留污染 */
 function stripTypeFormByActiveForm(activeFormKey, typeForm) {
   const tf = { ...(typeForm || {}) };
 
-  // --- 1) 所有表单都不应该残留的跨表单污染字段（先删掉，再按需要补回） ---
   delete tf.finalType;
   delete tf.homestayType;
   delete tf.hotelResortType;
   delete tf.hotel_resort_type;
 
-  // --- 2) 按 activeFormKey 决定允许保留哪些字段 ---
   if (activeFormKey === "homestay") {
     if (typeForm?.finalType) tf.finalType = typeForm.finalType;
     if (typeForm?.homestayType) tf.homestayType = typeForm.homestayType;
@@ -471,13 +446,7 @@ function stripSingleFormDataByActiveForm(activeFormKey, singleFormData) {
     "room_count",
   ];
 
-  const HOMESTAY_KEYS = [
-    "homestayType",
-    "homestayCategory",
-    "homestaySubType",
-    "homestayStoreys",
-    "homestaySubtype",
-  ];
+  const HOMESTAY_KEYS = ["homestayType", "homestayCategory", "homestaySubType", "homestayStoreys", "homestaySubtype"];
 
   const CALENDAR_KEYS = ["availability", "availability_data", "calendar_prices", "calendarPrices"];
 
@@ -505,12 +474,8 @@ function stripSingleFormDataByActiveForm(activeFormKey, singleFormData) {
   if (!isStay) {
     [...HOTEL_KEYS, ...HOMESTAY_KEYS, ...CALENDAR_KEYS, ...COMMON_POLLUTE_KEYS].forEach((k) => delete s[k]);
   } else {
-    if (activeFormKey === "homestay") {
-      HOTEL_KEYS.forEach((k) => delete s[k]);
-    }
-    if (activeFormKey === "hotel") {
-      HOMESTAY_KEYS.forEach((k) => delete s[k]);
-    }
+    if (activeFormKey === "homestay") HOTEL_KEYS.forEach((k) => delete s[k]);
+    if (activeFormKey === "hotel") HOMESTAY_KEYS.forEach((k) => delete s[k]);
   }
 
   if (!isRentRoom) {
@@ -549,6 +514,61 @@ function buildCleanupPayloadByActiveForm(activeFormKey) {
   return base;
 }
 
+/* =========================
+   ✅✅✅ 新增：保存时把 singleFormData 里的价格同步写回 properties.price / price_min / price_max
+========================= */
+function parseRMNumber(v) {
+  if (v === null || v === undefined) return null;
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+
+  const s = String(v).trim();
+  if (!s) return null;
+
+  const cleaned = s.replace(/rm/gi, "").replace(/,/g, "").trim();
+  const m = cleaned.match(/-?\d+(\.\d+)?/);
+  if (!m) return null;
+
+  const num = Number(m[0]);
+  return Number.isFinite(num) ? num : null;
+}
+
+function derivePriceColumnsFromSingle(singleFormData) {
+  const s = singleFormData || {};
+
+  // 单价（Subsale / Rent 常见）
+  const direct =
+    parseRMNumber(s.price) ??
+    parseRMNumber(s.rent) ??
+    parseRMNumber(s.rental) ??
+    parseRMNumber(s.rentPrice);
+
+  // 范围（New Project / Completed 常见）
+  const min =
+    parseRMNumber(s.priceMin) ??
+    parseRMNumber(s.price_min) ??
+    parseRMNumber(s.minPrice) ??
+    parseRMNumber(s.min_price);
+
+  const max =
+    parseRMNumber(s.priceMax) ??
+    parseRMNumber(s.price_max) ??
+    parseRMNumber(s.maxPrice) ??
+    parseRMNumber(s.max_price);
+
+  const pd = s.priceData || s.pricedata || s.price_data;
+  const pdMin = pd ? parseRMNumber(pd.min ?? pd.minPrice ?? pd.priceMin) : null;
+  const pdMax = pd ? parseRMNumber(pd.max ?? pd.maxPrice ?? pd.priceMax) : null;
+
+  const finalMin = min ?? pdMin;
+  const finalMax = max ?? pdMax;
+
+  // 有 range → 写 price_min/price_max；否则写 price
+  if (finalMin !== null || finalMax !== null) {
+    return { price: null, price_min: finalMin, price_max: finalMax };
+  }
+  return { price: direct, price_min: null, price_max: null };
+}
+
 export default function UploadPropertyPage() {
   const router = useRouter();
   const user = useUser();
@@ -557,7 +577,6 @@ export default function UploadPropertyPage() {
   const editId = router?.query?.id;
   const isEditMode = String(edit || "") === "1" && !!editId;
 
-  // ✅✅✅ 编辑页面：等 Supabase 数据回填完成后才渲染表单
   const [editHydrated, setEditHydrated] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
@@ -567,7 +586,6 @@ export default function UploadPropertyPage() {
   const [rentBatchMode, setRentBatchMode] = useState("no");
   const [typeForm, setTypeForm] = useState(null);
 
-  // ✅✅✅【修复闪烁核心】TypeSelector 的 initialForm 只给一次（编辑回填时）
   const [typeSelectorInitialForm, setTypeSelectorInitialForm] = useState(null);
 
   const [saleType, setSaleType] = useState("");
@@ -587,8 +605,6 @@ export default function UploadPropertyPage() {
   const [description, setDescription] = useState("");
 
   const saleTypeNorm = String(saleType || "").toLowerCase();
-  const isHomestay = saleTypeNorm.includes("homestay");
-  const isHotel = saleTypeNorm.includes("hotel");
 
   const isProject =
     saleTypeNorm === "sale" &&
@@ -613,7 +629,6 @@ export default function UploadPropertyPage() {
   const lastFormJsonRef = useRef("");
   const lastDerivedRef = useRef({ saleType: "", status: "", roomMode: "" });
 
-  // ✅ 关键：把 onFormChange 固定，避免闪烁
   const handleTypeFormChange = useCallback((form) => {
     const nextJson = stableJson(form);
     if (nextJson && nextJson === lastFormJsonRef.current) return;
@@ -788,6 +803,9 @@ export default function UploadPropertyPage() {
         stripSingleFormDataByMode({ saleTypeNorm }, singleFormData || {})
       );
 
+      // ✅✅✅ 1.1) ⭐ 关键：从 cleanedSingleFormData 推导顶层价格 column（解决卡片价格不更新）
+      const priceColumns = derivePriceColumnsFromSingle(cleanedSingleFormData);
+
       // ✅✅✅ 1.5) 保存前：严格按“当前表单”清理 typeForm（尤其是 finalType=Hotel/Resort 这种污染）
       const cleanedTypeForm = stripTypeFormByActiveForm(activeFormKey, typeForm || {});
 
@@ -803,21 +821,22 @@ export default function UploadPropertyPage() {
 
       // ✅✅✅ 4) 日历字段：只在 Homestay / Hotel 保存（否则强制清空）
       const availability =
-        (activeFormKey === "homestay" || activeFormKey === "hotel")
-          ? (cleanedSingleFormData?.availability ?? cleanedSingleFormData?.availability_data ?? null)
+        activeFormKey === "homestay" || activeFormKey === "hotel"
+          ? cleanedSingleFormData?.availability ?? cleanedSingleFormData?.availability_data ?? null
           : null;
 
       const calendar_prices =
-        (activeFormKey === "homestay" || activeFormKey === "hotel")
-          ? (cleanedSingleFormData?.calendar_prices ?? cleanedSingleFormData?.calendarPrices ?? null)
+        activeFormKey === "homestay" || activeFormKey === "hotel"
+          ? cleanedSingleFormData?.calendar_prices ?? cleanedSingleFormData?.calendarPrices ?? null
           : null;
 
-      const effectiveUnitLayouts = (
+      const effectiveUnitLayouts =
         activeFormKey === "sale_new_project" ||
         activeFormKey === "sale_completed_unit" ||
         (activeFormKey === "rent_whole" && rentBatchMode === "yes") ||
         (activeFormKey === "rent_room" && (typeForm?.roomCountMode === "multi" || Number(typeForm?.roomCount) > 1))
-      ) ? unitLayouts : [];
+          ? unitLayouts
+          : [];
 
       const payload = {
         ...cleanup,
@@ -826,6 +845,11 @@ export default function UploadPropertyPage() {
         address: addressObj?.address || "",
         lat: addressObj?.lat,
         lng: addressObj?.lng,
+
+        // ✅✅✅ ⭐ 关键：同步顶层价格 column，让卖家后台卡片立即显示最新价格
+        price: priceColumns.price,
+        price_min: priceColumns.price_min,
+        price_max: priceColumns.price_max,
 
         saleType,
         propertyStatus: computedStatus,
@@ -966,7 +990,6 @@ export default function UploadPropertyPage() {
     }
   };
 
-  // ✅✅✅ 编辑模式：等数据回填完成才显示表单（防止闪烁）
   if (isEditMode && !editHydrated) {
     return (
       <div className="p-6">
@@ -975,7 +998,6 @@ export default function UploadPropertyPage() {
     );
   }
 
-  // 下面你的 render 结构我保持你原本（不动 UI / 不动文字）
   return (
     <div className="p-4 max-w-5xl mx-auto">
       <h1 className="text-xl font-bold mb-4">{isEditMode ? "编辑房源" : "上传房源"}</h1>
@@ -1000,7 +1022,6 @@ export default function UploadPropertyPage() {
         />
       </div>
 
-      {/* ✅ 按模式渲染你的不同表单（保持你原本逻辑） */}
       {saleTypeNorm === "sale" && isProject && (
         <ProjectUploadForm
           computedStatus={computedStatus}
