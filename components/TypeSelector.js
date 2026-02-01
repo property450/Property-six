@@ -260,25 +260,25 @@ function stableStringify(obj) {
 }
 
 export default function TypeSelector(props) {
-  // ✅✅✅ 兼容：upload-property.js 传来的 props（你现在用的）
-  // 不改你原 UI，只是把 onFormChange 架起来让父组件能收到状态
-  const initialForm = props.initialForm;
-
-  const rentBatchMode = props.rentBatchMode ?? "";
-  const onChangeRentBatchMode = props.onChangeRentBatchMode ?? props.setRentBatchMode ?? (() => {});
+  // ✅ 兼容 upload-property 传参（saleType/setSaleType/typeForm/setTypeForm...）
+  //    同时也兼容旧用法：value/onChange/onFormChange/rentBatchMode/onChangeRentBatchMode
+  const value = props.value ?? props.typeValue ?? "";
+  const onChange = props.onChange ?? props.setTypeValue ?? (() => {});
+  const rentBatchMode = props.rentBatchMode ?? "no";
+  const onChangeRentBatchMode =
+    props.onChangeRentBatchMode ?? props.setRentBatchMode ?? (() => {});
+  const initialForm = props.initialForm ?? null;
 
   const onFormChange =
     props.onFormChange ??
     ((form) => {
-      // 把 form 丢回父组件的 typeForm
-      props.setTypeForm?.(form || {});
-      // 关键：让 upload-property 的 saleType / propertyStatus / roomRentalMode 真正更新
-      if (form?.saleType !== undefined) props.setSaleType?.(form.saleType || "");
-      if (form?.propertyStatus !== undefined) props.setPropertyStatus?.(form.propertyStatus || "");
-      if (form?.roomRentalMode !== undefined) props.setRoomRentalMode?.(form.roomRentalMode || "whole");
+      const f = form || {};
+      props.setTypeForm?.(f);
+      if (f.saleType !== undefined) props.setSaleType?.(f.saleType || "");
+      if (f.propertyStatus !== undefined) props.setPropertyStatus?.(f.propertyStatus || "");
+      if (f.roomRentalMode !== undefined) props.setRoomRentalMode?.(f.roomRentalMode || "whole");
     });
 
-  // ================== 你原本的 state / logic（保持不动） ==================
   const [saleType, setSaleType] = useState(props.saleType || "");
   const [usage, setUsage] = useState("");
   const [propertyStatus, setPropertyStatus] = useState(props.propertyStatus || "");
@@ -306,19 +306,6 @@ export default function TypeSelector(props) {
 
   const subtypeRef = useRef(null);
   const [subtypeOpen, setSubtypeOpen] = useState(false);
-
-  // ✅ 父组件如果改了（编辑模式 hydrate），这里同步一次，避免 UI 显示对不上
-  useEffect(() => {
-    if (props.saleType !== undefined && props.saleType !== saleType) setSaleType(props.saleType || "");
-  }, [props.saleType]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (props.propertyStatus !== undefined && props.propertyStatus !== propertyStatus) setPropertyStatus(props.propertyStatus || "");
-  }, [props.propertyStatus]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (props.roomRentalMode !== undefined && props.roomRentalMode !== roomRentalMode) setRoomRentalMode(props.roomRentalMode || "whole");
-  }, [props.roomRentalMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const shouldShow =
@@ -385,13 +372,13 @@ export default function TypeSelector(props) {
     onChangeRentBatchMode?.("no");
   };
 
-  // ✅✅✅（关键修复）把 onFormChange 存进 ref，避免依赖造成闪烁
+  // ✅✅✅（关键修复1）把 onFormChange 存进 ref，避免依赖它造成“持续 effect → 闪烁”
   const onFormChangeRef = useRef(onFormChange);
   useEffect(() => {
     onFormChangeRef.current = onFormChange;
   }, [onFormChange]);
 
-  // ✅✅✅（关键修复）编辑模式回填：用稳定签名，避免重复 hydrate 导致 UI 抖动
+  // ✅✅✅（关键修复2）编辑模式回填：用稳定签名，避免重复 hydrate 导致 UI 抖动
   const _hydratedRef = useRef("");
   useEffect(() => {
     if (!initialForm || typeof initialForm !== "object") return;
@@ -419,7 +406,7 @@ export default function TypeSelector(props) {
     if (initialForm.layoutCount) setLayoutCountInput(String(initialForm.layoutCount));
   }, [initialForm]);
 
-  // ✅✅✅ 稳定向父组件推送 form（这一步会让 upload-property 的 saleType 真正改变，从而显示表单）
+  // ✅✅✅ 稳定向父组件推送 form（不再把 onFormChange 放进 deps）
   useEffect(() => {
     onFormChangeRef.current?.({
       saleType,
@@ -643,4 +630,123 @@ export default function TypeSelector(props) {
             </div>
           )}
 
-  
+          {showRoomRentalToggle && (
+            <div className="mt-2 space-y-2">
+              <label className="block text-sm font-medium text-gray-700">是否只是出租房间？</label>
+              <select
+                className="border rounded w-full p-2"
+                value={roomRentalMode}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setRoomRentalMode(v);
+                  if (v === "room") onChangeRentBatchMode?.("no");
+                }}
+              >
+                <option value="whole">不是，要出租整间</option>
+                <option value="room">是的，只出租房间</option>
+              </select>
+
+              {roomRentalMode === "room" && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">是否只有一个房间？</label>
+                    <select
+                      className="border rounded w-full p-2"
+                      value={roomCountMode}
+                      onChange={(e) => {
+                        const mode = e.target.value;
+                        setRoomCountMode(mode);
+                        if (mode === "single") setRoomCount("1");
+                        else setRoomCount("2");
+                      }}
+                    >
+                      <option value="single">是的，只有一个房间</option>
+                      <option value="multi">不是，有多个房间</option>
+                    </select>
+                  </div>
+
+                  {roomCountMode === "multi" && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">选择房间数量</label>
+                      <select className="border rounded w-full p-2" value={roomCount} onChange={(e) => setRoomCount(e.target.value)}>
+                        {Array.from({ length: 19 }, (_, i) => String(i + 2)).map((n) => (
+                          <option key={n} value={n}>
+                            {n}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      {saleType === "Rent" && !!category && !hideBatchToggleBecauseRoomRental && (
+        <div className="mt-2 space-y-2">
+          <label className="block text-sm font-medium text-gray-700">需要批量操作吗？</label>
+          <select
+            className="border rounded w-full p-2"
+            value={rentBatchMode}
+            onChange={(e) => {
+              const v = e.target.value;
+              onChangeRentBatchMode?.(v);
+              setShowLayoutSuggest(false);
+            }}
+          >
+            <option value="no">否，只是单一房源</option>
+            <option value="yes">是，这个项目有多个房型</option>
+          </select>
+
+          {rentBatchMode === "yes" && (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">这个项目有多少个屋型 / Layout 数量</label>
+
+              <div className="relative">
+                <input
+                  className="border rounded w-full p-2"
+                  value={layoutCountInput}
+                  onChange={(e) => {
+                    setLayoutCountInput(e.target.value);
+                    setShowLayoutSuggest(true);
+                  }}
+                  onFocus={() => setShowLayoutSuggest(true)}
+                  onBlur={() => {
+                    setTimeout(() => setShowLayoutSuggest(false), 120);
+                    const n = clamp(toIntFromInput(layoutCountInput), 2, 20);
+                    setLayoutCountInput(addCommas(String(n)));
+                  }}
+                  inputMode="numeric"
+                  placeholder="2 ~ 20"
+                />
+
+                {showLayoutSuggest && (
+                  <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-auto">
+                    {Array.from({ length: 19 }).map((_, i) => {
+                      const v = String(i + 2);
+                      return (
+                        <div
+                          key={v}
+                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setLayoutCountInput(v);
+                            setShowLayoutSuggest(false);
+                          }}
+                        >
+                          {v}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
