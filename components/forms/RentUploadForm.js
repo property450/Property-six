@@ -29,9 +29,7 @@ function LayoutBlueprintUploader({ value = [], onChange }) {
     onChange?.(next);
   };
 
-  return (
-    <BlueprintUploadSection fileInputRef={fileInputRef} onUpload={handleUpload} />
-  );
+  return <BlueprintUploadSection fileInputRef={fileInputRef} onUpload={handleUpload} />;
 }
 
 // ✅ 只新增：复用同一段“房源描述”输入框（不改变状态结构）
@@ -53,8 +51,12 @@ export default function RentUploadForm({
   saleType,
   computedStatus,
 
+  // ✅ 兼容：有些父层会传 isRoomRental，有些只传 roomRentalMode
   isRoomRental,
   roomRentalMode,
+
+  // ✅✅✅ 关键：你的 TypeSelector 会把 roomCount/layoutCount 写进 typeForm
+  typeForm,
 
   singleFormData,
   setSingleFormData,
@@ -66,7 +68,10 @@ export default function RentUploadForm({
   setDescription,
 
   rentBatchMode = "no",
+
+  // ✅ 兼容旧参数：父层可能会传 layoutCount
   layoutCount = 1,
+
   unitLayouts = [],
   setUnitLayouts,
 
@@ -83,6 +88,16 @@ export default function RentUploadForm({
   // ✅✅✅ 只加：批量显示保护条件（批量只能用于“整间出租”，房间出租时禁止进入批量分支）
   const shouldShowBatch = isBatch && !isRoomRentalFinal;
 
+  // ✅✅✅ ✅关键修复：数量逻辑用回你原本设计（来自 typeForm）
+  // 房间出租：只有 roomCountMode === "multi" 才用 roomCount，否则就是 1
+  const roomCountMode = String(typeForm?.roomCountMode || "single");
+  const roomCountFromType = Number(typeForm?.roomCount || 1);
+  const roomFormsCount = isRoomRentalFinal && roomCountMode === "multi" ? Math.max(1, roomCountFromType) : 1;
+
+  // 整租批量：layoutCount 来自 typeForm.layoutCount（2~20），否则 fallback 旧的 layoutCount
+  const layoutCountFromType = Number(typeForm?.layoutCount || layoutCount || 2);
+  const batchLayoutsCount = Math.max(2, layoutCountFromType);
+
   const updateBatchLayout = (idx, patch) => {
     if (!setUnitLayouts) return;
     setUnitLayouts((prev) => {
@@ -98,21 +113,14 @@ export default function RentUploadForm({
   if (shouldShowBatch) {
     return (
       <div className="space-y-4">
-        {Array.from({ length: Number(layoutCount) || 0 }).map((_, idx) => {
+        {Array.from({ length: batchLayoutsCount }).map((_, idx) => {
           const data = unitLayouts?.[idx] || {};
 
           return (
-            <div
-              key={idx}
-              className="border rounded-lg p-4 space-y-4 bg-white"
-            >
+            <div key={idx} className="border rounded-lg p-4 space-y-4 bg-white">
               <div className="text-lg font-semibold">房型 {idx + 1}</div>
 
-              <AreaSelector
-                value={areaData}
-                onChange={setAreaData}
-                propertyCategory={propertyCategory}
-              />
+              <AreaSelector value={areaData} onChange={setAreaData} propertyCategory={propertyCategory} />
 
               <PriceInput
                 value={data.rent}
@@ -121,10 +129,7 @@ export default function RentUploadForm({
                 onChange={(rent) => updateBatchLayout(idx, { rent })}
               />
 
-              <RoomCountSelector
-                value={data}
-                onChange={(patch) => updateBatchLayout(idx, patch)}
-              />
+              <RoomCountSelector value={data} onChange={(patch) => updateBatchLayout(idx, patch)} />
 
               <CarparkCountSelector
                 value={data.carparks}
@@ -133,15 +138,10 @@ export default function RentUploadForm({
 
               <CarparkLevelSelector
                 value={data.carparkLevel}
-                onChange={(val) =>
-                  updateBatchLayout(idx, { carparkLevel: val })
-                }
+                onChange={(val) => updateBatchLayout(idx, { carparkLevel: val })}
               />
 
-              <FacingSelector
-                value={data.facing}
-                onChange={(val) => updateBatchLayout(idx, { facing: val })}
-              />
+              <FacingSelector value={data.facing} onChange={(val) => updateBatchLayout(idx, { facing: val })} />
 
               <ExtraSpacesSelector
                 value={data.extraSpaces}
@@ -158,10 +158,7 @@ export default function RentUploadForm({
                 onChange={(val) => updateBatchLayout(idx, { facilities: val })}
               />
 
-              <TransitSelector
-                value={data.transit}
-                onChange={(val) => updateBatchLayout(idx, { transit: val })}
-              />
+              <TransitSelector value={data.transit} onChange={(val) => updateBatchLayout(idx, { transit: val })} />
 
               {/* ✅✅ 每个房型都有 Layout 图纸上传 */}
               <LayoutBlueprintUploader
@@ -170,19 +167,12 @@ export default function RentUploadForm({
               />
 
               {/* ✅ 原本房源照片上传（保留） */}
-              <ImageUpload
-                value={data}
-                onChange={(next) => updateBatchLayout(idx, next)}
-                fixedLabels={["房源外观/环境"]}
-              />
+              <ImageUpload value={data} onChange={(next) => updateBatchLayout(idx, next)} fixedLabels={["房源外观/环境"]} />
 
-              {/* ✅✅ 关键：每个表单卡片都有房源描述输入框 */}
-              <DescriptionField
-                description={description}
-                setDescription={setDescription}
-              />
+              {/* ✅✅ 房源描述 */}
+              <DescriptionField description={description} setDescription={setDescription} />
 
-              {/* ===== 房源级：地址 + 真实性验证（只出现一次） ===== */}
+              {/* ✅✅✅ 修复：formData -> singleFormData / setFormData -> setSingleFormData */}
               <ListingTrustSection
                 mode="rent"
                 value={singleFormData?.trustSection || {}}
@@ -206,16 +196,13 @@ export default function RentUploadForm({
     <div className="space-y-4">
       {/* ===== 出租房间 ===== */}
       {isRoomRentalFinal ? (
-        Number(layoutCount) > 1 ? (
+        roomFormsCount > 1 ? (
           <div className="space-y-4">
-            {Array.from({ length: Number(layoutCount) || 0 }).map((_, idx) => {
+            {Array.from({ length: roomFormsCount }).map((_, idx) => {
               const roomValue = unitLayouts?.[idx] || {};
 
               return (
-                <div
-                  key={idx}
-                  className="border rounded-lg p-4 space-y-4 bg-white"
-                >
+                <div key={idx} className="border rounded-lg p-4 space-y-4 bg-white">
                   <div className="text-lg font-semibold">房间 {idx + 1}</div>
 
                   <RoomRentalForm
@@ -257,41 +244,33 @@ export default function RentUploadForm({
                     labelsOverride={["房源照片上传"]}
                   />
 
-                  {/* ✅✅ 关键：每个表单卡片都有房源描述输入框 */}
-                  <DescriptionField
-                    description={description}
-                    setDescription={setDescription}
-                  />
+                  <DescriptionField description={description} setDescription={setDescription} />
                 </div>
               );
             })}
+
+            {/* ✅ 房间模式下：Trust 只出现一次（不重复） */}
+            <ListingTrustSection
+              mode="rent"
+              value={singleFormData?.trustSection || {}}
+              onChange={(next) =>
+                setSingleFormData((prev) => ({ ...(prev || {}), trustSection: next }))
+              }
+            />
           </div>
         ) : (
           <>
             <RoomRentalForm value={singleFormData} onChange={setSingleFormData} />
 
-            {/* ✅✅ 单房间也有 Layout 图纸上传 */}
             <LayoutBlueprintUploader
               value={singleFormData.layoutPhotos}
-              onChange={(next) =>
-                setSingleFormData((p) => ({ ...p, layoutPhotos: next }))
-              }
+              onChange={(next) => setSingleFormData((p) => ({ ...p, layoutPhotos: next }))}
             />
 
-            {/* ✅ 原本房源照片上传（保留） */}
-            <ImageUpload
-              value={singleFormData}
-              onChange={setSingleFormData}
-              labelsOverride={["房源照片上传"]}
-            />
+            <ImageUpload value={singleFormData} onChange={setSingleFormData} labelsOverride={["房源照片上传"]} />
 
-            {/* ✅✅ 关键：这个表单也要有房源描述 */}
-            <DescriptionField
-              description={description}
-              setDescription={setDescription}
-            />
+            <DescriptionField description={description} setDescription={setDescription} />
 
-            {/* ===== 房源级：地址 + 真实性验证（只出现一次） ===== */}
             <ListingTrustSection
               mode="rent"
               value={singleFormData?.trustSection || {}}
@@ -304,11 +283,7 @@ export default function RentUploadForm({
       ) : (
         /* ===== 整间出租（非批量） ===== */
         <>
-          <AreaSelector
-            value={areaData}
-            onChange={setAreaData}
-            propertyCategory={propertyCategory}
-          />
+          <AreaSelector value={areaData} onChange={setAreaData} propertyCategory={propertyCategory} />
 
           <PriceInput
             value={singleFormData.rent}
@@ -319,82 +294,47 @@ export default function RentUploadForm({
 
           <RoomCountSelector
             value={singleFormData}
-            onChange={(patch) =>
-              setSingleFormData((p) => ({ ...p, ...patch }))
-            }
+            onChange={(patch) => setSingleFormData((p) => ({ ...p, ...patch }))}
           />
 
           <CarparkCountSelector
             value={singleFormData.carparks}
-            onChange={(val) =>
-              setSingleFormData((p) => ({ ...p, carparks: val }))
-            }
+            onChange={(val) => setSingleFormData((p) => ({ ...p, carparks: val }))}
           />
 
           <CarparkLevelSelector
             value={singleFormData.carparkLevel}
-            onChange={(val) =>
-              setSingleFormData((p) => ({ ...p, carparkLevel: val }))
-            }
+            onChange={(val) => setSingleFormData((p) => ({ ...p, carparkLevel: val }))}
           />
 
-          <FacingSelector
-            value={singleFormData.facing}
-            onChange={(val) =>
-              setSingleFormData((p) => ({ ...p, facing: val }))
-            }
-          />
+          <FacingSelector value={singleFormData.facing} onChange={(val) => setSingleFormData((p) => ({ ...p, facing: val }))} />
 
           <ExtraSpacesSelector
             value={singleFormData.extraSpaces}
-            onChange={(val) =>
-              setSingleFormData((p) => ({ ...p, extraSpaces: val }))
-            }
+            onChange={(val) => setSingleFormData((p) => ({ ...p, extraSpaces: val }))}
           />
 
           <FurnitureSelector
             value={singleFormData.furniture}
-            onChange={(val) =>
-              setSingleFormData((p) => ({ ...p, furniture: val }))
-            }
+            onChange={(val) => setSingleFormData((p) => ({ ...p, furniture: val }))}
           />
 
           <FacilitiesSelector
             value={singleFormData.facilities}
-            onChange={(val) =>
-              setSingleFormData((p) => ({ ...p, facilities: val }))
-            }
+            onChange={(val) => setSingleFormData((p) => ({ ...p, facilities: val }))}
           />
 
-          <TransitSelector
-            value={singleFormData.transit}
-            onChange={(val) =>
-              setSingleFormData((p) => ({ ...p, transit: val }))
-            }
-          />
+          <TransitSelector value={singleFormData.transit} onChange={(val) => setSingleFormData((p) => ({ ...p, transit: val }))} />
 
-          {/* ✅✅ 整间单个：Layout 图纸上传 */}
           <LayoutBlueprintUploader
             value={singleFormData.layoutPhotos}
-            onChange={(next) =>
-              setSingleFormData((p) => ({ ...p, layoutPhotos: next }))
-            }
+            onChange={(next) => setSingleFormData((p) => ({ ...p, layoutPhotos: next }))}
           />
 
-          {/* ✅ 原本房源照片上传（保留） */}
-          <ImageUpload
-            value={singleFormData}
-            onChange={setSingleFormData}
-            fixedLabels={["房源外观/环境"]}
-          />
+          <ImageUpload value={singleFormData} onChange={setSingleFormData} fixedLabels={["房源外观/环境"]} />
 
-          {/* ✅✅ 关键：整间出租这个表单也要有房源描述 */}
-          <DescriptionField
-            description={description}
-            setDescription={setDescription}
-          />
+          <DescriptionField description={description} setDescription={setDescription} />
 
-          {/* ===== 房源级：地址 + 真实性验证（只出现一次） ===== */}
           <ListingTrustSection
             mode="rent"
             value={singleFormData?.trustSection || {}}
