@@ -1,627 +1,709 @@
-// pages/my-profile.js
+// pages/upload-property.js
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/router";
+import dynamic from "next/dynamic";
 import { supabase } from "../supabaseClient";
-import { useUser } from "@supabase/auth-helpers-react";
 import { toast } from "react-hot-toast";
+import { Button } from "@/components/ui/button";
 
-/* =========================
-   基础工具
-========================= */
-function isNonEmpty(v) {
-  if (v === null || v === undefined) return false;
-  if (typeof v === "string") return v.trim() !== "";
-  if (Array.isArray(v)) return v.length > 0;
-  if (typeof v === "object") return Object.keys(v).length > 0;
-  return true;
+import TypeSelector from "@/components/TypeSelector";
+
+import HotelUploadForm from "@/components/hotel/HotelUploadForm";
+import HomestayUploadForm from "@/components/homestay/HomestayUploadForm";
+
+import ProjectUploadForm from "@/components/forms/ProjectUploadForm";
+import RentUploadForm from "@/components/forms/RentUploadForm";
+import SaleUploadForm from "@/components/forms/SaleUploadForm";
+import ListingTrustSection from "@/components/trust/ListingTrustSection";
+
+import { useUser } from "@supabase/auth-helpers-react";
+
+const AddressSearchInput = dynamic(() => import("@/components/AddressSearchInput"), {
+  ssr: false,
+});
+
+const pickCommon = (l) => ({
+  extraSpaces: l.extraSpaces || [],
+  furniture: l.furniture || [],
+  facilities: l.facilities || [],
+  transit: l.transit ?? null,
+});
+const commonHash = (l) => JSON.stringify(pickCommon(l));
+
+function isJsonLikeString(s) {
+  if (typeof s !== "string") return false;
+  const t = s.trim();
+  return (t.startsWith("{") && t.endsWith("}")) || (t.startsWith("[") && t.endsWith("]"));
 }
 
-function toText(v) {
-  if (v === null || v === undefined) return "";
-  if (Array.isArray(v)) return v.join(", ");
-  if (typeof v === "object") return JSON.stringify(v);
-  return String(v);
+function safeParseMaybeJson(v) {
+  if (v == null) return v;
+  if (typeof v === "string" && isJsonLikeString(v)) {
+    try {
+      return JSON.parse(v);
+    } catch {
+      return v;
+    }
+  }
+  return v;
 }
 
-function money(v) {
-  const s = String(v ?? "").trim();
-  if (!s) return "";
-  const n = Number(s.replace(/[^\d.]/g, ""));
-  if (!Number.isFinite(n)) return s;
-  return "RM " + n.toLocaleString("en-MY");
-}
+function stableJson(obj) {
+  const seen = new WeakSet();
 
-function safeJson(v) {
-  if (!isNonEmpty(v)) return null;
-  if (typeof v === "object") return v;
+  const sortDeep = (v) => {
+    if (v === null || v === undefined) return v;
+    if (v instanceof Date) return v.toISOString();
+    if (Array.isArray(v)) return v.map(sortDeep);
+
+    if (typeof v === "object") {
+      if (seen.has(v)) return null;
+      seen.add(v);
+      const out = {};
+      Object.keys(v)
+        .sort()
+        .forEach((k) => {
+          const val = v[k];
+          if (val === undefined) return;
+          if (typeof val === "function") return;
+          out[k] = sortDeep(val);
+        });
+      return out;
+    }
+    return v;
+  };
+
   try {
-    return JSON.parse(v);
+    return JSON.stringify(sortDeep(obj ?? null));
   } catch {
-    return null;
+    return "";
   }
-}
-
-function deepGet(obj, path) {
-  try {
-    // eslint-disable-next-line no-new-func
-    return Function("o", `return o?.${path}`)(obj);
-  } catch {
-    return undefined;
-  }
-}
-
-function pickAny(obj, candidates) {
-  for (const c of candidates) {
-    const v = c.includes(".") || c.includes("[") ? deepGet(obj, c) : obj?.[c];
-    if (isNonEmpty(v)) return v;
-  }
-  return "";
-}
-
-function yesNoText(v) {
-  if (v === true) return "是";
-  if (v === false) return "否";
-  if (!isNonEmpty(v)) return "";
-  const s = String(v).trim().toLowerCase();
-  if (["yes", "y", "true", "1", "是"].includes(s)) return "是";
-  if (["no", "n", "false", "0", "否"].includes(s)) return "否";
-  return String(v);
-}
-
-function MetaLine({ label, value }) {
-  if (!isNonEmpty(value)) return null;
-  return (
-    <div className="text-sm text-gray-700 leading-6">
-      <span className="text-gray-500">{label}：</span>
-      <span className="text-gray-900">{toText(value)}</span>
-    </div>
-  );
 }
 
 /* =========================
-   合并 JSON 列（保持你原本逻辑）
+   ✅ 你原本的 auto-strip 缺 column 机制
 ========================= */
-function mergePropertyData(raw) {
-  const p = raw || {};
-  const merged = { ...p };
 
-  const jsonCols = [
-    "type_form_v2",
-    "type_form",
-    "typeform",
-    "typeForm",
-    "single_form_data_v2",
-    "single_form_data",
-    "singleFormData",
-    "homestay_form",
-    "hotel_resort_form",
-    "availability",
-    "calendar_prices",
-    "unit_layouts",
-    "unitLayouts",
-    "unitlayouts",
-    "areadata",
-    "areaData",
-    "area_data",
-  ];
+const PROTECTED_KEYS = new Set(["type_form_v2", "single_form_data_v2"]);
 
-  merged.__json = {};
+function extractMissingColumnName(err) {
+  const msg = String(err?.message || "");
+  const m =
+    msg.match(/column\s+"([^"]+)"\s+does\s+not\s+exist/i) ||
+    msg.match(/Could not find the '([^']+)' column/i);
+  return m?.[1] || "";
+}
 
-  for (const k of jsonCols) {
-    const parsed = safeJson(p?.[k]);
-    if (parsed && typeof parsed === "object") {
-      merged.__json[k] = parsed;
+function dropProtectedIfCounterpartExists(payload, missing) {
+  const counterpart =
+    missing === "type_form_v2"
+      ? "type_form"
+      : missing === "single_form_data_v2"
+      ? "single_form_data"
+      : "";
+  if (!counterpart) return false;
+  if (Object.prototype.hasOwnProperty.call(payload, counterpart)) {
+    delete payload[missing];
+    return true;
+  }
+  return false;
+}
 
-      for (const key of Object.keys(parsed)) {
-        if (!isNonEmpty(merged[key])) merged[key] = parsed[key];
+async function runWithAutoStripColumns({ mode, payload, editId, userId, maxTries = 8 }) {
+  let working = { ...(payload || {}) };
+  const removed = [];
+
+  for (let i = 0; i < maxTries; i++) {
+    let res;
+    if (mode === "update") {
+      res = await supabase
+        .from("properties")
+        .update(working)
+        .eq("id", editId)
+        .eq("user_id", userId);
+    } else {
+      res = await supabase.from("properties").insert(working);
+    }
+
+    if (!res?.error) return { ok: true, removed };
+
+    const err = res.error;
+    console.error("[Supabase Error]", err);
+
+    const missing = extractMissingColumnName(err);
+
+    if (err?.code === "PGRST204" && missing) {
+      if (PROTECTED_KEYS.has(missing)) {
+        const dropped = dropProtectedIfCounterpartExists(working, missing);
+        if (dropped) {
+          removed.push(`${missing} (missing, kept counterpart)`);
+          continue;
+        }
+        return { ok: false, removed, error: err, protectedMissing: missing };
       }
-    }
-  }
 
-  let ul = p?.unit_layouts ?? p?.unitLayouts ?? p?.unitlayouts;
-  ul = safeJson(ul) ?? ul;
-  if (Array.isArray(ul) && ul[0] && typeof ul[0] === "object") {
-    merged.__layout0 = ul[0];
-    for (const key of Object.keys(ul[0])) {
-      if (!isNonEmpty(merged[key])) merged[key] = ul[0][key];
-    }
-  }
-
-  return merged;
-}
-
-/* =========================
-   Transit / Layout helpers（保持你原本逻辑）
-========================= */
-function getTransitText(p) {
-  const near = pickAny(p, ["nearTransit", "near_transit", "neartransit"]);
-  if (!isNonEmpty(near)) return "";
-  const yn = yesNoText(near);
-  const lines = pickAny(p, ["transitLines", "transit_lines"]);
-  const stations = pickAny(p, ["transitStations", "transit_stations"]);
-  const parts = [];
-  if (yn) parts.push(yn);
-  if (isNonEmpty(lines)) parts.push(`Line: ${toText(lines)}`);
-  if (isNonEmpty(stations)) parts.push(`Station: ${toText(stations)}`);
-  return parts.join(" | ");
-}
-
-function getRoomLayouts(p) {
-  const layouts = pickAny(p, ["roomLayouts", "room_layouts"]);
-  const parsed = safeJson(layouts) ?? layouts;
-  if (Array.isArray(parsed)) return parsed;
-  return [];
-}
-
-function summarizeRoomLayout(layout) {
-  const l = layout || {};
-  const out = {};
-
-  const beds = [];
-  if (Array.isArray(l.beds)) {
-    for (const b of l.beds) {
-      if (!b) continue;
-      if (typeof b === "string") beds.push(b);
-      else if (typeof b === "object") {
-        const t = b.type || b.bedType || b.name;
-        const c = b.count ?? b.qty ?? 1;
-        if (t) beds.push(`${t}${c ? ` x${c}` : ""}`);
+      if (!Object.prototype.hasOwnProperty.call(working, missing)) {
+        return { ok: false, removed, error: err };
       }
+
+      delete working[missing];
+      removed.push(missing);
+      continue;
     }
-  }
-  out.beds = beds;
 
-  out.pet = pickAny(l, ["pet", "allowPets", "allow_pets"]);
-  out.cancel = pickAny(l, ["cancel", "cancellationPolicy", "cancel_policy"]);
-  out.serviceFee = pickAny(l, ["serviceFee", "service_fee"]);
-  out.cleaningFee = pickAny(l, ["cleaningFee", "cleaning_fee"]);
-  out.deposit = pickAny(l, ["deposit"]);
-  out.otherFee = pickAny(l, ["otherFee", "other_fee"]);
-
-  const calendar = pickAny(l, ["calendarSummary", "calendar_summary"]);
-  out.calendarSummary = calendar || "";
-
-  return out;
-}
-
-/* =========================
-   ✅✅✅ 价格显示逻辑（修正：Rent 不读 sale 的 range）
-========================= */
-function getCardPriceText(rawProperty, mergedProperty) {
-  const rp = rawProperty || {};
-  const mp = mergedProperty || {};
-
-  const mode = String(pickAny(mp, ["saleType", "sale_type", "saletype", "listing_mode"]))
-    .trim()
-    .toLowerCase();
-
-  // ✅ Rent：绝对不要用 price_min/price_max（那通常是旧 Sale 残留）
-  if (mode === "rent") {
-    const rentPrice = pickAny(mp, ["rentPrice", "rent_price", "monthlyRent", "monthly_rent", "price"]);
-    return isNonEmpty(rentPrice) ? money(rentPrice) : "";
+    return { ok: false, removed, error: err };
   }
 
-  const hasMin = isNonEmpty(rp.price_min);
-  const hasMax = isNonEmpty(rp.price_max);
+  return { ok: false, removed, error: new Error("自动处理次数用尽（请看 Console 报错）") };
+}
 
-  const minNum = hasMin ? Number(String(rp.price_min).replace(/[^\d.]/g, "")) : NaN;
-  const maxNum = hasMax ? Number(String(rp.price_max).replace(/[^\d.]/g, "")) : NaN;
+function hasAnyValue(obj) {
+  if (!obj || typeof obj !== "object") return false;
+  for (const k of Object.keys(obj)) {
+    const v = obj[k];
+    if (v === null || v === undefined) continue;
+    if (typeof v === "string" && v.trim() === "") continue;
+    if (Array.isArray(v) && v.length === 0) continue;
+    if (typeof v === "object" && !Array.isArray(v) && Object.keys(v).length === 0) continue;
+    return true;
+  }
+  return false;
+}
 
-  // ✅ 只有 Sale + min & max 都有，并且 min != max 才显示 range
-  if (
-    mode === "sale" &&
-    hasMin &&
-    hasMax &&
-    !Number.isNaN(minNum) &&
-    !Number.isNaN(maxNum) &&
-    minNum !== maxNum
-  ) {
-    return `${money(rp.price_min)} ~ ${money(rp.price_max)}`;
+/** ✅ 把 singleFormData 里 Homestay/Hotel 相关字段拆出来，写入新 column（不影响你原本 single_form_data_v2） */
+function buildHomestayFormFromSingle(singleFormData) {
+  const s = singleFormData || {};
+  const out = {
+    homestayType: s.homestayType ?? "",
+    category: s.category ?? s.homestayCategory ?? s.propertyCategory ?? "",
+    finalType: s.finalType ?? s.homestaySubType ?? s.subType ?? "",
+    storeys: s.storeys ?? s.homestayStoreys ?? "",
+    subtype: s.subtype ?? s.homestaySubtype ?? s.propertySubtype ?? [],
+  };
+  return hasAnyValue(out) ? out : null;
+}
+
+function buildHotelFormFromSingle(singleFormData) {
+  const s = singleFormData || {};
+  const out = {
+    hotelResortType: s.hotelResortType ?? s.hotel_resort_type ?? "",
+    roomLayouts: s.roomLayouts ?? s.room_layouts ?? null,
+    facilityImages: s.facilityImages ?? s.facility_images ?? {},
+    roomCount: s.roomCount ?? s.room_count ?? null,
+  };
+  return hasAnyValue(out) ? out : null;
+}
+
+// ✅✅✅ 关键修复：把 homestay_form / hotel_resort_form 合并回 singleFormData 时，必须“空值也允许覆盖”
+function mergeFormsIntoSingle(singleFormData, homestayForm, hotelForm) {
+  const base = { ...(singleFormData || {}) };
+  const h1 = homestayForm && typeof homestayForm === "object" ? homestayForm : null;
+  const h2 = hotelForm && typeof hotelForm === "object" ? hotelForm : null;
+
+  const isEmpty = (v) => {
+    if (v === null || v === undefined) return true;
+    if (typeof v === "string") return v.trim() === "";
+    if (Array.isArray(v)) return v.length === 0;
+    if (typeof v === "object") return Object.keys(v).length === 0;
+    return false;
+  };
+
+  const fill = (key, val) => {
+    if (val === undefined) return;
+    if (isEmpty(base[key])) base[key] = val;
+  };
+
+  if (h1) {
+    fill("homestayType", h1.homestayType ?? "");
+    fill("category", h1.category ?? "");
+    fill("finalType", h1.finalType ?? "");
+    fill("storeys", h1.storeys ?? "");
+    fill("subtype", Array.isArray(h1.subtype) ? h1.subtype : []);
+
+    fill("homestayCategory", h1.category ?? "");
+    fill("homestaySubType", h1.finalType ?? "");
+    fill("homestayStoreys", h1.storeys ?? "");
+    fill("homestaySubtype", Array.isArray(h1.subtype) ? h1.subtype : []);
+
+    fill("propertyCategory", h1.category ?? "");
+    fill("subType", h1.finalType ?? "");
+    fill("propertySubtype", Array.isArray(h1.subtype) ? h1.subtype : []);
   }
 
-  // ✅ 其他情况：优先用单价（subsale / auction / rto / homestay / hotel）
-  const single = pickAny(mp, ["price", "salePrice", "sale_price", "sellingPrice", "selling_price"]);
-  if (isNonEmpty(single)) return money(single);
+  if (h2) {
+    fill("hotelResortType", h2.hotelResortType ?? "");
+    fill("roomLayouts", Array.isArray(h2.roomLayouts) ? h2.roomLayouts : null);
+    fill("facilityImages", h2.facilityImages && typeof h2.facilityImages === "object" ? h2.facilityImages : {});
+    fill("roomCount", h2.roomCount ?? null);
 
-  return "";
+    fill("hotel_resort_type", h2.hotelResortType ?? "");
+    fill("room_layouts", Array.isArray(h2.roomLayouts) ? h2.roomLayouts : null);
+    fill("facility_images", h2.facilityImages && typeof h2.facilityImages === "object" ? h2.facilityImages : {});
+    fill("room_count", h2.roomCount ?? null);
+  }
+
+  return base;
 }
 
-/* =========================
-   Card（卖家后台卡片）
-========================= */
-function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
-  const p = useMemo(() => mergePropertyData(rawProperty), [rawProperty]);
-
-  // 基础展示
-  const title = pickAny(p, ["title"]);
-  const address = pickAny(p, ["address"]);
-
-  // 你这里 “Studio” 存在 bedrooms 字段里（你贴的 JSON 是 bedrooms:"Studio"）
-  const bedrooms = pickAny(p, ["bedrooms", "bedroom_count", "room_count"]);
-  const bathrooms = pickAny(p, ["bathrooms", "bathroom_count"]);
-  const carparks = pickAny(p, ["carparks", "carpark"]);
-
-  // 模式：你贴的 JSON 是 saleType:"Sale"/ finalType:"Hotel / Resort" / roomRentalMode:"whole"
-  const saleType = pickAny(p, ["saleType", "sale_type", "saletype", "listing_mode"]);
-  const finalType = pickAny(p, ["finalType"]); // 例如 "Hotel / Resort"
-  const roomRentalMode = pickAny(p, ["roomRentalMode", "room_rental_mode", "roomrentalmode"]);
-
-  const showSale = String(saleType).toLowerCase() === "sale";
-  const showRent = String(saleType).toLowerCase() === "rent";
-  const showHomestay = String(saleType).toLowerCase() === "homestay";
-  // ✅✅✅ 修复：不要用 finalType 来误判 Hotel/Resort
-  const showHotel = String(saleType).toLowerCase() === "hotel/resort";
-
-  const isRentRoom = showRent && String(roomRentalMode).toLowerCase() === "room";
-
-  // ✅ 这些字段按你真实 JSON key 对齐
-  const usage = pickAny(p, ["usage", "property_usage"]);
-  const tenure = pickAny(p, ["tenure", "tenure_type"]);
-  const storeys = pickAny(p, ["storeys"]);
-  const category = pickAny(p, ["category", "propertyCategory", "property_category"]);
-  const subType = pickAny(p, ["subType", "property_sub_type", "sub_type"]);
-  const subtypesMulti = pickAny(p, ["subtype", "property_subtypes", "propertySubtype"]); // 注意：你 JSON 的 subtype 是数组
-
-  const propertyTitle = pickAny(p, ["propertyTitle", "property_title"]);
-  const propertyStatus = pickAny(p, ["propertyStatus", "property_status", "propertystatus"]);
-
-  // Affordable：你 JSON 是 affordable:"Yes" + affordableType:"Rumah Mampu Milik"
-  const affordableRaw = pickAny(p, ["affordable", "affordable_housing", "affordableHousing"]);
-  const affordableType = pickAny(p, ["affordableType", "affordable_housing_type", "affordableHousingType"]);
-  let affordable = yesNoText(affordableRaw);
-  if (affordableType && affordable !== "是") affordable = "是";
-
-  const completedYear = pickAny(p, ["completedYear", "built_year"]);
-  const expectedYear = pickAny(p, ["expectedCompletedYear", "expected_year"]);
-
-  const transitText = getTransitText(p);
-
-  // Homestay / Hotel extra
-  const homestayType = pickAny(p, ["homestayType", "homestay_type"]);
-  const hotelResortType = pickAny(p, ["hotelResortType", "hotel_resort_type", "hotel_resort_type", "hotel_resort_type"]);
-  const maxGuests = pickAny(p, ["maxGuests", "max_guests"]);
-
-  // 从 roomLayouts 取一个“汇总”
-  const layouts = getRoomLayouts(p);
-  const layout0 = layouts[0] || null;
-  const layoutInfo = layout0 ? summarizeRoomLayout(layout0) : {};
-
-  // 如果没有 roomLayouts，也尝试从顶层 bed_types
-  const bedTypesFallback = pickAny(p, ["bed_types"]);
-  const bedTypesText =
-    (layoutInfo?.beds && layoutInfo.beds.length ? layoutInfo.beds.join(", ") : "") ||
-    (Array.isArray(bedTypesFallback) ? bedTypesFallback.join(", ") : "");
-
-  // 费用
-  const serviceFee = layoutInfo.serviceFee || "";
-  const cleaningFee = layoutInfo.cleaningFee || "";
-  const deposit = layoutInfo.deposit || "";
-  const otherFee = layoutInfo.otherFee || "";
-
-  // 日历价格
-  const calendarSummary = layoutInfo.calendarSummary || "";
-
-  // ✅ 价格显示（你要的最终逻辑）
-  const cardPriceText = getCardPriceText(rawProperty, p);
-
-  return (
-    <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-lg font-bold text-gray-900 truncate">{title || "（未命名房源）"}</div>
-          {isNonEmpty(address) && <div className="text-sm text-gray-600 mt-1 truncate">{address}</div>}
-
-          {/* ✅ 价格 */}
-          {isNonEmpty(cardPriceText) && <div className="text-base font-semibold text-blue-700 mt-2">{cardPriceText}</div>}
-
-          <div className="text-sm text-gray-700 mt-2 flex flex-wrap gap-x-4 gap-y-1">
-            {isNonEmpty(bedrooms) && <span>🛏 {toText(bedrooms)}</span>}
-            {isNonEmpty(bathrooms) && <span>🛁 {toText(bathrooms)}</span>}
-            {isNonEmpty(carparks) && <span>🚗 {toText(carparks)}</span>}
-          </div>
-        </div>
-      </div>
-
-      {/* 详细字段：有值才显示 */}
-      <div className="mt-3 space-y-1">
-        {/* SALE */}
-        {showSale && (
-          <>
-            <MetaLine label="Sale / Rent" value="Sale" />
-            <MetaLine label="Property Usage" value={usage} />
-            <MetaLine label="Property Title" value={propertyTitle} />
-            <MetaLine label="Property Status / Sale Type" value={propertyStatus} />
-
-            <MetaLine
-              label="Affordable Housing"
-              value={affordable === "是" && affordableType ? `是（${affordableType}）` : affordable}
-            />
-
-            <MetaLine label="Tenure Type" value={tenure} />
-            <MetaLine label="Property Category" value={category} />
-            <MetaLine label="Sub Type" value={subType} />
-            <MetaLine label="Storeys" value={storeys} />
-            <MetaLine
-              label="Property Subtype"
-              value={Array.isArray(subtypesMulti) ? subtypesMulti.join(", ") : subtypesMulti}
-            />
-            <MetaLine label="Completed Year" value={completedYear} />
-            <MetaLine label="Expected Completed" value={expectedYear} />
-            <MetaLine label="Near Public Transit" value={transitText} />
-          </>
-        )}
-
-        {/* RENT */}
-        {showRent && (
-          <>
-            <MetaLine label="Sale / Rent" value={isRentRoom ? "Rent（房间出租）" : "Rent（整间出租）"} />
-            <MetaLine label="Property Category" value={category} />
-            <MetaLine label="Sub Type" value={subType} />
-            <MetaLine label="Storeys" value={storeys} />
-            <MetaLine
-              label="Property Subtype"
-              value={Array.isArray(subtypesMulti) ? subtypesMulti.join(", ") : subtypesMulti}
-            />
-            <MetaLine label="Tenure Type" value={tenure} />
-            <MetaLine label="Near Public Transit" value={transitText} />
-          </>
-        )}
-
-        {/* HOMESTAY */}
-        {showHomestay && (
-          <>
-            <MetaLine label="Sale / Rent" value="Homestay" />
-            <MetaLine label="Homestay Type" value={homestayType} />
-            <MetaLine label="Max Guests" value={maxGuests} />
-            <MetaLine label="Beds" value={bedTypesText} />
-            <MetaLine label="Service Fee" value={serviceFee} />
-            <MetaLine label="Cleaning Fee" value={cleaningFee} />
-            <MetaLine label="Deposit" value={deposit} />
-            <MetaLine label="Other Fee" value={otherFee} />
-            <MetaLine label="Calendar Price" value={calendarSummary} />
-            <MetaLine label="Near Public Transit" value={transitText} />
-          </>
-        )}
-
-        {/* HOTEL / RESORT */}
-        {showHotel && (
-          <>
-            <MetaLine label="Sale / Rent" value="Hotel / Resort" />
-            <MetaLine label="Hotel/Resort Type" value={hotelResortType || finalType} />
-            <MetaLine label="Max Guests" value={maxGuests} />
-            <MetaLine label="Beds" value={bedTypesText} />
-            <MetaLine label="Service Fee" value={serviceFee} />
-            <MetaLine label="Cleaning Fee" value={cleaningFee} />
-            <MetaLine label="Deposit" value={deposit} />
-            <MetaLine label="Other Fee" value={otherFee} />
-            <MetaLine label="Calendar Price" value={calendarSummary} />
-            <MetaLine label="Near Public Transit" value={transitText} />
-          </>
-        )}
-      </div>
-
-      {/* 按钮 */}
-      <div className="mt-4 grid grid-cols-3 gap-2">
-        <button
-          onClick={() => onView(rawProperty)}
-          className="h-11 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold"
-        >
-          查看
-        </button>
-        <button
-          onClick={() => onEdit(rawProperty)}
-          className="h-11 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold"
-        >
-          编辑
-        </button>
-        <button
-          onClick={() => onDelete(rawProperty)}
-          className="h-11 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold"
-        >
-          删除
-        </button>
-      </div>
-    </div>
-  );
-}
-
-export default function MyProfilePage() {
+export default function UploadPropertyPage() {
   const router = useRouter();
   const user = useUser();
 
-  const [loading, setLoading] = useState(true);
-  const [properties, setProperties] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
 
-  const [keyword, setKeyword] = useState("");
-  const [sortKey, setSortKey] = useState("latest"); // latest | oldest | priceHigh | priceLow
+  const [addressObj, setAddressObj] = useState(null);
 
-  const fetchMyProperties = async () => {
-    if (!user?.id) return;
-    setLoading(true);
+  const [typeValue, setTypeValue] = useState("");
+  const [rentBatchMode, setRentBatchMode] = useState("no");
+  const [typeForm, setTypeForm] = useState(null);
 
-    const { data, error } = await supabase
-      .from("properties")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
+  const [typeSelectorInitialForm, setTypeSelectorInitialForm] = useState(null);
 
-    if (error) {
-      console.error("fetchMyProperties error:", error);
-      toast.error(error.message || "加载失败");
-      setLoading(false);
-      return;
-    }
+  const [saleType, setSaleType] = useState("");
+  const [computedStatus, setComputedStatus] = useState("");
+  const [roomRentalMode, setRoomRentalMode] = useState("whole");
 
-    setProperties(data || []);
-    setLoading(false);
-  };
+  const [projectCategory, setProjectCategory] = useState("");
+  const [projectSubType, setProjectSubType] = useState("");
+  const [unitLayouts, setUnitLayouts] = useState([]);
+
+  const [singleFormData, setSingleFormData] = useState({});
+  const [areaData, setAreaData] = useState({
+    types: ["buildUp"],
+    units: { buildUp: "Square Feet (sqft)", land: "Square Feet (sqft)" },
+    values: { buildUp: "", land: "" },
+  });
+
+  const [description, setDescription] = useState("");
+
+  const saleTypeNorm = String(saleType || "").toLowerCase();
+  const isHomestay = saleTypeNorm.includes("homestay");
+  const isHotel = saleTypeNorm.includes("hotel");
+  const isSale = saleTypeNorm.includes("sale");
+  const isRent = saleTypeNorm.includes("rent");
+
+  const isEditMode = String(router?.query?.edit || "") === "1";
+  const editId = router?.query?.id ? String(router.query.id) : "";
+
+  const lastFormJsonRef = useRef("");
+  const lastDerivedRef = useRef({ saleType: "", status: "", roomMode: "whole" });
+  const [editHydrated, setEditHydrated] = useState(false);
 
   useEffect(() => {
-    fetchMyProperties();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+    if (!isEditMode || !editId || !user) return;
 
-  // 统计（你表里没有 published 字段，不乱猜，全部当已发布）
-  const stats = useMemo(() => {
-    const total = properties.length;
-    const published = total;
-    const draft = 0;
-    const latestTime = properties
-      .map((p) => p?.updated_at || p?.created_at)
-      .filter(Boolean)
-      .sort()
-      .slice(-1)[0];
+    const fetchForEdit = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("properties")
+          .select("*")
+          .eq("id", editId)
+          .eq("user_id", user.id)
+          .single();
 
-    return { total, published, draft, latestTime };
-  }, [properties]);
+        if (error) throw error;
+        if (!data) throw new Error("No data");
 
-  const filtered = useMemo(() => {
-    const k = keyword.trim().toLowerCase();
-    let list = properties;
+        const tfRaw = data.type_form_v2 ?? data.type_form ?? data.typeForm ?? data.typeform;
+        const sfdRaw = data.single_form_data_v2 ?? data.single_form_data ?? data.singleFormData ?? data.singleformdata;
+        const adRaw = data.area_data ?? data.areaData ?? data.areadata;
+        const ulsRaw = data.unit_layouts ?? data.unitLayouts ?? data.unitlayouts;
 
-    if (k) {
-      list = list.filter((p) => {
-        const merged = mergePropertyData(p);
-        const t = pickAny(merged, ["title"]);
-        const a = pickAny(merged, ["address"]);
-        return String(t || "").toLowerCase().includes(k) || String(a || "").toLowerCase().includes(k);
-      });
-    }
+        const tf = safeParseMaybeJson(tfRaw);
+        const sfd = safeParseMaybeJson(sfdRaw);
+        const ad = safeParseMaybeJson(adRaw);
+        const uls = safeParseMaybeJson(ulsRaw);
 
-    const getPriceNum = (p) => {
-      const merged = mergePropertyData(p);
-      const mode = String(pickAny(merged, ["saleType", "sale_type", "saletype", "listing_mode"]))
-        .trim()
-        .toLowerCase();
+        const homestayForm = safeParseMaybeJson(data.homestay_form);
+        const hotelForm = safeParseMaybeJson(data.hotel_resort_form);
+        const availability = safeParseMaybeJson(data.availability);
+        const calendarPrices = safeParseMaybeJson(data.calendar_prices);
 
-      if (mode === "rent") {
-        const v = pickAny(merged, ["rentPrice", "rent_price", "monthlyRent", "monthly_rent", "price"]);
-        const n = Number(String(v).replace(/[^\d.]/g, ""));
-        return Number.isNaN(n) ? 0 : n;
+        let mergedSfd = mergeFormsIntoSingle(sfd || {}, homestayForm, hotelForm);
+
+        if (availability && !mergedSfd.availability) mergedSfd.availability = availability;
+        if (calendarPrices && !mergedSfd.calendar_prices && !mergedSfd.calendarPrices) {
+          mergedSfd.calendar_prices = calendarPrices;
+        }
+
+        const jsonSig = stableJson({
+          tf,
+          mergedSfd,
+          addr: data.address,
+          lat: data.lat,
+          lng: data.lng,
+          desc: data.description,
+        });
+        if (jsonSig && jsonSig === lastFormJsonRef.current) {
+          setEditHydrated(true);
+          return;
+        }
+
+        setAddressObj({ address: data.address || "", lat: data.lat, lng: data.lng });
+        setTypeValue(data.type || "");
+        setTypeForm(tf || null);
+        setTypeSelectorInitialForm(tf || null);
+
+        setSaleType(tf?.saleType || data.saleType || "");
+        setComputedStatus(tf?.propertyStatus || data.propertyStatus || "");
+        setRoomRentalMode(tf?.roomRentalMode || data.roomRentalMode || "whole");
+
+        setRentBatchMode(data.rentBatchMode || tf?.rentBatchMode || "no");
+
+        setUnitLayouts(Array.isArray(uls) ? uls : []);
+
+        if (ad && typeof ad === "object") setAreaData(ad);
+
+        setSingleFormData(mergedSfd || {});
+        setDescription(data.description || "");
+
+        lastDerivedRef.current = {
+          saleType: (tf && tf.saleType) || "",
+          status: (tf && tf.propertyStatus) || "",
+          roomMode: (tf && tf.roomRentalMode) || "whole",
+        };
+
+        lastFormJsonRef.current = jsonSig;
+        setEditHydrated(true);
+
+        toast.success("已进入编辑模式");
+      } catch (e) {
+        console.error(e);
+        setEditHydrated(true);
+        toast.error("无法加载房源进行编辑");
+        alert("无法加载房源进行编辑（请看 Console 报错）");
       }
-
-      const v = p?.price ?? p?.price_min ?? p?.price_max ?? pickAny(merged, ["price"]);
-      const n = Number(String(v).replace(/[^\d.]/g, ""));
-      return Number.isNaN(n) ? 0 : n;
     };
 
-    if (sortKey === "latest") {
-      list = [...list].sort((a, b) => {
-        const ta = new Date(a?.updated_at || a?.created_at || 0).getTime();
-        const tb = new Date(b?.updated_at || b?.created_at || 0).getTime();
-        return tb - ta;
-      });
-    } else if (sortKey === "oldest") {
-      list = [...list].sort((a, b) => {
-        const ta = new Date(a?.updated_at || a?.created_at || 0).getTime();
-        const tb = new Date(b?.updated_at || b?.created_at || 0).getTime();
-        return ta - tb;
-      });
-    } else if (sortKey === "priceHigh") {
-      list = [...list].sort((a, b) => getPriceNum(b) - getPriceNum(a));
-    } else if (sortKey === "priceLow") {
-      list = [...list].sort((a, b) => getPriceNum(a) - getPriceNum(b));
+    fetchForEdit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditMode, editId, user]);
+
+  const isProject =
+    saleTypeNorm === "sale" &&
+    ["New Project / Under Construction", "Completed Unit / Developer Unit"].includes(computedStatus);
+
+  const rentCategorySelected = !!(typeForm && (typeForm.category || typeForm.propertyCategory));
+
+  const copyCommonFromFirst = useCallback(() => {
+    if (!Array.isArray(unitLayouts) || unitLayouts.length <= 1) return;
+
+    const first = unitLayouts[0];
+    const hash0 = commonHash(first);
+
+    const next = unitLayouts.map((l, idx) => {
+      if (idx === 0) return l;
+      const curHash = commonHash(l);
+      if (curHash === hash0) return l;
+      return { ...l, ...pickCommon(first) };
+    });
+
+    setUnitLayouts(next);
+  }, [unitLayouts]);
+
+  useEffect(() => {
+    if (!isProject) return;
+    copyCommonFromFirst();
+  }, [isProject, copyCommonFromFirst]);
+
+  const onTypeFormChange = useCallback((form) => {
+    const nextSale = form?.saleType || "";
+    const nextStatus = form?.propertyStatus || "";
+    const nextRoom = form?.roomRentalMode || "whole";
+
+    const last = lastDerivedRef.current;
+    if (last.saleType !== nextSale) setSaleType(nextSale);
+    if (last.status !== nextStatus) setComputedStatus(nextStatus);
+    if (last.roomMode !== nextRoom) setRoomRentalMode(nextRoom);
+
+    lastDerivedRef.current = { saleType: nextSale, status: nextStatus, roomMode: nextRoom };
+  }, []);
+
+  const handleSubmit = async () => {
+    if (!user) {
+      toast.error("请先登录");
+      alert("请先登录（你现在 user 还是 null）");
+      return;
     }
+    if (!saleType) {
+      toast.error("请选择 Sale / Rent / Homestay / Hotel");
+      alert("请选择 Sale / Rent / Homestay / Hotel（你现在 saleType 还是空）");
+      return;
+    }
+    if (!addressObj?.lat || !addressObj?.lng) {
+      toast.error("请选择地址");
+      alert("请选择地址（你现在 lat/lng 还是空）");
+      return;
+    }
+    if (submitting) return;
 
-    return list;
-  }, [properties, keyword, sortKey]);
+    setSubmitting(true);
+    try {
+      // ✅✅✅ 只在对应模式写入，否则一律写 null（避免旧资料干扰卖家后台卡片 / 回填）
+      const homestay_form = saleTypeNorm.includes("homestay") ? buildHomestayFormFromSingle(singleFormData) : null;
+      const hotel_resort_form = saleTypeNorm.includes("hotel") ? buildHotelFormFromSingle(singleFormData) : null;
 
-  if (!user) {
-    return (
-      <div className="max-w-3xl mx-auto p-6">
-        <div className="text-lg font-bold text-gray-900">请先登录</div>
-      </div>
-    );
-  }
+      const payload = {
+        user_id: user.id,
+        address: addressObj?.address || "",
+        lat: addressObj?.lat,
+        lng: addressObj?.lng,
 
-  const onView = (p) => router.push(`/property/${p.id}`);
-  const onEdit = (p) => router.push(`/upload-property?edit=1&id=${p.id}`);
+        saleType,
+        propertyStatus: computedStatus,
 
-  const onDelete = async (p) => {
+        type: typeValue,
+
+        type_form_v2: typeForm || null,
+        single_form_data_v2: singleFormData || {},
+
+        typeForm: typeForm || null,
+        type_form: typeForm || null,
+
+        roomRentalMode,
+        rentBatchMode,
+
+        unitLayouts,
+        unit_layouts: unitLayouts,
+
+        singleFormData: singleFormData,
+        single_form_data: singleFormData,
+
+        areaData,
+        area_data: areaData,
+
+        description,
+        updated_at: new Date().toISOString(),
+
+        homestay_form,
+        hotel_resort_form,
+
+        availability: singleFormData?.availability ?? singleFormData?.availability_data ?? null,
+        calendar_prices: singleFormData?.calendar_prices ?? singleFormData?.calendarPrices ?? null,
+      };
+
+      if (isEditMode) {
+        const out = await runWithAutoStripColumns({
+          mode: "update",
+          payload,
+          editId,
+          userId: user.id,
+          maxTries: 10,
+        });
+
+        if (!out.ok) {
+          if (out.protectedMissing) {
+            toast.error(`保存失败：Supabase 缺少关键 column：${out.protectedMissing}`);
+            alert(
+              `保存失败：Supabase 缺少关键 column：${out.protectedMissing}\n\n` +
+                `✅ 你必须先在 Supabase SQL Editor 加上：type_form_v2 和 single_form_data_v2（jsonb）。\n\n` +
+                `（请看 Console 的 [Supabase Error]）`
+            );
+            return;
+          }
+
+          const missing = extractMissingColumnName(out.error);
+          if (missing) {
+            toast.error(`提交失败：Supabase 缺少 column：${missing}`);
+            alert(`提交失败：Supabase 缺少 column：${missing}\n（请看 Console 报错）`);
+          } else {
+            toast.error("提交失败（请看 Console 报错）");
+            alert("提交失败（请看 Console 报错）");
+          }
+          return;
+        }
+
+        toast.success("保存修改成功");
+        alert("保存修改成功");
+        router.push("/my-profile");
+        return;
+      }
+
+      const out = await runWithAutoStripColumns({
+        mode: "insert",
+        payload: { ...payload, created_at: new Date().toISOString() },
+        userId: user.id,
+        maxTries: 10,
+      });
+
+      if (!out.ok) {
+        if (out.protectedMissing) {
+          toast.error(`提交失败：Supabase 缺少关键 column：${out.protectedMissing}`);
+          alert(
+            `提交失败：Supabase 缺少关键 column：${out.protectedMissing}\n\n` +
+              `✅ 你必须先在 Supabase SQL Editor 加上：type_form_v2 和 single_form_data_v2（jsonb）。\n\n` +
+              `（请看 Console 的 [Supabase Error]）`
+          );
+          return;
+        }
+
+        const missing = extractMissingColumnName(out.error);
+        if (missing) {
+          toast.error(`提交失败：Supabase 缺少 column：${missing}`);
+          alert(`提交失败：Supabase 缺少 column：${missing}\n（请看 Console 报错）`);
+        } else {
+          toast.error("提交失败（请看 Console 报错）");
+          alert("提交失败（请看 Console 报错）");
+        }
+        return;
+      }
+
+      toast.success("提交成功");
+      alert("提交成功");
+      router.push("/");
+    } catch (e) {
+      console.error(e);
+      toast.error("提交失败");
+      alert("提交失败（请看 Console 报错）");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!user) {
+      toast.error("请先登录");
+      alert("请先登录");
+      return;
+    }
+    if (!isEditMode) return;
+
     const ok = confirm("确定要删除这个房源吗？此操作不可恢复。");
     if (!ok) return;
 
-    const { error } = await supabase.from("properties").delete().eq("id", p.id).eq("user_id", user.id);
+    try {
+      setSubmitting(true);
+      const { error } = await supabase
+        .from("properties")
+        .delete()
+        .eq("id", editId)
+        .eq("user_id", user.id);
+      if (error) throw error;
 
-    if (error) {
-      console.error(error);
-      toast.error("删除失败（请看 Console）");
-      alert("删除失败（请看 Console）");
-      return;
+      toast.success("房源已删除");
+      alert("房源已删除");
+      router.push("/my-profile");
+    } catch (e) {
+      console.error(e);
+      toast.error("删除失败");
+      alert("删除失败（请看 Console 报错）");
+    } finally {
+      setSubmitting(false);
     }
-
-    toast.success("已删除");
-    setProperties((prev) => prev.filter((x) => x.id !== p.id));
   };
 
+  const shouldShowProjectTrustSection = isProject && Array.isArray(unitLayouts) && unitLayouts.length > 0;
+
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
-      <div className="text-2xl font-bold text-gray-900">我的房源（卖家后台）</div>
+    <div className="max-w-3xl mx-auto p-4 space-y-4">
+      <h1 className="text-2xl font-bold">{isEditMode ? "编辑房源" : "上传房源"}</h1>
 
-      {/* 统计 */}
-      <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-3">
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <div className="text-sm text-gray-500">房源总数</div>
-          <div className="text-2xl font-bold text-gray-900 mt-1">{stats.total}</div>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <div className="text-sm text-gray-500">已发布</div>
-          <div className="text-2xl font-bold text-gray-900 mt-1">{stats.published}</div>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <div className="text-sm text-gray-500">草稿</div>
-          <div className="text-2xl font-bold text-gray-900 mt-1">{stats.draft}</div>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <div className="text-sm text-gray-500">最近更新时间</div>
-          <div className="text-sm text-gray-900 mt-2">{stats.latestTime ? String(stats.latestTime) : "-"}</div>
-        </div>
+      <AddressSearchInput value={addressObj} onChange={setAddressObj} />
+
+      <TypeSelector
+        value={typeValue}
+        onChange={setTypeValue}
+        saleType={saleType}
+        setSaleType={setSaleType}
+        propertyStatus={computedStatus}
+        setPropertyStatus={setComputedStatus}
+        typeForm={typeForm}
+        setTypeForm={setTypeForm}
+        onFormChange={onTypeFormChange}
+        roomRentalMode={roomRentalMode}
+        setRoomRentalMode={setRoomRentalMode}
+        rentBatchMode={rentBatchMode}
+        onChangeRentBatchMode={setRentBatchMode}
+        initialForm={typeSelectorInitialForm}
+      />
+
+      {isProject && (
+        <ProjectUploadForm
+          projectCategory={projectCategory}
+          setProjectCategory={setProjectCategory}
+          projectSubType={projectSubType}
+          setProjectSubType={setProjectSubType}
+          unitLayouts={unitLayouts}
+          setUnitLayouts={setUnitLayouts}
+          singleFormData={singleFormData}
+          setSingleFormData={setSingleFormData}
+          areaData={areaData}
+          setAreaData={setAreaData}
+        />
+      )}
+
+      {isSale && !isProject && (
+        <SaleUploadForm
+          singleFormData={singleFormData}
+          setSingleFormData={setSingleFormData}
+          areaData={areaData}
+          setAreaData={setAreaData}
+        />
+      )}
+
+      {isRent && rentCategorySelected && (
+        <RentUploadForm
+          singleFormData={singleFormData}
+          setSingleFormData={setSingleFormData}
+          areaData={areaData}
+          setAreaData={setAreaData}
+          roomRentalMode={roomRentalMode}
+          rentBatchMode={rentBatchMode}
+          unitLayouts={unitLayouts}
+          setUnitLayouts={setUnitLayouts}
+        />
+      )}
+
+      {isHomestay && (
+        <HomestayUploadForm
+          singleFormData={singleFormData}
+          setSingleFormData={setSingleFormData}
+          areaData={areaData}
+          setAreaData={setAreaData}
+        />
+      )}
+
+      {isHotel && (
+        <HotelUploadForm
+          singleFormData={singleFormData}
+          setSingleFormData={setSingleFormData}
+          areaData={areaData}
+          setAreaData={setAreaData}
+        />
+      )}
+
+      {!isProject && (
+        <ListingTrustSection singleFormData={singleFormData} setSingleFormData={setSingleFormData} />
+      )}
+      {shouldShowProjectTrustSection && (
+        <ListingTrustSection singleFormData={singleFormData} setSingleFormData={setSingleFormData} />
+      )}
+
+      <div className="space-y-2">
+        <div className="text-sm text-gray-600">描述（可选）</div>
+        <textarea
+          className="w-full border rounded-lg p-3 min-h-[120px]"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="补充说明（可选）"
+        />
       </div>
 
-      {/* 搜索 + 排序 */}
-      <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-3 items-center">
-        <div className="md:col-span-3">
-          <input
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            placeholder="输入标题或地点..."
-            className="w-full h-11 px-4 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200"
-          />
-        </div>
-        <div className="md:col-span-1">
-          <select
-            value={sortKey}
-            onChange={(e) => setSortKey(e.target.value)}
-            className="w-full h-11 px-3 rounded-xl border border-gray-200 bg-white"
-          >
-            <option value="latest">最新更新</option>
-            <option value="oldest">最旧</option>
-            <option value="priceHigh">价格高 → 低</option>
-            <option value="priceLow">价格低 → 高</option>
-          </select>
-        </div>
-      </div>
+      <div className="flex gap-2">
+        <Button onClick={handleSubmit} disabled={submitting}>
+          {isEditMode ? "保存修改" : "提交房源"}
+        </Button>
 
-      {/* 列表 */}
-      <div className="mt-4 space-y-3">
-        {loading ? (
-          <div className="text-sm text-gray-500">加载中...</div>
-        ) : filtered.length === 0 ? (
-          <div className="text-sm text-gray-500">没有找到任何房源</div>
-        ) : (
-          filtered.map((p) => (
-            <SellerPropertyCard
-              key={p.id}
-              rawProperty={p}
-              onView={onView}
-              onEdit={onEdit}
-              onDelete={onDelete}
-            />
-          ))
+        {isEditMode && (
+          <Button variant="destructive" onClick={handleDelete} disabled={submitting}>
+            删除房源
+          </Button>
         )}
       </div>
+
+      {isEditMode && !editHydrated && <div className="text-sm text-gray-500">加载中…</div>}
     </div>
   );
-}
+      }
