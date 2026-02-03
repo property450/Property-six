@@ -297,6 +297,31 @@ function summarizeRoomLayout(layout) {
 }
 
 /* =========================
+   ✅ 价格显示规则（你要的）
+========================= */
+function getCardPriceText(rawProperty, mergedProperty) {
+  const rp = rawProperty || {};
+  const mp = mergedProperty || {};
+
+  const hasMin = isNonEmpty(rp.price_min);
+  const hasMax = isNonEmpty(rp.price_max);
+
+  const minNum = hasMin ? Number(String(rp.price_min).replace(/[^\d.]/g, "")) : NaN;
+  const maxNum = hasMax ? Number(String(rp.price_max).replace(/[^\d.]/g, "")) : NaN;
+
+  // ✅ 只有 min & max 都有，并且 min != max 才显示 range
+  if (hasMin && hasMax && !Number.isNaN(minNum) && !Number.isNaN(maxNum) && minNum !== maxNum) {
+    return `${money(rp.price_min)} ~ ${money(rp.price_max)}`;
+  }
+
+  // ✅ 其他情况：优先用 price（subsale 就是这个）
+  const single = pickAny(mp, ["price", "price_min", "price_max"]);
+  if (isNonEmpty(single)) return money(single);
+
+  return "";
+}
+
+/* =========================
    Card（卖家后台卡片）
 ========================= */
 function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
@@ -305,7 +330,6 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
   // 基础展示
   const title = pickAny(p, ["title"]);
   const address = pickAny(p, ["address"]);
-  const price = pickAny(p, ["price", "price_min", "price_max"]);
 
   // 你这里 “Studio” 存在 bedrooms 字段里（你贴的 JSON 是 bedrooms:"Studio"）
   const bedrooms = pickAny(p, ["bedrooms", "bedroom_count", "room_count"]);
@@ -351,18 +375,18 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
   const hotelResortType = pickAny(p, ["hotelResortType", "hotel_resort_type", "hotel_resort_type", "hotel_resort_type"]);
   const maxGuests = pickAny(p, ["maxGuests", "max_guests"]);
 
-  // 从 roomLayouts 取一个“汇总”（你可以以后改成每个 layout 都显示，但现在先显示你要的重点）
+  // 从 roomLayouts 取一个“汇总”
   const layouts = getRoomLayouts(p);
   const layout0 = layouts[0] || null;
   const layoutInfo = layout0 ? summarizeRoomLayout(layout0) : {};
 
-  // 如果没有 roomLayouts，也尝试从顶层 bed_types（你表有 bed_types jsonb）
+  // 如果没有 roomLayouts，也尝试从顶层 bed_types
   const bedTypesFallback = pickAny(p, ["bed_types"]);
   const bedTypesText =
     (layoutInfo?.beds && layoutInfo.beds.length ? layoutInfo.beds.join(", ") : "") ||
     (Array.isArray(bedTypesFallback) ? bedTypesFallback.join(", ") : "");
 
-  // 费用（如果 roomLayouts 里没值，也尝试顶层字段）
+  // 费用
   const serviceFee = layoutInfo.serviceFee || "";
   const cleaningFee = layoutInfo.cleaningFee || "";
   const deposit = layoutInfo.deposit || "";
@@ -371,20 +395,17 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
   // 日历价格
   const calendarSummary = layoutInfo.calendarSummary || "";
 
+  // ✅ 价格显示（你要的最终逻辑）
+  const cardPriceText = getCardPriceText(rawProperty, p);
+
   return (
     <div className="w-full bg-white rounded-xl shadow-sm border border-gray-200 p-4">
       <div className="min-w-0">
         <div className="text-lg font-semibold text-gray-900 truncate">{title || "（未命名房源）"}</div>
         {isNonEmpty(address) && <div className="text-sm text-gray-600 mt-1 truncate">{address}</div>}
 
-        {/* 价格：支持 range */}
-        {isNonEmpty(rawProperty?.price_min) || isNonEmpty(rawProperty?.price_max) ? (
-          <div className="text-base font-semibold text-blue-700 mt-2">
-            {money(rawProperty?.price_min)} {rawProperty?.price_max ? `~ ${money(rawProperty?.price_max)}` : ""}
-          </div>
-        ) : (
-          isNonEmpty(price) && <div className="text-base font-semibold text-blue-700 mt-2">{money(price)}</div>
-        )}
+        {/* ✅ 价格（只按规则显示单价或 range） */}
+        {isNonEmpty(cardPriceText) && <div className="text-base font-semibold text-blue-700 mt-2">{cardPriceText}</div>}
 
         <div className="text-sm text-gray-700 mt-2 flex flex-wrap gap-x-4 gap-y-1">
           {isNonEmpty(bedrooms) && <span>🛏 {toText(bedrooms)}</span>}
@@ -436,13 +457,11 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
           {/* RENT（出租房间） */}
           {showRent && isRentRoom && (
             <>
-              <MetaLine label="租金" value={price} />
+              <MetaLine label="租金" value={pickAny(p, ["price", "price_min", "price_max"])} />
               <MetaLine label="Property Category" value={category} />
               <MetaLine label="Storeys" value={storeys} />
               <MetaLine label="Property Subtype" value={subtypesMulti} />
 
-              {/* 下面这些目前在你贴的 JSON 没看到对应 key（例如 偏向种族/租金包括…）
-                  以后你把那段 JSON（room rental form）贴出来，我再把 key 对齐补上 */}
               <MetaLine label="床型" value={bedTypesText} />
               <MetaLine label="停车位数量" value={carparks} />
               <MetaLine label="你的产业步行能到达公共交通吗？" value={transitText} />
@@ -505,7 +524,7 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
         </div>
       </div>
 
-      {/* ✅ 你要保留的 123 按钮（没有“查看详情”按钮） */}
+      {/* ✅ 你要保留的 123 按钮 */}
       <div className="mt-4 grid grid-cols-3 gap-3">
         <button
           onClick={() => onView(rawProperty)}
