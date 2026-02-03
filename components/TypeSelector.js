@@ -1,61 +1,12 @@
 // components/TypeSelector.js
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import FloorCountSelector from "./FloorCountSelector";
 import PropertyTitleSelector from "@/components/PropertyTitleSelector";
 
 // ================== 选项常量 ==================
 const subtypeOptions = ["Penthouse", "Duplex", "Triplex", "Dual Key"];
-
-const homestayOptions = [
-  "Entire Place",
-  "Private Room",
-  "Shared Room",
-
-  "Serviced Apartment (Homestay)",
-  "Villa Homestay",
-  "Farmstay / Kampung Stay",
-  "Cultural / Heritage Homestay",
-  "Monthly Rental Stay",
-
-  "Hostel / Guesthouse",
-  "Capsule / Pod Stay",
-
-  "Eco / Nature Stay",
-  "Glamping",
-  "Co-Living / Long Stay",
-  "Shophouse Homestay",
-  "Student Accommodation (Homestay)",
-  "Worker / Staff Accommodation",
-];
-
-const hotelOptions = [
-  "Budget Hotel",
-  "2-Star Hotel",
-  "3-Star Hotel",
-  "4-Star Hotel",
-  "5-Star / Luxury Hotel",
-  "Business Hotel",
-  "Boutique Hotel",
-  "Resort",
-  "Serviced Apartment Hotel",
-  "Convention Hotel",
-  "Spa / Hot Spring Hotel",
-  "Casino Hotel",
-  "Extended Stay Hotel",
-  "Capsule Hotel",
-  "Hostel / Backpacker Hotel",
-  "Airport Hotel",
-
-  "Eco Resort",
-  "Beach Resort",
-  "Mountain Resort",
-  "All-Inclusive Resort",
-  "Theme Hotel",
-  "Heritage Hotel",
-  "Medical / Wellness Hotel",
-];
 
 const usageOptions = ["Residential", "Commercial", "Commercial Under HDA", "Industrial", "Agricultural"];
 
@@ -92,7 +43,7 @@ const tenureOptions = [
   "Perpetual Lease",
 ];
 
-// ✅✅✅（你原本的 categoryOptions 保持不动）
+// ✅✅✅（保持你原本结构）
 const categoryOptions = {
   "Bungalow / Villa": ["Bungalow", "Link Bungalow", "Twin Villa", "Zero-Lot Bungalow", "Bungalow land"],
   "Apartment / Condo / Service Residence": ["Apartment", "Condominium", "Flat", "Service Residence"],
@@ -211,6 +162,14 @@ const ROOM_RENTAL_ELIGIBLE_CATEGORIES = new Set([
   "Bungalow / Villa",
 ]);
 
+function toInt(v) {
+  const s = String(v ?? "").replace(/,/g, "").trim();
+  const n = Number(s);
+  return Number.isFinite(n) ? Math.floor(n) : 0;
+}
+function clamp(n, min, max) {
+  return Math.max(min, Math.min(max, n));
+}
 function addCommas(s) {
   const n = String(s ?? "").replace(/,/g, "").trim();
   if (!n) return "";
@@ -218,18 +177,6 @@ function addCommas(s) {
   return n.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
-function toIntFromInput(v) {
-  const s = String(v ?? "").replace(/,/g, "").trim();
-  const n = Number(s);
-  if (!Number.isFinite(n)) return 0;
-  return Math.floor(n);
-}
-
-function clamp(n, min, max) {
-  return Math.max(min, Math.min(max, n));
-}
-
-// ✅ 稳定 stringify：避免 initialForm 每次 key 顺序变化导致重复 hydrate
 function stableStringify(obj) {
   const seen = new WeakSet();
   const sortDeep = (v) => {
@@ -260,67 +207,48 @@ function stableStringify(obj) {
 }
 
 export default function TypeSelector({
-  value,
-  onChange,
-  onFormChange,
+  saleType,
+  setSaleType,
+  typeValue,
+  setTypeValue,
+  propertyStatus,
+  setPropertyStatus,
+  roomRentalMode,
+  setRoomRentalMode,
   rentBatchMode,
-  onChangeRentBatchMode,
+  setRentBatchMode,
+  typeForm,
+  setTypeForm,
   initialForm,
 }) {
-  const [saleType, setSaleType] = useState("");
   const [usage, setUsage] = useState("");
-  const [propertyStatus, setPropertyStatus] = useState("");
   const [affordable, setAffordable] = useState("");
   const [affordableType, setAffordableType] = useState("");
   const [tenure, setTenure] = useState("");
+
   const [category, setCategory] = useState("");
   const [finalType, setFinalType] = useState("");
 
   const [subtype, setSubtype] = useState([]);
   const [auctionDate, setAuctionDate] = useState("");
-  const [showSubtype, setShowSubtype] = useState(false);
   const [storeys, setStoreys] = useState("");
   const [propertyTitle, setPropertyTitle] = useState("");
 
-  // Rent room rental
-  const [roomRentalMode, setRoomRentalMode] = useState("whole");
-  const [roomCountMode, setRoomCountMode] = useState("single");
+  // 房间出租数量
+  const [roomCountMode, setRoomCountMode] = useState("single"); // single | multi
   const [roomCount, setRoomCount] = useState("1");
 
-  // Rent batch: layout count（只给“整间出租 + 批量操作”）
+  // 整租批量 Layout 数量（只允许整租）
   const [layoutCountInput, setLayoutCountInput] = useState("2");
   const [showLayoutSuggest, setShowLayoutSuggest] = useState(false);
-  const layoutCount = clamp(toIntFromInput(layoutCountInput), 2, 20);
+  const layoutCount = clamp(toInt(layoutCountInput), 2, 20);
 
   const subtypeRef = useRef(null);
   const [subtypeOpen, setSubtypeOpen] = useState(false);
 
-  useEffect(() => {
-    const shouldShow =
-      category === "Apartment / Condo / Service Residence" ||
-      category === "Business Property" ||
-      category === "Industrial Property";
-    setShowSubtype(shouldShow);
-  }, [category]);
-
-  useEffect(() => {
-    const onDoc = (e) => {
-      if (subtypeRef.current && !subtypeRef.current.contains(e.target)) {
-        setSubtypeOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, []);
-
-  const toggleSubtype = (opt) => {
-    setSubtype((prev) => {
-      if (prev.includes(opt)) return prev.filter((x) => x !== opt);
-      return [...prev, opt];
-    });
+  const patchTypeForm = (patch) => {
+    setTypeForm((prev) => ({ ...(prev || {}), ...(patch || {}) }));
   };
-
-  const subtypeDisplayText = subtype.join(", ");
 
   const isProjectStatus =
     propertyStatus === "New Project / Under Construction" ||
@@ -336,49 +264,54 @@ export default function TypeSelector({
 
   const showStoreys = needStoreysForSale || needStoreysForRent;
 
+  const showSubtype =
+    category === "Apartment / Condo / Service Residence" || category === "Business Property" || category === "Industrial Property";
+
   const showRoomRentalToggle = saleType === "Rent" && ROOM_RENTAL_ELIGIBLE_CATEGORIES.has(category);
 
-  // ✅✅✅关键：只要是“房间出租”，就绝对不显示批量/布局数量
   const isRoomRental = saleType === "Rent" && roomRentalMode === "room";
-  const hideBatchToggleBecauseRoomRental = isRoomRental;
 
-  const resetAll = () => {
-    setUsage("");
-    setPropertyStatus("");
-    setAffordable("");
-    setAffordableType("");
-    setTenure("");
-    setCategory("");
-    setFinalType("");
-    setSubtype([]);
-    setAuctionDate("");
-    setStoreys("");
-    setPropertyTitle("");
-    setRoomRentalMode("whole");
-    setRoomCountMode("single");
-    setRoomCount("1");
-    setLayoutCountInput("2");
-    setShowLayoutSuggest(false);
-    onChangeRentBatchMode?.("no");
-  };
-
-  // ✅✅✅（关键修复）把 onFormChange 存进 ref，避免依赖它造成“持续 effect → 抖动”
-  const onFormChangeRef = useRef(onFormChange);
+  // ✅✅✅ 房间出租保护：只要是 room，就强制关闭批量 + 清 layoutCount（防止你截图那种同时出现）
   useEffect(() => {
-    onFormChangeRef.current = onFormChange;
-  }, [onFormChange]);
+    if (String(saleType || "").toLowerCase() !== "rent") return;
 
-  // ✅✅✅（关键修复）编辑模式回填：用稳定签名，避免重复 hydrate 导致 UI 抖动
-  const _hydratedRef = useRef("");
+    if (String(roomRentalMode || "").toLowerCase() === "room") {
+      if (rentBatchMode !== "no") setRentBatchMode("no");
+      setLayoutCountInput("2");
+      setShowLayoutSuggest(false);
+
+      patchTypeForm({
+        rentBatchMode: "no",
+        layoutCount: 2,
+      });
+    }
+  }, [saleType, roomRentalMode]);
+
+  // 点击外部收起 subtype
+  useEffect(() => {
+    const onDoc = (e) => {
+      if (subtypeRef.current && !subtypeRef.current.contains(e.target)) {
+        setSubtypeOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+
+  // ✅✅✅ 编辑回填（避免重复 hydrate 抖动）
+  const hydratedSigRef = useRef("");
   useEffect(() => {
     if (!initialForm || typeof initialForm !== "object") return;
     const sig = stableStringify(initialForm);
-    if (!sig || sig === _hydratedRef.current) return;
-    _hydratedRef.current = sig;
+    if (!sig || sig === hydratedSigRef.current) return;
+    hydratedSigRef.current = sig;
 
-    setSaleType(initialForm.saleType || "");
+    if (initialForm.saleType) setSaleType(initialForm.saleType);
+    if (initialForm.typeValue !== undefined) setTypeValue(initialForm.typeValue);
+    if (initialForm.propertyStatus) setPropertyStatus(initialForm.propertyStatus);
+
     setUsage(initialForm.usage || "");
-    setPropertyStatus(initialForm.propertyStatus || "");
+    setPropertyTitle(initialForm.propertyTitle || "");
     setAffordable(initialForm.affordable || "");
     setAffordableType(initialForm.affordableType || "");
     setTenure(initialForm.tenure || "");
@@ -387,26 +320,28 @@ export default function TypeSelector({
     setSubtype(Array.isArray(initialForm.subtype) ? initialForm.subtype : []);
     setAuctionDate(initialForm.auctionDate || "");
     setStoreys(initialForm.storeys || "");
-    setPropertyTitle(initialForm.propertyTitle || "");
 
-    setRoomRentalMode(initialForm.roomRentalMode || "whole");
+    if (initialForm.roomRentalMode) setRoomRentalMode(initialForm.roomRentalMode);
     setRoomCountMode(initialForm.roomCountMode || "single");
     setRoomCount(initialForm.roomCount ? String(initialForm.roomCount) : "1");
 
     if (initialForm.layoutCount) setLayoutCountInput(String(initialForm.layoutCount));
 
-    // ✅✅✅补刀：如果编辑回填出来就是房间出租，强制关掉 rentBatchMode
-    if ((initialForm.saleType || "") === "Rent" && (initialForm.roomRentalMode || "whole") === "room") {
-      onChangeRentBatchMode?.("no");
+    // ✅ 如果回填出来就是房间出租，强制关批量
+    if ((initialForm.saleType || "") === "Rent" && (initialForm.roomRentalMode || "") === "room") {
+      setRentBatchMode("no");
       setLayoutCountInput("2");
       setShowLayoutSuggest(false);
     }
+
+    patchTypeForm({ ...(initialForm || {}) });
   }, [initialForm]);
 
-  // ✅✅✅ 稳定向父组件推送 form（不再把 onFormChange 放进 deps）
+  // 同步到 typeForm（保证保存时拿到最新）
   useEffect(() => {
-    onFormChangeRef.current?.({
+    patchTypeForm({
       saleType,
+      typeValue,
       usage,
       propertyTitle,
       propertyStatus,
@@ -421,11 +356,12 @@ export default function TypeSelector({
       roomRentalMode,
       roomCountMode,
       roomCount: Number(roomCount) || 1,
+      rentBatchMode,
       layoutCount,
-      // 你原本就会从父层拿 rentBatchMode，不在这里强行写
     });
   }, [
     saleType,
+    typeValue,
     usage,
     propertyTitle,
     propertyStatus,
@@ -440,8 +376,13 @@ export default function TypeSelector({
     roomRentalMode,
     roomCountMode,
     roomCount,
+    rentBatchMode,
     layoutCount,
   ]);
+
+  const toggleSubtype = (opt) => {
+    setSubtype((prev) => (prev.includes(opt) ? prev.filter((x) => x !== opt) : [...prev, opt]));
+  };
 
   return (
     <div className="space-y-4">
@@ -449,11 +390,31 @@ export default function TypeSelector({
         <label className="block font-medium">Sale / Rent / Homestay / Hotel</label>
         <select
           className="w-full border rounded p-2"
-          value={saleType}
+          value={saleType || ""}
           onChange={(e) => {
             const next = e.target.value;
             setSaleType(next);
-            resetAll();
+
+            // 清掉类型区块相关（不碰你其它表单）
+            setUsage("");
+            setPropertyStatus("");
+            setAffordable("");
+            setAffordableType("");
+            setTenure("");
+            setCategory("");
+            setFinalType("");
+            setSubtype([]);
+            setAuctionDate("");
+            setStoreys("");
+            setPropertyTitle("");
+
+            setRoomRentalMode("whole");
+            setRoomCountMode("single");
+            setRoomCount("1");
+
+            setRentBatchMode("no");
+            setLayoutCountInput("2");
+            setShowLayoutSuggest(false);
           }}
         >
           <option value="">请选择</option>
@@ -484,7 +445,7 @@ export default function TypeSelector({
             <label className="block font-medium">Property Status / Sale Type</label>
             <select
               className="w-full border rounded p-2"
-              value={propertyStatus}
+              value={propertyStatus || ""}
               onChange={(e) => {
                 setPropertyStatus(e.target.value);
                 setStoreys("");
@@ -599,7 +560,7 @@ export default function TypeSelector({
                 {subtype.length === 0 ? (
                   <span className="text-gray-400">请选择 subtype（可多选）</span>
                 ) : (
-                  <span className="font-medium">{subtypeDisplayText}</span>
+                  <span className="font-medium">{subtype.join(", ")}</span>
                 )}
               </div>
 
@@ -628,7 +589,7 @@ export default function TypeSelector({
             </div>
           )}
 
-          {/* ✅ Rent：整间/房间逻辑（恢复你原本设计） */}
+          {/* ✅ Rent：整间/房间切换 */}
           {showRoomRentalToggle && (
             <div className="mt-2 space-y-2">
               <label className="block text-sm font-medium text-gray-700">是否只是出租房间？</label>
@@ -639,9 +600,9 @@ export default function TypeSelector({
                   const v = e.target.value;
                   setRoomRentalMode(v);
 
-                  // ✅ 一旦切到房间出租：强制关掉“批量 Layout”
+                  // ✅ 切到房间出租：强制关掉批量 Layout
                   if (v === "room") {
-                    onChangeRentBatchMode?.("no");
+                    setRentBatchMode("no");
                     setLayoutCountInput("2");
                     setShowLayoutSuggest(false);
                   }
@@ -662,15 +623,16 @@ export default function TypeSelector({
                         const mode = e.target.value;
                         setRoomCountMode(mode);
 
-                        // ✅ 只有一个房间：不需要数量，且确保批量 Layout 关闭
                         if (mode === "single") {
                           setRoomCount("1");
-                          onChangeRentBatchMode?.("no");
-                          setLayoutCountInput("2");
-                          setShowLayoutSuggest(false);
                         } else {
                           setRoomCount("2");
                         }
+
+                        // ✅ 房间出租时，无论如何都不允许 batch
+                        setRentBatchMode("no");
+                        setLayoutCountInput("2");
+                        setShowLayoutSuggest(false);
                       }}
                     >
                       <option value="single">是的，只有一个房间</option>
@@ -697,8 +659,8 @@ export default function TypeSelector({
         </>
       )}
 
-      {/* ✅✅✅ Rent 批量操作：只允许“整间出租 whole”出现；房间出租绝对不显示 */}
-      {saleType === "Rent" && !!category && !hideBatchToggleBecauseRoomRental && (
+      {/* ✅✅✅ Rent 批量操作：只允许“整间出租”出现；房间出租时永远不显示（修复你截图问题） */}
+      {saleType === "Rent" && !!category && roomRentalMode !== "room" && (
         <div className="mt-2 space-y-2">
           <label className="block text-sm font-medium text-gray-700">需要批量操作吗？</label>
           <select
@@ -706,7 +668,7 @@ export default function TypeSelector({
             value={rentBatchMode}
             onChange={(e) => {
               const v = e.target.value;
-              onChangeRentBatchMode?.(v);
+              setRentBatchMode(v);
               setShowLayoutSuggest(false);
 
               if (v !== "yes") {
@@ -720,7 +682,7 @@ export default function TypeSelector({
 
           {rentBatchMode === "yes" && (
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">这个项目有多少个房型 / Layout 数量</label>
+              <label className="block text-sm font-medium text-gray-700">这个项目有多少个屋型 / Layout 数量</label>
 
               <div className="relative">
                 <input
@@ -733,7 +695,7 @@ export default function TypeSelector({
                   onFocus={() => setShowLayoutSuggest(true)}
                   onBlur={() => {
                     setTimeout(() => setShowLayoutSuggest(false), 120);
-                    const n = clamp(toIntFromInput(layoutCountInput), 2, 20);
+                    const n = clamp(toInt(layoutCountInput), 2, 20);
                     setLayoutCountInput(addCommas(String(n)));
                   }}
                   inputMode="numeric"
@@ -768,4 +730,3 @@ export default function TypeSelector({
     </div>
   );
 }
-             
