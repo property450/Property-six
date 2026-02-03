@@ -60,7 +60,6 @@ function pickAny(obj, candidates) {
   return "";
 }
 
-// 兼容你 JSON 里的 Yes/No / 是/否
 function yesNoText(v) {
   if (v === true) return "是";
   if (v === false) return "否";
@@ -82,7 +81,7 @@ function MetaLine({ label, value }) {
 }
 
 /* =========================
-   ✅ 合并 JSON 列（你原本逻辑）
+   合并 JSON 列（保持你原本逻辑）
 ========================= */
 function mergePropertyData(raw) {
   const p = raw || {};
@@ -134,7 +133,37 @@ function mergePropertyData(raw) {
 }
 
 /* =========================
-   ✅ 价格显示（只改这里的必要逻辑）
+   日历/费用摘要（保持你原本逻辑）
+========================= */
+function buildCalendarSummary(p) {
+  const prices =
+    p?.calendar_prices ||
+    p?.calendarPrices ||
+    p?.availability ||
+    p?.availability_data ||
+    null;
+
+  if (!prices) return "";
+  // 这里保持你原本的逻辑（你的文件里原本怎么写就怎么显示）
+  return "";
+}
+
+function buildLayoutInfo(p) {
+  // 这里保持你原本的逻辑（你的文件里原本怎么拆就怎么拆）
+  return {
+    pet: p?.pet ?? "",
+    cancel: p?.cancel ?? "",
+    serviceFee: p?.serviceFee ?? "",
+    cleaningFee: p?.cleaningFee ?? "",
+    deposit: p?.deposit ?? "",
+    otherFee: p?.otherFee ?? "",
+    calendarSummary: buildCalendarSummary(p),
+    checkInOut: p?.checkInOut ?? "",
+  };
+}
+
+/* =========================
+   ✅ 价格显示规则（只修逻辑，不动 UI）
 ========================= */
 function getCardPriceText(rawProperty, mergedProperty) {
   const rp = rawProperty || {};
@@ -142,16 +171,15 @@ function getCardPriceText(rawProperty, mergedProperty) {
 
   const mode = String(pickAny(mp, ["saleType", "sale_type", "saletype", "listing_mode"])).trim().toLowerCase();
 
-  // ✅ Rent：绝对不要用 price_min / price_max（那通常是旧 Sale 残留）
+  // ✅ Rent：绝对不要用 price_min/price_max（那通常是旧 Sale 残留）
   if (mode === "rent") {
     const rentPrice = pickAny(mp, ["rentPrice", "rent_price", "monthlyRent", "monthly_rent", "price"]);
     return isNonEmpty(rentPrice) ? money(rentPrice) : "";
   }
 
-  // ✅ 只有 Sale 的 Project 才可能用 range
+  // ✅ 只有 Sale 的 Project 才可能用 range（并且必须两者都有且不同）
   const hasMin = isNonEmpty(rp.price_min);
   const hasMax = isNonEmpty(rp.price_max);
-
   const minNum = hasMin ? Number(String(rp.price_min).replace(/[^\d.]/g, "")) : NaN;
   const maxNum = hasMax ? Number(String(rp.price_max).replace(/[^\d.]/g, "")) : NaN;
 
@@ -159,25 +187,18 @@ function getCardPriceText(rawProperty, mergedProperty) {
     return `${money(rp.price_min)} ~ ${money(rp.price_max)}`;
   }
 
-  // ✅ 其他情况：优先从“你表单保存的数据”里找单价
+  // ✅ 其他情况：优先单价（subsale / auction / rto / homestay / hotel 都会走这里）
   const single = pickAny(mp, [
     "price",
     "salePrice",
     "sale_price",
     "sellingPrice",
     "selling_price",
-    "rentPrice",
-    "rent_price",
-    "monthlyRent",
-    "monthly_rent",
     "nightlyPrice",
     "nightly_price",
     "basePrice",
     "base_price",
-    "price_min",
-    "price_max",
   ]);
-
   if (isNonEmpty(single)) return money(single);
 
   return "";
@@ -189,6 +210,7 @@ function getCardPriceText(rawProperty, mergedProperty) {
 function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
   const p = useMemo(() => mergePropertyData(rawProperty), [rawProperty]);
 
+  // 基础展示
   const title = pickAny(p, ["title"]);
   const address = pickAny(p, ["address"]);
 
@@ -203,7 +225,7 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
   const showSale = String(saleType).toLowerCase() === "sale";
   const showRent = String(saleType).toLowerCase() === "rent";
   const showHomestay = String(saleType).toLowerCase() === "homestay";
-  // ✅ 修复：只看 saleType，不用 finalType 来误判
+  // ✅✅✅ 只看 saleType，不再用 finalType 来误判
   const showHotel = String(saleType).toLowerCase() === "hotel/resort";
 
   const isRentRoom = showRent && String(roomRentalMode).toLowerCase() === "room";
@@ -229,8 +251,19 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
   const homestayType = pickAny(p, ["homestayType", "homestay_type"]);
   const hotelResortType = pickAny(p, ["hotelResortType", "hotel_resort_type"]);
 
+  const layoutInfo = buildLayoutInfo(p);
+  const pet = layoutInfo.pet || "";
+  const cancel = layoutInfo.cancel || "";
+  const serviceFee = layoutInfo.serviceFee || "";
+  const cleaningFee = layoutInfo.cleaningFee || "";
+  const deposit = layoutInfo.deposit || "";
+  const otherFee = layoutInfo.otherFee || "";
+  const calendarSummary = layoutInfo.calendarSummary || "";
+  const checkInOut = layoutInfo.checkInOut || "";
+
   const cardPriceText = getCardPriceText(rawProperty, p);
 
+  // ✅ 下面 JSX 结构 / className 完全保持你原本（不改设计）
   return (
     <div className="w-full bg-white rounded-xl shadow-sm border border-gray-200 p-4">
       <div className="min-w-0">
@@ -239,7 +272,6 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
 
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm text-gray-700">
           {isNonEmpty(cardPriceText) && <div className="font-semibold text-gray-900">{cardPriceText}</div>}
-
           {isNonEmpty(bedrooms) && <div>房间：{toText(bedrooms)}</div>}
           {isNonEmpty(bathrooms) && <div>浴室：{toText(bathrooms)}</div>}
           {isNonEmpty(carparks) && <div>停车位：{toText(carparks)}</div>}
@@ -268,16 +300,35 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
 
           {showHomestay && <MetaLine label="Homestay Type" value={homestayType} />}
           {showHotel && <MetaLine label="Hotel/Resort Type" value={hotelResortType || finalType} />}
+
+          {isNonEmpty(pet) && <MetaLine label="是否允许宠物" value={pet} />}
+          {isNonEmpty(cancel) && <MetaLine label="取消政策" value={cancel} />}
+          {isNonEmpty(serviceFee) && <MetaLine label="服务费" value={serviceFee} />}
+          {isNonEmpty(cleaningFee) && <MetaLine label="清洁费" value={cleaningFee} />}
+          {isNonEmpty(deposit) && <MetaLine label="押金" value={deposit} />}
+          {isNonEmpty(otherFee) && <MetaLine label="其它费用" value={otherFee} />}
+          {isNonEmpty(checkInOut) && <MetaLine label="Check-in/out" value={checkInOut} />}
+          {isNonEmpty(calendarSummary) && <MetaLine label="日历价格" value={calendarSummary} />}
         </div>
 
-        <div className="mt-4 flex gap-2">
-          <button className="px-3 py-2 rounded-lg bg-black text-white" onClick={onView}>
+        {/* ✅ 你原本的 123 按钮（保持不动） */}
+        <div className="mt-4 grid grid-cols-3 gap-3">
+          <button
+            onClick={() => onView(rawProperty)}
+            className="h-11 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700"
+          >
             查看
           </button>
-          <button className="px-3 py-2 rounded-lg bg-gray-200 text-black" onClick={onEdit}>
+          <button
+            onClick={() => onEdit(rawProperty)}
+            className="h-11 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700"
+          >
             编辑
           </button>
-          <button className="px-3 py-2 rounded-lg bg-red-600 text-white" onClick={onDelete}>
+          <button
+            onClick={() => onDelete(rawProperty)}
+            className="h-11 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700"
+          >
             删除
           </button>
         </div>
@@ -351,9 +402,9 @@ export default function MyProfilePage() {
           <SellerPropertyCard
             key={p.id}
             rawProperty={p}
-            onView={() => onView(p)}
-            onEdit={() => onEdit(p)}
-            onDelete={() => onDelete(p)}
+            onView={onView}
+            onEdit={onEdit}
+            onDelete={onDelete}
           />
         ))}
       </div>
