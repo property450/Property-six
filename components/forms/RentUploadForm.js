@@ -72,7 +72,16 @@ export default function RentUploadForm({
 
   propertyCategory = "",
 }) {
+  // ✅✅✅ 只补：房间/整租分支渲染需要一个稳定判断（优先用 isRoomRental，否则用 roomRentalMode）
+  const isRoomRentalFinal =
+    typeof isRoomRental === "boolean"
+      ? isRoomRental
+      : String(roomRentalMode || "").toLowerCase() === "room";
+
   const isBatch = rentBatchMode === "yes";
+
+  // ✅✅✅ 只加：批量显示保护条件（批量只能用于“整间出租”，房间出租时禁止进入批量分支）
+  const shouldShowBatch = isBatch && !isRoomRentalFinal;
 
   const updateBatchLayout = (idx, patch) => {
     if (!setUnitLayouts) return;
@@ -86,7 +95,7 @@ export default function RentUploadForm({
   // ======================
   // ✅ 批量（整间出租）
   // ======================
-  if (isBatch) {
+  if (shouldShowBatch) {
     return (
       <div className="space-y-4">
         {Array.from({ length: Number(layoutCount) || 0 }).map((_, idx) => {
@@ -173,14 +182,14 @@ export default function RentUploadForm({
                 setDescription={setDescription}
               />
 
-                  {/* ===== 房源级：地址 + 真实性验证（只出现一次） ===== */}
-<ListingTrustSection
-  mode="rent"
-  value={formData?.trustSection || {}}
-  onChange={(next) =>
-    setFormData((prev) => ({ ...(prev || {}), trustSection: next }))
-  }
-/>
+              {/* ===== 房源级：地址 + 真实性验证（只出现一次） ===== */}
+              <ListingTrustSection
+                mode="rent"
+                value={singleFormData?.trustSection || {}}
+                onChange={(next) =>
+                  setSingleFormData((prev) => ({ ...(prev || {}), trustSection: next }))
+                }
+              />
             </div>
           );
         })}
@@ -196,7 +205,7 @@ export default function RentUploadForm({
   return (
     <div className="space-y-4">
       {/* ===== 出租房间 ===== */}
-      {isRoomRental ? (
+      {isRoomRentalFinal ? (
         Number(layoutCount) > 1 ? (
           <div className="space-y-4">
             {Array.from({ length: Number(layoutCount) || 0 }).map((_, idx) => {
@@ -280,6 +289,15 @@ export default function RentUploadForm({
             <DescriptionField
               description={description}
               setDescription={setDescription}
+            />
+
+            {/* ===== 房源级：地址 + 真实性验证（只出现一次） ===== */}
+            <ListingTrustSection
+              mode="rent"
+              value={singleFormData?.trustSection || {}}
+              onChange={(next) =>
+                setSingleFormData((prev) => ({ ...(prev || {}), trustSection: next }))
+              }
             />
           </>
         )
@@ -376,14 +394,14 @@ export default function RentUploadForm({
             setDescription={setDescription}
           />
 
-              {/* ===== 房源级：地址 + 真实性验证（只出现一次） ===== */}
-<ListingTrustSection
-  mode="rent"
-  value={singleFormData?.trustSection || {}}
-        onChange={(next) =>
-    setFormData((prev) => ({ ...(prev || {}), trustSection: next }))
-  }
-/>
+          {/* ===== 房源级：地址 + 真实性验证（只出现一次） ===== */}
+          <ListingTrustSection
+            mode="rent"
+            value={singleFormData?.trustSection || {}}
+            onChange={(next) =>
+              setSingleFormData((prev) => ({ ...(prev || {}), trustSection: next }))
+            }
+          />
         </>
       )}
     </div>
