@@ -781,9 +781,6 @@ export default function UploadPropertyPage() {
 
   const handleTypeFormChange = useCallback((patch) => {
     setTypeForm((prev) => ({ ...(prev || {}), ...(patch || {}) }));
-
-    // 你这里如果原本有需要从 patch 派生 saleType / propertyStatus / roomRentalMode
-    // 但你(31)版本没有显式派生逻辑，我不额外加，避免动你其它逻辑
   }, []);
 
   return (
@@ -792,13 +789,21 @@ export default function UploadPropertyPage() {
 
       <AddressSearchInput value={addressObj} onChange={setAddressObj} />
 
+      {/* ✅✅✅ 关键修复：TypeSelector 必须绑定父层 saleType/propertyStatus/roomRentalMode/rentBatchMode */}
       <TypeSelector
-        value={typeValue}
-        onChange={setTypeValue}
-        initialForm={typeSelectorInitialForm}
+        saleType={saleType}
+        setSaleType={setSaleType}
+        typeValue={typeValue}
+        setTypeValue={setTypeValue}
+        propertyStatus={propertyStatus}
+        setPropertyStatus={setPropertyStatus}
+        roomRentalMode={roomRentalMode}
+        setRoomRentalMode={setRoomRentalMode}
         rentBatchMode={rentBatchMode}
-        onChangeRentBatchMode={(val) => setRentBatchMode(val)}
-        onFormChange={handleTypeFormChange}
+        setRentBatchMode={setRentBatchMode}
+        typeForm={typeForm}
+        setTypeForm={setTypeForm}
+        initialForm={typeSelectorInitialForm}
       />
 
       {/* 下面按你原本的选择渲染不同表单（保持不动） */}
