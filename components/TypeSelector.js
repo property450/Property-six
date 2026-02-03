@@ -259,29 +259,17 @@ function stableStringify(obj) {
   }
 }
 
-export default function TypeSelector(props) {
-  // ✅ 兼容 upload-property 传参（saleType/setSaleType/typeForm/setTypeForm...）
-  //    同时也兼容旧用法：value/onChange/onFormChange/rentBatchMode/onChangeRentBatchMode
-  const value = props.value ?? props.typeValue ?? "";
-  const onChange = props.onChange ?? props.setTypeValue ?? (() => {});
-  const rentBatchMode = props.rentBatchMode ?? "no";
-  const onChangeRentBatchMode =
-    props.onChangeRentBatchMode ?? props.setRentBatchMode ?? (() => {});
-  const initialForm = props.initialForm ?? null;
-
-  const onFormChange =
-    props.onFormChange ??
-    ((form) => {
-      const f = form || {};
-      props.setTypeForm?.(f);
-      if (f.saleType !== undefined) props.setSaleType?.(f.saleType || "");
-      if (f.propertyStatus !== undefined) props.setPropertyStatus?.(f.propertyStatus || "");
-      if (f.roomRentalMode !== undefined) props.setRoomRentalMode?.(f.roomRentalMode || "whole");
-    });
-
-  const [saleType, setSaleType] = useState(props.saleType || "");
+export default function TypeSelector({
+  value,
+  onChange,
+  onFormChange,
+  rentBatchMode,
+  onChangeRentBatchMode,
+  initialForm,
+}) {
+  const [saleType, setSaleType] = useState("");
   const [usage, setUsage] = useState("");
-  const [propertyStatus, setPropertyStatus] = useState(props.propertyStatus || "");
+  const [propertyStatus, setPropertyStatus] = useState("");
   const [affordable, setAffordable] = useState("");
   const [affordableType, setAffordableType] = useState("");
   const [tenure, setTenure] = useState("");
@@ -295,7 +283,7 @@ export default function TypeSelector(props) {
   const [propertyTitle, setPropertyTitle] = useState("");
 
   // Rent room rental
-  const [roomRentalMode, setRoomRentalMode] = useState(props.roomRentalMode || "whole");
+  const [roomRentalMode, setRoomRentalMode] = useState("whole");
   const [roomCountMode, setRoomCountMode] = useState("single");
   const [roomCount, setRoomCount] = useState("1");
 
@@ -722,7 +710,7 @@ export default function TypeSelector(props) {
                   placeholder="2 ~ 20"
                 />
 
-                {showLayoutSuggest && (
+                    {showLayoutSuggest && (
                   <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-auto">
                     {Array.from({ length: 19 }).map((_, i) => {
                       const v = String(i + 2);
