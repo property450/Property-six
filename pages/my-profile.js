@@ -77,9 +77,7 @@ function money(v) {
 }
 
 /* =========================
-   ✅ 智能扫描（关键修复点）
-   - 不猜 key 名
-   - 直接在当前 active 表单 JSON 里找 range / year / quarter
+   智能扫描
 ========================= */
 function walkObject(root, visitor, maxDepth = 10) {
   const stack = [{ value: root, path: "", depth: 0 }];
@@ -193,7 +191,7 @@ function findBestExpectedYearQuarter(obj) {
 }
 
 /* =========================
-   ✅ 当前表单数据源
+   当前表单数据源
 ========================= */
 function isNewProjectStatus(propertyStatus) {
   const s = normalizeLower(propertyStatus);
@@ -220,8 +218,9 @@ function resolveActiveSources(raw) {
 
   const isProject = isNewProjectStatus(propertyStatus) || isCompletedUnitStatus(propertyStatus);
 
+  // ✅ 关键修复：project 模式也保留 singleFormV2 作为 form（因为有些字段会写进这里）
   if (isProject) {
-    return { mode: "project", saleType: "sale", propertyStatus, shared: typeFormV2, form: null, layout0 };
+    return { mode: "project", saleType: "sale", propertyStatus, shared: typeFormV2, form: singleFormV2, layout0 };
   }
 
   if (saleType === "sale" || saleType === "rent") {
@@ -256,7 +255,7 @@ function pickActive(raw, active, keys) {
   return "";
 }
 
-// ✅ Project 模式专用：优先读当前表单 JSON（shared/layout0），最后才读 raw 顶层
+// ✅ Project 模式专用：优先读 shared/layout0/form，最后才读 raw 顶层（避免旧值盖掉）
 function pickProjectActive(raw, active, keys) {
   const v1 = pickAny(active.shared, keys);
   if (isNonEmpty(v1)) return v1;
@@ -264,13 +263,16 @@ function pickProjectActive(raw, active, keys) {
   const v2 = pickAny(active.layout0, keys);
   if (isNonEmpty(v2)) return v2;
 
+  const v3 = pickAny(active.form, keys);
+  if (isNonEmpty(v3)) return v3;
+
   const v0 = pickAny(raw, keys);
   if (isNonEmpty(v0)) return v0;
 
   return "";
 }
 
-// ✅ 找 Completed Year（完成年份）：在对象里扫描 1900~2100 的年份，且路径更像 completed/built
+// ✅ 完成年份扫描：尽量找到 completed/built year（排除 expect）
 function findBestCompletedYear(obj) {
   if (!obj || typeof obj !== "object") return null;
 
@@ -282,7 +284,6 @@ function findBestCompletedYear(obj) {
     if (!(y >= 1900 && y <= 2100)) return;
 
     const path = normalizeLower(p);
-    // 排除 expected（预计完成）
     if (path.includes("expect")) return;
 
     const score =
@@ -384,7 +385,7 @@ function getTransitText(raw, active) {
 }
 
 /* =========================
-   价格（保持你现在的逻辑）
+   价格
 ========================= */
 function getCardPriceText(raw, active) {
   const propertyStatus = active.propertyStatus || pickAny(raw, ["propertyStatus", "property_status", "propertystatus"]);
@@ -405,7 +406,10 @@ function getCardPriceText(raw, active) {
       if (isNonEmpty(r) && r.includes("~")) return r;
     }
 
-    const best = findBestPriceRange(active.shared) || findBestPriceRange(active.layout0);
+    const best =
+      findBestPriceRange(active.shared) ||
+      findBestPriceRange(active.layout0) ||
+      findBestPriceRange(active.form);
     if (best) return `${money(best.min)} ~ ${money(best.max)}`;
   }
 
@@ -416,7 +420,7 @@ function getCardPriceText(raw, active) {
 }
 
 /* =========================
-   预计完成（保持你现在的逻辑）
+   预计完成
 ========================= */
 function getExpectedCompletionText(raw, active) {
   const year = pickActive(raw, active, [
@@ -442,7 +446,10 @@ function getExpectedCompletionText(raw, active) {
     return `${year} ${q}`;
   }
 
-  const best = findBestExpectedYearQuarter(active.shared) || findBestExpectedYearQuarter(active.layout0);
+  const best =
+    findBestExpectedYearQuarter(active.shared) ||
+    findBestExpectedYearQuarter(active.layout0) ||
+    findBestExpectedYearQuarter(active.form);
   if (!best || !best.year) return "-";
   if (!best.quarter) return String(best.year);
   return `${best.year} Q${best.quarter}`;
@@ -487,7 +494,7 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
 
   const isProject = active.mode === "project";
 
-  // ✅ Affordable Housing：Project 模式优先读 shared/layout0（避免被 raw 旧值盖掉）
+  // ✅ Affordable Housing：project 模式用 pickProjectActive（shared/layout0/form 优先）
   const affordableRaw = isProject
     ? pickProjectActive(rawProperty, active, ["affordable", "affordable_housing", "affordableHousing", "isAffordableHousing", "affordableYesNo"])
     : pickActive(rawProperty, active, ["affordable", "affordable_housing", "affordableHousing", "isAffordableHousing", "affordableYesNo"]);
@@ -508,7 +515,7 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
 
   const expectedText = getExpectedCompletionText(rawProperty, active);
 
-  // ✅ 完成年份：Project 模式先读 shared/layout0，读不到就扫描（避免 key 名不一致）
+  // ✅ 完成年份：project 模式也从 form 扫描（重要）
   let completedYear = "";
   if (isProject) {
     completedYear = pickProjectActive(rawProperty, active, [
@@ -523,7 +530,10 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
     ]);
 
     if (!isNonEmpty(completedYear)) {
-      const y = findBestCompletedYear(active.shared) || findBestCompletedYear(active.layout0);
+      const y =
+        findBestCompletedYear(active.shared) ||
+        findBestCompletedYear(active.layout0) ||
+        findBestCompletedYear(active.form);
       if (y) completedYear = String(y);
     }
   } else {
@@ -577,7 +587,7 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
 
           {isNewProjectStatus(propertyStatus) ? (
             <MetaLineDash label="预计完成年份" value={expectedText} />
-          ) : isCompletedUnitStatus(propertyStatus) ? (
+            ) : isCompletedUnitStatus(propertyStatus) ? (
             <MetaLineDash label="完成年份" value={isNonEmpty(completedYear) ? completedYear : "-"} />
           ) : (
             <>
@@ -601,10 +611,10 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
       </div>
     </div>
   );
-          }
+}
 
 /* =========================
-   Page（统计 + 搜索 + 排序）
+   Page
 ========================= */
 export default function MyProfilePage() {
   const router = useRouter();
