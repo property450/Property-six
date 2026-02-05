@@ -18,21 +18,6 @@ function isNonEmpty(v) {
   return true;
 }
 
-function toText(v) {
-  if (v === null || v === undefined) return "";
-  if (typeof v === "boolean") return v ? "是" : "否";
-  if (Array.isArray(v)) return v.filter(isNonEmpty).map(String).join(", ");
-  if (typeof v === "object") return JSON.stringify(v);
-  return String(v);
-}
-
-function money(v) {
-  if (!isNonEmpty(v)) return "";
-  const n = Number(String(v).replace(/,/g, "").replace(/[^\d.]/g, ""));
-  if (Number.isNaN(n)) return String(v);
-  return "RM " + n.toLocaleString("en-MY");
-}
-
 function safeJson(v) {
   if (!isNonEmpty(v)) return null;
   if (typeof v === "object") return v;
@@ -63,7 +48,14 @@ function pickAny(obj, candidates) {
   return "";
 }
 
-// 兼容你 JSON 里的 Yes/No / 是/否
+function toText(v) {
+  if (v === null || v === undefined) return "";
+  if (typeof v === "boolean") return v ? "是" : "否";
+  if (Array.isArray(v)) return v.filter(isNonEmpty).map(String).join(", ");
+  if (typeof v === "object") return JSON.stringify(v);
+  return String(v);
+}
+
 function yesNoText(v) {
   if (v === true) return "是";
   if (v === false) return "否";
@@ -74,100 +66,140 @@ function yesNoText(v) {
   return String(v);
 }
 
-function MetaLine({ label, value }) {
-  if (!isNonEmpty(value)) return null;
+function extractNumeric(x) {
+  if (!isNonEmpty(x)) return NaN;
+  const n = Number(String(x).replace(/,/g, "").replace(/[^\d.]/g, ""));
+  return Number.isNaN(n) ? NaN : n;
+}
+
+function money(v) {
+  if (!isNonEmpty(v)) return "";
+  const n = extractNumeric(v);
+  if (Number.isNaN(n)) return "";
+  return "RM " + n.toLocaleString("en-MY");
+}
+
+/* ✅ 永远显示：没值就 "-"（你要求：没选就显示 -） */
+function MetaLineDash({ label, value }) {
+  const show = isNonEmpty(value) ? toText(value) : "-";
   return (
     <div className="text-sm text-gray-700 leading-6">
       <span className="text-gray-500">{label}：</span>
-      <span className="text-gray-900">{toText(value)}</span>
+      <span className="text-gray-900">{show}</span>
     </div>
   );
 }
 
 /* =========================
-   ✅ 核心：把你表里所有“可能装 JSON 的列”合并起来
+   ✅ 关键：只解析 JSON，不做“跨表单补值”
+   （避免你截图那种：Category=Land 但 SubType=Apartment 的污染）
 ========================= */
-function mergePropertyData(raw) {
+function buildParsed(raw) {
   const p = raw || {};
-  const merged = { ...p };
+  const parsed = { ...p };
 
-  const jsonCols = [
-    "type_form_v2",
-    "type_form",
-    "typeform",
-    "typeForm",
-    "single_form_data_v2",
-    "single_form_data",
-    "singleFormData",
-    "homestay_form",
-    "hotel_resort_form",
-    "availability",
-    "calendar_prices",
-    "unit_layouts",
-    "unitlayouts",
-    "unitLayouts",
-    "pricedata",
-    "priceData",
-    "areadata",
-    "areaData",
-    "area_data",
-    "facilities",
-    "furniture",
-    "extraspaces",
-    "property_subtypes",
-    "bed_types",
-    "house_rules",
-    "check_in_out",
-  ];
+  parsed.__json = {
+    type_form_v2: safeJson(p.type_form_v2),
+    type_form: safeJson(p.type_form),
+    single_form_data_v2: safeJson(p.single_form_data_v2),
+    single_form_data: safeJson(p.single_form_data),
+    homestay_form: safeJson(p.homestay_form),
+    hotel_resort_form: safeJson(p.hotel_resort_form),
+  };
 
-  merged.__json = {};
-
-  for (const k of jsonCols) {
-    const parsed = safeJson(p?.[k]);
-    if (parsed && typeof parsed === "object") {
-      merged.__json[k] = parsed;
-
-      // 不覆盖顶层已有值，只补空
-      for (const key of Object.keys(parsed)) {
-        if (!isNonEmpty(merged[key])) merged[key] = parsed[key];
-      }
-    }
-  }
-
-  // layout0 提升（New Project/Completed 常用）
-  let ul = p?.unit_layouts ?? p?.unitLayouts ?? p?.unitlayouts;
+  // unit_layouts（New Project / Completed Unit 常用）
+  let ul = p.unit_layouts ?? p.unitLayouts ?? p.unitlayouts;
   ul = safeJson(ul) ?? ul;
-  if (Array.isArray(ul) && ul[0] && typeof ul[0] === "object") {
-    merged.__layout0 = ul[0];
-    for (const key of Object.keys(ul[0])) {
-      if (!isNonEmpty(merged[key])) merged[key] = ul[0][key];
-    }
-  }
+  parsed.__unitLayouts = Array.isArray(ul) ? ul : [];
+  parsed.__layout0 = parsed.__unitLayouts[0] && typeof parsed.__unitLayouts[0] === "object" ? parsed.__unitLayouts[0] : null;
 
-  return merged;
+  return parsed;
 }
 
 /* =========================
-   类型判断：New Project / Completed Unit
+   模式识别 + “只读当前表单”
 ========================= */
+function norm(s) {
+  return String(s || "").trim().toLowerCase();
+}
+
 function isNewProjectStatus(propertyStatus) {
-  const s = String(propertyStatus || "").toLowerCase();
+  const s = norm(propertyStatus);
   return s.includes("new project") || s.includes("under construction");
 }
 function isCompletedUnitStatus(propertyStatus) {
-  const s = String(propertyStatus || "").toLowerCase();
+  const s = norm(propertyStatus);
   return s.includes("completed unit") || s.includes("developer unit");
 }
 
-/* =========================
-   Storeys / Property Subtype 是否需要显示（跟表单一致）
-========================= */
-function normalizeCat(category) {
-  return String(category || "").toLowerCase();
+function getModeSources(p) {
+  // saleType 尽量从顶层拿（你保存时会写）
+  const saleTypeRaw = pickAny(p, ["saleType", "sale_type", "saletype", "listing_mode"]);
+  const saleType = norm(saleTypeRaw);
+
+  // propertyStatus 也优先顶层
+  const propertyStatusRaw = pickAny(p, ["propertyStatus", "property_status", "propertystatus"]);
+  const propertyStatus = String(propertyStatusRaw || "").trim();
+
+  const isProject = isNewProjectStatus(propertyStatus) || isCompletedUnitStatus(propertyStatus);
+
+  // ✅ Project：只读 type_form_v2（shared） + unit_layouts[0]（layout）
+  if (isProject) {
+    const shared = p.__json?.type_form_v2 || p.__json?.type_form || null;
+    const layout0 = p.__layout0 || null;
+    return { saleType: "sale", propertyStatus, isProject: true, shared, layout0, form: null };
+  }
+
+  // ✅ 非 Project Sale/Rent：只读 single_form_data_v2（或 single_form_data）
+  if (saleType === "sale" || saleType === "rent") {
+    const form = p.__json?.single_form_data_v2 || p.__json?.single_form_data || null;
+    return { saleType, propertyStatus, isProject: false, shared: null, layout0: null, form };
+  }
+
+  // ✅ Homestay / Hotel
+  if (saleType === "homestay") {
+    const form = p.__json?.homestay_form || null;
+    return { saleType, propertyStatus, isProject: false, shared: null, layout0: null, form };
+  }
+  if (saleType === "hotel/resort") {
+    const form = p.__json?.hotel_resort_form || null;
+    return { saleType, propertyStatus, isProject: false, shared: null, layout0: null, form };
+  }
+
+  return { saleType, propertyStatus, isProject: false, shared: null, layout0: null, form: null };
 }
 
-// 你之前定的 NEED_STOREYS_CATEGORY：
-// Bungalow/Villa, Business Property, Industrial Property, Semi-Detached, Terrace/Link House
+/* =========================
+   从当前 sources 取值（不会跨表单）
+========================= */
+function pickFromSources(src, keys) {
+  // 优先：顶层字段（你有些东西会直接写 column）
+  // 再：project shared / layout0 / form
+  const { raw, shared, layout0, form } = src;
+
+  const v1 = pickAny(raw, keys);
+  if (isNonEmpty(v1)) return v1;
+
+  const v2 = pickAny(shared, keys);
+  if (isNonEmpty(v2)) return v2;
+
+  const v3 = pickAny(layout0, keys);
+  if (isNonEmpty(v3)) return v3;
+
+  const v4 = pickAny(form, keys);
+  if (isNonEmpty(v4)) return v4;
+
+  return "";
+}
+
+/* =========================
+   Storeys / Property Subtype 是否显示（跟你表单一致）
+========================= */
+function normalizeCat(category) {
+  return norm(category);
+}
+
+// 你的 NEED_STOREYS_CATEGORY：Bungalow/Villa, Business, Industrial, Semi-D, Terrace/Link
 function shouldShowStoreysByCategory(category) {
   const c = normalizeCat(category);
   if (!c) return false;
@@ -183,7 +215,7 @@ function shouldShowStoreysByCategory(category) {
   );
 }
 
-// Property Subtype 只在 Apartment/Condo/Service Residence 或 Business/Industrial 这类出现（按你表单习惯）
+// 你 Property Subtype 只在 Apartment/Business/Industrial 这类出现
 function shouldShowPropertySubtypeByCategory(category) {
   const c = normalizeCat(category);
   if (!c) return false;
@@ -197,14 +229,13 @@ function shouldShowPropertySubtypeByCategory(category) {
 }
 
 /* =========================
-   交通：没选就显示 "-"
+   交通：没选就 "-"
 ========================= */
-function getTransitText(p) {
-  const near = pickAny(p, [
+function getTransitTextFromSources(src) {
+  const near = pickFromSources(src, [
     "transit.nearTransit",
-    "__layout0.transit.nearTransit",
-    "__json.single_form_data_v2.transit.nearTransit",
-    "__json.type_form_v2.transit.nearTransit",
+    "nearTransit",
+    "transitNearTransit",
   ]);
 
   if (!isNonEmpty(near)) return "-";
@@ -213,21 +244,12 @@ function getTransitText(p) {
   if (!isNonEmpty(yn)) return "-";
   if (yn === "否") return "否";
 
-  const lines = pickAny(p, [
-    "transit.selectedLines",
-    "__layout0.transit.selectedLines",
-    "__json.single_form_data_v2.transit.selectedLines",
-    "__json.type_form_v2.transit.selectedLines",
-  ]);
-  const stations = pickAny(p, [
-    "transit.selectedStations",
-    "__layout0.transit.selectedStations",
-    "__json.single_form_data_v2.transit.selectedStations",
-    "__json.type_form_v2.transit.selectedStations",
-  ]);
+  const lines = pickFromSources(src, ["transit.selectedLines", "selectedLines"]);
+  const stations = pickFromSources(src, ["transit.selectedStations", "selectedStations"]);
 
   let extra = "";
   if (Array.isArray(lines) && lines.length) extra += `｜线路：${lines.join(", ")}`;
+
   if (stations && typeof stations === "object") {
     const parts = [];
     for (const k of Object.keys(stations)) {
@@ -244,35 +266,22 @@ function getTransitText(p) {
 
 /* =========================
    ✅ 预计完成年份 + 季度（New Project）
-   兼容不同 key：year + quarter
 ========================= */
-function getExpectedCompletionText(p) {
-  const year = pickAny(p, [
+function getExpectedCompletionTextFromSources(src) {
+  const year = pickFromSources(src, [
     "expectedCompletedYear",
     "expected_year",
-    "__layout0.expectedCompletedYear",
-    "__layout0.expected_year",
-    "__json.type_form_v2.expectedCompletedYear",
-    "__json.type_form_v2.expected_year",
-    "__json.single_form_data_v2.expectedCompletedYear",
-    "__json.single_form_data_v2.expected_year",
+    "expectedYear",
     "expectedCompletionYear",
-    "__json.type_form_v2.expectedCompletionYear",
-    "__json.single_form_data_v2.expectedCompletionYear",
+    "completionExpectedYear",
   ]);
 
-  const quarter = pickAny(p, [
+  const quarter = pickFromSources(src, [
     "expectedCompletedQuarter",
     "expected_quarter",
     "expectedQuarter",
-    "__layout0.expectedCompletedQuarter",
-    "__layout0.expected_quarter",
-    "__json.type_form_v2.expectedCompletedQuarter",
-    "__json.type_form_v2.expected_quarter",
-    "__json.single_form_data_v2.expectedCompletedQuarter",
-    "__json.single_form_data_v2.expected_quarter",
-    "__json.type_form_v2.expectedQuarter",
-    "__json.single_form_data_v2.expectedQuarter",
+    "expectedCompletionQuarter",
+    "completionExpectedQuarter",
   ]);
 
   if (!isNonEmpty(year)) return "-";
@@ -280,372 +289,220 @@ function getExpectedCompletionText(p) {
   if (!isNonEmpty(quarter)) return String(year);
 
   let q = String(quarter).trim();
-  const qLower = q.toLowerCase();
-  if (qLower.startsWith("q")) q = q.toUpperCase();
+  if (norm(q).startsWith("q")) q = q.toUpperCase();
   else q = `Q${q}`;
 
   return `${year} ${q}`;
 }
 
 /* =========================
-   ✅ New Project 价格：优先范围（price_min/max 或 priceData.min/max）
-   不再被单价覆盖
+   ✅ 价格：Project 优先范围（price_min/max 或 priceData min/max）
 ========================= */
-function getCardPriceText(rawProperty, mergedProperty, isNewProject) {
-  const rp = rawProperty || {};
-  const mp = mergedProperty || {};
+function getCardPriceTextFromSources(mode, src) {
+  const rp = src.raw || {};
 
-  // 1) New Project：优先顶层 price_min/max（你表单最常写回这里）
-  if (isNewProject) {
+  // Project：必须优先 range
+  if (mode.isProject) {
     const hasMin = isNonEmpty(rp.price_min);
     const hasMax = isNonEmpty(rp.price_max);
 
-    const minNum = hasMin ? Number(String(rp.price_min).replace(/[^\d.]/g, "")) : NaN;
-    const maxNum = hasMax ? Number(String(rp.price_max).replace(/[^\d.]/g, "")) : NaN;
+    const minNum = hasMin ? extractNumeric(rp.price_min) : NaN;
+    const maxNum = hasMax ? extractNumeric(rp.price_max) : NaN;
 
-    if (hasMin && hasMax && !Number.isNaN(minNum) && !Number.isNaN(maxNum)) {
-      if (minNum !== maxNum) return `${money(rp.price_min)} ~ ${money(rp.price_max)}`;
-      return money(rp.price_min);
+    // 1) 顶层 price_min/price_max
+    if (hasMin && hasMax && !Number.isNaN(minNum) && !Number.isNaN(maxNum) && minNum !== maxNum) {
+      return `${money(rp.price_min)} ~ ${money(rp.price_max)}`;
     }
 
-    // 2) 如果你范围存在 JSON priceData（layout/type_form/single_form）
-    const pd = pickAny(mp, [
-      "priceData",
-      "pricedata",
-      "__layout0.priceData",
-      "__layout0.pricedata",
-      "__json.type_form_v2.priceData",
-      "__json.type_form_v2.pricedata",
-      "__json.single_form_data_v2.priceData",
-      "__json.single_form_data_v2.pricedata",
-    ]);
-
+    // 2) shared/layout0 的 priceData
+    const pd = pickAny(src.shared, ["priceData", "pricedata", "price_data"]) || pickAny(src.layout0, ["priceData", "pricedata", "price_data"]);
     const pdObj = safeJson(pd) ?? pd;
+
     if (pdObj && typeof pdObj === "object") {
       const minV = pickAny(pdObj, ["min", "minPrice", "min_value", "minValue", "from"]);
       const maxV = pickAny(pdObj, ["max", "maxPrice", "max_value", "maxValue", "to"]);
-      const minP = Number(String(minV || "").replace(/[^\d.]/g, ""));
-      const maxP = Number(String(maxV || "").replace(/[^\d.]/g, ""));
-      if (!Number.isNaN(minP) && !Number.isNaN(maxP)) {
-        if (minP !== maxP) return `${money(minP)} ~ ${money(maxP)}`;
-        return money(minP);
+      const minP = extractNumeric(minV);
+      const maxP = extractNumeric(maxV);
+      if (!Number.isNaN(minP) && !Number.isNaN(maxP) && minP !== maxP) {
+        return `${money(minP)} ~ ${money(maxP)}`;
       }
+      if (!Number.isNaN(minP)) return money(minP);
+      if (!Number.isNaN(maxP)) return money(maxP);
     }
-  }
 
-  // 3) 其它情况（subsale 等）：优先 price
-  const single = pickAny(mp, ["price", "price_min", "price_max"]);
-  if (isNonEmpty(single)) return money(single);
+    // 3) 最后才回落单价（避免你一直被单价覆盖）
+    const singleTop = isNonEmpty(rp.price) ? money(rp.price) : "";
+    if (isNonEmpty(singleTop)) return singleTop;
 
-  return "";
-}
+    const singleShared = pickAny(src.shared, ["price", "amount"]);
+    if (isNonEmpty(singleShared)) return money(singleShared);
 
-/* =========================
-   roomLayouts 等（保持你原本）
-========================= */
-function getRoomLayouts(p) {
-  const v = pickAny(p, ["roomLayouts", "room_layouts", "__layout0.roomLayouts", "__layout0.room_layouts"]);
-  const parsed = safeJson(v) ?? v;
-  if (Array.isArray(parsed)) return parsed;
-  return [];
-}
+    const singleLayout = pickAny(src.layout0, ["price", "amount"]);
+    if (isNonEmpty(singleLayout)) return money(singleLayout);
 
-function summarizeRoomLayout(layout) {
-  if (!layout || typeof layout !== "object") return {};
-
-  const beds = Array.isArray(layout.beds)
-    ? layout.beds.map((b) => `${b?.label || ""}${b?.count ? `x${b.count}` : ""}`.trim()).filter(Boolean)
-    : [];
-
-  const guests = layout?.guests;
-  const guestText =
-    guests && (isNonEmpty(guests.adults) || isNonEmpty(guests.children))
-      ? `成人${guests.adults || 0}${isNonEmpty(guests.children) ? `，小孩${guests.children}` : ""}`
-      : "";
-
-  const smoking = yesNoText(layout?.smoking);
-  const breakfast = yesNoText(layout?.breakfast);
-
-  let pet = "";
-  if (layout?.petPolicy?.type) {
-    const t = String(layout.petPolicy.type).toLowerCase();
-    if (t === "allowed") pet = "允许";
-    else if (t === "forbidden") pet = "不允许";
-    else pet = String(layout.petPolicy.type);
-  }
-
-  let cancel = "";
-  if (layout?.cancellationPolicy?.type) {
-    cancel = String(layout.cancellationPolicy.type);
-    if (isNonEmpty(layout.cancellationPolicy.condition)) cancel += `（${layout.cancellationPolicy.condition}）`;
-  }
-
-  const fees = layout?.fees || {};
-  const feeText = (feeObj) => {
-    if (!feeObj) return "";
-    const v = feeObj.value;
-    if (isNonEmpty(v)) return money(v);
     return "";
-  };
-
-  const serviceFee = feeText(fees.serviceFee);
-  const cleaningFee = feeText(fees.cleaningFee);
-  const deposit = feeText(fees.deposit);
-  const otherFee = feeText(fees.otherFee);
-
-  const pricesMap = layout?.availability?.prices;
-  let calendarSummary = "";
-  if (pricesMap && typeof pricesMap === "object") {
-    const nums = Object.values(pricesMap)
-      .map((x) => Number(String(x).replace(/[^\d.]/g, "")))
-      .filter((n) => !Number.isNaN(n));
-    if (nums.length) {
-      const min = Math.min(...nums);
-      const max = Math.max(...nums);
-      const days = nums.length;
-      calendarSummary = min === max ? `日历价格：${money(min)}（${days}天）` : `日历价格：${money(min)} ~ ${money(max)}（${days}天）`;
-    }
   }
 
-  const checkIn = layout?.availability?.checkInTime || "";
-  const checkOut = layout?.availability?.checkOutTime || "";
-
-  let checkInOut = "";
-  if (isNonEmpty(checkIn) || isNonEmpty(checkOut)) {
-    checkInOut = `${checkIn ? `入住 ${checkIn}` : ""}${checkIn && checkOut ? "｜" : ""}${checkOut ? `退房 ${checkOut}` : ""}`;
+  // 非 Project：range（有就显示），否则单价
+  const hasMin = isNonEmpty(rp.price_min);
+  const hasMax = isNonEmpty(rp.price_max);
+  const minNum = hasMin ? extractNumeric(rp.price_min) : NaN;
+  const maxNum = hasMax ? extractNumeric(rp.price_max) : NaN;
+  if (hasMin && hasMax && !Number.isNaN(minNum) && !Number.isNaN(maxNum) && minNum !== maxNum) {
+    return `${money(rp.price_min)} ~ ${money(rp.price_max)}`;
   }
 
-  return {
-    beds,
-    guestText,
-    smoking,
-    breakfast,
-    pet,
-    cancel,
-    serviceFee,
-    cleaningFee,
-    deposit,
-    otherFee,
-    calendarSummary,
-    checkInOut,
-  };
+  const single = pickFromSources(src, ["price", "amount", "price_min", "price_max"]);
+  return isNonEmpty(single) ? money(single) : "";
 }
 
 /* =========================
    Card（卖家后台卡片）
 ========================= */
 function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
-  const p = useMemo(() => mergePropertyData(rawProperty), [rawProperty]);
+  const p = useMemo(() => buildParsed(rawProperty), [rawProperty]);
+  const mode = useMemo(() => getModeSources(p), [p]);
 
-  const title = pickAny(p, ["title"]);
-  const address = pickAny(p, ["address"]);
+  const src = useMemo(
+    () => ({
+      raw: rawProperty,
+      shared: mode.shared,
+      layout0: mode.layout0,
+      form: mode.form,
+    }),
+    [rawProperty, mode.shared, mode.layout0, mode.form]
+  );
 
-  const bedrooms = pickAny(p, ["bedrooms", "bedroom_count", "room_count"]);
-  const bathrooms = pickAny(p, ["bathrooms", "bathroom_count"]);
-  const carparks = pickAny(p, ["carparks", "carpark"]);
+  // 基础展示（顶层）
+  const title = pickAny(rawProperty, ["title"]);
+  const address = pickAny(rawProperty, ["address"]);
 
-  const saleType = pickAny(p, ["saleType", "sale_type", "saletype", "listing_mode"]);
-  const finalType = pickAny(p, ["finalType"]);
-  const roomRentalMode = pickAny(p, ["roomRentalMode", "room_rental_mode", "roomrentalmode"]);
+  // 你这里 “Studio” 通常存在 bedrooms 字段里
+  const bedrooms = pickFromSources(src, ["bedrooms", "bedroom_count", "room_count"]);
+  const bathrooms = pickFromSources(src, ["bathrooms", "bathroom_count"]);
+  const carparks = pickFromSources(src, ["carparks", "carpark", "carparkCount", "carpark_count"]);
 
-  const showSale = String(saleType).toLowerCase() === "sale";
-  const showRent = String(saleType).toLowerCase() === "rent";
-  const showHomestay = String(saleType).toLowerCase() === "homestay";
-  const showHotel = String(saleType).toLowerCase() === "hotel/resort" || String(finalType).toLowerCase().includes("hotel");
+  // Sale/Rent/Homestay/Hotel（严格用 mode.saleType）
+  const showSale = mode.saleType === "sale";
+  const showRent = mode.saleType === "rent";
+  const showHomestay = mode.saleType === "homestay";
+  const showHotel = mode.saleType === "hotel/resort";
 
-  const isRentRoom = showRent && String(roomRentalMode).toLowerCase() === "room";
+  // 业务字段（只读当前表单 sources）
+  const usage = pickFromSources(src, ["usage", "property_usage"]);
+  const propertyTitle = pickFromSources(src, ["propertyTitle", "property_title"]);
+  const tenure = pickFromSources(src, ["tenure", "tenure_type"]);
 
-  const usage = pickAny(p, ["usage", "property_usage"]);
-  const tenure = pickAny(p, ["tenure", "tenure_type"]);
+  // propertyStatus（顶层优先）
+  const propertyStatus = pickAny(rawProperty, ["propertyStatus", "property_status", "propertystatus"]) || mode.propertyStatus;
 
-  const category = pickAny(p, ["category", "propertyCategory", "property_category"]);
-  const subType = pickAny(p, ["subType", "property_sub_type", "sub_type"]);
+  // category/subType（严格从当前 sources 拿，避免污染）
+  const category = pickFromSources(src, ["propertyCategory", "property_category", "category"]);
+  const subType = pickFromSources(src, ["subType", "sub_type", "property_sub_type"]);
 
-  // ✅ storeys / subtype 的值仍然照你原本抓
-  const storeysValue = pickAny(p, ["storeys"]);
-  const subtypesMulti = pickAny(p, ["subtype", "property_subtypes", "propertySubtype"]);
+  const storeysValue = pickFromSources(src, ["storeys", "storey", "floorCount", "storeysCount"]);
+  const subtypesMulti = pickFromSources(src, ["propertySubtypes", "property_subtypes", "propertySubtype", "subtype", "subtypes"]);
 
-  const propertyTitle = pickAny(p, ["propertyTitle", "property_title"]);
-  const propertyStatus = pickAny(p, ["propertyStatus", "property_status", "propertystatus"]);
-
-  // ✅ New Project 判断
-  const isNewProject = isNewProjectStatus(propertyStatus);
-
-  // Affordable
-  const affordableRaw = pickAny(p, ["affordable", "affordable_housing", "affordableHousing"]);
-  const affordableType = pickAny(p, ["affordableType", "affordable_housing_type", "affordableHousingType"]);
-  let affordable = yesNoText(affordableRaw);
-  if (affordableType && affordable !== "是") affordable = "是";
-
-  // ✅ 交通：没选就 "-"
-  const transitText = getTransitText(p);
-
-  // ✅ 年份：New Project 只显示预计完成年份+季度
-  const expectedYQ = getExpectedCompletionText(p);
-  const completedYear = pickAny(p, ["completedYear", "built_year"]);
-
-  // Homestay / Hotel extra
-  const homestayType = pickAny(p, ["homestayType", "homestay_type"]);
-  const hotelResortType = pickAny(p, ["hotelResortType", "hotel_resort_type"]);
-  const maxGuests = pickAny(p, ["maxGuests", "max_guests"]);
-
-  const layouts = getRoomLayouts(p);
-  const layout0 = layouts[0] || null;
-  const layoutInfo = layout0 ? summarizeRoomLayout(layout0) : {};
-
-  const bedTypesFallback = pickAny(p, ["bed_types"]);
-  const bedTypesText =
-    (layoutInfo?.beds && layoutInfo.beds.length ? layoutInfo.beds.join(", ") : "") ||
-    (Array.isArray(bedTypesFallback) ? bedTypesFallback.join(", ") : "");
-
-  const serviceFee = layoutInfo.serviceFee || "";
-  const cleaningFee = layoutInfo.cleaningFee || "";
-  const deposit = layoutInfo.deposit || "";
-  const otherFee = layoutInfo.otherFee || "";
-  const calendarSummary = layoutInfo.calendarSummary || "";
-
-  // ✅ 价格：修回 New Project 范围优先
-  const cardPriceText = getCardPriceText(rawProperty, p, isNewProject);
-
-  // ✅ storeys / property subtype 是否需要显示（跟表单一致）
+  // 是否需要显示（跟表单一致）
   const showStoreys = shouldShowStoreysByCategory(category);
   const showPropSubtype = shouldShowPropertySubtypeByCategory(category);
+
+  // Affordable
+  const affordableRaw = pickFromSources(src, ["affordable", "affordable_housing", "affordableHousing"]);
+  const affordableType = pickFromSources(src, ["affordableType", "affordable_housing_type", "affordableHousingType"]);
+  let affordable = yesNoText(affordableRaw);
+  if (affordableType && affordable !== "是") affordable = "是";
+  const affordableText = affordable === "是" && isNonEmpty(affordableType) ? `是（${affordableType}）` : (affordable || "-");
+
+  // 交通
+  const transitText = getTransitTextFromSources(src);
+
+  // 年份：Project New 只显示预计完成年份+季度
+  const expectedYQ = getExpectedCompletionTextFromSources(src);
+  const completedYear = pickFromSources(src, ["completedYear", "built_year", "completed_year", "completionYear"]);
+
+  // ✅ 价格（Project 优先范围）
+  const cardPriceText = getCardPriceTextFromSources(mode, src);
 
   return (
     <div className="w-full bg-white rounded-xl shadow-sm border border-gray-200 p-4">
       <div className="min-w-0">
         <div className="text-lg font-semibold text-gray-900 truncate">{title || "（未命名房源）"}</div>
-        {isNonEmpty(address) && <div className="text-sm text-gray-600 mt-1 truncate">{address}</div>}
+        <div className="text-sm text-gray-600 mt-1 truncate">{isNonEmpty(address) ? address : "-"}</div>
 
-        {isNonEmpty(cardPriceText) && <div className="text-base font-semibold text-blue-700 mt-2">{cardPriceText}</div>}
+        {/* ✅ 价格 */}
+        <div className="text-base font-semibold text-blue-700 mt-2">{isNonEmpty(cardPriceText) ? cardPriceText : "-"}</div>
 
         <div className="text-sm text-gray-700 mt-2 flex flex-wrap gap-x-4 gap-y-1">
-          {isNonEmpty(bedrooms) && <span>🛏 {toText(bedrooms)}</span>}
-          {isNonEmpty(bathrooms) && <span>🛁 {toText(bathrooms)}</span>}
-          {isNonEmpty(carparks) && <span>🚗 {toText(carparks)}</span>}
+          <span>🛏 {isNonEmpty(bedrooms) ? toText(bedrooms) : "-"}</span>
+          <span>🛁 {isNonEmpty(bathrooms) ? toText(bathrooms) : "-"}</span>
+          <span>🚗 {isNonEmpty(carparks) ? toText(carparks) : "-"}</span>
         </div>
 
         <div className="mt-3 space-y-1">
           {/* SALE */}
           {showSale && (
             <>
-              <MetaLine label="Sale / Rent" value="Sale" />
-              <MetaLine label="Property Usage" value={usage} />
-              <MetaLine label="Property Title" value={propertyTitle} />
-              <MetaLine label="Property Status / Sale Type" value={propertyStatus} />
+              <MetaLineDash label="Sale / Rent" value="Sale" />
+              <MetaLineDash label="Property Usage" value={usage} />
+              <MetaLineDash label="Property Title" value={propertyTitle} />
+              <MetaLineDash label="Property Status / Sale Type" value={propertyStatus} />
+              <MetaLineDash label="Affordable Housing" value={affordableText} />
+              <MetaLineDash label="Tenure Type" value={tenure} />
 
-              <MetaLine
-                label="Affordable Housing"
-                value={affordable === "是" && affordableType ? `是（${affordableType}）` : affordable}
-              />
+              <MetaLineDash label="Property Category" value={category} />
+              <MetaLineDash label="Sub Type" value={subType} />
 
-              <MetaLine label="Tenure Type" value={tenure} />
-              <MetaLine label="Property Category" value={category} />
-              <MetaLine label="Sub Type" value={subType} />
+              {/* ✅ 只有“表单应该出现”的才显示这行 */}
+              {showStoreys && <MetaLineDash label="Storeys" value={storeysValue} />}
+              {showPropSubtype && <MetaLineDash label="Property Subtype" value={subtypesMulti} />}
 
-              {/* ✅ 只有表单该出现才显示 */}
-              {showStoreys && <MetaLine label="Storeys" value={isNonEmpty(storeysValue) ? storeysValue : "-"} />}
+              <MetaLineDash label="你的产业步行能到达公共交通吗？" value={transitText} />
 
-              {showPropSubtype && <MetaLine label="Property Subtype" value={isNonEmpty(subtypesMulti) ? subtypesMulti : "-"} />}
-
-              <MetaLine label="你的产业步行能到达公共交通吗？" value={transitText} />
-
-              {/* ✅ New Project：只显示预计完成年份+季度；不要完成年份 */}
-              {isNewProject ? (
-                <MetaLine label="预计完成年份" value={expectedYQ} />
+              {/* ✅ New Project：只显示预计完成年份（含季度）；不要完成年份 */}
+              {isNewProjectStatus(propertyStatus) ? (
+                <MetaLineDash label="预计完成年份" value={expectedYQ} />
               ) : (
                 <>
-                  <MetaLine label="完成年份" value={isNonEmpty(completedYear) ? completedYear : "-"} />
-                  <MetaLine label="预计完成年份" value={isNonEmpty(expectedYQ) ? expectedYQ : "-"} />
+                  <MetaLineDash label="完成年份" value={completedYear} />
+                  <MetaLineDash label="预计完成年份" value={expectedYQ} />
                 </>
               )}
             </>
           )}
 
-          {/* RENT（整间） */}
-          {showRent && !isRentRoom && (
+          {/* RENT（整间/房间） */}
+          {showRent && (
             <>
-              <MetaLine label="Sale / Rent" value="Rent" />
-              <MetaLine label="Property Category" value={category} />
-              {showStoreys && <MetaLine label="Storeys" value={isNonEmpty(storeysValue) ? storeysValue : "-"} />}
-              {showPropSubtype && <MetaLine label="Property Subtype" value={isNonEmpty(subtypesMulti) ? subtypesMulti : "-"} />}
-              <MetaLine label="房间数量" value={bedrooms} />
-              <MetaLine label="浴室数量" value={bathrooms} />
-              <MetaLine label="停车位数量" value={carparks} />
-              <MetaLine label="你的产业步行能到达公共交通吗？" value={transitText} />
-            </>
-          )}
-
-          {/* RENT（出租房间） */}
-          {showRent && isRentRoom && (
-            <>
-              <MetaLine label="租金" value={pickAny(p, ["price", "price_min", "price_max"])} />
-              <MetaLine label="Property Category" value={category} />
-              {showStoreys && <MetaLine label="Storeys" value={isNonEmpty(storeysValue) ? storeysValue : "-"} />}
-              {showPropSubtype && <MetaLine label="Property Subtype" value={isNonEmpty(subtypesMulti) ? subtypesMulti : "-"} />}
-              <MetaLine label="床型" value={bedTypesText} />
-              <MetaLine label="停车位数量" value={carparks} />
-              <MetaLine label="你的产业步行能到达公共交通吗？" value={transitText} />
+              <MetaLineDash label="Sale / Rent" value="Rent" />
+              <MetaLineDash label="Property Category" value={category} />
+              {showStoreys && <MetaLineDash label="Storeys" value={storeysValue} />}
+              {showPropSubtype && <MetaLineDash label="Property Subtype" value={subtypesMulti} />}
+              <MetaLineDash label="你的产业步行能到达公共交通吗？" value={transitText} />
             </>
           )}
 
           {/* HOMESTAY */}
           {showHomestay && (
             <>
-              <MetaLine label="Homestay type" value={homestayType} />
-              <MetaLine label="Property Category" value={category} />
-              <MetaLine label="床型" value={bedTypesText} />
-              <MetaLine label="能住几个人" value={maxGuests || layoutInfo.guestText} />
-
-              <MetaLine label="室内能否吸烟" value={layoutInfo.smoking} />
-              <MetaLine label="房型是否包含早餐" value={layoutInfo.breakfast} />
-              <MetaLine label="房型是否允许宠物入住" value={layoutInfo.pet} />
-              <MetaLine label="是否能免费取消" value={layoutInfo.cancel} />
-
-              <MetaLine label="卧室数量" value={bedrooms} />
-              <MetaLine label="浴室数量" value={bathrooms} />
-              <MetaLine label="停车位数量" value={carparks} />
-
-              <MetaLine label="日历价格" value={calendarSummary} />
-              <MetaLine label="入住/退房时间" value={layoutInfo.checkInOut} />
-
-              <MetaLine label="房型的服务费" value={serviceFee} />
-              <MetaLine label="房型的清洁费" value={cleaningFee} />
-              <MetaLine label="房型的押金" value={deposit} />
-              <MetaLine label="房型的其它费用" value={otherFee} />
+              <MetaLineDash label="Sale / Rent" value="Homestay" />
+              <MetaLineDash label="Property Category" value={category} />
+              <MetaLineDash label="你的产业步行能到达公共交通吗？" value={transitText} />
             </>
           )}
 
           {/* HOTEL / RESORT */}
           {showHotel && (
             <>
-              <MetaLine label="Hotel/Resort type" value={hotelResortType || finalType} />
-              <MetaLine label="Property Category" value={category} />
-              <MetaLine label="床型" value={bedTypesText} />
-              <MetaLine label="能住几个人" value={maxGuests || layoutInfo.guestText} />
-
-              <MetaLine label="室内能否吸烟" value={layoutInfo.smoking} />
-              <MetaLine label="房型是否包含早餐" value={layoutInfo.breakfast} />
-              <MetaLine label="房型是否允许宠物入住" value={layoutInfo.pet} />
-              <MetaLine label="是否能免费取消" value={layoutInfo.cancel} />
-
-              <MetaLine label="卧室数量" value={bedrooms} />
-              <MetaLine label="浴室数量" value={bathrooms} />
-              <MetaLine label="停车位数量" value={carparks} />
-
-              <MetaLine label="日历价格" value={calendarSummary} />
-              <MetaLine label="入住/退房时间" value={layoutInfo.checkInOut} />
-
-              <MetaLine label="房型的服务费" value={serviceFee} />
-              <MetaLine label="房型的清洁费" value={cleaningFee} />
-              <MetaLine label="房型的押金" value={deposit} />
-              <MetaLine label="房型的其它费用" value={otherFee} />
+              <MetaLineDash label="Sale / Rent" value="Hotel/Resort" />
+              <MetaLineDash label="Property Category" value={category} />
+              <MetaLineDash label="你的产业步行能到达公共交通吗？" value={transitText} />
             </>
           )}
         </div>
       </div>
 
-      {/* ✅ 你要保留的 123 按钮 */}
+      {/* 你要的 123 按钮 */}
       <div className="mt-4 grid grid-cols-3 gap-3">
         <button
           onClick={() => onView(rawProperty)}
@@ -679,9 +536,8 @@ export default function MyProfilePage() {
 
   const [loading, setLoading] = useState(true);
   const [properties, setProperties] = useState([]);
-
   const [keyword, setKeyword] = useState("");
-  const [sortKey, setSortKey] = useState("latest"); // latest | oldest | priceHigh | priceLow
+  const [sortKey, setSortKey] = useState("latest");
 
   const fetchMyProperties = async () => {
     if (!user?.id) return;
@@ -728,32 +584,21 @@ export default function MyProfilePage() {
 
     if (k) {
       list = list.filter((p) => {
-        const merged = mergePropertyData(p);
-        const t = pickAny(merged, ["title"]);
-        const a = pickAny(merged, ["address"]);
+        const t = pickAny(p, ["title"]);
+        const a = pickAny(p, ["address"]);
         return String(t || "").toLowerCase().includes(k) || String(a || "").toLowerCase().includes(k);
       });
     }
 
     const getPriceNum = (p) => {
-      // ✅ 排序也兼容范围：优先 price_max，其次 price，再其次 price_min
-      const v = p?.price_max ?? p?.price ?? p?.price_min;
-      const n = Number(String(v).replace(/[^\d.]/g, ""));
+      const n = extractNumeric(p?.price_max ?? p?.price ?? p?.price_min);
       return Number.isNaN(n) ? 0 : n;
     };
 
     if (sortKey === "latest") {
-      list = [...list].sort((a, b) => {
-        const ta = new Date(a?.updated_at || a?.created_at || 0).getTime();
-        const tb = new Date(b?.updated_at || b?.created_at || 0).getTime();
-        return tb - ta;
-      });
+      list = [...list].sort((a, b) => new Date(b?.updated_at || b?.created_at || 0) - new Date(a?.updated_at || a?.created_at || 0));
     } else if (sortKey === "oldest") {
-      list = [...list].sort((a, b) => {
-        const ta = new Date(a?.updated_at || a?.created_at || 0).getTime();
-        const tb = new Date(b?.updated_at || b?.created_at || 0).getTime();
-        return ta - tb;
-      });
+      list = [...list].sort((a, b) => new Date(a?.updated_at || a?.created_at || 0) - new Date(b?.updated_at || b?.created_at || 0));
     } else if (sortKey === "priceHigh") {
       list = [...list].sort((a, b) => getPriceNum(b) - getPriceNum(a));
     } else if (sortKey === "priceLow") {
@@ -784,7 +629,6 @@ export default function MyProfilePage() {
     <div className="max-w-6xl mx-auto px-4 py-6">
       <div className="text-2xl font-bold text-gray-900">我的房源（卖家后台）</div>
 
-      {/* 统计 */}
       <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-3">
         <div className="bg-white border border-gray-200 rounded-xl p-4">
           <div className="text-sm text-gray-500">房源总数</div>
@@ -804,7 +648,6 @@ export default function MyProfilePage() {
         </div>
       </div>
 
-      {/* 搜索 + 排序 */}
       <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-3 items-center">
         <div className="md:col-span-3">
           <input
@@ -828,7 +671,6 @@ export default function MyProfilePage() {
         </div>
       </div>
 
-      {/* 列表 */}
       <div className="mt-6">
         {loading ? (
           <div className="text-gray-600">加载中...</div>
