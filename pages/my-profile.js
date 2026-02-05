@@ -77,7 +77,9 @@ function money(v) {
 }
 
 /* =========================
-   ✅ 智能扫描（价格/预计完成保留你现有逻辑）
+   ✅ 智能扫描（关键修复点）
+   - 不猜 key 名
+   - 直接在当前 active 表单 JSON 里找 range / year / quarter
 ========================= */
 function walkObject(root, visitor, maxDepth = 10) {
   const stack = [{ value: root, path: "", depth: 0 }];
@@ -221,16 +223,20 @@ function resolveActiveSources(raw) {
   if (isProject) {
     return { mode: "project", saleType: "sale", propertyStatus, shared: typeFormV2, form: null, layout0 };
   }
+
   if (saleType === "sale" || saleType === "rent") {
     return { mode: saleType, saleType, propertyStatus, shared: null, form: singleFormV2, layout0: null };
   }
+
   if (saleType === "homestay") {
     return { mode: "homestay", saleType, propertyStatus, shared: null, form: homestayForm, layout0: null };
   }
+
   const finalType = normalizeLower(pickAny(raw, ["finalType"]));
   if (saleType === "hotel/resort" || finalType.includes("hotel")) {
     return { mode: "hotel/resort", saleType: "hotel/resort", propertyStatus, shared: null, form: hotelForm, layout0: null };
   }
+
   return { mode: "unknown", saleType, propertyStatus, shared: null, form: singleFormV2, layout0: null };
 }
 
@@ -250,18 +256,48 @@ function pickActive(raw, active, keys) {
   return "";
 }
 
-/**
- * ✅ ✅ 关键：Project 专用 ONLY（绝不回落 raw 顶层）
- * 目的：避免 Completed/Affordable 读到旧值
- */
-function pickProjectOnly(active, keys) {
+// ✅ Project 模式专用：优先读当前表单 JSON（shared/layout0），最后才读 raw 顶层
+function pickProjectActive(raw, active, keys) {
   const v1 = pickAny(active.shared, keys);
   if (isNonEmpty(v1)) return v1;
 
   const v2 = pickAny(active.layout0, keys);
   if (isNonEmpty(v2)) return v2;
 
+  const v0 = pickAny(raw, keys);
+  if (isNonEmpty(v0)) return v0;
+
   return "";
+}
+
+// ✅ 找 Completed Year（完成年份）：在对象里扫描 1900~2100 的年份，且路径更像 completed/built
+function findBestCompletedYear(obj) {
+  if (!obj || typeof obj !== "object") return null;
+
+  const candidates = [];
+  walkObject(obj, (v, p) => {
+    if (typeof v !== "number" && typeof v !== "string") return;
+    const s = String(v).trim();
+    const y = Number(s);
+    if (!(y >= 1900 && y <= 2100)) return;
+
+    const path = normalizeLower(p);
+    // 排除 expected（预计完成）
+    if (path.includes("expect")) return;
+
+    const score =
+      (path.includes("completed") ? 60 : 0) +
+      (path.includes("completion") ? 40 : 0) +
+      (path.includes("built") ? 50 : 0) +
+      (path.includes("year") ? 20 : 0) -
+      p.split(".").length;
+
+    candidates.push({ score, year: y });
+  });
+
+  if (!candidates.length) return null;
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates[0].year;
 }
 
 /* =========================
@@ -348,7 +384,7 @@ function getTransitText(raw, active) {
 }
 
 /* =========================
-   价格（不动你现有逻辑）
+   价格（保持你现在的逻辑）
 ========================= */
 function getCardPriceText(raw, active) {
   const propertyStatus = active.propertyStatus || pickAny(raw, ["propertyStatus", "property_status", "propertystatus"]);
@@ -380,7 +416,7 @@ function getCardPriceText(raw, active) {
 }
 
 /* =========================
-   预计完成（不动你现有逻辑）
+   预计完成（保持你现在的逻辑）
 ========================= */
 function getExpectedCompletionText(raw, active) {
   const year = pickActive(raw, active, [
@@ -413,40 +449,6 @@ function getExpectedCompletionText(raw, active) {
 }
 
 /* =========================
-   ✅ 完成年份（只修这个）
-   - Project 模式：只读 project JSON，不回落 raw
-========================= */
-function getCompletedYearText(raw, active) {
-  const propertyStatus = active.propertyStatus || pickAny(raw, ["propertyStatus", "property_status", "propertystatus"]);
-  const isProject = isNewProjectStatus(propertyStatus) || isCompletedUnitStatus(propertyStatus);
-
-  if (isProject) {
-    const y = pickProjectOnly(active, [
-      "completedYear",
-      "completionYear",
-      "built_year",
-      "builtYear",
-      "completed_year",
-      "yearCompleted",
-      "completed_unit_year",
-      "completedUnitYear",
-    ]);
-    return isNonEmpty(y) ? String(y) : "-";
-  }
-
-  // 非 project：保持原本行为（可读顶层/表单）
-  const y2 = pickActive(raw, active, [
-    "completedYear",
-    "completionYear",
-    "built_year",
-    "builtYear",
-    "completed_year",
-    "yearCompleted",
-  ]);
-  return isNonEmpty(y2) ? String(y2) : "-";
-}
-
-/* =========================
    UI：没选就 "-"
 ========================= */
 function MetaLineDash({ label, value }) {
@@ -475,69 +477,68 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
 
   const usage = pickActive(rawProperty, active, ["usage", "property_usage"]);
   const propertyTitle = pickActive(rawProperty, active, ["propertyTitle", "property_title"]);
-  const propertyStatus =
-    active.propertyStatus || pickAny(rawProperty, ["propertyStatus", "property_status", "propertystatus"]);
+  const propertyStatus = active.propertyStatus || pickAny(rawProperty, ["propertyStatus", "property_status", "propertystatus"]);
   const tenure = pickActive(rawProperty, active, ["tenure", "tenure_type"]);
 
   const category = pickActive(rawProperty, active, ["propertyCategory", "property_category", "category"]);
   const subType = pickActive(rawProperty, active, ["subType", "sub_type", "property_sub_type"]);
   const storeys = pickActive(rawProperty, active, ["storeys", "storey", "floorCount"]);
-  const propSubtypes = pickActive(rawProperty, active, [
-    "propertySubtypes",
-    "property_subtypes",
-    "propertySubtype",
-    "subtypes",
-    "subtype",
-  ]);
+  const propSubtypes = pickActive(rawProperty, active, ["propertySubtypes", "property_subtypes", "propertySubtype", "subtypes", "subtype"]);
 
   const isProject = active.mode === "project";
 
-  // ✅ Affordable Housing：Project 模式只读 project JSON，不回落 raw（避免旧值）
+  // ✅ Affordable Housing：Project 模式优先读 shared/layout0（避免被 raw 旧值盖掉）
   const affordableRaw = isProject
-    ? pickProjectOnly(active, [
-        "affordable",
-        "affordable_housing",
-        "affordableHousing",
-        "isAffordableHousing",
-        "affordableYesNo",
-      ])
-    : pickActive(rawProperty, active, ["affordable", "affordable_housing", "affordableHousing"]);
+    ? pickProjectActive(rawProperty, active, ["affordable", "affordable_housing", "affordableHousing", "isAffordableHousing", "affordableYesNo"])
+    : pickActive(rawProperty, active, ["affordable", "affordable_housing", "affordableHousing", "isAffordableHousing", "affordableYesNo"]);
 
   const affordableType = isProject
-    ? pickProjectOnly(active, [
-        "affordableType",
-        "affordable_housing_type",
-        "affordableHousingType",
-        "affordable_house_type",
-      ])
-    : pickActive(rawProperty, active, ["affordableType", "affordable_housing_type", "affordableHousingType"]);
+    ? pickProjectActive(rawProperty, active, ["affordableType", "affordable_housing_type", "affordableHousingType", "affordable_house_type"])
+    : pickActive(rawProperty, active, ["affordableType", "affordable_housing_type", "affordableHousingType", "affordable_house_type"]);
 
   let affordable = yesNoText(affordableRaw);
-
-  // 如果 project JSON 没有选（空），就必须显示 "-"（不允许显示旧）
-  if (!isNonEmpty(affordable) && !isNonEmpty(affordableType)) {
-    affordable = "";
-  }
-
   if (isNonEmpty(affordableType) && affordable !== "是") affordable = "是";
   const affordableText =
     affordable === "是" && isNonEmpty(affordableType)
       ? `是（${affordableType}）`
-      : isNonEmpty(affordable)
-      ? affordable
-      : "-";
+      : (isNonEmpty(affordable) ? affordable : "-");
 
   const transitText = getTransitText(rawProperty, active);
   const priceText = getCardPriceText(rawProperty, active);
 
   const expectedText = getExpectedCompletionText(rawProperty, active);
-  const completedText = getCompletedYearText(rawProperty, active);
+
+  // ✅ 完成年份：Project 模式先读 shared/layout0，读不到就扫描（避免 key 名不一致）
+  let completedYear = "";
+  if (isProject) {
+    completedYear = pickProjectActive(rawProperty, active, [
+      "completedYear",
+      "completionYear",
+      "built_year",
+      "builtYear",
+      "completed_year",
+      "yearCompleted",
+      "completedUnitYear",
+      "completed_unit_year",
+    ]);
+
+    if (!isNonEmpty(completedYear)) {
+      const y = findBestCompletedYear(active.shared) || findBestCompletedYear(active.layout0);
+      if (y) completedYear = String(y);
+    }
+  } else {
+    completedYear = pickActive(rawProperty, active, [
+      "completedYear",
+      "completionYear",
+      "built_year",
+      "builtYear",
+      "completed_year",
+      "yearCompleted",
+    ]);
+  }
 
   const showStoreys = shouldShowStoreysByCategory(category);
   const showSubtype = shouldShowPropertySubtypeByCategory(category);
-
-  const isNP = isNewProjectStatus(propertyStatus);
-  const isCU = isCompletedUnitStatus(propertyStatus);
 
   return (
     <div className="w-full bg-white rounded-xl shadow-sm border border-gray-200 p-4">
@@ -574,14 +575,13 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
 
           <MetaLineDash label="你的产业步行能到达公共交通吗？" value={transitText} />
 
-          {/* ✅ New Project 只显示预计完成；Completed Unit 只显示完成 */}
-          {isNP ? (
+          {isNewProjectStatus(propertyStatus) ? (
             <MetaLineDash label="预计完成年份" value={expectedText} />
-          ) : isCU ? (
-            <MetaLineDash label="完成年份" value={completedText} />
+          ) : isCompletedUnitStatus(propertyStatus) ? (
+            <MetaLineDash label="完成年份" value={isNonEmpty(completedYear) ? completedYear : "-"} />
           ) : (
             <>
-              <MetaLineDash label="完成年份" value={completedText} />
+              <MetaLineDash label="完成年份" value={isNonEmpty(completedYear) ? completedYear : "-"} />
               <MetaLineDash label="预计完成年份" value={expectedText} />
             </>
           )}
@@ -589,31 +589,22 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
       </div>
 
       <div className="mt-4 grid grid-cols-3 gap-3">
-        <button
-          onClick={() => onView(rawProperty)}
-          className="h-11 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700"
-        >
+        <button onClick={() => onView(rawProperty)} className="h-11 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700">
           查看
         </button>
-        <button
-          onClick={() => onEdit(rawProperty)}
-          className="h-11 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700"
-        >
+        <button onClick={() => onEdit(rawProperty)} className="h-11 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700">
           编辑
         </button>
-        <button
-          onClick={() => onDelete(rawProperty)}
-          className="h-11 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700"
-        >
+        <button onClick={() => onDelete(rawProperty)} className="h-11 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700">
           删除
         </button>
       </div>
     </div>
   );
-}
+          }
 
 /* =========================
-   Page
+   Page（统计 + 搜索 + 排序）
 ========================= */
 export default function MyProfilePage() {
   const router = useRouter();
