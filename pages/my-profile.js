@@ -337,7 +337,7 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
   const carparks = pickAny(p, ["carparks", "carpark"]);
 
   // 模式：你贴的 JSON 是 saleType:"Sale"/ finalType:"Hotel / Resort" / roomRentalMode:"whole"
-  const saleType = pickAny(p, ["saleType", "sale_type", "saletype", "listing_mode"]);
+  const saleType = pickAny(p, ["saleType", "sale_type", "saletype"]);
   const finalType = pickAny(p, ["finalType"]); // 例如 "Hotel / Resort"
   const roomRentalMode = pickAny(p, ["roomRentalMode", "room_rental_mode", "roomrentalmode"]);
 
