@@ -85,22 +85,114 @@ function MetaLine({ label, value }) {
 }
 
 /* =========================
-   ✅ 核心：把你表里所有“可能装 JSON 的列”合并起来
-   并且优先使用你实际 JSON 里的 key（例如 affordable/affordableType）
+   ✅ 核心：合并策略（修复“读到另一个表单/旧表单”）
+   - 仍然解析所有 JSON 列到 __json
+   - 但只“提升/覆盖”当前模式对应的 JSON（避免旧 hotel/homestay/unitlayouts 抢数据）
+   - layout0 只在 New Project/Completed 才启用
 ========================= */
 function mergePropertyData(raw) {
   const p = raw || {};
   const merged = { ...p };
 
-  // 你表里常见 JSON 列
-  const jsonCols = [
+  // 统一拿“当前模式”
+  const saleTypeRaw = pickAny(p, ["saleType", "sale_type", "saletype", "listing_mode"]);
+  const saleType = String(saleTypeRaw || "").trim().toLowerCase();
+
+  const finalTypeRaw = pickAny(p, ["finalType"]);
+  const finalType = String(finalTypeRaw || "").trim().toLowerCase();
+
+  const statusRaw = pickAny(p, ["propertyStatus", "property_status", "propertystatus"]);
+  const status = String(statusRaw || "").trim().toLowerCase();
+
+  const isProject =
+    status.includes("new project") ||
+    status.includes("under construction") ||
+    status.includes("completed unit") ||
+    status.includes("developer unit") ||
+    status.includes("completed") ||
+    status.includes("new");
+
+  const isHomestay = saleType === "homestay";
+  const isRent = saleType === "rent";
+  const isSale = saleType === "sale";
+  const isHotel = saleType === "hotel/resort" || finalType.includes("hotel");
+
+  // ✅ 重要：只让“当前表单”覆盖这些关键展示字段（避免顶层旧值/旧表单抢）
+  const OVERRIDE_KEYS = new Set([
+    "title",
+    "propertyTitle",
+    "property_title",
+    "propertyStatus",
+    "property_status",
+    "propertystatus",
+    "usage",
+    "property_usage",
+    "tenure",
+    "tenure_type",
+    "category",
+    "propertyCategory",
+    "property_category",
+    "subType",
+    "sub_type",
+    "storeys",
+    "propertySubtype",
+    "property_subtypes",
+    "subtype",
+    "bedrooms",
+    "bedroom_count",
+    "room_count",
+    "bathrooms",
+    "bathroom_count",
+    "carpark",
+    "carparks",
+    "price",
+    "price_min",
+    "price_max",
+    "pricedata",
+    "priceData",
+    "areadata",
+    "areaData",
+    "area_data",
+    "saleType",
+    "sale_type",
+    "saletype",
+    "listing_mode",
+    "finalType",
+    "roomRentalMode",
+    "room_rental_mode",
+    "roomrentalmode",
+    "homestayType",
+    "homestay_type",
+    "hotelResortType",
+    "hotel_resort_type",
+    "maxGuests",
+    "max_guests",
+    "roomLayouts",
+    "room_layouts",
+    "bed_types",
+    "transit",
+    "affordable",
+    "affordableType",
+    "affordable_housing",
+    "affordableHousing",
+    "affordable_housing_type",
+    "affordableHousingType",
+    "completedYear",
+    "built_year",
+    "expectedCompletedYear",
+    "expected_year",
+    "availability",
+    "calendar_prices",
+  ]);
+
+  // 你表里常见 JSON 列（保持原样解析）
+  const jsonColsAll = [
     "type_form_v2",
     "type_form",
     "typeform",
     "typeForm",
     "single_form_data_v2",
     "single_form_data",
-    "singleFormData",
     "singleFormData",
     "homestay_form",
     "hotel_resort_form",
@@ -109,7 +201,6 @@ function mergePropertyData(raw) {
     "unit_layouts",
     "unitlayouts",
     "unitLayouts",
-    "unitlayouts",
     "pricedata",
     "priceData",
     "areadata",
@@ -126,25 +217,70 @@ function mergePropertyData(raw) {
 
   merged.__json = {};
 
-  for (const k of jsonCols) {
+  // 先解析所有 JSON 进 __json（不影响展示）
+  for (const k of jsonColsAll) {
     const parsed = safeJson(p?.[k]);
     if (parsed && typeof parsed === "object") {
       merged.__json[k] = parsed;
-
-      // 不覆盖顶层已有值，只补空
-      for (const key of Object.keys(parsed)) {
-        if (!isNonEmpty(merged[key])) merged[key] = parsed[key];
-      }
     }
   }
 
-  // layout0 提升（New Project/Completed 常用）
-  let ul = p?.unit_layouts ?? p?.unitLayouts ?? p?.unitlayouts;
-  ul = safeJson(ul) ?? ul;
-  if (Array.isArray(ul) && ul[0] && typeof ul[0] === "object") {
-    merged.__layout0 = ul[0];
-    for (const key of Object.keys(ul[0])) {
-      if (!isNonEmpty(merged[key])) merged[key] = ul[0][key];
+  // ✅ 决定“当前模式允许提升/覆盖”的 JSON 来源
+  const activeJsonCols = [];
+
+  // Sale / Rent：以 single_form_data 为准（你卡片上的 bedrooms/price 等都应来自这里）
+  if (isSale || isRent) {
+    activeJsonCols.push("single_form_data_v2", "single_form_data", "singleFormData");
+    // 某些字段你也会放在 type_form_v2（例如 transit）
+    activeJsonCols.push("type_form_v2", "type_form", "typeform", "typeForm");
+  }
+
+  // Homestay
+  if (isHomestay) {
+    activeJsonCols.push("homestay_form");
+    // 允许补充日历/价格等
+    activeJsonCols.push("availability", "calendar_prices", "check_in_out", "bed_types");
+  }
+
+  // Hotel / Resort
+  if (isHotel) {
+    activeJsonCols.push("hotel_resort_form");
+    activeJsonCols.push("availability", "calendar_prices", "check_in_out", "bed_types");
+  }
+
+  // ✅ 只把 activeJsonCols 里的 key 提升到顶层（并按 override 规则覆盖关键字段）
+  const promoteFromParsed = (parsed) => {
+    if (!parsed || typeof parsed !== "object") return;
+    for (const key of Object.keys(parsed)) {
+      if (OVERRIDE_KEYS.has(key)) {
+        merged[key] = parsed[key];
+      } else {
+        if (!isNonEmpty(merged[key])) merged[key] = parsed[key];
+      }
+    }
+  };
+
+  for (const k of activeJsonCols) {
+    const parsed = merged.__json?.[k];
+    if (parsed) promoteFromParsed(parsed);
+  }
+
+  // ✅ layout0 提升：只在 Project 模式启用（防止 Subsale/Rent 被旧 unitlayouts 抢数据）
+  if (isProject) {
+    let ul = p?.unit_layouts ?? p?.unitLayouts ?? p?.unitlayouts;
+    ul = safeJson(ul) ?? ul;
+
+    if (Array.isArray(ul) && ul[0] && typeof ul[0] === "object") {
+      merged.__layout0 = ul[0];
+
+      // layout0 对关键字段也允许覆盖（Project 模式以 layout 为准）
+      for (const key of Object.keys(ul[0])) {
+        if (OVERRIDE_KEYS.has(key)) {
+          merged[key] = ul[0][key];
+        } else {
+          if (!isNonEmpty(merged[key])) merged[key] = ul[0][key];
+        }
+      }
     }
   }
 
@@ -337,7 +473,7 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
   const carparks = pickAny(p, ["carparks", "carpark"]);
 
   // 模式：你贴的 JSON 是 saleType:"Sale"/ finalType:"Hotel / Resort" / roomRentalMode:"whole"
-  const saleType = pickAny(p, ["saleType", "sale_type", "saletype"]);
+  const saleType = pickAny(p, ["saleType", "sale_type", "saletype", "listing_mode"]);
   const finalType = pickAny(p, ["finalType"]); // 例如 "Hotel / Resort"
   const roomRentalMode = pickAny(p, ["roomRentalMode", "room_rental_mode", "roomrentalmode"]);
 
@@ -716,13 +852,7 @@ export default function MyProfilePage() {
         ) : (
           <div className="space-y-4">
             {filtered.map((p) => (
-              <SellerPropertyCard
-                key={p.id}
-                rawProperty={p}
-                onView={onView}
-                onEdit={onEdit}
-                onDelete={onDelete}
-              />
+              <SellerPropertyCard key={p.id} rawProperty={p} onView={onView} onEdit={onEdit} onDelete={onDelete} />
             ))}
           </div>
         )}
