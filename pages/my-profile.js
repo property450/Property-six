@@ -874,19 +874,4 @@ export default function MyProfilePage() {
       </div>
 
       {/* 列表 */}
-      <div className="mt-6">
-        {loading ? (
-          <div className="text-gray-600">加载中...</div>
-        ) : filtered.length === 0 ? (
-          <div className="text-gray-600">没有符合条件的房源。</div>
-        ) : (
-          <div className="space-y-4">
-            {filtered.map((p) => (
-              <SellerPropertyCard key={p.id} rawProperty={p} onView={onView} onEdit={onEdit} onDelete={onDelete} />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+   
