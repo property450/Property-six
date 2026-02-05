@@ -139,7 +139,6 @@ function findBestPriceRange(obj) {
   });
 
   if (!candidates.length) return null;
-
   candidates.sort((a, b) => b.score - a.score);
   return candidates[0];
 }
@@ -203,6 +202,45 @@ function findBestExpectedYearQuarter(obj) {
   };
 }
 
+/** ✅ 完成年份：智能扫描（排除 expected 的 year） */
+function findBestCompletedYear(obj) {
+  if (!obj || typeof obj !== "object") return null;
+
+  const candidates = [];
+
+  walkObject(obj, (v, p) => {
+    if (!(typeof v === "number" || typeof v === "string")) return;
+
+    const s = String(v).trim();
+    const y = Number(s);
+    if (!(y >= 1900 && y <= 2100)) return;
+
+    const pathLower = normalizeLower(p);
+    const key = p.split(".").slice(-1)[0] || "";
+    const keyLower = normalizeLower(key);
+
+    // 排除 expected 年份
+    if (pathLower.includes("expect")) return;
+
+    const score =
+      (pathLower.includes("complete") ? 80 : 0) +
+      (pathLower.includes("completed") ? 80 : 0) +
+      (pathLower.includes("built") ? 60 : 0) +
+      (pathLower.includes("year") ? 30 : 0) +
+      (keyLower.includes("year") ? 20 : 0) -
+      p.split(".").length;
+
+    // 太弱的不收（避免乱抓到别的年份）
+    if (score < 40) return;
+
+    candidates.push({ score, year: y, path: p });
+  });
+
+  if (!candidates.length) return null;
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates[0];
+}
+
 /* =========================
    ✅ 只读“当前表单”的数据源（防串台）
 ========================= */
@@ -251,6 +289,7 @@ function resolveActiveSources(raw) {
   return { mode: "unknown", saleType, propertyStatus, shared: null, form: singleFormV2, layout0: null };
 }
 
+/** 原逻辑（保留）：raw 优先 */
 function pickActive(raw, active, keys) {
   const v0 = pickAny(raw, keys);
   if (isNonEmpty(v0)) return v0;
@@ -267,8 +306,7 @@ function pickActive(raw, active, keys) {
   return "";
 }
 
-// ✅ 某些字段（例如 Affordable / 完成年份）顶层 raw 容易残留旧值，
-//    卖家后台必须“优先读当前 active 表单”，避免串台。
+/** ✅ 修复：对“容易旧”的字段，优先读 active，再读 raw */
 function pickPreferActive(raw, active, keys) {
   const v1 = pickAny(active.shared, keys);
   if (isNonEmpty(v1)) return v1;
@@ -283,33 +321,6 @@ function pickPreferActive(raw, active, keys) {
   if (isNonEmpty(v0)) return v0;
 
   return "";
-}
-
-function findBestCompletedYear(obj) {
-  if (!obj || typeof obj !== "object") return null;
-
-  const candidates = [];
-  walkObject(obj, (v, p) => {
-    if (typeof v !== "number" && typeof v !== "string") return;
-    const y = Number(String(v).trim());
-    if (!(y >= 1900 && y <= 2100)) return;
-
-    const pl = normalizeLower(p);
-    if (pl.includes("expect")) return;
-
-    const score =
-      (pl.includes("complete") ? 60 : 0) +
-      (pl.includes("built") ? 50 : 0) +
-      (pl.includes("finish") ? 40 : 0) +
-      (pl.includes("year") ? 20 : 0) -
-      p.split(".").length;
-
-    if (score > 0) candidates.push({ score, year: y, path: p });
-  });
-
-  if (!candidates.length) return null;
-  candidates.sort((a, b) => b.score - a.score);
-  return candidates[0];
 }
 
 /* =========================
@@ -342,175 +353,219 @@ function shouldShowPropertySubtypeByCategory(category) {
   );
 }
 
-function formatCarparks(raw) {
-  if (!isNonEmpty(raw)) return "-";
-  if (typeof raw === "number") return String(raw);
-  if (typeof raw === "string") {
-    const s = raw.trim();
-    if (s.includes("~")) return s;
-    if (s.includes("-")) return s;
-    return s;
+function formatRange(minV, maxV, formatter) {
+  const minN = extractNumeric(minV);
+  const maxN = extractNumeric(maxV);
+  if (!Number.isNaN(minN) && !Number.isNaN(maxN)) {
+    const a = Math.min(minN, maxN);
+    const b = Math.max(minN, maxN);
+    if (a === b) return formatter ? formatter(a) : String(a);
+    return formatter ? `${formatter(a)} ~ ${formatter(b)}` : `${a} ~ ${b}`;
   }
-  if (typeof raw === "object") {
-    const min = raw.min ?? raw.minValue ?? raw.from ?? raw.start;
-    const max = raw.max ?? raw.maxValue ?? raw.to ?? raw.end;
-    const minN = extractNumeric(min);
-    const maxN = extractNumeric(max);
-    if (!Number.isNaN(minN) && !Number.isNaN(maxN)) return `${minN} ~ ${maxN}`;
-  }
-  return String(raw);
+  if (!Number.isNaN(minN)) return formatter ? formatter(minN) : String(minN);
+  if (!Number.isNaN(maxN)) return formatter ? formatter(maxN) : String(maxN);
+  return "";
 }
 
-function getTransitText(rawProperty, active) {
-  const yesNo = pickActive(rawProperty, active, ["transitYesNo", "transit_yes_no", "transit", "walkToTransit"]);
-  const yn = yesNoText(yesNo);
+function formatCarparks(v) {
+  if (!isNonEmpty(v)) return "";
+  if (typeof v === "object") {
+    const minV = v.min ?? v.from ?? v.minValue;
+    const maxV = v.max ?? v.to ?? v.maxValue;
+    const r = formatRange(minV, maxV, (n) => String(Math.trunc(n)));
+    if (isNonEmpty(r)) return r;
+  }
+  return String(v);
+}
+
+function getTransitText(raw, active) {
+  const near = pickPreferActive(raw, active, ["transit.nearTransit", "nearTransit", "transitNearTransit"]);
+  if (!isNonEmpty(near)) return "-";
+
+  const yn = yesNoText(near);
   if (!isNonEmpty(yn)) return "-";
   if (yn === "否") return "否";
 
-  const line = pickActive(rawProperty, active, ["transitLine", "transit_line"]);
-  const station = pickActive(rawProperty, active, ["transitStation", "transit_station"]);
-  const lineText = isNonEmpty(line) ? `线路：${line}` : "";
-  const stationText = isNonEmpty(station) ? `站点：${station}` : "";
-  const extra = [lineText, stationText].filter(Boolean).join("｜");
+  const lines = pickPreferActive(raw, active, ["transit.selectedLines", "selectedLines"]);
+  const stations = pickPreferActive(raw, active, ["transit.selectedStations", "selectedStations"]);
 
-  return extra ? `是｜${extra}` : "是";
-}
+  let extra = "";
+  if (Array.isArray(lines) && lines.length) extra += `｜线路：${lines.join(", ")}`;
 
-function getCardPriceText(rawProperty, active) {
-  // 1) 先读顶层 price_min/price_max（你卡片要显示 range 时用）
-  const pMin = pickAny(rawProperty, ["price_min", "priceMin", "min_price"]);
-  const pMax = pickAny(rawProperty, ["price_max", "priceMax", "max_price"]);
-
-  const nMin = extractNumeric(pMin);
-  const nMax = extractNumeric(pMax);
-
-  if (!Number.isNaN(nMin) && !Number.isNaN(nMax) && nMin > 0 && nMax > 0) {
-    return `${money(nMin)} ~ ${money(nMax)}`;
+  if (stations && typeof stations === "object") {
+    const parts = [];
+    for (const k of Object.keys(stations)) {
+      const arr = stations[k];
+      if (Array.isArray(arr) && arr.length) {
+        parts.push(`${k}: ${arr.map((x) => x?.label || x?.value).filter(Boolean).join(", ")}`);
+      }
+    }
+    if (parts.length) extra += `｜站点：${parts.join("；")}`;
   }
 
-  // 2) 再读顶层 price
-  const p = pickAny(rawProperty, ["price"]);
-  const np = extractNumeric(p);
-  if (!Number.isNaN(np) && np > 0) return money(np);
-
-  // 3) 最后：智能扫 “当前 active 表单” 里的 price range（避免串台）
-  const best =
-    findBestPriceRange(active.shared) ||
-    findBestPriceRange(active.layout0) ||
-    findBestPriceRange(active.form);
-
-  if (best && best.min > 0 && best.max > 0) return `${money(best.min)} ~ ${money(best.max)}`;
-
-  return "-";
-}
-
-function getExpectedCompletionText(rawProperty, active) {
-  // 优先从 active 表单扫描 year/quarter（避免旧值）
-  const best =
-    findBestExpectedYearQuarter(active.shared) ||
-    findBestExpectedYearQuarter(active.layout0) ||
-    findBestExpectedYearQuarter(active.form);
-
-  if (best?.year) {
-    const q = best.quarter ? ` Q${best.quarter}` : "";
-    return `${best.year}${q}`;
-  }
-
-  // fallback：常见 key
-  const year = pickActive(rawProperty, active, ["expectedYear", "expected_year", "completionExpectedYear"]);
-  const quarter = pickActive(rawProperty, active, ["expectedQuarter", "expected_quarter", "completionExpectedQuarter"]);
-  if (isNonEmpty(year)) {
-    const q = isNonEmpty(quarter) ? ` Q${String(quarter).replace(/^Q/i, "")}` : "";
-    return `${year}${q}`;
-  }
-  return "-";
+  return `是${extra}`;
 }
 
 /* =========================
-   卡片小组件（保持你的展示风格）
+   ✅ 价格 & 预计完成（修复：project 优先 active）
+========================= */
+function getCardPriceText(raw, active) {
+  const propertyStatus = active.propertyStatus || pickAny(raw, ["propertyStatus", "property_status", "propertystatus"]);
+  const isProject = isNewProjectStatus(propertyStatus) || isCompletedUnitStatus(propertyStatus);
+
+  // ✅ project：先从 active 找 range（避免 raw 顶层旧 price_min/max 覆盖）
+  if (isProject) {
+    const pd = pickPreferActive(raw, active, ["priceData", "pricedata", "price_data"]);
+    const pdObj = safeJson(pd) ?? pd;
+
+    if (pdObj && typeof pdObj === "object") {
+      const minV = pickAny(pdObj, ["min", "minPrice", "min_value", "minValue", "from"]);
+      const maxV = pickAny(pdObj, ["max", "maxPrice", "max_value", "maxValue", "to"]);
+      const r = formatRange(minV, maxV, (n) => money(n));
+      if (isNonEmpty(r) && r.includes("~")) return r;
+    }
+
+    const best1 = findBestPriceRange(active.shared);
+    const best2 = findBestPriceRange(active.layout0);
+    const best3 = findBestPriceRange(active.form);
+    const best = best1 || best2 || best3;
+    if (best) {
+      return `${money(best.min)} ~ ${money(best.max)}`;
+    }
+  }
+
+  // 顶层 price_min/price_max（非 project 或 project 找不到时才用）
+  if (isNonEmpty(raw.price_min) && isNonEmpty(raw.price_max)) {
+    const r = formatRange(raw.price_min, raw.price_max, (n) => money(n));
+    if (isNonEmpty(r) && r.includes("~")) return r;
+  }
+
+  // 单价
+  const single = pickPreferActive(raw, active, ["price", "amount", "price_min", "price_max"]);
+  if (isNonEmpty(single)) return money(single);
+
+  return "-";
+}
+
+function getExpectedCompletionText(raw, active) {
+  const year = pickPreferActive(raw, active, [
+    "expectedCompletedYear",
+    "expectedCompletionYear",
+    "expected_year",
+    "expectedYear",
+    "completionExpectedYear",
+  ]);
+  const quarter = pickPreferActive(raw, active, [
+    "expectedCompletedQuarter",
+    "expectedCompletionQuarter",
+    "expected_quarter",
+    "expectedQuarter",
+    "completionExpectedQuarter",
+  ]);
+
+  if (isNonEmpty(year)) {
+    if (!isNonEmpty(quarter)) return String(year);
+    let q = String(quarter).trim();
+    if (/^q[1-4]$/i.test(q)) q = q.toUpperCase();
+    else q = `Q${q}`;
+    return `${year} ${q}`;
+  }
+
+  const best1 = findBestExpectedYearQuarter(active.shared);
+  const best2 = findBestExpectedYearQuarter(active.layout0);
+  const best3 = findBestExpectedYearQuarter(active.form);
+  const best = best1 || best2 || best3;
+
+  if (!best || !best.year) return "-";
+  if (!best.quarter) return String(best.year);
+  return `${best.year} Q${best.quarter}`;
+}
+
+/* =========================
+   UI：没选就 "-"
 ========================= */
 function MetaLineDash({ label, value }) {
-  const v = isNonEmpty(value) ? value : "-";
+  const show = isNonEmpty(value) ? String(value) : "-";
   return (
-    <div className="text-sm text-gray-700">
+    <div className="text-sm text-gray-700 leading-6">
       <span className="text-gray-500">{label}：</span>
-      <span className="ml-1">{v}</span>
+      <span className="text-gray-900">{show}</span>
     </div>
   );
 }
 
 /* =========================
-   Seller Property Card
+   Card（卖家后台卡片）
 ========================= */
 function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
-  const active = resolveActiveSources(rawProperty);
+  const active = useMemo(() => resolveActiveSources(rawProperty), [rawProperty]);
 
   const title = pickAny(rawProperty, ["title"]) || "（未命名房源）";
   const address = pickAny(rawProperty, ["address"]) || "-";
 
-  const bedrooms = pickActive(rawProperty, active, ["bedrooms", "bedroom_count", "room_count"]);
-  const bathrooms = pickActive(rawProperty, active, ["bathrooms", "bathroom_count"]);
-  const carparksRaw = pickActive(rawProperty, active, ["carparks", "carpark", "carparkCount", "carpark_count"]);
+  const bedrooms = pickPreferActive(rawProperty, active, ["bedrooms", "bedroom_count", "room_count"]);
+  const bathrooms = pickPreferActive(rawProperty, active, ["bathrooms", "bathroom_count"]);
+  const carparksRaw = pickPreferActive(rawProperty, active, ["carparks", "carpark", "carparkCount", "carpark_count"]);
   const carparks = isNonEmpty(carparksRaw) ? formatCarparks(carparksRaw) : "-";
 
-  const usage = pickActive(rawProperty, active, ["usage", "property_usage"]);
-  const propertyTitle = pickActive(rawProperty, active, ["propertyTitle", "property_title"]);
+  const usage = pickPreferActive(rawProperty, active, ["usage", "property_usage"]);
+  const propertyTitle = pickPreferActive(rawProperty, active, ["propertyTitle", "property_title"]);
   const propertyStatus = active.propertyStatus || pickAny(rawProperty, ["propertyStatus", "property_status", "propertystatus"]);
-  const tenure = pickActive(rawProperty, active, ["tenure", "tenure_type"]);
+  const tenure = pickPreferActive(rawProperty, active, ["tenure", "tenure_type"]);
 
-  const category = pickActive(rawProperty, active, ["propertyCategory", "property_category", "category"]);
-  const subType = pickActive(rawProperty, active, ["subType", "sub_type", "property_sub_type"]);
-  const storeys = pickActive(rawProperty, active, ["storeys", "storey", "floorCount"]);
-  const propSubtypes = pickActive(rawProperty, active, ["propertySubtypes", "property_subtypes", "propertySubtype", "subtypes", "subtype"]);
+  const category = pickPreferActive(rawProperty, active, ["propertyCategory", "property_category", "category"]);
+  const subType = pickPreferActive(rawProperty, active, ["subType", "sub_type", "property_sub_type"]);
+  const storeys = pickPreferActive(rawProperty, active, ["storeys", "storey", "floorCount"]);
+  const propSubtypes = pickPreferActive(rawProperty, active, [
+    "propertySubtypes",
+    "property_subtypes",
+    "propertySubtype",
+    "subtypes",
+    "subtype",
+  ]);
 
-  // ✅ Affordable Housing：必须优先读 active 表单（顶层 raw 经常残留旧值）
+  // ✅ Affordable Housing：优先 active（修复“显示旧的”）
   const affordableRaw = pickPreferActive(rawProperty, active, [
     "affordable",
     "affordable_housing",
     "affordableHousing",
-    "isAffordableHousing",
-    "affordableFlag",
-    "affordableHousingFlag",
+    "isAffordable",
   ]);
   const affordableType = pickPreferActive(rawProperty, active, [
     "affordableType",
     "affordable_housing_type",
     "affordableHousingType",
-    "affordableHousingProjectType",
   ]);
 
   let affordable = yesNoText(affordableRaw);
   if (isNonEmpty(affordableType) && affordable !== "是") affordable = "是";
-
   const affordableText =
-    affordable === "是"
-      ? (isNonEmpty(affordableType) ? `是（${affordableType}）` : "是")
-      : (affordable === "否" ? "否" : "-");
+    affordable === "是" && isNonEmpty(affordableType)
+      ? `是（${affordableType}）`
+      : isNonEmpty(affordable)
+      ? affordable
+      : "-";
 
   const transitText = getTransitText(rawProperty, active);
   const priceText = getCardPriceText(rawProperty, active);
 
-  // ✅ 年份显示：严格按当前 Property Status
-  const isNP = isNewProjectStatus(propertyStatus);
-  const isCU = isCompletedUnitStatus(propertyStatus);
+  const expectedText = getExpectedCompletionText(rawProperty, active);
 
-  const expectedText = isNP ? getExpectedCompletionText(rawProperty, active) : "-";
-
-  // ✅ 完成年份：优先 active 表单；找不到就智能扫描（避免旧值）
+  // ✅ 完成年份：优先 active + 智能扫描兜底（修复“只显示 - ”）
   let completedYear = pickPreferActive(rawProperty, active, [
     "completedYear",
-    "completionYear",
-    "completed_year",
     "built_year",
-    "builtYear",
-    "completion_year",
+    "completed_year",
+    "completionYear",
+    "buildYear",
+    "build_year",
   ]);
   if (!isNonEmpty(completedYear)) {
-    const best =
-      findBestCompletedYear(active.shared) ||
-      findBestCompletedYear(active.layout0) ||
-      findBestCompletedYear(active.form);
-    if (best?.year) completedYear = String(best.year);
+    const bestC1 = findBestCompletedYear(active.shared);
+    const bestC2 = findBestCompletedYear(active.layout0);
+    const bestC3 = findBestCompletedYear(active.form);
+    const bestC = bestC1 || bestC2 || bestC3;
+    if (bestC && bestC.year) completedYear = String(bestC.year);
   }
 
   const showStoreys = shouldShowStoreysByCategory(category);
@@ -531,7 +586,7 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
         </div>
 
         <div className="mt-3 space-y-1">
-          <MetaLineDash label="Sale / Rent" value={active.saleType ? active.saleType.toUpperCase() : "-"} />
+          <MetaLineDash label="Sale / Rent" value={active.saleType ? String(active.saleType).toUpperCase() : "-"} />
           <MetaLineDash label="Property Usage" value={usage} />
           <MetaLineDash label="Property Title" value={propertyTitle} />
           <MetaLineDash label="Property Status / Sale Type" value={propertyStatus} />
@@ -551,13 +606,13 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
 
           <MetaLineDash label="你的产业步行能到达公共交通吗？" value={transitText} />
 
-          {/* ✅ 你要求：New Project 只显示“预计完成年份”；Completed Unit 只显示“完成年份” */}
-          {isNP ? (
+          {isNewProjectStatus(propertyStatus) ? (
             <MetaLineDash label="预计完成年份" value={expectedText} />
-          ) : isCU ? (
-            <MetaLineDash label="完成年份" value={isNonEmpty(completedYear) ? completedYear : "-"} />
           ) : (
-            <MetaLineDash label="完成年份" value={isNonEmpty(completedYear) ? completedYear : "-"} />
+            <>
+              <MetaLineDash label="完成年份" value={isNonEmpty(completedYear) ? completedYear : "-"} />
+              <MetaLineDash label="预计完成年份" value={expectedText} />
+            </>
           )}
         </div>
       </div>
@@ -749,4 +804,4 @@ export default function MyProfilePage() {
       </div>
     </div>
   );
-               }
+}
