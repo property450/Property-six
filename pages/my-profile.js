@@ -26,13 +26,6 @@ function toText(v) {
   return String(v);
 }
 
-function money(v) {
-  if (!isNonEmpty(v)) return "";
-  const n = Number(String(v).replace(/,/g, "").replace(/[^\d.]/g, ""));
-  if (Number.isNaN(n)) return String(v);
-  return "RM " + n.toLocaleString("en-MY");
-}
-
 function safeJson(v) {
   if (!isNonEmpty(v)) return null;
   if (typeof v === "object") return v;
@@ -63,7 +56,7 @@ function pickAny(obj, candidates) {
   return "";
 }
 
-// 兼容你 JSON 里的 Yes/No / 是/否
+// ✅ 兼容你 JSON 里的 Yes/No / 是/否
 function yesNoText(v) {
   if (v === true) return "是";
   if (v === false) return "否";
@@ -72,6 +65,76 @@ function yesNoText(v) {
   if (["yes", "y", "true", "1", "是"].includes(s)) return "是";
   if (["no", "n", "false", "0", "否"].includes(s)) return "否";
   return String(v);
+}
+
+/* =========================
+   ✅ 数字/金额解析（修复 RM0）
+========================= */
+function extractNumericString(x) {
+  if (!isNonEmpty(x)) return "";
+  const s = String(x).replace(/,/g, "").replace(/[^\d.]/g, "");
+  // 关键：如果没有任何数字，别让 Number("") 变 0
+  if (!s || !/[0-9]/.test(s)) return "";
+  return s;
+}
+
+function toNumberOrNaN(x) {
+  const s = extractNumericString(x);
+  if (!s) return NaN;
+  const n = Number(s);
+  return Number.isNaN(n) ? NaN : n;
+}
+
+// 统一金额显示：只在确实有数字时才显示
+function money(v) {
+  if (!isNonEmpty(v)) return "";
+  // v 可能是 object（priceData），先尝试抽取
+  const n = toNumberOrNaN(v);
+  if (Number.isNaN(n)) return ""; // ✅ 不再出现 RM 0
+  return "RM " + n.toLocaleString("en-MY");
+}
+
+// 统一 count/range 显示（车位/房间/厕所等）
+function formatCountOrRange(v) {
+  if (!isNonEmpty(v)) return "";
+  if (typeof v === "number") return String(v);
+  if (typeof v === "string") return v;
+
+  // 常见 range 结构：{min,max} / {from,to} / {minValue,maxValue}
+  if (typeof v === "object") {
+    const min = pickAny(v, ["min", "from", "minValue", "min_count", "minCount"]);
+    const max = pickAny(v, ["max", "to", "maxValue", "max_count", "maxCount"]);
+    const minN = toNumberOrNaN(min);
+    const maxN = toNumberOrNaN(max);
+
+    if (!Number.isNaN(minN) && !Number.isNaN(maxN) && minN !== maxN) return `${minN} ~ ${maxN}`;
+    if (!Number.isNaN(minN) && (Number.isNaN(maxN) || minN === maxN)) return `${minN}`;
+    if (!Number.isNaN(maxN) && Number.isNaN(minN)) return `${maxN}`;
+
+    // year/quarter 这种结构：{year, quarter}
+    const year = pickAny(v, ["year", "completedYear", "expectedYear", "value"]);
+    const q = pickAny(v, ["quarter", "q"]);
+    if (isNonEmpty(year) && isNonEmpty(q)) return `${year} Q${q}`;
+    if (isNonEmpty(year)) return String(year);
+
+    return "";
+  }
+
+  return String(v);
+}
+
+// 统一年份显示（避免 object 乱显示）
+function formatYearLike(v) {
+  if (!isNonEmpty(v)) return "";
+  if (typeof v === "number") return String(v);
+  if (typeof v === "string") return v;
+  if (typeof v === "object") {
+    const year = pickAny(v, ["year", "value", "completedYear", "expectedYear"]);
+    const quarter = pickAny(v, ["quarter", "q"]);
+    if (isNonEmpty(year) && isNonEmpty(quarter)) return `${year} Q${quarter}`;
+    if (isNonEmpty(year)) return String(year);
+  }
+  return "";
 }
 
 function MetaLine({ label, value }) {
@@ -85,107 +148,14 @@ function MetaLine({ label, value }) {
 }
 
 /* =========================
-   ✅ 核心：合并策略（修复“读到另一个表单/旧表单”）
-   - 仍然解析所有 JSON 列到 __json
-   - 但只“提升/覆盖”当前模式对应的 JSON（避免旧 hotel/homestay/unitlayouts 抢数据）
-   - layout0 只在 New Project/Completed 才启用
+   ✅ 核心：只解析 JSON 到 __json，不再乱“提升覆盖”导致串表单
+   需要什么，就在 card 里按当前模式选 source 来读
 ========================= */
 function mergePropertyData(raw) {
   const p = raw || {};
   const merged = { ...p };
 
-  // 统一拿“当前模式”
-  const saleTypeRaw = pickAny(p, ["saleType", "sale_type", "saletype", "listing_mode"]);
-  const saleType = String(saleTypeRaw || "").trim().toLowerCase();
-
-  const finalTypeRaw = pickAny(p, ["finalType"]);
-  const finalType = String(finalTypeRaw || "").trim().toLowerCase();
-
-  const statusRaw = pickAny(p, ["propertyStatus", "property_status", "propertystatus"]);
-  const status = String(statusRaw || "").trim().toLowerCase();
-
-  const isProject =
-    status.includes("new project") ||
-    status.includes("under construction") ||
-    status.includes("completed unit") ||
-    status.includes("developer unit") ||
-    status.includes("completed") ||
-    status.includes("new");
-
-  const isHomestay = saleType === "homestay";
-  const isRent = saleType === "rent";
-  const isSale = saleType === "sale";
-  const isHotel = saleType === "hotel/resort" || finalType.includes("hotel");
-
-  // ✅ 重要：只让“当前表单”覆盖这些关键展示字段（避免顶层旧值/旧表单抢）
-  const OVERRIDE_KEYS = new Set([
-    "title",
-    "propertyTitle",
-    "property_title",
-    "propertyStatus",
-    "property_status",
-    "propertystatus",
-    "usage",
-    "property_usage",
-    "tenure",
-    "tenure_type",
-    "category",
-    "propertyCategory",
-    "property_category",
-    "subType",
-    "sub_type",
-    "storeys",
-    "propertySubtype",
-    "property_subtypes",
-    "subtype",
-    "bedrooms",
-    "bedroom_count",
-    "room_count",
-    "bathrooms",
-    "bathroom_count",
-    "carpark",
-    "carparks",
-    "price",
-    "price_min",
-    "price_max",
-    "pricedata",
-    "priceData",
-    "areadata",
-    "areaData",
-    "area_data",
-    "saleType",
-    "sale_type",
-    "saletype",
-    "listing_mode",
-    "finalType",
-    "roomRentalMode",
-    "room_rental_mode",
-    "roomrentalmode",
-    "homestayType",
-    "homestay_type",
-    "hotelResortType",
-    "hotel_resort_type",
-    "maxGuests",
-    "max_guests",
-    "roomLayouts",
-    "room_layouts",
-    "bed_types",
-    "transit",
-    "affordable",
-    "affordableType",
-    "affordable_housing",
-    "affordableHousing",
-    "affordable_housing_type",
-    "affordableHousingType",
-    "completedYear",
-    "built_year",
-    "expectedCompletedYear",
-    "expected_year",
-    "availability",
-    "calendar_prices",
-  ]);
-
-  // 你表里常见 JSON 列（保持原样解析）
+  // 你表里常见 JSON 列（保持原样解析进 __json）
   const jsonColsAll = [
     "type_form_v2",
     "type_form",
@@ -216,8 +186,6 @@ function mergePropertyData(raw) {
   ];
 
   merged.__json = {};
-
-  // 先解析所有 JSON 进 __json（不影响展示）
   for (const k of jsonColsAll) {
     const parsed = safeJson(p?.[k]);
     if (parsed && typeof parsed === "object") {
@@ -225,106 +193,122 @@ function mergePropertyData(raw) {
     }
   }
 
-  // ✅ 决定“当前模式允许提升/覆盖”的 JSON 来源
-  const activeJsonCols = [];
-
-  // Sale / Rent：以 single_form_data 为准（你卡片上的 bedrooms/price 等都应来自这里）
-  if (isSale || isRent) {
-    activeJsonCols.push("single_form_data_v2", "single_form_data", "singleFormData");
-    // 某些字段你也会放在 type_form_v2（例如 transit）
-    activeJsonCols.push("type_form_v2", "type_form", "typeform", "typeForm");
-  }
-
-  // Homestay
-  if (isHomestay) {
-    activeJsonCols.push("homestay_form");
-    // 允许补充日历/价格等
-    activeJsonCols.push("availability", "calendar_prices", "check_in_out", "bed_types");
-  }
-
-  // Hotel / Resort
-  if (isHotel) {
-    activeJsonCols.push("hotel_resort_form");
-    activeJsonCols.push("availability", "calendar_prices", "check_in_out", "bed_types");
-  }
-
-  // ✅ 只把 activeJsonCols 里的 key 提升到顶层（并按 override 规则覆盖关键字段）
-  const promoteFromParsed = (parsed) => {
-    if (!parsed || typeof parsed !== "object") return;
-    for (const key of Object.keys(parsed)) {
-      if (OVERRIDE_KEYS.has(key)) {
-        merged[key] = parsed[key];
-      } else {
-        if (!isNonEmpty(merged[key])) merged[key] = parsed[key];
-      }
-    }
-  };
-
-  for (const k of activeJsonCols) {
-    const parsed = merged.__json?.[k];
-    if (parsed) promoteFromParsed(parsed);
-  }
-
-  // ✅ layout0 提升：只在 Project 模式启用（防止 Subsale/Rent 被旧 unitlayouts 抢数据）
-  if (isProject) {
-    let ul = p?.unit_layouts ?? p?.unitLayouts ?? p?.unitlayouts;
-    ul = safeJson(ul) ?? ul;
-
-    if (Array.isArray(ul) && ul[0] && typeof ul[0] === "object") {
-      merged.__layout0 = ul[0];
-
-      // layout0 对关键字段也允许覆盖（Project 模式以 layout 为准）
-      for (const key of Object.keys(ul[0])) {
-        if (OVERRIDE_KEYS.has(key)) {
-          merged[key] = ul[0][key];
-        } else {
-          if (!isNonEmpty(merged[key])) merged[key] = ul[0][key];
-        }
-      }
-    }
+  // layout0 也先解析出来（但是否用它，由 card 的模式决定）
+  let ul = p?.unit_layouts ?? p?.unitLayouts ?? p?.unitlayouts;
+  ul = safeJson(ul) ?? ul;
+  if (Array.isArray(ul) && ul[0] && typeof ul[0] === "object") {
+    merged.__layout0 = ul[0];
   }
 
   return merged;
 }
 
 /* =========================
-   从你真实 JSON 结构抽取：交通、日历价格、床型等
+   ✅ 根据当前模式选择“正确数据源”（彻底解决串表单/旧资料）
 ========================= */
+function getActiveSource(rawProperty, mergedProperty) {
+  const p = rawProperty || {};
+  const m = mergedProperty || {};
 
-// 交通：你的 JSON 是 transit.nearTransit = "yes"
-function getTransitText(p) {
-  const near = pickAny(p, [
+  const saleTypeRaw = pickAny(p, ["saleType", "sale_type", "saletype", "listing_mode"]);
+  const saleType = String(saleTypeRaw || "").trim().toLowerCase();
+
+  const finalTypeRaw = pickAny(p, ["finalType"]);
+  const finalType = String(finalTypeRaw || "").trim().toLowerCase();
+
+  const statusRaw = pickAny(p, ["propertyStatus", "property_status", "propertystatus"]);
+  const status = String(statusRaw || "").trim().toLowerCase();
+
+  const isProject =
+    status.includes("new project") ||
+    status.includes("under construction") ||
+    status.includes("completed unit") ||
+    status.includes("developer unit") ||
+    status.includes("completed") ||
+    status.includes("new");
+
+  const isHomestay = saleType === "homestay";
+  const isSaleOrRent = saleType === "sale" || saleType === "rent";
+  const isHotel = saleType === "hotel/resort" || finalType.includes("hotel");
+
+  // Project：优先 layout0
+  if (isProject && m.__layout0) return m.__layout0;
+
+  // Sale/Rent：优先 single_form_data（你最新编辑存的通常在这里）
+  if (isSaleOrRent) {
+    const single =
+      m.__json?.single_form_data_v2 ||
+      m.__json?.single_form_data ||
+      m.__json?.singleFormData;
+    if (single) return single;
+
+    // 某些字段可能存在 type_form_v2（例如 transit）
+    const typef = m.__json?.type_form_v2 || m.__json?.type_form || m.__json?.typeform || m.__json?.typeForm;
+    if (typef) return typef;
+  }
+
+  // Homestay
+  if (isHomestay) {
+    const hs = m.__json?.homestay_form;
+    if (hs) return hs;
+  }
+
+  // Hotel/Resort
+  if (isHotel) {
+    const ht = m.__json?.hotel_resort_form;
+    if (ht) return ht;
+  }
+
+  // fallback：回 merged/top-level
+  return m;
+}
+
+/* =========================
+   交通：优先从 active source 的 transit 读
+========================= */
+function getTransitText(active, merged) {
+  const a = active || {};
+  const m = merged || {};
+
+  const near = pickAny(a, ["transit.nearTransit", "nearTransit", "transitNearTransit"]);
+  const nearFallback = pickAny(m, [
     "transit.nearTransit",
     "__layout0.transit.nearTransit",
     "__json.single_form_data_v2.transit.nearTransit",
     "__json.type_form_v2.transit.nearTransit",
   ]);
-  if (!isNonEmpty(near)) return "";
-  // nearTransit="yes" => 是
-  const yn = yesNoText(near);
+
+  const nearVal = isNonEmpty(near) ? near : nearFallback;
+  if (!isNonEmpty(nearVal)) return "";
+
+  const yn = yesNoText(nearVal);
   if (!isNonEmpty(yn)) return "";
 
-  // 线路/站
-  const lines = pickAny(p, [
+  const lines = pickAny(a, ["transit.selectedLines", "selectedLines"]);
+  const linesFallback = pickAny(m, [
     "transit.selectedLines",
     "__layout0.transit.selectedLines",
     "__json.single_form_data_v2.transit.selectedLines",
     "__json.type_form_v2.transit.selectedLines",
   ]);
-  const stations = pickAny(p, [
+
+  const stations = pickAny(a, ["transit.selectedStations", "selectedStations"]);
+  const stationsFallback = pickAny(m, [
     "transit.selectedStations",
     "__layout0.transit.selectedStations",
     "__json.single_form_data_v2.transit.selectedStations",
     "__json.type_form_v2.transit.selectedStations",
   ]);
 
+  const finalLines = isNonEmpty(lines) ? lines : linesFallback;
+  const finalStations = isNonEmpty(stations) ? stations : stationsFallback;
+
   let extra = "";
-  if (Array.isArray(lines) && lines.length) extra += `｜线路：${lines.join(", ")}`;
-  if (stations && typeof stations === "object") {
-    // stations: { "MRT Kajang Line": [{label,value}] }
+  if (Array.isArray(finalLines) && finalLines.length) extra += `｜线路：${finalLines.join(", ")}`;
+  if (finalStations && typeof finalStations === "object") {
     const parts = [];
-    for (const k of Object.keys(stations)) {
-      const arr = stations[k];
+    for (const k of Object.keys(finalStations)) {
+      const arr = finalStations[k];
       if (Array.isArray(arr) && arr.length) {
         parts.push(`${k}: ${arr.map((x) => x?.label || x?.value).filter(Boolean).join(", ")}`);
       }
@@ -335,9 +319,15 @@ function getTransitText(p) {
   return `是${extra}`;
 }
 
-// 统一拿 roomLayouts（你 JSON 有 roomLayouts 和 room_layouts）
-function getRoomLayouts(p) {
-  const v = pickAny(p, ["roomLayouts", "room_layouts", "__layout0.roomLayouts", "__layout0.room_layouts"]);
+/* =========================
+   roomLayouts（你 JSON 有 roomLayouts 和 room_layouts）
+========================= */
+function getRoomLayoutsFromActive(active, merged) {
+  const a = active || {};
+  const m = merged || {};
+  const v =
+    pickAny(a, ["roomLayouts", "room_layouts"]) ||
+    pickAny(m, ["roomLayouts", "room_layouts", "__layout0.roomLayouts", "__layout0.room_layouts"]);
   const parsed = safeJson(v) ?? v;
   if (Array.isArray(parsed)) return parsed;
   return [];
@@ -360,7 +350,6 @@ function summarizeRoomLayout(layout) {
   const smoking = yesNoText(layout?.smoking);
   const breakfast = yesNoText(layout?.breakfast);
 
-  // petPolicy: {type:"forbidden"} => 不允许
   let pet = "";
   if (layout?.petPolicy?.type) {
     const t = String(layout.petPolicy.type).toLowerCase();
@@ -369,20 +358,18 @@ function summarizeRoomLayout(layout) {
     else pet = String(layout.petPolicy.type);
   }
 
-  // cancellationPolicy: {type:"conditional"} 这里只显示 type + condition
   let cancel = "";
   if (layout?.cancellationPolicy?.type) {
     cancel = String(layout.cancellationPolicy.type);
     if (isNonEmpty(layout.cancellationPolicy.condition)) cancel += `（${layout.cancellationPolicy.condition}）`;
   }
 
-  // fees: deposit/serviceFee/cleaningFee/otherFee
   const fees = layout?.fees || {};
   const feeText = (feeObj) => {
     if (!feeObj) return "";
     const v = feeObj.value;
-    if (isNonEmpty(v)) return money(v);
-    return "";
+    const out = money(v);
+    return out || "";
   };
 
   const serviceFee = feeText(fees.serviceFee);
@@ -390,12 +377,11 @@ function summarizeRoomLayout(layout) {
   const deposit = feeText(fees.deposit);
   const otherFee = feeText(fees.otherFee);
 
-  // availability.prices: {"Tue Jan 06 2026":"RM 50",...}
   const pricesMap = layout?.availability?.prices;
   let calendarSummary = "";
   if (pricesMap && typeof pricesMap === "object") {
     const nums = Object.values(pricesMap)
-      .map((x) => Number(String(x).replace(/[^\d.]/g, "")))
+      .map((x) => toNumberOrNaN(x))
       .filter((n) => !Number.isNaN(n));
     if (nums.length) {
       const min = Math.min(...nums);
@@ -433,27 +419,68 @@ function summarizeRoomLayout(layout) {
 }
 
 /* =========================
-   ✅ 价格显示规则（你要的）
+   ✅ 价格显示（支持 priceData/pricedata/object/range）
 ========================= */
-function getCardPriceText(rawProperty, mergedProperty) {
+function getPriceFromAny(rawProperty, active, merged) {
   const rp = rawProperty || {};
-  const mp = mergedProperty || {};
+  const a = active || {};
+  const m = merged || {};
 
+  // 1) 顶层 price_min/max（最明确）
   const hasMin = isNonEmpty(rp.price_min);
   const hasMax = isNonEmpty(rp.price_max);
-
-  const minNum = hasMin ? Number(String(rp.price_min).replace(/[^\d.]/g, "")) : NaN;
-  const maxNum = hasMax ? Number(String(rp.price_max).replace(/[^\d.]/g, "")) : NaN;
-
-  // ✅ 只有 min & max 都有，并且 min != max 才显示 range
+  const minNum = hasMin ? toNumberOrNaN(rp.price_min) : NaN;
+  const maxNum = hasMax ? toNumberOrNaN(rp.price_max) : NaN;
   if (hasMin && hasMax && !Number.isNaN(minNum) && !Number.isNaN(maxNum) && minNum !== maxNum) {
-    return `${money(rp.price_min)} ~ ${money(rp.price_max)}`;
+    return { kind: "range", min: minNum, max: maxNum };
   }
 
-  // ✅ 其他情况：优先用 price（subsale 就是这个）
-  const single = pickAny(mp, ["price", "price_min", "price_max"]);
-  if (isNonEmpty(single)) return money(single);
+  // 2) active.priceData / active.pricedata（project/rent/sale 你经常用）
+  const pd = pickAny(a, ["priceData", "pricedata", "pricedata", "price_data"]) || pickAny(m, ["priceData", "pricedata"]);
+  if (pd && typeof pd === "object") {
+    const minV = pickAny(pd, ["min", "minPrice", "min_value", "minValue", "from"]);
+    const maxV = pickAny(pd, ["max", "maxPrice", "max_value", "maxValue", "to"]);
+    const minP = toNumberOrNaN(minV);
+    const maxP = toNumberOrNaN(maxV);
+    if (!Number.isNaN(minP) && !Number.isNaN(maxP) && minP !== maxP) return { kind: "range", min: minP, max: maxP };
+    if (!Number.isNaN(minP)) return { kind: "single", value: minP };
+    if (!Number.isNaN(maxP)) return { kind: "single", value: maxP };
+    const single = pickAny(pd, ["value", "price", "amount"]);
+    const singleN = toNumberOrNaN(single);
+    if (!Number.isNaN(singleN)) return { kind: "single", value: singleN };
+  }
 
+  // 3) active.price（可能是数字/字符串/object）
+  const priceA = pickAny(a, ["price"]);
+  if (isNonEmpty(priceA)) {
+    if (typeof priceA === "object") {
+      const minV = pickAny(priceA, ["min", "from"]);
+      const maxV = pickAny(priceA, ["max", "to"]);
+      const minP = toNumberOrNaN(minV);
+      const maxP = toNumberOrNaN(maxV);
+      if (!Number.isNaN(minP) && !Number.isNaN(maxP) && minP !== maxP) return { kind: "range", min: minP, max: maxP };
+      const v = pickAny(priceA, ["value", "amount", "price"]);
+      const vn = toNumberOrNaN(v);
+      if (!Number.isNaN(vn)) return { kind: "single", value: vn };
+    } else {
+      const n = toNumberOrNaN(priceA);
+      if (!Number.isNaN(n)) return { kind: "single", value: n };
+    }
+  }
+
+  // 4) merged.price fallback
+  const priceM = pickAny(m, ["price", "price_min", "price_max"]);
+  const nM = toNumberOrNaN(priceM);
+  if (!Number.isNaN(nM)) return { kind: "single", value: nM };
+
+  return null;
+}
+
+function getCardPriceText(rawProperty, active, merged) {
+  const p = getPriceFromAny(rawProperty, active, merged);
+  if (!p) return "";
+  if (p.kind === "range") return `${money(p.min)} ~ ${money(p.max)}`;
+  if (p.kind === "single") return money(p.value);
   return "";
 }
 
@@ -461,21 +488,22 @@ function getCardPriceText(rawProperty, mergedProperty) {
    Card（卖家后台卡片）
 ========================= */
 function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
-  const p = useMemo(() => mergePropertyData(rawProperty), [rawProperty]);
+  const merged = useMemo(() => mergePropertyData(rawProperty), [rawProperty]);
+  const active = useMemo(() => getActiveSource(rawProperty, merged), [rawProperty, merged]);
 
-  // 基础展示
-  const title = pickAny(p, ["title"]);
-  const address = pickAny(p, ["address"]);
+  // 基础展示（标题/地址通常在顶层）
+  const title = pickAny(rawProperty, ["title"]) || pickAny(active, ["title"]) || "（未命名房源）";
+  const address = pickAny(rawProperty, ["address"]);
 
-  // 你这里 “Studio” 存在 bedrooms 字段里（你贴的 JSON 是 bedrooms:"Studio"）
-  const bedrooms = pickAny(p, ["bedrooms", "bedroom_count", "room_count"]);
-  const bathrooms = pickAny(p, ["bathrooms", "bathroom_count"]);
-  const carparks = pickAny(p, ["carparks", "carpark"]);
+  // 关键字段：优先 active（当前模式表单）
+  const bedrooms = pickAny(active, ["bedrooms", "bedroom_count", "room_count"]) || pickAny(merged, ["bedrooms", "bedroom_count", "room_count"]);
+  const bathrooms = pickAny(active, ["bathrooms", "bathroom_count"]) || pickAny(merged, ["bathrooms", "bathroom_count"]);
+  const carparksRaw = pickAny(active, ["carparks", "carpark", "carparkCount", "carpark_count"]) || pickAny(merged, ["carparks", "carpark"]);
+  const carparks = formatCountOrRange(carparksRaw);
 
-  // 模式：你贴的 JSON 是 saleType:"Sale"/ finalType:"Hotel / Resort" / roomRentalMode:"whole"
-  const saleType = pickAny(p, ["saleType", "sale_type", "saletype", "listing_mode"]);
-  const finalType = pickAny(p, ["finalType"]); // 例如 "Hotel / Resort"
-  const roomRentalMode = pickAny(p, ["roomRentalMode", "room_rental_mode", "roomrentalmode"]);
+  const saleType = pickAny(rawProperty, ["saleType", "sale_type", "saletype", "listing_mode"]);
+  const finalType = pickAny(rawProperty, ["finalType"]);
+  const roomRentalMode = pickAny(active, ["roomRentalMode", "room_rental_mode", "roomrentalmode"]) || pickAny(rawProperty, ["roomRentalMode", "room_rental_mode", "roomrentalmode"]);
 
   const showSale = String(saleType).toLowerCase() === "sale";
   const showRent = String(saleType).toLowerCase() === "rent";
@@ -484,55 +512,55 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
 
   const isRentRoom = showRent && String(roomRentalMode).toLowerCase() === "room";
 
-  // ✅ 这些字段按你真实 JSON key 对齐
-  const usage = pickAny(p, ["usage", "property_usage"]);
-  const tenure = pickAny(p, ["tenure", "tenure_type"]);
-  const storeys = pickAny(p, ["storeys"]);
-  const category = pickAny(p, ["category", "propertyCategory", "property_category"]);
-  const subType = pickAny(p, ["subType", "property_sub_type", "sub_type"]);
-  const subtypesMulti = pickAny(p, ["subtype", "property_subtypes", "propertySubtype"]); // 注意：你 JSON 的 subtype 是数组
+  // 这些字段按你真实 key（优先 active）
+  const usage = pickAny(active, ["usage", "property_usage"]) || pickAny(merged, ["usage", "property_usage"]);
+  const tenure = pickAny(active, ["tenure", "tenure_type"]) || pickAny(merged, ["tenure", "tenure_type"]);
+  const storeys = formatCountOrRange(pickAny(active, ["storeys"]) || pickAny(merged, ["storeys"]));
+  const category = pickAny(active, ["category", "propertyCategory", "property_category"]) || pickAny(merged, ["category", "propertyCategory", "property_category"]);
+  const subType = pickAny(active, ["subType", "property_sub_type", "sub_type"]) || pickAny(merged, ["subType", "property_sub_type", "sub_type"]);
+  const subtypesMulti =
+    pickAny(active, ["subtype", "property_subtypes", "propertySubtype"]) ||
+    pickAny(merged, ["subtype", "property_subtypes", "propertySubtype"]);
 
-  const propertyTitle = pickAny(p, ["propertyTitle", "property_title"]);
-  const propertyStatus = pickAny(p, ["propertyStatus", "property_status", "propertystatus"]);
+  const propertyTitle = pickAny(active, ["propertyTitle", "property_title"]) || pickAny(merged, ["propertyTitle", "property_title"]);
+  const propertyStatus = pickAny(rawProperty, ["propertyStatus", "property_status", "propertystatus"]) || pickAny(active, ["propertyStatus", "property_status", "propertystatus"]);
 
-  // Affordable：你 JSON 是 affordable:"Yes" + affordableType:"Rumah Mampu Milik"
-  const affordableRaw = pickAny(p, ["affordable", "affordable_housing", "affordableHousing"]);
-  const affordableType = pickAny(p, ["affordableType", "affordable_housing_type", "affordableHousingType"]);
+  // Affordable
+  const affordableRaw = pickAny(active, ["affordable", "affordable_housing", "affordableHousing"]) || pickAny(merged, ["affordable", "affordable_housing", "affordableHousing"]);
+  const affordableType = pickAny(active, ["affordableType", "affordable_housing_type", "affordableHousingType"]) || pickAny(merged, ["affordableType", "affordable_housing_type", "affordableHousingType"]);
   let affordable = yesNoText(affordableRaw);
   if (affordableType && affordable !== "是") affordable = "是";
 
-  const completedYear = pickAny(p, ["completedYear", "built_year"]);
-  const expectedYear = pickAny(p, ["expectedCompletedYear", "expected_year"]);
+  // ✅ 年份（优先 active）
+  const completedYear = formatYearLike(pickAny(active, ["completedYear", "built_year"]) || pickAny(merged, ["completedYear", "built_year"]));
+  const expectedYear = formatYearLike(pickAny(active, ["expectedCompletedYear", "expected_year"]) || pickAny(merged, ["expectedCompletedYear", "expected_year"]));
 
-  const transitText = getTransitText(p);
+  // ✅ 公共交通（优先 active）
+  const transitText = getTransitText(active, merged);
 
   // Homestay / Hotel extra
-  const homestayType = pickAny(p, ["homestayType", "homestay_type"]);
-  const hotelResortType = pickAny(p, ["hotelResortType", "hotel_resort_type", "hotel_resort_type", "hotel_resort_type"]);
-  const maxGuests = pickAny(p, ["maxGuests", "max_guests"]);
+  const homestayType = pickAny(active, ["homestayType", "homestay_type"]) || pickAny(merged, ["homestayType", "homestay_type"]);
+  const hotelResortType = pickAny(active, ["hotelResortType", "hotel_resort_type"]) || pickAny(merged, ["hotelResortType", "hotel_resort_type"]);
+  const maxGuests = pickAny(active, ["maxGuests", "max_guests"]) || pickAny(merged, ["maxGuests", "max_guests"]);
 
-  // 从 roomLayouts 取一个“汇总”
-  const layouts = getRoomLayouts(p);
+  // roomLayouts（优先 active）
+  const layouts = getRoomLayoutsFromActive(active, merged);
   const layout0 = layouts[0] || null;
   const layoutInfo = layout0 ? summarizeRoomLayout(layout0) : {};
 
-  // 如果没有 roomLayouts，也尝试从顶层 bed_types
-  const bedTypesFallback = pickAny(p, ["bed_types"]);
+  const bedTypesFallback = pickAny(active, ["bed_types"]) || pickAny(merged, ["bed_types"]);
   const bedTypesText =
     (layoutInfo?.beds && layoutInfo.beds.length ? layoutInfo.beds.join(", ") : "") ||
     (Array.isArray(bedTypesFallback) ? bedTypesFallback.join(", ") : "");
 
-  // 费用
   const serviceFee = layoutInfo.serviceFee || "";
   const cleaningFee = layoutInfo.cleaningFee || "";
   const deposit = layoutInfo.deposit || "";
   const otherFee = layoutInfo.otherFee || "";
-
-  // 日历价格
   const calendarSummary = layoutInfo.calendarSummary || "";
 
-  // ✅ 价格显示（你要的最终逻辑）
-  const cardPriceText = getCardPriceText(rawProperty, p);
+  // ✅ 价格显示（彻底修复 RM0）
+  const cardPriceText = getCardPriceText(rawProperty, active, merged);
 
   return (
     <div className="w-full bg-white rounded-xl shadow-sm border border-gray-200 p-4">
@@ -540,7 +568,6 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
         <div className="text-lg font-semibold text-gray-900 truncate">{title || "（未命名房源）"}</div>
         {isNonEmpty(address) && <div className="text-sm text-gray-600 mt-1 truncate">{address}</div>}
 
-        {/* ✅ 价格（只按规则显示单价或 range） */}
         {isNonEmpty(cardPriceText) && <div className="text-base font-semibold text-blue-700 mt-2">{cardPriceText}</div>}
 
         <div className="text-sm text-gray-700 mt-2 flex flex-wrap gap-x-4 gap-y-1">
@@ -549,7 +576,6 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
           {isNonEmpty(carparks) && <span>🚗 {toText(carparks)}</span>}
         </div>
 
-        {/* 详细字段：有值才显示 */}
         <div className="mt-3 space-y-1">
           {/* SALE */}
           {showSale && (
@@ -593,7 +619,7 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
           {/* RENT（出租房间） */}
           {showRent && isRentRoom && (
             <>
-              <MetaLine label="租金" value={pickAny(p, ["price", "price_min", "price_max"])} />
+              <MetaLine label="租金" value={cardPriceText} />
               <MetaLine label="Property Category" value={category} />
               <MetaLine label="Storeys" value={storeys} />
               <MetaLine label="Property Subtype" value={subtypesMulti} />
@@ -724,7 +750,6 @@ export default function MyProfilePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  // 统计（你表里没有 published 字段，不乱猜，全部当已发布）
   const stats = useMemo(() => {
     const total = properties.length;
     const published = total;
@@ -745,16 +770,21 @@ export default function MyProfilePage() {
     if (k) {
       list = list.filter((p) => {
         const merged = mergePropertyData(p);
-        const t = pickAny(merged, ["title"]);
-        const a = pickAny(merged, ["address"]);
+        const active = getActiveSource(p, merged);
+        const t = pickAny(p, ["title"]) || pickAny(active, ["title"]);
+        const a = pickAny(p, ["address"]);
         return String(t || "").toLowerCase().includes(k) || String(a || "").toLowerCase().includes(k);
       });
     }
 
     const getPriceNum = (p) => {
-      const v = p?.price ?? p?.price_min ?? p?.price_max;
-      const n = Number(String(v).replace(/[^\d.]/g, ""));
-      return Number.isNaN(n) ? 0 : n;
+      const merged = mergePropertyData(p);
+      const active = getActiveSource(p, merged);
+      const info = getPriceFromAny(p, active, merged);
+      if (!info) return 0;
+      if (info.kind === "range") return info.max || info.min || 0;
+      if (info.kind === "single") return info.value || 0;
+      return 0;
     };
 
     if (sortKey === "latest") {
