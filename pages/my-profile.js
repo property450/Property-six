@@ -112,16 +112,77 @@ function formatCountOrRange(v) {
   return String(v);
 }
 
-function formatYearLike(v) {
-  if (!isNonEmpty(v)) return "";
-  if (typeof v === "number") return String(v);
-  if (typeof v === "string") return v;
+/* =========================
+   年份 + 季度（New Project）
+   兼容多种保存 key（你项目里常会改名）
+========================= */
+function formatExpectedYearQuarterFromObjects(objs) {
+  // year 可能是 number/string/object
+  const yearRaw = pickFromObjects(objs, [
+    "expectedCompletedYear",
+    "expected_year",
+    "expectedYear",
+    "expected_completion_year",
+    "completionExpectedYear",
+    "completion_year_expected",
+    "buildExpectedYear",
+    "expectedCompletionYear",
+    "expected_completion.year",
+    "expectedCompletion.year",
+    "completion.expectedYear",
+  ]);
 
-  if (typeof v === "object") {
-    const year = pickAny(v, ["year", "value", "completedYear", "expectedYear"]);
-    const quarter = pickAny(v, ["quarter", "q"]);
-    if (isNonEmpty(year) && isNonEmpty(quarter)) return `${year} Q${quarter}`;
-    if (isNonEmpty(year)) return String(year);
+  // quarter 可能是 "Q1"/1/"1" 或 object 里的 quarter
+  const qRaw = pickFromObjects(objs, [
+    "expectedCompletedQuarter",
+    "expectedQuarter",
+    "expected_quarter",
+    "completionQuarter",
+    "expected_completion_quarter",
+    "expectedCompletionQuarter",
+    "expected_completion.quarter",
+    "expectedCompletion.quarter",
+    "completion.expectedQuarter",
+  ]);
+
+  let year = "";
+  if (typeof yearRaw === "number") year = String(yearRaw);
+  else if (typeof yearRaw === "string") year = yearRaw.trim();
+  else if (typeof yearRaw === "object") year = String(pickAny(yearRaw, ["year", "value"])).trim();
+
+  if (!isNonEmpty(year)) return "";
+
+  let q = "";
+  if (typeof qRaw === "number") q = String(qRaw);
+  else if (typeof qRaw === "string") q = qRaw.trim();
+  else if (typeof qRaw === "object") q = String(pickAny(qRaw, ["quarter", "q", "value"])).trim();
+
+  if (!isNonEmpty(q)) return year; // 有年份没季度，就只显示年份
+
+  // 统一成 Q1~Q4
+  const qLower = q.toLowerCase();
+  if (qLower.startsWith("q")) q = q.toUpperCase();
+  else q = `Q${q}`;
+
+  return `${year} ${q}`;
+}
+
+function formatCompletedYearFromObjects(objs) {
+  const yRaw = pickFromObjects(objs, [
+    "completedYear",
+    "built_year",
+    "completed_year",
+    "completionYear",
+    "yearCompleted",
+    "completion_year",
+  ]);
+
+  if (!isNonEmpty(yRaw)) return "";
+  if (typeof yRaw === "number") return String(yRaw);
+  if (typeof yRaw === "string") return yRaw.trim();
+  if (typeof yRaw === "object") {
+    const y = pickAny(yRaw, ["year", "value", "completedYear"]);
+    return isNonEmpty(y) ? String(y).trim() : "";
   }
   return "";
 }
@@ -140,7 +201,7 @@ function MetaLine({ label, value }) {
 }
 
 /* =========================
-   解析 JSON（不做提升覆盖，避免串表单）
+   解析 JSON（避免串表单：不做提升覆盖）
 ========================= */
 function mergePropertyData(raw) {
   const p = raw || {};
@@ -184,10 +245,7 @@ function mergePropertyData(raw) {
 }
 
 /* =========================
-   根据模式选“当前表单来源”
-   - Project：layout0 + shared(type_form_v2)
-   - Sale/Rent 非 project：single_form_data_v2（优先）否则 type_form_v2
-   - Homestay/Hotel：各自 form
+   模式识别
 ========================= */
 function getMode(raw) {
   const saleTypeRaw = pickAny(raw, ["saleType", "sale_type", "saletype", "listing_mode"]);
@@ -219,8 +277,7 @@ function getSources(raw, merged) {
   const mode = getMode(raw);
 
   if (mode.isProject) {
-    // ✅ Project：layout0(房型) + shared(typeForm/singleForm)
-    // 你很多共享字段（usage/title/status/transit/affordable/tenure/年份）在 typeForm 或 singleForm
+    // ✅ Project：layout0 + shared（优先 typeForm，再 singleForm）
     const shared = typeForm || singleForm || null;
     return { mode, layout: layout0, shared, form: null };
   }
@@ -233,14 +290,14 @@ function getSources(raw, merged) {
   if (mode.isHomestay) return { mode, layout: null, shared: homestayForm, form: homestayForm };
   if (mode.isHotel) return { mode, layout: null, shared: hotelForm, form: hotelForm };
 
-  // fallback
   return { mode, layout: null, shared: null, form: null };
 }
 
 /* =========================
-   严格取值：只从“当前表单 sources”拿，不从顶层/其它表单拿
+   严格取值：只从“当前 sources（shared/layout/form）”取
+   - Project：优先 shared，再 layout
 ========================= */
-function pickStrictFrom(objects, keys) {
+function pickFromObjects(objects, keys) {
   for (const obj of objects) {
     if (!obj) continue;
     const v = pickAny(obj, keys);
@@ -250,19 +307,18 @@ function pickStrictFrom(objects, keys) {
 }
 
 /* =========================
-   公共交通（严格）：没选 "-"；No "否"；Yes "是..."
-   只读 shared（当前表单），不读顶层不读其它表单
+   公共交通（Project：shared 优先，其次 layout）
 ========================= */
-function getTransitText(shared) {
-  const near = pickAny(shared, ["transit.nearTransit", "nearTransit", "transitNearTransit"]);
+function getTransitTextFromObjects(objects) {
+  const near = pickFromObjects(objects, ["transit.nearTransit", "nearTransit", "transitNearTransit"]);
   if (!isNonEmpty(near)) return "-";
 
   const yn = yesNoText(near);
   if (!isNonEmpty(yn)) return "-";
   if (yn === "否") return "否";
 
-  const lines = pickAny(shared, ["transit.selectedLines", "selectedLines"]);
-  const stations = pickAny(shared, ["transit.selectedStations", "selectedStations"]);
+  const lines = pickFromObjects(objects, ["transit.selectedLines", "selectedLines"]);
+  const stations = pickFromObjects(objects, ["transit.selectedStations", "selectedStations"]);
 
   let extra = "";
   if (Array.isArray(lines) && lines.length) extra += `｜线路：${lines.join(", ")}`;
@@ -281,30 +337,67 @@ function getTransitText(shared) {
 }
 
 /* =========================
-   价格（严格）：Project 用 layout 优先，其它用 form
+   价格（关键修复）
+   New Project/Completed Unit：
+   1) layout.priceData range
+   2) 顶层 price_min/price_max（这是你表单常写回的范围）
+   3) shared.priceData range
+   4) 最后才 single
 ========================= */
-function getPriceInfo(mode, layout, form, raw) {
-  // 顶层 price_min/max 只作为最后兜底（很多时候顶层会残留旧模式）
-  // 你要求“只显示当前表单”，所以这里只在当前 form/layout 都没有时才用。
-  // Project：
+function getPriceInfo(mode, layout, shared, form, raw) {
+  // Project range first
   if (mode.isProject) {
-    const pd = pickAny(layout, ["priceData", "pricedata", "price_data"]);
-    if (pd && typeof pd === "object") {
-      const minV = pickAny(pd, ["min", "minPrice", "min_value", "minValue", "from"]);
-      const maxV = pickAny(pd, ["max", "maxPrice", "max_value", "maxValue", "to"]);
+    // 1) layout priceData
+    const pdL = pickAny(layout, ["priceData", "pricedata", "price_data"]);
+    if (pdL && typeof pdL === "object") {
+      const minV = pickAny(pdL, ["min", "minPrice", "min_value", "minValue", "from"]);
+      const maxV = pickAny(pdL, ["max", "maxPrice", "max_value", "maxValue", "to"]);
       const minP = toNumberOrNaN(minV);
       const maxP = toNumberOrNaN(maxV);
-      if (!Number.isNaN(minP) && !Number.isNaN(maxP) && minP !== maxP) return { kind: "range", min: minP, max: maxP };
-      if (!Number.isNaN(minP)) return { kind: "single", value: minP };
-      if (!Number.isNaN(maxP)) return { kind: "single", value: maxP };
+      if (!Number.isNaN(minP) && !Number.isNaN(maxP)) {
+        if (minP !== maxP) return { kind: "range", min: minP, max: maxP };
+        return { kind: "single", value: minP };
+      }
     }
+
+    // 2) top-level price_min/max
+    const hasMin = isNonEmpty(raw?.price_min);
+    const hasMax = isNonEmpty(raw?.price_max);
+    const minNum = hasMin ? toNumberOrNaN(raw?.price_min) : NaN;
+    const maxNum = hasMax ? toNumberOrNaN(raw?.price_max) : NaN;
+    if (hasMin && hasMax && !Number.isNaN(minNum) && !Number.isNaN(maxNum)) {
+      if (minNum !== maxNum) return { kind: "range", min: minNum, max: maxNum };
+      return { kind: "single", value: minNum };
+    }
+
+    // 3) shared priceData
+    const pdS = pickAny(shared, ["priceData", "pricedata", "price_data"]);
+    if (pdS && typeof pdS === "object") {
+      const minV = pickAny(pdS, ["min", "minPrice", "min_value", "minValue", "from"]);
+      const maxV = pickAny(pdS, ["max", "maxPrice", "max_value", "maxValue", "to"]);
+      const minP = toNumberOrNaN(minV);
+      const maxP = toNumberOrNaN(maxV);
+      if (!Number.isNaN(minP) && !Number.isNaN(maxP)) {
+        if (minP !== maxP) return { kind: "range", min: minP, max: maxP };
+        return { kind: "single", value: minP };
+      }
+    }
+
+    // 4) single fallback
+    const singleL = toNumberOrNaN(pickAny(layout, ["price", "amount"]));
+    if (!Number.isNaN(singleL)) return { kind: "single", value: singleL };
+
+    const singleTop = toNumberOrNaN(raw?.price);
+    if (!Number.isNaN(singleTop)) return { kind: "single", value: singleTop };
+
+    return null;
   }
 
-  // 非 Project（或 Project 没 priceData）
-  const pd2 = pickAny(form, ["priceData", "pricedata", "price_data"]);
-  if (pd2 && typeof pd2 === "object") {
-    const minV = pickAny(pd2, ["min", "minPrice", "min_value", "minValue", "from"]);
-    const maxV = pickAny(pd2, ["max", "maxPrice", "max_value", "maxValue", "to"]);
+  // Non-project
+  const pdF = pickAny(form, ["priceData", "pricedata", "price_data"]);
+  if (pdF && typeof pdF === "object") {
+    const minV = pickAny(pdF, ["min", "minPrice", "min_value", "minValue", "from"]);
+    const maxV = pickAny(pdF, ["max", "maxPrice", "max_value", "maxValue", "to"]);
     const minP = toNumberOrNaN(minV);
     const maxP = toNumberOrNaN(maxV);
     if (!Number.isNaN(minP) && !Number.isNaN(maxP) && minP !== maxP) return { kind: "range", min: minP, max: maxP };
@@ -312,11 +405,9 @@ function getPriceInfo(mode, layout, form, raw) {
     if (!Number.isNaN(maxP)) return { kind: "single", value: maxP };
   }
 
-  const priceSingle = pickAny(form, ["price", "amount"]);
-  const n = toNumberOrNaN(priceSingle);
-  if (!Number.isNaN(n)) return { kind: "single", value: n };
+  const single = toNumberOrNaN(pickAny(form, ["price", "amount"]));
+  if (!Number.isNaN(single)) return { kind: "single", value: single };
 
-  // 最后兜底（但仍遵守“没值显示 - ”）
   const hasMin = isNonEmpty(raw?.price_min);
   const hasMax = isNonEmpty(raw?.price_max);
   const minNum = hasMin ? toNumberOrNaN(raw?.price_min) : NaN;
@@ -324,8 +415,9 @@ function getPriceInfo(mode, layout, form, raw) {
   if (hasMin && hasMax && !Number.isNaN(minNum) && !Number.isNaN(maxNum) && minNum !== maxNum) {
     return { kind: "range", min: minNum, max: maxNum };
   }
-  const topPrice = toNumberOrNaN(raw?.price);
-  if (!Number.isNaN(topPrice)) return { kind: "single", value: topPrice };
+
+  const top = toNumberOrNaN(raw?.price);
+  if (!Number.isNaN(top)) return { kind: "single", value: top };
 
   return null;
 }
@@ -344,58 +436,75 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
   const merged = useMemo(() => mergePropertyData(rawProperty), [rawProperty]);
   const { mode, layout, shared, form } = useMemo(() => getSources(rawProperty, merged), [rawProperty, merged]);
 
-  // 标题/地址：保持你顶层（通常可靠）
+  // 标题/地址：顶层
   const title = pickAny(rawProperty, ["title"]) || "（未命名房源）";
   const address = pickAny(rawProperty, ["address"]);
 
-  // Project：房间/厕所/车位通常在 layout；其它模式在 form/shared
-  const bedrooms = mode.isProject
-    ? pickStrictFrom([layout], ["bedrooms", "bedroom_count", "room_count"])
-    : pickStrictFrom([form], ["bedrooms", "bedroom_count", "room_count"]);
+  // ✅ Project：很多字段可能在 shared 或 layout，所以一律 objects=[shared,layout]（shared优先）
+  const objects = mode.isProject ? [shared, layout] : [form];
 
-  const bathrooms = mode.isProject
-    ? pickStrictFrom([layout], ["bathrooms", "bathroom_count"])
-    : pickStrictFrom([form], ["bathrooms", "bathroom_count"]);
-
-  const carparksRaw = mode.isProject
-    ? pickStrictFrom([layout], ["carparks", "carpark", "carparkCount", "carpark_count"])
-    : pickStrictFrom([form], ["carparks", "carpark", "carparkCount", "carpark_count"]);
+  // bedrooms/bathrooms/carparks（Project 多数在 layout，但也给 shared 兜底）
+  const bedrooms = pickFromObjects(objects, ["bedrooms", "bedroom_count", "room_count"]);
+  const bathrooms = pickFromObjects(objects, ["bathrooms", "bathroom_count"]);
+  const carparksRaw = pickFromObjects(objects, ["carparks", "carpark", "carparkCount", "carpark_count"]);
   const carparks = formatCountOrRange(carparksRaw);
 
-  // ✅ 共享字段：只读 shared（当前表单共享），不读顶层
-  const usage = pickAny(shared, ["usage", "property_usage"]);
-  const propertyTitle = pickAny(shared, ["propertyTitle", "property_title"]);
-  const propertyStatus = pickAny(rawProperty, ["propertyStatus", "property_status", "propertystatus"]) || pickAny(shared, ["propertyStatus", "property_status", "propertystatus"]);
+  // shared字段（Project：shared优先）
+  const usage = pickFromObjects(objects, ["usage", "property_usage"]);
+  const propertyTitle = pickFromObjects(objects, ["propertyTitle", "property_title"]);
 
-  const tenure = pickAny(shared, ["tenure", "tenure_type"]);
-  const category = pickAny(shared, ["category", "propertyCategory", "property_category"]);
-  const subType = pickAny(shared, ["subType", "property_sub_type", "sub_type"]);
-  const storeys = formatCountOrRange(pickAny(shared, ["storeys"]));
-  const subtypesMulti = pickAny(shared, ["subtype", "property_subtypes", "propertySubtype"]);
+  // propertyStatus 优先顶层（你保存常写顶层），再 shared
+  const propertyStatus =
+    pickAny(rawProperty, ["propertyStatus", "property_status", "propertystatus"]) ||
+    pickFromObjects(objects, ["propertyStatus", "property_status", "propertystatus"]);
+
+  const tenure = pickFromObjects(objects, ["tenure", "tenure_type"]);
+
+  // ✅ 这些你说有选但显示 "-"：扩大 key 兼容
+  const category = pickFromObjects(objects, [
+    "propertyCategory",
+    "property_category",
+    "category",
+    "categoryLabel",
+    "selectedCategory",
+  ]);
+  const subType = pickFromObjects(objects, [
+    "subType",
+    "sub_type",
+    "property_sub_type",
+    "subTypeLabel",
+    "selectedSubType",
+  ]);
+  const storeys = formatCountOrRange(pickFromObjects(objects, ["storeys", "storey", "floorCount", "storeysCount"]));
+
+  const subtypesMulti = pickFromObjects(objects, [
+    "propertySubtypes",
+    "property_subtypes",
+    "propertySubtype",
+    "subtype",
+    "subtypes",
+  ]);
 
   // Affordable
-  const affordableRaw = pickAny(shared, ["affordable", "affordable_housing", "affordableHousing"]);
-  const affordableType = pickAny(shared, ["affordableType", "affordable_housing_type", "affordableHousingType"]);
+  const affordableRaw = pickFromObjects(objects, ["affordable", "affordable_housing", "affordableHousing"]);
+  const affordableType = pickFromObjects(objects, ["affordableType", "affordable_housing_type", "affordableHousingType"]);
   let affordable = yesNoText(affordableRaw);
   if (affordableType && affordable !== "是") affordable = "是";
   const affordableText = affordable === "是" && isNonEmpty(affordableType) ? `是（${affordableType}）` : affordable;
 
-  // ✅ 公共交通：严格 shared
-  const transitText = getTransitText(shared);
+  // ✅ 公共交通：shared+layout（有选就显示，没选才 "-"）
+  const transitText = getTransitTextFromObjects(objects);
 
-  // ✅ 年份：严格 shared + 按 Project 类型显示
-  const completedYearRaw = pickAny(shared, ["completedYear", "built_year"]);
-  const expectedYearRaw = pickAny(shared, ["expectedCompletedYear", "expected_year"]);
+  // ✅ New Project 预计完成年份 + 季度（从 shared+layout 找）
+  const expectedYQ = mode.isProjectNew ? formatExpectedYearQuarterFromObjects(objects) : "";
+  const completedYear = !mode.isProjectNew ? formatCompletedYearFromObjects(objects) : "";
 
-  const completedYear = formatYearLike(completedYearRaw);
-  const expectedYear = formatYearLike(expectedYearRaw);
-
-  // 价格
-  const priceInfo = getPriceInfo(mode, layout, form, rawProperty);
+  // ✅ 价格：修回范围优先
+  const priceInfo = getPriceInfo(mode, layout, shared, form, rawProperty);
   const priceText = formatPriceText(priceInfo);
 
   // Rent room mode
-  const roomRentalMode = pickAny(shared, ["roomRentalMode", "room_rental_mode", "roomrentalmode"]);
+  const roomRentalMode = pickFromObjects(objects, ["roomRentalMode", "room_rental_mode", "roomrentalmode"]);
   const isRentRoom = mode.isRent && String(roomRentalMode).toLowerCase() === "room";
 
   return (
@@ -422,6 +531,7 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
               <MetaLine label="Property Status / Sale Type" value={propertyStatus} />
               <MetaLine label="Affordable Housing" value={affordableText} />
               <MetaLine label="Tenure Type" value={tenure} />
+
               <MetaLine label="Property Category" value={category} />
               <MetaLine label="Sub Type" value={subType} />
               <MetaLine label="Storeys" value={storeys} />
@@ -429,21 +539,14 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
 
               <MetaLine label="你的产业步行能到达公共交通吗？" value={transitText} />
 
-              {/* ✅ 年份显示规则 */}
+              {/* ✅ 年份显示规则：New Project 只显示预计完成年份（含季度） */}
               {mode.isProjectNew ? (
                 <>
-                  <MetaLine label="完成年份" value="-" />
-                  <MetaLine label="预计完成年份" value={isNonEmpty(expectedYear) ? expectedYear : "-"} />
-                </>
-              ) : mode.isProjectCompleted ? (
-                <>
-                  <MetaLine label="完成年份" value={isNonEmpty(completedYear) ? completedYear : "-"} />
-                  <MetaLine label="预计完成年份" value="-" />
+                  <MetaLine label="预计完成年份" value={isNonEmpty(expectedYQ) ? expectedYQ : "-"} />
                 </>
               ) : (
                 <>
                   <MetaLine label="完成年份" value={isNonEmpty(completedYear) ? completedYear : "-"} />
-                  <MetaLine label="预计完成年份" value={isNonEmpty(expectedYear) ? expectedYear : "-"} />
                 </>
               )}
             </>
@@ -586,8 +689,8 @@ export default function MyProfilePage() {
 
     const getPriceNum = (p) => {
       const merged = mergePropertyData(p);
-      const { mode, layout, form } = getSources(p, merged);
-      const info = getPriceInfo(mode, layout, form, p);
+      const { mode, layout, shared, form } = getSources(p, merged);
+      const info = getPriceInfo(mode, layout, shared, form, p);
       if (!info) return 0;
       if (info.kind === "range") return info.max || info.min || 0;
       if (info.kind === "single") return info.value || 0;
@@ -692,9 +795,19 @@ export default function MyProfilePage() {
               <SellerPropertyCard
                 key={p.id}
                 rawProperty={p}
-                onView={onView}
-                onEdit={onEdit}
-                onDelete={onDelete}
+                onView={(x) => router.push(`/property/${x.id}`)}
+                onEdit={(x) => router.push(`/upload-property?edit=1&id=${x.id}`)}
+                onDelete={async (x) => {
+                  if (!confirm("确定要删除这个房源吗？")) return;
+                  const { error } = await supabase.from("properties").delete().eq("id", x.id);
+                  if (error) {
+                    console.error("delete error:", error);
+                    toast.error(error.message || "删除失败");
+                    return;
+                  }
+                  toast.success("已删除");
+                  fetchMyProperties();
+                }}
               />
             ))}
           </div>
