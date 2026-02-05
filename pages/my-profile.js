@@ -77,9 +77,7 @@ function money(v) {
 }
 
 /* =========================
-   ✅ 智能扫描（关键修复点）
-   - 不猜 key 名
-   - 直接在当前 active 表单 JSON 里找 range / year / quarter
+   ✅ 智能扫描（价格/预计完成保留你现有逻辑）
 ========================= */
 function walkObject(root, visitor, maxDepth = 10) {
   const stack = [{ value: root, path: "", depth: 0 }];
@@ -113,8 +111,8 @@ function walkObject(root, visitor, maxDepth = 10) {
 
 function findBestPriceRange(obj) {
   if (!obj || typeof obj !== "object") return null;
-  const candidates = [];
 
+  const candidates = [];
   walkObject(obj, (v, p) => {
     if (!v || typeof v !== "object" || Array.isArray(v)) return;
 
@@ -130,7 +128,6 @@ function findBestPriceRange(obj) {
     if (!Number.isNaN(minN) && !Number.isNaN(maxN)) {
       candidates.push({
         score: (looksPrice ? 100 : 0) - p.split(".").length,
-        path: p,
         min: minN,
         max: maxN,
       });
@@ -162,8 +159,7 @@ function findBestExpectedYearQuarter(obj) {
           (pathLower.includes("complete") ? 40 : 0) +
           (pathLower.includes("year") ? 30 : 0) +
           (keyLower.includes("year") ? 20 : 0);
-
-        yearCandidates.push({ score, year: y, path: p });
+        yearCandidates.push({ score, year: y });
       }
 
       let q = null;
@@ -179,30 +175,23 @@ function findBestExpectedYearQuarter(obj) {
           (pathLower.includes("expect") ? 20 : 0) +
           (pathLower.includes("complete") ? 20 : 0) +
           (keyLower.includes("quarter") ? 20 : 0);
-
-        quarterCandidates.push({ score, quarter: q, path: p });
+        quarterCandidates.push({ score, quarter: q });
       }
     }
   });
 
   if (!yearCandidates.length) return null;
-
   yearCandidates.sort((a, b) => b.score - a.score);
   quarterCandidates.sort((a, b) => b.score - a.score);
 
-  const bestYear = yearCandidates[0];
-  const bestQuarter = quarterCandidates.length ? quarterCandidates[0] : null;
-
   return {
-    year: bestYear.year,
-    quarter: bestQuarter ? bestQuarter.quarter : null,
-    yearPath: bestYear.path,
-    quarterPath: bestQuarter ? bestQuarter.path : null,
+    year: yearCandidates[0].year,
+    quarter: quarterCandidates.length ? quarterCandidates[0].quarter : null,
   };
 }
 
 /* =========================
-   ✅ 只读“当前表单”的数据源（防串台）
+   ✅ 当前表单数据源
 ========================= */
 function isNewProjectStatus(propertyStatus) {
   const s = normalizeLower(propertyStatus);
@@ -232,27 +221,16 @@ function resolveActiveSources(raw) {
   if (isProject) {
     return { mode: "project", saleType: "sale", propertyStatus, shared: typeFormV2, form: null, layout0 };
   }
-
   if (saleType === "sale" || saleType === "rent") {
     return { mode: saleType, saleType, propertyStatus, shared: null, form: singleFormV2, layout0: null };
   }
-
   if (saleType === "homestay") {
     return { mode: "homestay", saleType, propertyStatus, shared: null, form: homestayForm, layout0: null };
   }
-
   const finalType = normalizeLower(pickAny(raw, ["finalType"]));
   if (saleType === "hotel/resort" || finalType.includes("hotel")) {
-    return {
-      mode: "hotel/resort",
-      saleType: "hotel/resort",
-      propertyStatus,
-      shared: null,
-      form: hotelForm,
-      layout0: null,
-    };
+    return { mode: "hotel/resort", saleType: "hotel/resort", propertyStatus, shared: null, form: hotelForm, layout0: null };
   }
-
   return { mode: "unknown", saleType, propertyStatus, shared: null, form: singleFormV2, layout0: null };
 }
 
@@ -273,27 +251,21 @@ function pickActive(raw, active, keys) {
 }
 
 /**
- * ✅ Project 模式专用：先读 shared/layout0，再兜底 raw（避免旧值残留）
- * 只用于你现在说的：完成/预计完成/affordable 这些“会串台”的字段
+ * ✅ ✅ 关键：Project 专用 ONLY（绝不回落 raw 顶层）
+ * 目的：避免 Completed/Affordable 读到旧值
  */
-function pickActiveProjectFirst(raw, active, keys) {
+function pickProjectOnly(active, keys) {
   const v1 = pickAny(active.shared, keys);
   if (isNonEmpty(v1)) return v1;
 
   const v2 = pickAny(active.layout0, keys);
   if (isNonEmpty(v2)) return v2;
 
-  const v0 = pickAny(raw, keys);
-  if (isNonEmpty(v0)) return v0;
-
-  const v3 = pickAny(active.form, keys);
-  if (isNonEmpty(v3)) return v3;
-
   return "";
 }
 
 /* =========================
-   表单一致的显示规则
+   显示规则
 ========================= */
 function shouldShowStoreysByCategory(category) {
   const c = normalizeLower(category);
@@ -376,7 +348,7 @@ function getTransitText(raw, active) {
 }
 
 /* =========================
-   ✅ 价格 & 预计完成
+   价格（不动你现有逻辑）
 ========================= */
 function getCardPriceText(raw, active) {
   const propertyStatus = active.propertyStatus || pickAny(raw, ["propertyStatus", "property_status", "propertystatus"]);
@@ -390,7 +362,6 @@ function getCardPriceText(raw, active) {
   if (isProject) {
     const pd = pickActive(raw, active, ["priceData", "pricedata", "price_data"]);
     const pdObj = safeJson(pd) ?? pd;
-
     if (pdObj && typeof pdObj === "object") {
       const minV = pickAny(pdObj, ["min", "minPrice", "min_value", "minValue", "from"]);
       const maxV = pickAny(pdObj, ["max", "maxPrice", "max_value", "maxValue", "to"]);
@@ -398,12 +369,8 @@ function getCardPriceText(raw, active) {
       if (isNonEmpty(r) && r.includes("~")) return r;
     }
 
-    const best1 = findBestPriceRange(active.shared);
-    const best2 = findBestPriceRange(active.layout0);
-    const best = best1 || best2;
-    if (best) {
-      return `${money(best.min)} ~ ${money(best.max)}`;
-    }
+    const best = findBestPriceRange(active.shared) || findBestPriceRange(active.layout0);
+    if (best) return `${money(best.min)} ~ ${money(best.max)}`;
   }
 
   const single = pickActive(raw, active, ["price", "amount", "price_min", "price_max"]);
@@ -412,15 +379,18 @@ function getCardPriceText(raw, active) {
   return "-";
 }
 
+/* =========================
+   预计完成（不动你现有逻辑）
+========================= */
 function getExpectedCompletionText(raw, active) {
-  const year = pickActiveProjectFirst(raw, active, [
+  const year = pickActive(raw, active, [
     "expectedCompletedYear",
     "expectedCompletionYear",
     "expected_year",
     "expectedYear",
     "completionExpectedYear",
   ]);
-  const quarter = pickActiveProjectFirst(raw, active, [
+  const quarter = pickActive(raw, active, [
     "expectedCompletedQuarter",
     "expectedCompletionQuarter",
     "expected_quarter",
@@ -436,21 +406,36 @@ function getExpectedCompletionText(raw, active) {
     return `${year} ${q}`;
   }
 
-  const best1 = findBestExpectedYearQuarter(active.shared);
-  const best2 = findBestExpectedYearQuarter(active.layout0);
-  const best = best1 || best2;
-
+  const best = findBestExpectedYearQuarter(active.shared) || findBestExpectedYearQuarter(active.layout0);
   if (!best || !best.year) return "-";
   if (!best.quarter) return String(best.year);
   return `${best.year} Q${best.quarter}`;
 }
 
-/**
- * ✅ 完成年份：Completed Unit 必须跟随当前 project 表单
- * 旧值残留的根因就是之前先读 raw 顶层
- */
+/* =========================
+   ✅ 完成年份（只修这个）
+   - Project 模式：只读 project JSON，不回落 raw
+========================= */
 function getCompletedYearText(raw, active) {
-  const y = pickActiveProjectFirst(raw, active, [
+  const propertyStatus = active.propertyStatus || pickAny(raw, ["propertyStatus", "property_status", "propertystatus"]);
+  const isProject = isNewProjectStatus(propertyStatus) || isCompletedUnitStatus(propertyStatus);
+
+  if (isProject) {
+    const y = pickProjectOnly(active, [
+      "completedYear",
+      "completionYear",
+      "built_year",
+      "builtYear",
+      "completed_year",
+      "yearCompleted",
+      "completed_unit_year",
+      "completedUnitYear",
+    ]);
+    return isNonEmpty(y) ? String(y) : "-";
+  }
+
+  // 非 project：保持原本行为（可读顶层/表单）
+  const y2 = pickActive(raw, active, [
     "completedYear",
     "completionYear",
     "built_year",
@@ -458,14 +443,7 @@ function getCompletedYearText(raw, active) {
     "completed_year",
     "yearCompleted",
   ]);
-  if (isNonEmpty(y)) return String(y);
-
-  // 兜底：智能扫描（有人把完成年份存成 year，但不带明确 key）
-  const best = findBestExpectedYearQuarter(active.shared) || findBestExpectedYearQuarter(active.layout0);
-  // 注意：这里是兜底，不要误把 expected 当 completed，所以仅当确实是 completed unit 才用
-  if (best && best.year) return String(best.year);
-
-  return "-";
+  return isNonEmpty(y2) ? String(y2) : "-";
 }
 
 /* =========================
@@ -482,7 +460,7 @@ function MetaLineDash({ label, value }) {
 }
 
 /* =========================
-   Card（卖家后台卡片）
+   Card
 ========================= */
 function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
   const active = useMemo(() => resolveActiveSources(rawProperty), [rawProperty]);
@@ -512,20 +490,35 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
     "subtype",
   ]);
 
-  // ✅ Affordable Housing：Project 模式优先从 shared/layout0 取，避免旧值残留
   const isProject = active.mode === "project";
+
+  // ✅ Affordable Housing：Project 模式只读 project JSON，不回落 raw（避免旧值）
   const affordableRaw = isProject
-    ? pickActiveProjectFirst(rawProperty, active, ["affordable", "affordable_housing", "affordableHousing"])
+    ? pickProjectOnly(active, [
+        "affordable",
+        "affordable_housing",
+        "affordableHousing",
+        "isAffordableHousing",
+        "affordableYesNo",
+      ])
     : pickActive(rawProperty, active, ["affordable", "affordable_housing", "affordableHousing"]);
+
   const affordableType = isProject
-    ? pickActiveProjectFirst(rawProperty, active, [
+    ? pickProjectOnly(active, [
         "affordableType",
         "affordable_housing_type",
         "affordableHousingType",
+        "affordable_house_type",
       ])
     : pickActive(rawProperty, active, ["affordableType", "affordable_housing_type", "affordableHousingType"]);
 
   let affordable = yesNoText(affordableRaw);
+
+  // 如果 project JSON 没有选（空），就必须显示 "-"（不允许显示旧）
+  if (!isNonEmpty(affordable) && !isNonEmpty(affordableType)) {
+    affordable = "";
+  }
+
   if (isNonEmpty(affordableType) && affordable !== "是") affordable = "是";
   const affordableText =
     affordable === "是" && isNonEmpty(affordableType)
@@ -581,7 +574,7 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
 
           <MetaLineDash label="你的产业步行能到达公共交通吗？" value={transitText} />
 
-          {/* ✅ 关键：New Project 只显示预计完成；Completed Unit 只显示完成 */}
+          {/* ✅ New Project 只显示预计完成；Completed Unit 只显示完成 */}
           {isNP ? (
             <MetaLineDash label="预计完成年份" value={expectedText} />
           ) : isCU ? (
@@ -620,7 +613,7 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
 }
 
 /* =========================
-   Page（统计 + 搜索 + 排序）
+   Page
 ========================= */
 export default function MyProfilePage() {
   const router = useRouter();
