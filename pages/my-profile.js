@@ -88,7 +88,6 @@ function walkObject(root, visitor, maxDepth = 10) {
   while (stack.length) {
     const { value, path, depth } = stack.pop();
     if (value && typeof value === "object") {
-      // 防循环引用
       if (seen.has(value)) continue;
       seen.add(value);
     }
@@ -115,147 +114,93 @@ function walkObject(root, visitor, maxDepth = 10) {
 function findBestPriceRange(obj) {
   if (!obj || typeof obj !== "object") return null;
 
-  // 找到 “包含 price 字样” 的对象，并且内部有一对 min/max 或 from/to
   const candidates = [];
 
   walkObject(obj, (v, p) => {
-    if (!v || typeof v !== "object") return;
+    if (!v || typeof v !== "object" || Array.isArray(v)) return;
+
     const pathLower = normalizeLower(p);
-    // 只在疑似 price 容器附近找
-    if (!pathLower.includes("price") && !pathLower.includes("amount") && !pathLower.includes("rm")) return;
+    const looksPrice = pathLower.includes("price");
 
-    const keys = Object.keys(v);
-    const hasMin = keys.some((k) => ["min", "minimum", "from", "low", "start"].includes(normalizeLower(k)));
-    const hasMax = keys.some((k) => ["max", "maximum", "to", "high", "end"].includes(normalizeLower(k)));
-    if (!hasMin || !hasMax) return;
+    const minV = v.min ?? v.minPrice ?? v.min_value ?? v.minValue ?? v.from ?? v.start ?? v.low;
+    const maxV = v.max ?? v.maxPrice ?? v.max_value ?? v.maxValue ?? v.to ?? v.end ?? v.high;
 
-    const minKey = keys.find((k) => ["min", "minimum", "from", "low", "start"].includes(normalizeLower(k)));
-    const maxKey = keys.find((k) => ["max", "maximum", "to", "high", "end"].includes(normalizeLower(k)));
-    const minV = extractNumeric(v[minKey]);
-    const maxV = extractNumeric(v[maxKey]);
+    const minN = extractNumeric(minV);
+    const maxN = extractNumeric(maxV);
 
-    if (!Number.isNaN(minV) && !Number.isNaN(maxV) && minV > 0 && maxV > 0) {
-      // 优先更接近 price 容器、更浅的 path
-      const score = 100 - p.split(".").length;
-      candidates.push({ score, min: minV, max: maxV, path: p });
+    if (!Number.isNaN(minN) && !Number.isNaN(maxN)) {
+      candidates.push({
+        score: (looksPrice ? 100 : 0) - p.split(".").length,
+        path: p,
+        min: minN,
+        max: maxN,
+      });
     }
   });
 
   if (!candidates.length) return null;
+
   candidates.sort((a, b) => b.score - a.score);
-  const best = candidates[0];
-  return { min: best.min, max: best.max };
+  return candidates[0];
 }
 
 function findBestExpectedYearQuarter(obj) {
   if (!obj || typeof obj !== "object") return null;
 
-  // 找到包含 expected/expect/completion + year 的字段，然后在同一父级里找 quarter
-  const candidates = [];
+  const yearCandidates = [];
+  const quarterCandidates = [];
 
   walkObject(obj, (v, p) => {
+    const key = p.split(".").slice(-1)[0] || "";
+    const keyLower = normalizeLower(key);
     const pathLower = normalizeLower(p);
-    if (!pathLower.includes("year")) return;
-    if (!pathLower.includes("expect") && !pathLower.includes("completion") && !pathLower.includes("complete")) return;
 
     if (typeof v === "number" || typeof v === "string") {
-      const y = Number(String(v).trim());
-      if (y >= 1900 && y <= 2100) {
-        // 尝试找 quarter（同父级）
-        const parentPath = p.split(".").slice(0, -1).join(".");
-        let q = "";
-        if (parentPath) {
-          const parentObj = deepGet(obj, parentPath);
-          if (parentObj && typeof parentObj === "object") {
-            for (const k of Object.keys(parentObj)) {
-              const kl = normalizeLower(k);
-              if (kl.includes("quarter") || kl === "q") {
-                const qv = parentObj[k];
-                if (isNonEmpty(qv)) q = String(qv).replace(/^q/i, "").trim();
-              }
-            }
-          }
-        }
-        const score =
-          (pathLower.includes("expect") ? 80 : 0) +
-          (pathLower.includes("completion") ? 40 : 0) +
-          (pathLower.includes("complete") ? 20 : 0) -
-          p.split(".").length;
-        candidates.push({ score, year: y, quarter: q, path: p });
-      }
-    }
-  });
-
-  if (!candidates.length) return null;
-  candidates.sort((a, b) => b.score - a.score);
-  return candidates[0];
-}
-
-// ✅ Completed Unit / 非 New Project 的“完成年份”智能扫描（只在 active 表单内找）
-function findBestCompletedYear(obj) {
-  if (!obj || typeof obj !== "object") return null;
-  const candidates = [];
-
-  walkObject(obj, (v, p) => {
-    const pathLower = normalizeLower(p);
-    if (!pathLower.includes("year")) return;
-    // 避免把 expected/预计完成 当成 completed
-    if (pathLower.includes("expect")) return;
-
-    if (typeof v === "number" || typeof v === "string") {
-      const y = Number(String(v).trim());
+      const s = String(v).trim();
+      const y = Number(s);
       if (y >= 1900 && y <= 2100) {
         const score =
-          (pathLower.includes("complete") ? 80 : 0) +
-          (pathLower.includes("built") ? 60 : 0) +
-          (pathLower.includes("finish") ? 60 : 0) -
-          p.split(".").length;
-        candidates.push({ score, year: y, path: p });
+          (pathLower.includes("expect") ? 50 : 0) +
+          (pathLower.includes("complete") ? 40 : 0) +
+          (pathLower.includes("year") ? 30 : 0) +
+          (keyLower.includes("year") ? 20 : 0);
+
+        yearCandidates.push({ score, year: y, path: p });
+      }
+
+      let q = null;
+      if (/^q[1-4]$/i.test(s)) q = Number(s.slice(1));
+      else {
+        const n = Number(s);
+        if (n >= 1 && n <= 4) q = n;
+      }
+      if (q) {
+        const score =
+          (pathLower.includes("quarter") ? 50 : 0) +
+          (pathLower.includes("qtr") ? 40 : 0) +
+          (pathLower.includes("expect") ? 20 : 0) +
+          (pathLower.includes("complete") ? 20 : 0) +
+          (keyLower.includes("quarter") ? 20 : 0);
+
+        quarterCandidates.push({ score, quarter: q, path: p });
       }
     }
   });
 
-  if (!candidates.length) return null;
-  candidates.sort((a, b) => b.score - a.score);
-  return candidates[0];
-}
+  if (!yearCandidates.length) return null;
 
-// ✅ Affordable Housing 智能扫描（只在 active 表单内找）
-function findBestAffordable(obj) {
-  if (!obj || typeof obj !== "object") return null;
-  const ynCandidates = [];
-  const typeCandidates = [];
+  yearCandidates.sort((a, b) => b.score - a.score);
+  quarterCandidates.sort((a, b) => b.score - a.score);
 
-  walkObject(obj, (v, p) => {
-    const pathLower = normalizeLower(p);
-    if (!pathLower.includes("affordable")) return;
+  const bestYear = yearCandidates[0];
+  const bestQuarter = quarterCandidates.length ? quarterCandidates[0] : null;
 
-    // yes/no
-    if (typeof v === "boolean" || typeof v === "number" || typeof v === "string") {
-      const yn = yesNoText(v);
-      if (yn === "是" || yn === "否") {
-        const score = 100 - p.split(".").length;
-        ynCandidates.push({ score, yn, path: p });
-      }
-    }
-
-    // type/name
-    if (typeof v === "string") {
-      if (pathLower.includes("type") || pathLower.includes("name") || pathLower.includes("scheme")) {
-        const s = String(v).trim();
-        if (s && s.length >= 2 && s.length <= 80) {
-          const score = 80 - p.split(".").length;
-          typeCandidates.push({ score, type: s, path: p });
-        }
-      }
-    }
-  });
-
-  const bestYN = ynCandidates.length ? ynCandidates.sort((a, b) => b.score - a.score)[0] : null;
-  const bestType = typeCandidates.length ? typeCandidates.sort((a, b) => b.score - a.score)[0] : null;
-
-  if (!bestYN && !bestType) return null;
-  return { yn: bestYN?.yn || "", type: bestType?.type || "" };
+  return {
+    year: bestYear.year,
+    quarter: bestQuarter ? bestQuarter.quarter : null,
+    yearPath: bestYear.path,
+    quarterPath: bestQuarter ? bestQuarter.path : null,
+  };
 }
 
 /* =========================
@@ -290,26 +235,22 @@ function resolveActiveSources(raw) {
     return { mode: "project", saleType: "sale", propertyStatus, shared: typeFormV2, form: null, layout0 };
   }
 
-  // Homestay / Hotel 优先对应 JSON（避免串台）
-  if (saleType.includes("homestay")) {
-    return { mode: "homestay", saleType: "homestay", propertyStatus, shared: null, form: homestayForm || singleFormV2, layout0: null };
-  }
-  if (saleType.includes("hotel")) {
-    return { mode: "hotel", saleType: "hotel", propertyStatus, shared: null, form: hotelForm || singleFormV2, layout0: null };
+  if (saleType === "sale" || saleType === "rent") {
+    return { mode: saleType, saleType, propertyStatus, shared: null, form: singleFormV2, layout0: null };
   }
 
-  // Rent / Sale 单表单
-  if (saleType.includes("rent")) {
-    return { mode: "rent", saleType: "rent", propertyStatus, shared: null, form: singleFormV2, layout0: null };
+  if (saleType === "homestay") {
+    return { mode: "homestay", saleType, propertyStatus, shared: null, form: homestayForm, layout0: null };
   }
 
-  return { mode: "sale", saleType: "sale", propertyStatus, shared: null, form: singleFormV2, layout0: null };
+  const finalType = normalizeLower(pickAny(raw, ["finalType"]));
+  if (saleType === "hotel/resort" || finalType.includes("hotel")) {
+    return { mode: "hotel/resort", saleType: "hotel/resort", propertyStatus, shared: null, form: hotelForm, layout0: null };
+  }
+
+  return { mode: "unknown", saleType, propertyStatus, shared: null, form: singleFormV2, layout0: null };
 }
 
-/* =========================
-   只从 active 的 shared/layout0/form 里拿值
-   （raw 只能用于标题/地址等顶层展示）
-========================= */
 function pickActive(raw, active, keys) {
   const v0 = pickAny(raw, keys);
   if (isNonEmpty(v0)) return v0;
@@ -326,9 +267,9 @@ function pickActive(raw, active, keys) {
   return "";
 }
 
-// ✅ 某些字段（如 Affordable / 年份）绝对不能从 raw 顶层“捡旧值”
-// 这些字段必须优先从当前 active 表单（shared/layout0/form）读取，最后才允许 fallback raw。
-function pickActivePreferActive(raw, active, keys) {
+// ✅ 某些字段（例如 Affordable / 完成年份）顶层 raw 容易残留旧值，
+//    卖家后台必须“优先读当前 active 表单”，避免串台。
+function pickPreferActive(raw, active, keys) {
   const v1 = pickAny(active.shared, keys);
   if (isNonEmpty(v1)) return v1;
 
@@ -344,158 +285,165 @@ function pickActivePreferActive(raw, active, keys) {
   return "";
 }
 
+function findBestCompletedYear(obj) {
+  if (!obj || typeof obj !== "object") return null;
+
+  const candidates = [];
+  walkObject(obj, (v, p) => {
+    if (typeof v !== "number" && typeof v !== "string") return;
+    const y = Number(String(v).trim());
+    if (!(y >= 1900 && y <= 2100)) return;
+
+    const pl = normalizeLower(p);
+    if (pl.includes("expect")) return;
+
+    const score =
+      (pl.includes("complete") ? 60 : 0) +
+      (pl.includes("built") ? 50 : 0) +
+      (pl.includes("finish") ? 40 : 0) +
+      (pl.includes("year") ? 20 : 0) -
+      p.split(".").length;
+
+    if (score > 0) candidates.push({ score, year: y, path: p });
+  });
+
+  if (!candidates.length) return null;
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates[0];
+}
+
 /* =========================
    表单一致的显示规则
 ========================= */
 function shouldShowStoreysByCategory(category) {
   const c = normalizeLower(category);
-  const need = [
-    "bungalow",
-    "villa",
-    "business property",
-    "industrial property",
-    "semi-detached",
-    "terrace",
-    "link house",
-  ];
-  return need.some((k) => c.includes(k));
+  if (!c) return false;
+  return (
+    c.includes("bungalow") ||
+    c.includes("villa") ||
+    c.includes("business") ||
+    c.includes("industrial") ||
+    c.includes("semi-detached") ||
+    c.includes("semi detached") ||
+    c.includes("terrace") ||
+    c.includes("link house")
+  );
 }
 
 function shouldShowPropertySubtypeByCategory(category) {
   const c = normalizeLower(category);
-  return c.includes("apartment") || c.includes("business property") || c.includes("industrial property");
+  if (!c) return false;
+  return (
+    c.includes("apartment") ||
+    c.includes("condo") ||
+    c.includes("service residence") ||
+    c.includes("business") ||
+    c.includes("industrial")
+  );
 }
 
-function formatCarparks(v) {
-  // v 可能是 number / string / {min,max} / {from,to}
-  if (!isNonEmpty(v)) return "";
-  if (typeof v === "number") return String(v);
-  if (typeof v === "string") return v;
-
-  if (typeof v === "object") {
-    const min = pickAny(v, ["min", "minimum", "from", "low", "start"]);
-    const max = pickAny(v, ["max", "maximum", "to", "high", "end"]);
-    if (isNonEmpty(min) && isNonEmpty(max)) return `${min} ~ ${max}`;
-    // 有时候是 {min: '5', max: '4'} 也照显示（你要 4~5 的话，让保存端保证 min<=max）
-    const a = isNonEmpty(min) ? String(min) : "";
-    const b = isNonEmpty(max) ? String(max) : "";
-    if (a && b) return `${a} ~ ${b}`;
+function formatCarparks(raw) {
+  if (!isNonEmpty(raw)) return "-";
+  if (typeof raw === "number") return String(raw);
+  if (typeof raw === "string") {
+    const s = raw.trim();
+    if (s.includes("~")) return s;
+    if (s.includes("-")) return s;
+    return s;
   }
-
-  return String(v);
+  if (typeof raw === "object") {
+    const min = raw.min ?? raw.minValue ?? raw.from ?? raw.start;
+    const max = raw.max ?? raw.maxValue ?? raw.to ?? raw.end;
+    const minN = extractNumeric(min);
+    const maxN = extractNumeric(max);
+    if (!Number.isNaN(minN) && !Number.isNaN(maxN)) return `${minN} ~ ${maxN}`;
+  }
+  return String(raw);
 }
 
-function getTransitText(raw, active) {
-  const yn = pickActive(raw, active, ["transit", "nearTransit", "walkToTransit", "transit_yesno"]);
-  const yesNo = yesNoText(yn);
-
-  // ✅ 如果没选，就 "-"
+function getTransitText(rawProperty, active) {
+  const yesNo = pickActive(rawProperty, active, ["transitYesNo", "transit_yes_no", "transit", "walkToTransit"]);
+  const yn = yesNoText(yesNo);
   if (!isNonEmpty(yn)) return "-";
-  if (yesNo === "否") return "否";
-  if (yesNo !== "是") return "-";
+  if (yn === "否") return "否";
 
-  const line = pickActive(raw, active, ["transitLine", "transit_line", "line"]);
-  const station = pickActive(raw, active, ["transitStation", "transit_station", "station"]);
-  const parts = [];
-  parts.push("是");
-  if (isNonEmpty(line)) parts.push(`线路：${line}`);
-  if (isNonEmpty(station)) parts.push(`站点：${station}`);
-  return parts.join(" | ");
+  const line = pickActive(rawProperty, active, ["transitLine", "transit_line"]);
+  const station = pickActive(rawProperty, active, ["transitStation", "transit_station"]);
+  const lineText = isNonEmpty(line) ? `线路：${line}` : "";
+  const stationText = isNonEmpty(station) ? `站点：${station}` : "";
+  const extra = [lineText, stationText].filter(Boolean).join("｜");
+
+  return extra ? `是｜${extra}` : "是";
 }
 
-function getCardPriceText(raw, active) {
-  // 1) 顶层直接有 min/max
-  const minTop = pickAny(raw, ["price_min", "priceMin", "min_price"]);
-  const maxTop = pickAny(raw, ["price_max", "priceMax", "max_price"]);
+function getCardPriceText(rawProperty, active) {
+  // 1) 先读顶层 price_min/price_max（你卡片要显示 range 时用）
+  const pMin = pickAny(rawProperty, ["price_min", "priceMin", "min_price"]);
+  const pMax = pickAny(rawProperty, ["price_max", "priceMax", "max_price"]);
 
-  if (isNonEmpty(minTop) && isNonEmpty(maxTop)) {
-    const nMin = extractNumeric(minTop);
-    const nMax = extractNumeric(maxTop);
-    if (!Number.isNaN(nMin) && !Number.isNaN(nMax) && nMin > 0 && nMax > 0) {
-      return `${money(nMin)} ~ ${money(nMax)}`;
-    }
+  const nMin = extractNumeric(pMin);
+  const nMax = extractNumeric(pMax);
+
+  if (!Number.isNaN(nMin) && !Number.isNaN(nMax) && nMin > 0 && nMax > 0) {
+    return `${money(nMin)} ~ ${money(nMax)}`;
   }
 
-  // 2) project 模式：尝试常规 key
-  if (active.mode === "project") {
-    // ✅ 2.1 shared/layout0 的常规字段
-    const min2 = pickActive(raw, active, ["minPrice", "priceMin", "price_min", "min_price"]);
-    const max2 = pickActive(raw, active, ["maxPrice", "priceMax", "price_max", "max_price"]);
-    const nMin2 = extractNumeric(min2);
-    const nMax2 = extractNumeric(max2);
-    if (!Number.isNaN(nMin2) && !Number.isNaN(nMax2) && nMin2 > 0 && nMax2 > 0) {
-      return `${money(nMin2)} ~ ${money(nMax2)}`;
-    }
+  // 2) 再读顶层 price
+  const p = pickAny(rawProperty, ["price"]);
+  const np = extractNumeric(p);
+  if (!Number.isNaN(np) && np > 0) return money(np);
 
-    // ✅ 3) project：智能扫描 shared/layout0 找 range
-    const best1 = findBestPriceRange(active.shared);
-    const best2 = findBestPriceRange(active.layout0);
-    const best = best1 || best2;
-    if (best) {
-      return `${money(best.min)} ~ ${money(best.max)}`;
-    }
-  }
+  // 3) 最后：智能扫 “当前 active 表单” 里的 price range（避免串台）
+  const best =
+    findBestPriceRange(active.shared) ||
+    findBestPriceRange(active.layout0) ||
+    findBestPriceRange(active.form);
 
-  // 4) 单价
-  const single = pickActive(raw, active, ["price", "amount", "price_min", "price_max"]);
-  if (isNonEmpty(single)) return money(single);
+  if (best && best.min > 0 && best.max > 0) return `${money(best.min)} ~ ${money(best.max)}`;
 
   return "-";
 }
 
-function getExpectedCompletionText(raw, active) {
-  // 先用常规 key
-  const year = pickActive(raw, active, [
-    "expectedCompletedYear",
-    "expectedCompletionYear",
-    "expected_year",
-    "expectedYear",
-    "completionExpectedYear",
-  ]);
-  const quarter = pickActive(raw, active, [
-    "expectedCompletedQuarter",
-    "expectedCompletionQuarter",
-    "expected_quarter",
-    "expectedQuarter",
-    "completionExpectedQuarter",
-  ]);
+function getExpectedCompletionText(rawProperty, active) {
+  // 优先从 active 表单扫描 year/quarter（避免旧值）
+  const best =
+    findBestExpectedYearQuarter(active.shared) ||
+    findBestExpectedYearQuarter(active.layout0) ||
+    findBestExpectedYearQuarter(active.form);
 
-  if (isNonEmpty(year)) {
-    if (!isNonEmpty(quarter)) return String(year);
-    let q = String(quarter).trim();
-    if (/^q[1-4]$/i.test(q)) q = q.toUpperCase();
-    else q = `Q${q}`;
-    return `${year} ${q}`;
+  if (best?.year) {
+    const q = best.quarter ? ` Q${best.quarter}` : "";
+    return `${best.year}${q}`;
   }
 
-  // ✅ 智能扫描：shared/layout0 里找 year + quarter
-  const best1 = findBestExpectedYearQuarter(active.shared);
-  const best2 = findBestExpectedYearQuarter(active.layout0);
-  const best = best1 || best2;
-
-  if (!best || !best.year) return "-";
-  if (!best.quarter) return String(best.year);
-  return `${best.year} Q${best.quarter}`;
+  // fallback：常见 key
+  const year = pickActive(rawProperty, active, ["expectedYear", "expected_year", "completionExpectedYear"]);
+  const quarter = pickActive(rawProperty, active, ["expectedQuarter", "expected_quarter", "completionExpectedQuarter"]);
+  if (isNonEmpty(year)) {
+    const q = isNonEmpty(quarter) ? ` Q${String(quarter).replace(/^Q/i, "")}` : "";
+    return `${year}${q}`;
+  }
+  return "-";
 }
 
 /* =========================
-   UI：没选就 "-"
+   卡片小组件（保持你的展示风格）
 ========================= */
 function MetaLineDash({ label, value }) {
-  const show = isNonEmpty(value) ? String(value) : "-";
+  const v = isNonEmpty(value) ? value : "-";
   return (
-    <div className="text-sm text-gray-700 leading-6">
+    <div className="text-sm text-gray-700">
       <span className="text-gray-500">{label}：</span>
-      <span className="text-gray-900">{show}</span>
+      <span className="ml-1">{v}</span>
     </div>
   );
 }
 
 /* =========================
-   Card（卖家后台卡片）
+   Seller Property Card
 ========================= */
 function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
-  const active = useMemo(() => resolveActiveSources(rawProperty), [rawProperty]);
+  const active = resolveActiveSources(rawProperty);
 
   const title = pickAny(rawProperty, ["title"]) || "（未命名房源）";
   const address = pickAny(rawProperty, ["address"]) || "-";
@@ -515,37 +463,54 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
   const storeys = pickActive(rawProperty, active, ["storeys", "storey", "floorCount"]);
   const propSubtypes = pickActive(rawProperty, active, ["propertySubtypes", "property_subtypes", "propertySubtype", "subtypes", "subtype"]);
 
-  // ✅ Affordable 必须从当前 active 表单读，避免显示上一套表单的旧值
-  let affordableRaw = pickActivePreferActive(rawProperty, active, ["affordable", "affordable_housing", "affordableHousing"]);
-  let affordableType = pickActivePreferActive(rawProperty, active, ["affordableType", "affordable_housing_type", "affordableHousingType"]);
-
-  // 若常规 key 找不到，就在 active 表单里智能扫描一次（不动 raw 顶层）
-  if (!isNonEmpty(affordableRaw) && !isNonEmpty(affordableType)) {
-    const best = findBestAffordable(active.shared) || findBestAffordable(active.layout0) || findBestAffordable(active.form);
-    if (best) {
-      if (!isNonEmpty(affordableRaw)) affordableRaw = best.yn;
-      if (!isNonEmpty(affordableType)) affordableType = best.type;
-    }
-  }
+  // ✅ Affordable Housing：必须优先读 active 表单（顶层 raw 经常残留旧值）
+  const affordableRaw = pickPreferActive(rawProperty, active, [
+    "affordable",
+    "affordable_housing",
+    "affordableHousing",
+    "isAffordableHousing",
+    "affordableFlag",
+    "affordableHousingFlag",
+  ]);
+  const affordableType = pickPreferActive(rawProperty, active, [
+    "affordableType",
+    "affordable_housing_type",
+    "affordableHousingType",
+    "affordableHousingProjectType",
+  ]);
 
   let affordable = yesNoText(affordableRaw);
   if (isNonEmpty(affordableType) && affordable !== "是") affordable = "是";
+
   const affordableText =
-    affordable === "是" && isNonEmpty(affordableType)
-      ? `是（${affordableType}）`
-      : (isNonEmpty(affordable) ? affordable : "-");
+    affordable === "是"
+      ? (isNonEmpty(affordableType) ? `是（${affordableType}）` : "是")
+      : (affordable === "否" ? "否" : "-");
 
   const transitText = getTransitText(rawProperty, active);
-
   const priceText = getCardPriceText(rawProperty, active);
 
-  const expectedText = getExpectedCompletionText(rawProperty, active);
+  // ✅ 年份显示：严格按当前 Property Status
+  const isNP = isNewProjectStatus(propertyStatus);
+  const isCU = isCompletedUnitStatus(propertyStatus);
 
-  // ✅ 完成年份必须从当前 active 表单读，避免显示旧值；读不到再智能扫描 active
-  let completedYear = pickActivePreferActive(rawProperty, active, ["completedYear", "built_year", "completed_year", "completionYear"]);
+  const expectedText = isNP ? getExpectedCompletionText(rawProperty, active) : "-";
+
+  // ✅ 完成年份：优先 active 表单；找不到就智能扫描（避免旧值）
+  let completedYear = pickPreferActive(rawProperty, active, [
+    "completedYear",
+    "completionYear",
+    "completed_year",
+    "built_year",
+    "builtYear",
+    "completion_year",
+  ]);
   if (!isNonEmpty(completedYear)) {
-    const bestCY = findBestCompletedYear(active.shared) || findBestCompletedYear(active.layout0) || findBestCompletedYear(active.form);
-    if (bestCY?.year) completedYear = bestCY.year;
+    const best =
+      findBestCompletedYear(active.shared) ||
+      findBestCompletedYear(active.layout0) ||
+      findBestCompletedYear(active.form);
+    if (best?.year) completedYear = String(best.year);
   }
 
   const showStoreys = shouldShowStoreysByCategory(category);
@@ -586,14 +551,10 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
 
           <MetaLineDash label="你的产业步行能到达公共交通吗？" value={transitText} />
 
-          {/* ✅ 年份显示规则：
-              - New Project / Under Construction：只显示“预计完成年份（含季度）”
-              - Completed Unit / Developer Unit：只显示“完成年份”
-              - 其他 Sale 类型：显示“完成年份”，不显示预计完成年份（避免串台）
-          */}
-          {isNewProjectStatus(propertyStatus) ? (
+          {/* ✅ 你要求：New Project 只显示“预计完成年份”；Completed Unit 只显示“完成年份” */}
+          {isNP ? (
             <MetaLineDash label="预计完成年份" value={expectedText} />
-          ) : isCompletedUnitStatus(propertyStatus) ? (
+          ) : isCU ? (
             <MetaLineDash label="完成年份" value={isNonEmpty(completedYear) ? completedYear : "-"} />
           ) : (
             <MetaLineDash label="完成年份" value={isNonEmpty(completedYear) ? completedYear : "-"} />
@@ -602,13 +563,22 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
       </div>
 
       <div className="mt-4 grid grid-cols-3 gap-3">
-        <button onClick={() => onView(rawProperty)} className="h-11 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700">
+        <button
+          onClick={() => onView(rawProperty)}
+          className="h-11 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700"
+        >
           查看
         </button>
-        <button onClick={() => onEdit(rawProperty)} className="h-11 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700">
+        <button
+          onClick={() => onEdit(rawProperty)}
+          className="h-11 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700"
+        >
           编辑
         </button>
-        <button onClick={() => onDelete(rawProperty)} className="h-11 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700">
+        <button
+          onClick={() => onDelete(rawProperty)}
+          className="h-11 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700"
+        >
           删除
         </button>
       </div>
@@ -685,9 +655,13 @@ export default function MyProfilePage() {
     };
 
     if (sortKey === "latest") {
-      list = [...list].sort((a, b) => new Date(b?.updated_at || b?.created_at || 0) - new Date(a?.updated_at || a?.created_at || 0));
+      list = [...list].sort(
+        (a, b) => new Date(b?.updated_at || b?.created_at || 0) - new Date(a?.updated_at || a?.created_at || 0)
+      );
     } else if (sortKey === "oldest") {
-      list = [...list].sort((a, b) => new Date(a?.updated_at || a?.created_at || 0) - new Date(b?.updated_at || b?.created_at || 0));
+      list = [...list].sort(
+        (a, b) => new Date(a?.updated_at || a?.created_at || 0) - new Date(b?.updated_at || b?.created_at || 0)
+      );
     } else if (sortKey === "priceHigh") {
       list = [...list].sort((a, b) => getPriceNum(b) - getPriceNum(a));
     } else if (sortKey === "priceLow") {
@@ -775,4 +749,4 @@ export default function MyProfilePage() {
       </div>
     </div>
   );
-}
+               }
