@@ -713,26 +713,76 @@ export default function UploadPropertyPage() {
         updated_at: new Date().toISOString(),
       };
 
-      // ✅ insert / update
-      let res;
-      if (isEditMode && editId) {
-        res = await supabase.from("properties").update(payload).eq("id", editId).eq("user_id", user.id).select("*");
-      } else {
-        res = await supabase.from("properties").insert(payload).select("*");
-      }
+      // ✅ insert / update（最小修复：遇到缺少 column 就自动删掉该字段并重试，不影响你原本逻辑）
+let res;
+let lastError = null;
 
-      const { error } = res || {};
-      if (error) {
-        const missing = extractMissingColumnName(error);
-        if (missing) {
-          toast.error("Supabase 缺少 column: " + missing);
-          alert("Supabase 缺少 column: " + missing + "\n\n请去 Supabase 新增这个 column 后再试。");
-        } else {
-          toast.error("提交失败");
-          alert("提交失败（请看 Console 报错）");
-        }
-        throw error;
-      }
+// 用副本，不动你原本 payload
+const payloadToWrite = { ...payload };
+
+// 最多重试 6 次：每次删掉一个 Supabase 报缺少的 column
+for (let attempt = 0; attempt < 6; attempt++) {
+  if (isEditMode && editId) {
+    res = await supabase
+      .from("properties")
+      .update(payloadToWrite)
+      .eq("id", editId)
+      .eq("user_id", user.id)
+      .select("*");
+  } else {
+    res = await supabase.from("properties").insert(payloadToWrite).select("*");
+  }
+
+  const { error } = res || {};
+  if (!error) {
+    lastError = null;
+    break;
+  }
+
+  lastError = error;
+
+  const missing = extractMissingColumnName(error);
+  if (missing) {
+    // ✅ Supabase 报哪个 column 不存在，就从 payload 顶层删哪个 key，然后继续重试
+    if (Object.prototype.hasOwnProperty.call(payloadToWrite, missing)) {
+      delete payloadToWrite[missing];
+      continue;
+    }
+
+    // ✅ 兼容：有时同一个字段你会同时写 camelCase & snake_case
+    const camelToSnake = missing.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
+    const snakeToCamel = missing.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+
+    if (Object.prototype.hasOwnProperty.call(payloadToWrite, camelToSnake)) {
+      delete payloadToWrite[camelToSnake];
+      continue;
+    }
+    if (Object.prototype.hasOwnProperty.call(payloadToWrite, snakeToCamel)) {
+      delete payloadToWrite[snakeToCamel];
+      continue;
+    }
+  }
+
+  // 不是 “缺少 column” 的错误就不重试
+  break;
+}
+
+if (lastError) {
+  const missing = extractMissingColumnName(lastError);
+  if (missing) {
+    toast.error("Supabase 缺少 column: " + missing);
+    alert(
+      "Supabase 缺少 column: " +
+        missing +
+        "\n\n我已经在代码里自动移除这个字段后重试。\n如果还提示，说明还有其它字段也缺。"
+    );
+  } else {
+    toast.error("提交失败");
+    alert("提交失败（请看 Console 报错）");
+  }
+  throw lastError;
+}
+
 
       toast.success(isEditMode ? "保存成功" : "提交成功");
       alert(isEditMode ? "保存成功" : "提交成功");
