@@ -77,7 +77,141 @@ function money(v) {
 }
 
 /* =========================
-   ✅ 只读“当前表单”的数据源（彻底防串台）
+   ✅ 智能扫描（关键修复点）
+   - 不猜 key 名
+   - 直接在当前 active 表单 JSON 里找 range / year / quarter
+========================= */
+function walkObject(root, visitor, maxDepth = 10) {
+  const stack = [{ value: root, path: "", depth: 0 }];
+  const seen = new Set();
+
+  while (stack.length) {
+    const { value, path, depth } = stack.pop();
+    if (value && typeof value === "object") {
+      // 防循环引用
+      if (seen.has(value)) continue;
+      seen.add(value);
+    }
+
+    visitor(value, path);
+
+    if (depth >= maxDepth) continue;
+
+    if (Array.isArray(value)) {
+      for (let i = value.length - 1; i >= 0; i--) {
+        stack.push({ value: value[i], path: `${path}[${i}]`, depth: depth + 1 });
+      }
+    } else if (value && typeof value === "object") {
+      const keys = Object.keys(value);
+      for (let i = keys.length - 1; i >= 0; i--) {
+        const k = keys[i];
+        const nextPath = path ? `${path}.${k}` : k;
+        stack.push({ value: value[k], path: nextPath, depth: depth + 1 });
+      }
+    }
+  }
+}
+
+function findBestPriceRange(obj) {
+  if (!obj || typeof obj !== "object") return null;
+
+  // 找到 “包含 price 字样” 的对象，并且内部有一对 min/max 或 from/to
+  const candidates = [];
+
+  walkObject(obj, (v, p) => {
+    if (!v || typeof v !== "object" || Array.isArray(v)) return;
+
+    const pathLower = normalizeLower(p);
+
+    // 优先：路径里包含 price
+    const looksPrice = pathLower.includes("price");
+
+    // 常见 range key
+    const minV = v.min ?? v.minPrice ?? v.min_value ?? v.minValue ?? v.from ?? v.start ?? v.low;
+    const maxV = v.max ?? v.maxPrice ?? v.max_value ?? v.maxValue ?? v.to ?? v.end ?? v.high;
+
+    const minN = extractNumeric(minV);
+    const maxN = extractNumeric(maxV);
+
+    if (!Number.isNaN(minN) && !Number.isNaN(maxN)) {
+      candidates.push({
+        score: (looksPrice ? 100 : 0) - p.split(".").length, // 越接近根越好
+        path: p,
+        min: minN,
+        max: maxN,
+      });
+    }
+  });
+
+  if (!candidates.length) return null;
+
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates[0];
+}
+
+function findBestExpectedYearQuarter(obj) {
+  if (!obj || typeof obj !== "object") return null;
+
+  const yearCandidates = [];
+  const quarterCandidates = [];
+
+  walkObject(obj, (v, p) => {
+    const key = p.split(".").slice(-1)[0] || "";
+    const keyLower = normalizeLower(key);
+    const pathLower = normalizeLower(p);
+
+    // year: 4 位数 1900-2100
+    if (typeof v === "number" || typeof v === "string") {
+      const s = String(v).trim();
+      const y = Number(s);
+      if (y >= 1900 && y <= 2100) {
+        const score =
+          (pathLower.includes("expect") ? 50 : 0) +
+          (pathLower.includes("complete") ? 40 : 0) +
+          (pathLower.includes("year") ? 30 : 0) +
+          (keyLower.includes("year") ? 20 : 0);
+
+        yearCandidates.push({ score, year: y, path: p });
+      }
+
+      // quarter: 1-4 或 Q1-Q4
+      let q = null;
+      if (/^q[1-4]$/i.test(s)) q = Number(s.slice(1));
+      else {
+        const n = Number(s);
+        if (n >= 1 && n <= 4) q = n;
+      }
+      if (q) {
+        const score =
+          (pathLower.includes("quarter") ? 50 : 0) +
+          (pathLower.includes("qtr") ? 40 : 0) +
+          (pathLower.includes("expect") ? 20 : 0) +
+          (pathLower.includes("complete") ? 20 : 0) +
+          (keyLower.includes("quarter") ? 20 : 0);
+
+        quarterCandidates.push({ score, quarter: q, path: p });
+      }
+    }
+  });
+
+  if (!yearCandidates.length) return null;
+
+  yearCandidates.sort((a, b) => b.score - a.score);
+  quarterCandidates.sort((a, b) => b.score - a.score);
+
+  const bestYear = yearCandidates[0];
+  const bestQuarter = quarterCandidates.length ? quarterCandidates[0] : null;
+
+  return {
+    year: bestYear.year,
+    quarter: bestQuarter ? bestQuarter.quarter : null,
+    yearPath: bestYear.path,
+    quarterPath: bestQuarter ? bestQuarter.path : null,
+  };
+}
+
+/* =========================
+   ✅ 只读“当前表单”的数据源（防串台）
 ========================= */
 function isNewProjectStatus(propertyStatus) {
   const s = normalizeLower(propertyStatus);
@@ -88,24 +222,16 @@ function isCompletedUnitStatus(propertyStatus) {
   return s.includes("completed unit") || s.includes("developer unit");
 }
 
-/**
- * active = 你最后保存的那套表单
- * - Project: shared(type_form_v2) + layout0(unit_layouts[0])
- * - Non-project sale/rent: single_form_data_v2
- * - homestay/hotel: homestay_form / hotel_resort_form
- */
 function resolveActiveSources(raw) {
   const saleTypeRaw = pickAny(raw, ["saleType", "sale_type", "saletype", "listing_mode"]);
   const saleType = normalizeLower(saleTypeRaw);
   const propertyStatus = pickAny(raw, ["propertyStatus", "property_status", "propertystatus"]);
 
-  // 读取 JSON（只解析，不 merge）
   const typeFormV2 = safeJson(raw.type_form_v2) || safeJson(raw.type_form) || null;
   const singleFormV2 = safeJson(raw.single_form_data_v2) || safeJson(raw.single_form_data) || null;
   const homestayForm = safeJson(raw.homestay_form) || null;
   const hotelForm = safeJson(raw.hotel_resort_form) || null;
 
-  // unit_layouts[0]
   let ul = raw.unit_layouts ?? raw.unitLayouts ?? raw.unitlayouts;
   ul = safeJson(ul) ?? ul;
   const layout0 = Array.isArray(ul) && ul[0] && typeof ul[0] === "object" ? ul[0] : null;
@@ -124,18 +250,15 @@ function resolveActiveSources(raw) {
     return { mode: "homestay", saleType, propertyStatus, shared: null, form: homestayForm, layout0: null };
   }
 
-  // 你有时 finalType 会写成 "Hotel / Resort"
   const finalType = normalizeLower(pickAny(raw, ["finalType"]));
   if (saleType === "hotel/resort" || finalType.includes("hotel")) {
     return { mode: "hotel/resort", saleType: "hotel/resort", propertyStatus, shared: null, form: hotelForm, layout0: null };
   }
 
-  // fallback（还是只读 single）
   return { mode: "unknown", saleType, propertyStatus, shared: null, form: singleFormV2, layout0: null };
 }
 
 function pickActive(raw, active, keys) {
-  // ✅ 只按 “raw顶层 -> shared -> layout0 -> form” 取值（不会跨其它表单）
   const v0 = pickAny(raw, keys);
   if (isNonEmpty(v0)) return v0;
 
@@ -152,7 +275,7 @@ function pickActive(raw, active, keys) {
 }
 
 /* =========================
-   你表单一致的显示规则
+   表单一致的显示规则
 ========================= */
 function shouldShowStoreysByCategory(category) {
   const c = normalizeLower(category);
@@ -198,7 +321,6 @@ function formatRange(minV, maxV, formatter) {
 function formatCarparks(v) {
   if (!isNonEmpty(v)) return "";
   if (typeof v === "object") {
-    // {min,max}
     const minV = v.min ?? v.from ?? v.minValue;
     const maxV = v.max ?? v.to ?? v.maxValue;
     const r = formatRange(minV, maxV, (n) => String(Math.trunc(n)));
@@ -208,12 +330,7 @@ function formatCarparks(v) {
 }
 
 function getTransitText(raw, active) {
-  const near = pickActive(raw, active, [
-    "transit.nearTransit",
-    "nearTransit",
-    "transitNearTransit",
-  ]);
-
+  const near = pickActive(raw, active, ["transit.nearTransit", "nearTransit", "transitNearTransit"]);
   if (!isNonEmpty(near)) return "-";
 
   const yn = yesNoText(near);
@@ -240,34 +357,9 @@ function getTransitText(raw, active) {
   return `是${extra}`;
 }
 
-function getExpectedCompletionText(raw, active) {
-  const year = pickActive(raw, active, [
-    "expectedCompletedYear",
-    "expectedCompletionYear",
-    "expected_year",
-    "expectedYear",
-    "completionExpectedYear",
-  ]);
-
-  const quarter = pickActive(raw, active, [
-    "expectedCompletedQuarter",
-    "expectedCompletionQuarter",
-    "expected_quarter",
-    "expectedQuarter",
-    "completionExpectedQuarter",
-  ]);
-
-  if (!isNonEmpty(year)) return "-";
-  if (!isNonEmpty(quarter)) return String(year);
-
-  let q = String(quarter).trim();
-  const qLower = q.toLowerCase();
-  if (qLower.startsWith("q")) q = q.toUpperCase();
-  else q = `Q${q}`;
-
-  return `${year} ${q}`;
-}
-
+/* =========================
+   ✅ 价格 & 预计完成（最终修复）
+========================= */
 function getCardPriceText(raw, active) {
   const propertyStatus = active.propertyStatus || pickAny(raw, ["propertyStatus", "property_status", "propertystatus"]);
   const isProject = isNewProjectStatus(propertyStatus) || isCompletedUnitStatus(propertyStatus);
@@ -278,7 +370,7 @@ function getCardPriceText(raw, active) {
     if (isNonEmpty(r) && r.includes("~")) return r;
   }
 
-  // 2) Project：读 priceData min/max
+  // 2) project：先用常规 key
   if (isProject) {
     const pd = pickActive(raw, active, ["priceData", "pricedata", "price_data"]);
     const pdObj = safeJson(pd) ?? pd;
@@ -288,19 +380,61 @@ function getCardPriceText(raw, active) {
       const maxV = pickAny(pdObj, ["max", "maxPrice", "max_value", "maxValue", "to"]);
       const r = formatRange(minV, maxV, (n) => money(n));
       if (isNonEmpty(r) && r.includes("~")) return r;
-      if (isNonEmpty(r)) return r;
+    }
+
+    // ✅ 3) project：智能扫描 shared/layout0 找 range
+    const best1 = findBestPriceRange(active.shared);
+    const best2 = findBestPriceRange(active.layout0);
+    const best = best1 || best2;
+    if (best) {
+      return `${money(best.min)} ~ ${money(best.max)}`;
     }
   }
 
-  // 3) 单价
+  // 4) 单价
   const single = pickActive(raw, active, ["price", "amount", "price_min", "price_max"]);
   if (isNonEmpty(single)) return money(single);
 
   return "-";
 }
 
+function getExpectedCompletionText(raw, active) {
+  // 先用常规 key
+  const year = pickActive(raw, active, [
+    "expectedCompletedYear",
+    "expectedCompletionYear",
+    "expected_year",
+    "expectedYear",
+    "completionExpectedYear",
+  ]);
+  const quarter = pickActive(raw, active, [
+    "expectedCompletedQuarter",
+    "expectedCompletionQuarter",
+    "expected_quarter",
+    "expectedQuarter",
+    "completionExpectedQuarter",
+  ]);
+
+  if (isNonEmpty(year)) {
+    if (!isNonEmpty(quarter)) return String(year);
+    let q = String(quarter).trim();
+    if (/^q[1-4]$/i.test(q)) q = q.toUpperCase();
+    else q = `Q${q}`;
+    return `${year} ${q}`;
+  }
+
+  // ✅ 智能扫描：shared/layout0 里找 year + quarter
+  const best1 = findBestExpectedYearQuarter(active.shared);
+  const best2 = findBestExpectedYearQuarter(active.layout0);
+  const best = best1 || best2;
+
+  if (!best || !best.year) return "-";
+  if (!best.quarter) return String(best.year);
+  return `${best.year} Q${best.quarter}`;
+}
+
 /* =========================
-   UI 小组件：没选就 "-"
+   UI：没选就 "-"
 ========================= */
 function MetaLineDash({ label, value }) {
   const show = isNonEmpty(value) ? String(value) : "-";
@@ -340,7 +474,10 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
   const affordableType = pickActive(rawProperty, active, ["affordableType", "affordable_housing_type", "affordableHousingType"]);
   let affordable = yesNoText(affordableRaw);
   if (isNonEmpty(affordableType) && affordable !== "是") affordable = "是";
-  const affordableText = affordable === "是" && isNonEmpty(affordableType) ? `是（${affordableType}）` : (isNonEmpty(affordable) ? affordable : "-");
+  const affordableText =
+    affordable === "是" && isNonEmpty(affordableType)
+      ? `是（${affordableType}）`
+      : (isNonEmpty(affordable) ? affordable : "-");
 
   const transitText = getTransitText(rawProperty, active);
 
@@ -378,11 +515,15 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
           <MetaLineDash label="Sub Type" value={subType} />
 
           {showStoreys && <MetaLineDash label="Storeys" value={storeys} />}
-          {showSubtype && <MetaLineDash label="Property Subtype" value={Array.isArray(propSubtypes) ? propSubtypes.join(", ") : propSubtypes} />}
+          {showSubtype && (
+            <MetaLineDash
+              label="Property Subtype"
+              value={Array.isArray(propSubtypes) ? propSubtypes.join(", ") : propSubtypes}
+            />
+          )}
 
           <MetaLineDash label="你的产业步行能到达公共交通吗？" value={transitText} />
 
-          {/* ✅ New Project：只显示预计完成年份（含季度）；不显示完成年份 */}
           {isNewProjectStatus(propertyStatus) ? (
             <MetaLineDash label="预计完成年份" value={expectedText} />
           ) : (
@@ -395,22 +536,13 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
       </div>
 
       <div className="mt-4 grid grid-cols-3 gap-3">
-        <button
-          onClick={() => onView(rawProperty)}
-          className="h-11 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700"
-        >
+        <button onClick={() => onView(rawProperty)} className="h-11 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700">
           查看
         </button>
-        <button
-          onClick={() => onEdit(rawProperty)}
-          className="h-11 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700"
-        >
+        <button onClick={() => onEdit(rawProperty)} className="h-11 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700">
           编辑
         </button>
-        <button
-          onClick={() => onDelete(rawProperty)}
-          className="h-11 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700"
-        >
+        <button onClick={() => onDelete(rawProperty)} className="h-11 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700">
           删除
         </button>
       </div>
@@ -570,17 +702,11 @@ export default function MyProfilePage() {
         ) : (
           <div className="space-y-4">
             {filtered.map((p) => (
-              <SellerPropertyCard
-                key={p.id}
-                rawProperty={p}
-                onView={onView}
-                onEdit={onEdit}
-                onDelete={onDelete}
-              />
+              <SellerPropertyCard key={p.id} rawProperty={p} onView={onView} onEdit={onEdit} onDelete={onDelete} />
             ))}
           </div>
         )}
       </div>
     </div>
   );
-                   }
+}
