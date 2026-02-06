@@ -15,7 +15,6 @@ import {
   formatCarparks,
 } from "../pickers";
 
-// ❗️这里用对函数名
 import {
   resolveActiveForm,
   isNewProjectStatus,
@@ -23,22 +22,26 @@ import {
 } from "../resolveActiveForm";
 
 /**
- * ✅ New Project VM
- * 完全沿用你原本 my-profile.js 里的逻辑
- * 只是把逻辑搬出来
+ * ✅ New Project / Completed Unit 通用 VM（先跑通，逻辑完全沿用你原本 my-profile.js）
+ * 你之后要拆 Completed Unit 专属显示，再在 completedUnit.vm.js 做覆盖即可
  */
 export function buildVM(rawProperty) {
-  return buildNewProjectVM(rawProperty);
-}
-
   // ✅ 用正确的 resolver
   const active = resolveActiveForm(rawProperty);
 
   const title = pickAny(rawProperty, ["title"]) || "（未命名房源）";
   const address = pickAny(rawProperty, ["address"]) || "-";
 
-  const bedrooms = pickPreferActive(rawProperty, active, ["bedrooms", "bedroom_count", "room_count"]);
-  const bathrooms = pickPreferActive(rawProperty, active, ["bathrooms", "bathroom_count"]);
+  const bedrooms = pickPreferActive(rawProperty, active, [
+    "bedrooms",
+    "bedroom_count",
+    "room_count",
+  ]);
+  const bathrooms = pickPreferActive(rawProperty, active, [
+    "bathrooms",
+    "bathroom_count",
+  ]);
+
   const carparksRaw = pickPreferActive(rawProperty, active, [
     "carparks",
     "carpark",
@@ -48,16 +51,32 @@ export function buildVM(rawProperty) {
   const carparks = isNonEmpty(carparksRaw) ? formatCarparks(carparksRaw) : "-";
 
   const usage = pickPreferActive(rawProperty, active, ["usage", "property_usage"]);
-  const propertyTitle = pickPreferActive(rawProperty, active, ["propertyTitle", "property_title"]);
+  const propertyTitle = pickPreferActive(rawProperty, active, [
+    "propertyTitle",
+    "property_title",
+  ]);
+
   const propertyStatus =
-    active.propertyStatus || pickAny(rawProperty, ["propertyStatus", "property_status", "propertystatus"]);
+    active.propertyStatus ||
+    pickAny(rawProperty, ["propertyStatus", "property_status", "propertystatus"]);
+
   const tenure = pickPreferActive(rawProperty, active, ["tenure", "tenure_type"]);
 
   // ✅ Property Category：严格从 active 表单扫描
   const category = findBestCategoryStrict(active);
 
-  const subType = pickPreferActive(rawProperty, active, ["subType", "sub_type", "property_sub_type"]);
-  const storeys = pickPreferActive(rawProperty, active, ["storeys", "storey", "floorCount"]);
+  const subType = pickPreferActive(rawProperty, active, [
+    "subType",
+    "sub_type",
+    "property_sub_type",
+  ]);
+
+  const storeys = pickPreferActive(rawProperty, active, [
+    "storeys",
+    "storey",
+    "floorCount",
+  ]);
+
   const propSubtypes = pickPreferActive(rawProperty, active, [
     "propertySubtypes",
     "property_subtypes",
@@ -66,7 +85,9 @@ export function buildVM(rawProperty) {
     "subtype",
   ]);
 
+  // ✅✅✅ Affordable Housing：严格只读 active
   const affordableText = getAffordableTextStrict(active);
+
   const transitText = getTransitText(rawProperty, active);
   const priceText = getCardPriceText(rawProperty, active);
 
@@ -81,6 +102,7 @@ export function buildVM(rawProperty) {
     "buildYear",
     "build_year",
   ]);
+
   if (!isNonEmpty(completedYear)) {
     const bestC1 = findBestCompletedYear(active.shared);
     const bestC2 = findBestCompletedYear(active.layout0);
@@ -130,4 +152,3 @@ export function buildVM(rawProperty) {
     isCompletedUnit,
   };
 }
-
