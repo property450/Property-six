@@ -27,7 +27,10 @@ import {
  * 完全沿用你原本 my-profile.js 里的逻辑
  * 只是把逻辑搬出来
  */
-export function buildNewProjectVM(rawProperty) {
+export function buildVM(rawProperty) {
+  return buildNewProjectVM(rawProperty);
+}
+
   // ✅ 用正确的 resolver
   const active = resolveActiveForm(rawProperty);
 
