@@ -238,6 +238,86 @@ function findBestCompletedYear(obj) {
 }
 
 /* =========================
+   ✅✅✅ Smart finders (STRICT active only)
+   用于解决：Property Category 仍然显示旧 column 的问题
+========================= */
+function findBestActiveValue(active, opts) {
+  const sources = [
+    { obj: active?.shared, weight: 3, name: "shared" },
+    { obj: active?.layout0, weight: 2, name: "layout0" },
+    { obj: active?.form, weight: 1, name: "form" },
+  ].filter((x) => x.obj && typeof x.obj === "object");
+
+  const { keyMustInclude = [], keyExact = [], pathBonusInclude = [], pathRejectInclude = [] } = opts || {};
+
+  const candidates = [];
+
+  for (const src of sources) {
+    walkObject(src.obj, (v, p) => {
+      if (!isNonEmpty(v)) return;
+
+      const lastKey = (p.split(".").slice(-1)[0] || "").replace(/\[\d+\]/g, "");
+      const keyLower = normalizeLower(lastKey);
+      const pathLower = normalizeLower(p);
+
+      // reject by path
+      for (const r of pathRejectInclude) {
+        if (r && pathLower.includes(normalizeLower(r))) return;
+      }
+
+      // leaf values only
+      const isPrimitive = typeof v === "string" || typeof v === "number" || typeof v === "boolean";
+      if (!isPrimitive) return;
+
+      const strV = typeof v === "string" ? v.trim() : String(v);
+      if (!isNonEmpty(strV)) return;
+
+      // key exact match
+      let score = 0;
+      if (keyExact.length && keyExact.some((k) => keyLower === normalizeLower(k))) {
+        score += 120;
+      }
+
+      // key include match
+      if (keyMustInclude.length) {
+        const ok = keyMustInclude.some((k) => keyLower.includes(normalizeLower(k)));
+        if (!ok && !keyExact.length) return;
+        if (ok) score += 80;
+      }
+
+      // path bonus
+      for (const b of pathBonusInclude) {
+        if (b && pathLower.includes(normalizeLower(b))) score += 20;
+      }
+
+      // prefer shorter paths (less nested)
+      score += 10 - Math.min(10, p.split(".").length);
+
+      // source weight
+      score += src.weight * 10;
+
+      candidates.push({ score, value: strV, path: p, source: src.name });
+    });
+  }
+
+  if (!candidates.length) return "";
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates[0].value;
+}
+
+function findBestCategoryStrict(active) {
+  // ✅只在 active 的 json 里找，绝不 fallback 到 rawProperty 的 column
+  // 常见键：propertyCategory / property_category / category
+  // 同时避免抓到照片分类、房间分类等无关字段
+  return findBestActiveValue(active, {
+    keyExact: ["propertyCategory", "property_category"],
+    keyMustInclude: ["propertycategory", "property_category", "category"],
+    pathBonusInclude: ["property", "type", "selector", "listing", "sale", "rent"],
+    pathRejectInclude: ["photo", "image", "gallery", "room", "bed", "bath", "layoutPhoto", "floorplan", "facility"],
+  });
+}
+
+/* =========================
    ✅ 当前表单识别
 ========================= */
 function isNewProjectStatus(propertyStatus) {
@@ -302,7 +382,7 @@ function pickPreferActive(raw, active, keys) {
 }
 
 /* =========================
-   ✅✅✅ 严格只读当前 active（用于：Affordable + Category 等）
+   ✅✅✅ 严格只读当前 active（用于：Affordable + 其它严格字段）
 ========================= */
 function pickFromActiveOnly(active, keys) {
   const v1 = pickAny(active.shared, keys);
@@ -534,11 +614,12 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
     active.propertyStatus || pickAny(rawProperty, ["propertyStatus", "property_status", "propertystatus"]);
   const tenure = pickPreferActive(rawProperty, active, ["tenure", "tenure_type"]);
 
-  // ✅✅✅ 关键修复：Category/SubType/Storeys/Subtypes 只读当前 active 表单，禁止 fallback raw（避免显示旧 column）
-  const category = pickFromActiveOnly(active, ["propertyCategory", "property_category", "category"]);
-  const subType = pickFromActiveOnly(active, ["subType", "sub_type", "property_sub_type"]);
-  const storeys = pickFromActiveOnly(active, ["storeys", "storey", "floorCount"]);
-  const propSubtypes = pickFromActiveOnly(active, [
+  // ✅✅✅ 关键修复：Property Category 只从“当前 active 表单 json”智能扫描，绝不读 rawProperty column
+  const category = findBestCategoryStrict(active);
+
+  const subType = pickPreferActive(rawProperty, active, ["subType", "sub_type", "property_sub_type"]);
+  const storeys = pickPreferActive(rawProperty, active, ["storeys", "storey", "floorCount"]);
+  const propSubtypes = pickPreferActive(rawProperty, active, [
     "propertySubtypes",
     "property_subtypes",
     "propertySubtype",
@@ -610,7 +691,7 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
                 Array.isArray(propSubtypes)
                   ? (propSubtypes.length ? propSubtypes.join(", ") : "-")
                   : (isNonEmpty(propSubtypes) ? propSubtypes : "-")
-              }
+          }
             />
           )}
 
