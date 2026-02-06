@@ -1,5 +1,7 @@
 // utils/property/forms/auction.vm.js
 
+export { buildVM } from "./newProject.vm";
+
 export function buildVM(rawProperty, active, h) {
   // === 基础通用（和其他表单一致）===
   const title = h.pickAny(rawProperty, ["title"]) || "（未命名房源）";
