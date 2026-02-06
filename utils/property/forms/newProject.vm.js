@@ -17,6 +17,12 @@ import {
 
 import { resolveActiveSources, isNewProjectStatus, isCompletedUnitStatus } from "../resolveActiveForm";
 
+// ✅ 兼容 getCardVM.js 的统一入口（不改任何原逻辑）
+export function buildVM(rawProperty, active, helpers) {
+  // 你的 buildNewProjectVM 自己会 resolve active，所以这里直接复用
+  return buildNewProjectVM(rawProperty);
+}
+
 /**
  * ✅ New Project VM（完全照你 pages/my-profile.js 的 SellerPropertyCard 取值逻辑搬）
  * - 不改任何逻辑
