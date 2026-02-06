@@ -78,8 +78,6 @@ function money(v) {
 
 /* =========================
    ✅ 智能扫描（关键修复点）
-   - 不猜 key 名
-   - 直接在当前 active 表单 JSON 里找 range / year / quarter
 ========================= */
 function walkObject(root, visitor, maxDepth = 10) {
   const stack = [{ value: root, path: "", depth: 0 }];
@@ -230,7 +228,6 @@ function findBestCompletedYear(obj) {
       (keyLower.includes("year") ? 20 : 0) -
       p.split(".").length;
 
-    // 太弱的不收（避免乱抓到别的年份）
     if (score < 40) return;
 
     candidates.push({ score, year: y, path: p });
@@ -242,7 +239,7 @@ function findBestCompletedYear(obj) {
 }
 
 /* =========================
-   ✅ 只读“当前表单”的数据源（防串台）
+   ✅ 当前表单识别
 ========================= */
 function isNewProjectStatus(propertyStatus) {
   const s = normalizeLower(propertyStatus);
@@ -289,24 +286,6 @@ function resolveActiveSources(raw) {
   return { mode: "unknown", saleType, propertyStatus, shared: null, form: singleFormV2, layout0: null };
 }
 
-/** 原逻辑（保留）：raw 优先 */
-function pickActive(raw, active, keys) {
-  const v0 = pickAny(raw, keys);
-  if (isNonEmpty(v0)) return v0;
-
-  const v1 = pickAny(active.shared, keys);
-  if (isNonEmpty(v1)) return v1;
-
-  const v2 = pickAny(active.layout0, keys);
-  if (isNonEmpty(v2)) return v2;
-
-  const v3 = pickAny(active.form, keys);
-  if (isNonEmpty(v3)) return v3;
-
-  return "";
-}
-
-/** ✅ 修复：对“容易旧”的字段，优先读 active，再读 raw */
 function pickPreferActive(raw, active, keys) {
   const v1 = pickAny(active.shared, keys);
   if (isNonEmpty(v1)) return v1;
@@ -407,13 +386,12 @@ function getTransitText(raw, active) {
 }
 
 /* =========================
-   ✅ 价格 & 预计完成（修复：project 优先 active）
+   ✅ 价格 & 预计完成
 ========================= */
 function getCardPriceText(raw, active) {
   const propertyStatus = active.propertyStatus || pickAny(raw, ["propertyStatus", "property_status", "propertystatus"]);
   const isProject = isNewProjectStatus(propertyStatus) || isCompletedUnitStatus(propertyStatus);
 
-  // ✅ project：先从 active 找 range（避免 raw 顶层旧 price_min/max 覆盖）
   if (isProject) {
     const pd = pickPreferActive(raw, active, ["priceData", "pricedata", "price_data"]);
     const pdObj = safeJson(pd) ?? pd;
@@ -434,13 +412,11 @@ function getCardPriceText(raw, active) {
     }
   }
 
-  // 顶层 price_min/price_max（非 project 或 project 找不到时才用）
   if (isNonEmpty(raw.price_min) && isNonEmpty(raw.price_max)) {
     const r = formatRange(raw.price_min, raw.price_max, (n) => money(n));
     if (isNonEmpty(r) && r.includes("~")) return r;
   }
 
-  // 单价
   const single = pickPreferActive(raw, active, ["price", "amount", "price_min", "price_max"]);
   if (isNonEmpty(single)) return money(single);
 
@@ -524,7 +500,7 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
     "subtype",
   ]);
 
-  // ✅ Affordable Housing：优先 active（修复“显示旧的”）
+  // ✅ Affordable Housing：优先 active
   const affordableRaw = pickPreferActive(rawProperty, active, [
     "affordable",
     "affordable_housing",
@@ -551,7 +527,7 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
 
   const expectedText = getExpectedCompletionText(rawProperty, active);
 
-  // ✅ 完成年份：优先 active + 智能扫描兜底（修复“只显示 - ”）
+  // ✅ 完成年份：优先 active + 扫描兜底
   let completedYear = pickPreferActive(rawProperty, active, [
     "completedYear",
     "built_year",
@@ -570,6 +546,9 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
 
   const showStoreys = shouldShowStoreysByCategory(category);
   const showSubtype = shouldShowPropertySubtypeByCategory(category);
+
+  const isNewProject = isNewProjectStatus(propertyStatus);
+  const isCompletedUnit = isCompletedUnitStatus(propertyStatus);
 
   return (
     <div className="w-full bg-white rounded-xl shadow-sm border border-gray-200 p-4">
@@ -606,202 +585,15 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
 
           <MetaLineDash label="你的产业步行能到达公共交通吗？" value={transitText} />
 
-          {isNewProjectStatus(propertyStatus) ? (
+          {/* ✅✅✅ 这里是你要修的点：严格按表单类型显示年份 */}
+          {isNewProject ? (
+            // New Project：只显示预计完成年份（含季度）
             <MetaLineDash label="预计完成年份" value={expectedText} />
+          ) : isCompletedUnit ? (
+            // Completed Unit：只显示完成年份（不显示预计完成年份）
+            <MetaLineDash label="完成年份" value={isNonEmpty(completedYear) ? completedYear : "-"} />
           ) : (
+            // 其它：保持原有逻辑（如果你之后要改成只显示其中一个，我再按你规则改）
             <>
               <MetaLineDash label="完成年份" value={isNonEmpty(completedYear) ? completedYear : "-"} />
-              <MetaLineDash label="预计完成年份" value={expectedText} />
-            </>
-          )}
-        </div>
-      </div>
-
-      <div className="mt-4 grid grid-cols-3 gap-3">
-        <button
-          onClick={() => onView(rawProperty)}
-          className="h-11 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700"
-        >
-          查看
-        </button>
-        <button
-          onClick={() => onEdit(rawProperty)}
-          className="h-11 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700"
-        >
-          编辑
-        </button>
-        <button
-          onClick={() => onDelete(rawProperty)}
-          className="h-11 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700"
-        >
-          删除
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/* =========================
-   Page（统计 + 搜索 + 排序）
-========================= */
-export default function MyProfilePage() {
-  const router = useRouter();
-  const user = useUser();
-
-  const [loading, setLoading] = useState(true);
-  const [properties, setProperties] = useState([]);
-  const [keyword, setKeyword] = useState("");
-  const [sortKey, setSortKey] = useState("latest");
-
-  const fetchMyProperties = async () => {
-    if (!user?.id) return;
-    setLoading(true);
-
-    const { data, error } = await supabase
-      .from("properties")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("fetchMyProperties error:", error);
-      toast.error(error.message || "加载失败");
-      setLoading(false);
-      return;
-    }
-
-    setProperties(data || []);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchMyProperties();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
-
-  const stats = useMemo(() => {
-    const total = properties.length;
-    const published = total;
-    const draft = 0;
-    const latestTime = properties
-      .map((p) => p?.updated_at || p?.created_at)
-      .filter(Boolean)
-      .sort()
-      .slice(-1)[0];
-
-    return { total, published, draft, latestTime };
-  }, [properties]);
-
-  const filtered = useMemo(() => {
-    const k = keyword.trim().toLowerCase();
-    let list = properties;
-
-    if (k) {
-      list = list.filter((p) => {
-        const t = pickAny(p, ["title"]);
-        const a = pickAny(p, ["address"]);
-        return String(t || "").toLowerCase().includes(k) || String(a || "").toLowerCase().includes(k);
-      });
-    }
-
-    const getPriceNum = (p) => {
-      const n = extractNumeric(p?.price_max ?? p?.price ?? p?.price_min);
-      return Number.isNaN(n) ? 0 : n;
-    };
-
-    if (sortKey === "latest") {
-      list = [...list].sort(
-        (a, b) => new Date(b?.updated_at || b?.created_at || 0) - new Date(a?.updated_at || a?.created_at || 0)
-      );
-    } else if (sortKey === "oldest") {
-      list = [...list].sort(
-        (a, b) => new Date(a?.updated_at || a?.created_at || 0) - new Date(b?.updated_at || b?.created_at || 0)
-      );
-    } else if (sortKey === "priceHigh") {
-      list = [...list].sort((a, b) => getPriceNum(b) - getPriceNum(a));
-    } else if (sortKey === "priceLow") {
-      list = [...list].sort((a, b) => getPriceNum(a) - getPriceNum(b));
-    }
-
-    return list;
-  }, [properties, keyword, sortKey]);
-
-  const onView = (p) => router.push(`/property/${p.id}`);
-  const onEdit = (p) => router.push(`/upload-property?edit=1&id=${p.id}`);
-
-  const onDelete = async (p) => {
-    if (!confirm("确定要删除这个房源吗？")) return;
-
-    const { error } = await supabase.from("properties").delete().eq("id", p.id);
-    if (error) {
-      console.error("delete error:", error);
-      toast.error(error.message || "删除失败");
-      return;
-    }
-
-    toast.success("已删除");
-    fetchMyProperties();
-  };
-
-  return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
-      <div className="text-2xl font-bold text-gray-900">我的房源（卖家后台）</div>
-
-      <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-3">
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <div className="text-sm text-gray-500">房源总数</div>
-          <div className="text-2xl font-bold text-gray-900 mt-1">{stats.total}</div>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <div className="text-sm text-gray-500">已发布</div>
-          <div className="text-2xl font-bold text-gray-900 mt-1">{stats.published}</div>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <div className="text-sm text-gray-500">草稿</div>
-          <div className="text-2xl font-bold text-gray-900 mt-1">{stats.draft}</div>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <div className="text-sm text-gray-500">最近更新时间</div>
-          <div className="text-sm text-gray-900 mt-2">{stats.latestTime ? String(stats.latestTime) : "-"}</div>
-        </div>
-      </div>
-
-      <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-3 items-center">
-        <div className="md:col-span-3">
-          <input
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            placeholder="输入标题或地点..."
-            className="w-full h-11 px-4 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200"
-          />
-        </div>
-        <div className="md:col-span-1">
-          <select
-            value={sortKey}
-            onChange={(e) => setSortKey(e.target.value)}
-            className="w-full h-11 px-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-200"
-          >
-            <option value="latest">最新优先</option>
-            <option value="oldest">最旧优先</option>
-            <option value="priceHigh">价格：高到低</option>
-            <option value="priceLow">价格：低到高</option>
-          </select>
-        </div>
-      </div>
-
-      <div className="mt-6">
-        {loading ? (
-          <div className="text-gray-600">加载中...</div>
-        ) : filtered.length === 0 ? (
-          <div className="text-gray-600">没有符合条件的房源。</div>
-        ) : (
-          <div className="space-y-4">
-            {filtered.map((p) => (
-              <SellerPropertyCard key={p.id} rawProperty={p} onView={onView} onEdit={onEdit} onDelete={onDelete} />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+ 
