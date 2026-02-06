@@ -217,7 +217,6 @@ function findBestCompletedYear(obj) {
     const key = p.split(".").slice(-1)[0] || "";
     const keyLower = normalizeLower(key);
 
-    // 排除 expected 年份
     if (pathLower.includes("expect")) return;
 
     const score =
@@ -300,6 +299,56 @@ function pickPreferActive(raw, active, keys) {
   if (isNonEmpty(v0)) return v0;
 
   return "";
+}
+
+/* =========================
+   ✅✅✅ 只用于 Affordable Housing：不允许 fallback raw
+========================= */
+function pickFromActiveOnly(active, keys) {
+  const v1 = pickAny(active.shared, keys);
+  if (isNonEmpty(v1)) return v1;
+
+  const v2 = pickAny(active.layout0, keys);
+  if (isNonEmpty(v2)) return v2;
+
+  const v3 = pickAny(active.form, keys);
+  if (isNonEmpty(v3)) return v3;
+
+  return "";
+}
+
+function getAffordableTextStrict(active) {
+  // 只读当前 active 表单来源，避免读到旧 column
+  const affordableRaw = pickFromActiveOnly(active, [
+    "affordable",
+    "affordable_housing",
+    "affordableHousing",
+    "isAffordable",
+    "affordableHousingYesNo",
+  ]);
+
+  const affordableType = pickFromActiveOnly(active, [
+    "affordableType",
+    "affordable_housing_type",
+    "affordableHousingType",
+  ]);
+
+  const yn = yesNoText(affordableRaw);
+
+  // ✅ 如果明确选了 "否"：就永远显示 否（即使其它旧表单残留 type）
+  if (yn === "否") return "否";
+
+  // ✅ 如果明确选了 "是"：显示 是（有 type 就加上）
+  if (yn === "是") {
+    if (isNonEmpty(affordableType)) return `是（${affordableType}）`;
+    return "是";
+  }
+
+  // ✅ 没选 yes/no，但选了 type：当作 "是（type）"
+  if (isNonEmpty(affordableType)) return `是（${affordableType}）`;
+
+  // ✅ 什么都没选：显示 -
+  return "-";
 }
 
 /* =========================
@@ -486,7 +535,8 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
 
   const usage = pickPreferActive(rawProperty, active, ["usage", "property_usage"]);
   const propertyTitle = pickPreferActive(rawProperty, active, ["propertyTitle", "property_title"]);
-  const propertyStatus = active.propertyStatus || pickAny(rawProperty, ["propertyStatus", "property_status", "propertystatus"]);
+  const propertyStatus =
+    active.propertyStatus || pickAny(rawProperty, ["propertyStatus", "property_status", "propertystatus"]);
   const tenure = pickPreferActive(rawProperty, active, ["tenure", "tenure_type"]);
 
   const category = pickPreferActive(rawProperty, active, ["propertyCategory", "property_category", "category"]);
@@ -500,27 +550,8 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
     "subtype",
   ]);
 
-  // ✅ Affordable Housing：优先 active
-  const affordableRaw = pickPreferActive(rawProperty, active, [
-    "affordable",
-    "affordable_housing",
-    "affordableHousing",
-    "isAffordable",
-  ]);
-  const affordableType = pickPreferActive(rawProperty, active, [
-    "affordableType",
-    "affordable_housing_type",
-    "affordableHousingType",
-  ]);
-
-  let affordable = yesNoText(affordableRaw);
-  if (isNonEmpty(affordableType) && affordable !== "是") affordable = "是";
-  const affordableText =
-    affordable === "是" && isNonEmpty(affordableType)
-      ? `是（${affordableType}）`
-      : isNonEmpty(affordable)
-      ? affordable
-      : "-";
+  // ✅✅✅ Affordable Housing：严格只读当前 active 表单
+  const affordableText = getAffordableTextStrict(active);
 
   const transitText = getTransitText(rawProperty, active);
   const priceText = getCardPriceText(rawProperty, active);
@@ -585,15 +616,11 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
 
           <MetaLineDash label="你的产业步行能到达公共交通吗？" value={transitText} />
 
-          {/* ✅✅✅ 这里是你要修的点：严格按表单类型显示年份 */}
           {isNewProject ? (
-            // New Project：只显示预计完成年份（含季度）
             <MetaLineDash label="预计完成年份" value={expectedText} />
           ) : isCompletedUnit ? (
-            // Completed Unit：只显示完成年份（不显示预计完成年份）
             <MetaLineDash label="完成年份" value={isNonEmpty(completedYear) ? completedYear : "-"} />
           ) : (
-            // 其它：保持原有逻辑（如果你之后要改成只显示其中一个，我再按你规则改）
             <>
               <MetaLineDash label="完成年份" value={isNonEmpty(completedYear) ? completedYear : "-"} />
               <MetaLineDash label="预计完成年份" value={expectedText} />
@@ -624,7 +651,7 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
       </div>
     </div>
   );
-}
+             }
 
 /* =========================
    Page
