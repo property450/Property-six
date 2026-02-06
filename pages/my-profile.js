@@ -302,7 +302,7 @@ function pickPreferActive(raw, active, keys) {
 }
 
 /* =========================
-   ✅✅✅ 只用于 Affordable Housing：不允许 fallback raw
+   ✅✅✅ 严格只读当前 active（用于：Affordable + Category 等）
 ========================= */
 function pickFromActiveOnly(active, keys) {
   const v1 = pickAny(active.shared, keys);
@@ -318,7 +318,6 @@ function pickFromActiveOnly(active, keys) {
 }
 
 function getAffordableTextStrict(active) {
-  // 只读当前 active 表单来源，避免读到旧 column
   const affordableRaw = pickFromActiveOnly(active, [
     "affordable",
     "affordable_housing",
@@ -335,19 +334,15 @@ function getAffordableTextStrict(active) {
 
   const yn = yesNoText(affordableRaw);
 
-  // ✅ 如果明确选了 "否"：就永远显示 否（即使其它旧表单残留 type）
   if (yn === "否") return "否";
 
-  // ✅ 如果明确选了 "是"：显示 是（有 type 就加上）
   if (yn === "是") {
     if (isNonEmpty(affordableType)) return `是（${affordableType}）`;
     return "是";
   }
 
-  // ✅ 没选 yes/no，但选了 type：当作 "是（type）"
   if (isNonEmpty(affordableType)) return `是（${affordableType}）`;
 
-  // ✅ 什么都没选：显示 -
   return "-";
 }
 
@@ -539,10 +534,11 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
     active.propertyStatus || pickAny(rawProperty, ["propertyStatus", "property_status", "propertystatus"]);
   const tenure = pickPreferActive(rawProperty, active, ["tenure", "tenure_type"]);
 
-  const category = pickPreferActive(rawProperty, active, ["propertyCategory", "property_category", "category"]);
-  const subType = pickPreferActive(rawProperty, active, ["subType", "sub_type", "property_sub_type"]);
-  const storeys = pickPreferActive(rawProperty, active, ["storeys", "storey", "floorCount"]);
-  const propSubtypes = pickPreferActive(rawProperty, active, [
+  // ✅✅✅ 关键修复：Category/SubType/Storeys/Subtypes 只读当前 active 表单，禁止 fallback raw（避免显示旧 column）
+  const category = pickFromActiveOnly(active, ["propertyCategory", "property_category", "category"]);
+  const subType = pickFromActiveOnly(active, ["subType", "sub_type", "property_sub_type"]);
+  const storeys = pickFromActiveOnly(active, ["storeys", "storey", "floorCount"]);
+  const propSubtypes = pickFromActiveOnly(active, [
     "propertySubtypes",
     "property_subtypes",
     "propertySubtype",
@@ -603,14 +599,18 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
           <MetaLineDash label="Affordable Housing" value={affordableText} />
           <MetaLineDash label="Tenure Type" value={tenure} />
 
-          <MetaLineDash label="Property Category" value={category} />
-          <MetaLineDash label="Sub Type" value={subType} />
+          <MetaLineDash label="Property Category" value={isNonEmpty(category) ? category : "-"} />
+          <MetaLineDash label="Sub Type" value={isNonEmpty(subType) ? subType : "-"} />
 
-          {showStoreys && <MetaLineDash label="Storeys" value={storeys} />}
+          {showStoreys && <MetaLineDash label="Storeys" value={isNonEmpty(storeys) ? storeys : "-"} />}
           {showSubtype && (
             <MetaLineDash
               label="Property Subtype"
-              value={Array.isArray(propSubtypes) ? propSubtypes.join(", ") : propSubtypes}
+              value={
+                Array.isArray(propSubtypes)
+                  ? (propSubtypes.length ? propSubtypes.join(", ") : "-")
+                  : (isNonEmpty(propSubtypes) ? propSubtypes : "-")
+              }
             />
           )}
 
@@ -651,7 +651,7 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
       </div>
     </div>
   );
-             }
+}
 
 /* =========================
    Page
