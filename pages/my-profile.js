@@ -651,7 +651,7 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
       </div>
     </div>
   );
-}
+             }
 
 /* =========================
    Page
