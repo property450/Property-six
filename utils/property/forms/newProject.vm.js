@@ -89,7 +89,13 @@ export function buildVM(rawProperty) {
   const affordableText = getAffordableTextStrict(active);
 
   const transitText = getTransitText(rawProperty, active);
-  const priceText = getCardPriceText(rawProperty, active);
+  const priceText = getCardPriceText(
+  rawProperty,
+  active,
+  isNewProjectStatus,
+  isCompletedUnitStatus
+);
+
 
   const expectedText = getExpectedCompletionText(rawProperty, active);
 
