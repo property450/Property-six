@@ -11,7 +11,7 @@ import { toast } from "react-hot-toast";
 import { getCardVM } from "../utils/property/getCardVM";
 
 /* =========================
-   UI 辅助（不属于表单逻辑）
+   UI 小工具（仅用于显示层）
 ========================= */
 function isNonEmpty(v) {
   if (v === null || v === undefined) return false;
@@ -48,6 +48,46 @@ function extractNumeric(v) {
 }
 
 /* =========================
+   ✅ 关键：显示规范化（只影响显示，不改你表单逻辑）
+========================= */
+const SALETYPE_SET = new Set([
+  "sale",
+  "rent",
+  "homestay",
+  "hotel/resort",
+  "hotel",
+  "resort",
+]);
+
+function normalizeSaleType(vm, rawProperty) {
+  // ✅ 只做显示兜底：优先 VM，其次 rawProperty，其次 active
+  const v =
+    vm?.saleType ??
+    vm?.active?.saleType ??
+    rawProperty?.saleType ??
+    rawProperty?.sale_type ??
+    rawProperty?.saletype;
+
+  if (!isNonEmpty(v)) return "-";
+
+  const s = String(v).trim();
+  // 统一成你卡片那种大写展示
+  return s.toUpperCase();
+}
+
+function normalizeCategory(vmCategory) {
+  if (!isNonEmpty(vmCategory)) return "-";
+
+  const s = String(vmCategory).trim();
+  const lower = s.toLowerCase();
+
+  // ❗️防止把 saleType 当成 category 显示出来（你截图的 “Sale”）
+  if (SALETYPE_SET.has(lower)) return "-";
+
+  return s;
+}
+
+/* =========================
    UI：没选就 "-"
 ========================= */
 function MetaLineDash({ label, value }) {
@@ -62,7 +102,6 @@ function MetaLineDash({ label, value }) {
 
 /* =========================
    ✅ 发布状态（用于“已发布/草稿”区块）
-   不改你数据库结构：尽量兼容多种字段名
 ========================= */
 function isPublishedProperty(p) {
   const v =
@@ -74,7 +113,7 @@ function isPublishedProperty(p) {
     p?.publish_status;
   if (typeof v === "boolean") return v;
   const s = String(v || "").toLowerCase().trim();
-  if (!s) return true; // 没字段就默认当“已发布”，避免你页面变空
+  if (!s) return true; // 没字段就默认当“已发布”
   if (["published", "publish", "active", "online", "live", "已发布"].includes(s)) return true;
   if (["draft", "inactive", "offline", "草稿", "未发布"].includes(s)) return false;
   return true;
@@ -90,7 +129,7 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
       return getCardVM(rawProperty);
     } catch (e) {
       console.error("getCardVM error:", e);
-      // 兜底：至少别让页面炸
+      // 兜底：别让页面炸（仅显示层兜底）
       return {
         title: pickAny(rawProperty, ["title"]) || "（未命名房源）",
         address: pickAny(rawProperty, ["address"]) || "-",
@@ -119,6 +158,10 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
     }
   }, [rawProperty]);
 
+  // ✅ 显示层规范化：解决你截图的两个问题
+  const saleTypeText = normalizeSaleType(vm, rawProperty);
+  const categoryText = normalizeCategory(vm?.category);
+
   return (
     <div className="w-full bg-white rounded-xl shadow-sm border border-gray-200 p-4">
       <div className="min-w-0">
@@ -134,14 +177,15 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
         </div>
 
         <div className="mt-3 space-y-1">
-          <MetaLineDash label="Sale / Rent" value={vm.saleType ? String(vm.saleType).toUpperCase() : "-"} />
+          <MetaLineDash label="Sale / Rent" value={saleTypeText} />
           <MetaLineDash label="Property Usage" value={vm.usage} />
           <MetaLineDash label="Property Title" value={vm.propertyTitle} />
           <MetaLineDash label="Property Status / Sale Type" value={vm.propertyStatus} />
           <MetaLineDash label="Affordable Housing" value={vm.affordableText} />
           <MetaLineDash label="Tenure Type" value={vm.tenure} />
 
-          <MetaLineDash label="Property Category" value={isNonEmpty(vm.category) ? vm.category : "-"} />
+          {/* ✅ 这里确保不会出现你截图的 “Property Category: Sale” */}
+          <MetaLineDash label="Property Category" value={categoryText} />
           <MetaLineDash label="Sub Type" value={isNonEmpty(vm.subType) ? vm.subType : "-"} />
 
           {vm.showStoreys && <MetaLineDash label="Storeys" value={isNonEmpty(vm.storeys) ? vm.storeys : "-"} />}
@@ -163,6 +207,9 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
 
           <MetaLineDash label="你的产业步行能到达公共交通吗？" value={vm.transitText} />
 
+          {/* ⚠️ 这里我不动你原本 UI 逻辑（保持原样显示）
+              你之后如果要“只有 New Project 才显示预计完成年份”，那一步再统一交给 VM 字段控制即可
+          */}
           {vm.isNewProject ? (
             <MetaLineDash label="预计完成年份" value={vm.expectedText} />
           ) : vm.isCompletedUnit ? (
@@ -174,7 +221,7 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
             </>
           )}
 
-          {/* ✅ Auction Property 之类的新增字段，后面你在对应 vm 文件加了，这里也可以直接渲染（不影响其他表单） */}
+          {/* 以后 Auction Date 等字段你在 vm 里返回，这里自动显示 */}
           {isNonEmpty(vm.auctionDateText) && <MetaLineDash label="Auction Date" value={vm.auctionDateText} />}
         </div>
       </div>
@@ -214,8 +261,6 @@ export default function MyProfilePage() {
   const [properties, setProperties] = useState([]);
   const [keyword, setKeyword] = useState("");
   const [sortKey, setSortKey] = useState("latest");
-
-  // ✅ 恢复“已发布/草稿”区块（不依赖你数据库一定有字段）
   const [tab, setTab] = useState("published"); // published | draft | all
 
   const fetchMyProperties = async () => {
@@ -251,11 +296,9 @@ export default function MyProfilePage() {
     const k = keyword.trim().toLowerCase();
     let list = properties;
 
-    // tab filter
     if (tab === "published") list = list.filter((p) => isPublishedProperty(p));
     if (tab === "draft") list = list.filter((p) => !isPublishedProperty(p));
 
-    // keyword filter
     if (k) {
       list = list.filter((p) => {
         const t = pickAny(p, ["title"]);
@@ -307,7 +350,6 @@ export default function MyProfilePage() {
     <div className="max-w-6xl mx-auto px-4 py-6">
       <div className="text-2xl font-bold text-gray-900">我的房源（卖家后台）</div>
 
-      {/* ✅ 已发布/草稿 */}
       <div className="mt-4 flex flex-wrap gap-2">
         <button
           onClick={() => setTab("published")}
