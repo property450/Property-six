@@ -596,4 +596,165 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
             // 其它：保持原有逻辑（如果你之后要改成只显示其中一个，我再按你规则改）
             <>
               <MetaLineDash label="完成年份" value={isNonEmpty(completedYear) ? completedYear : "-"} />
- 
+              <MetaLineDash label="预计完成年份" value={expectedText} />
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-3 gap-3">
+        <button
+          onClick={() => onView(rawProperty)}
+          className="h-11 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700"
+        >
+          查看
+        </button>
+        <button
+          onClick={() => onEdit(rawProperty)}
+          className="h-11 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700"
+        >
+          编辑
+        </button>
+        <button
+          onClick={() => onDelete(rawProperty)}
+          className="h-11 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700"
+        >
+          删除
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* =========================
+   Page
+========================= */
+export default function MyProfilePage() {
+  const router = useRouter();
+  const user = useUser();
+
+  const [loading, setLoading] = useState(true);
+  const [properties, setProperties] = useState([]);
+  const [keyword, setKeyword] = useState("");
+  const [sortKey, setSortKey] = useState("latest");
+
+  const fetchMyProperties = async () => {
+    if (!user?.id) return;
+    setLoading(true);
+
+    const { data, error } = await supabase
+      .from("properties")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("fetchMyProperties error:", error);
+      toast.error(error.message || "加载失败");
+      setLoading(false);
+      return;
+    }
+
+    setProperties(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchMyProperties();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  const filtered = useMemo(() => {
+    const k = keyword.trim().toLowerCase();
+    let list = properties;
+
+    if (k) {
+      list = list.filter((p) => {
+        const t = pickAny(p, ["title"]);
+        const a = pickAny(p, ["address"]);
+        return String(t || "").toLowerCase().includes(k) || String(a || "").toLowerCase().includes(k);
+      });
+    }
+
+    const getPriceNum = (p) => {
+      const n = extractNumeric(p?.price_max ?? p?.price ?? p?.price_min);
+      return Number.isNaN(n) ? 0 : n;
+    };
+
+    if (sortKey === "latest") {
+      list = [...list].sort(
+        (a, b) => new Date(b?.updated_at || b?.created_at || 0) - new Date(a?.updated_at || a?.created_at || 0)
+      );
+    } else if (sortKey === "oldest") {
+      list = [...list].sort(
+        (a, b) => new Date(a?.updated_at || a?.created_at || 0) - new Date(b?.updated_at || b?.created_at || 0)
+      );
+    } else if (sortKey === "priceHigh") {
+      list = [...list].sort((a, b) => getPriceNum(b) - getPriceNum(a));
+    } else if (sortKey === "priceLow") {
+      list = [...list].sort((a, b) => getPriceNum(a) - getPriceNum(b));
+    }
+
+    return list;
+  }, [properties, keyword, sortKey]);
+
+  const onView = (p) => router.push(`/property/${p.id}`);
+  const onEdit = (p) => router.push(`/upload-property?edit=1&id=${p.id}`);
+
+  const onDelete = async (p) => {
+    if (!confirm("确定要删除这个房源吗？")) return;
+
+    const { error } = await supabase.from("properties").delete().eq("id", p.id);
+    if (error) {
+      console.error("delete error:", error);
+      toast.error(error.message || "删除失败");
+      return;
+    }
+
+    toast.success("已删除");
+    fetchMyProperties();
+  };
+
+  return (
+    <div className="max-w-6xl mx-auto px-4 py-6">
+      <div className="text-2xl font-bold text-gray-900">我的房源（卖家后台）</div>
+
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-3 items-center">
+        <div className="md:col-span-3">
+          <input
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            placeholder="输入标题或地点..."
+            className="w-full h-11 px-4 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200"
+          />
+        </div>
+        <div className="md:col-span-1">
+          <select
+            value={sortKey}
+            onChange={(e) => setSortKey(e.target.value)}
+            className="w-full h-11 px-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-200"
+          >
+            <option value="latest">最新优先</option>
+            <option value="oldest">最旧优先</option>
+            <option value="priceHigh">价格：高到低</option>
+            <option value="priceLow">价格：低到高</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="mt-6">
+        {loading ? (
+          <div className="text-gray-600">加载中...</div>
+        ) : filtered.length === 0 ? (
+          <div className="text-gray-600">没有符合条件的房源。</div>
+        ) : (
+          <div className="space-y-4">
+            {filtered.map((p) => (
+              <SellerPropertyCard key={p.id} rawProperty={p} onView={onView} onEdit={onEdit} onDelete={onDelete} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
