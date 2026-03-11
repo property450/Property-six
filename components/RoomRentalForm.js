@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import AreaSelector from "@/components/AreaSelector";
-import TransitSelector from "@/components/selectors/TransitSelector";
+import TransitSelector from "@/components/TransitSelector";
 
 // ----------------- 工具：数字格式化 -----------------
 const formatNumber = (num) => {
