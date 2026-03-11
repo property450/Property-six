@@ -86,9 +86,13 @@ function normalizeSingleForm(rawProperty) {
 function displayFromObject(v) {
   if (!isNonEmpty(v)) return "";
   if (typeof v === "string" || typeof v === "number") return String(v);
-  if (Array.isArray(v)) return v.map(displayFromObject).filter(Boolean).join(", ");
+
+  if (Array.isArray(v)) {
+    return v.map(displayFromObject).filter(Boolean).join(", ");
+  }
+
   if (typeof v === "object") {
-    return (
+    const direct =
       v.label ||
       v.name ||
       v.title ||
@@ -98,9 +102,21 @@ function displayFromObject(v) {
       v.line ||
       v.lineName ||
       v.code ||
-      ""
-    );
+      v.text ||
+      v.displayName ||
+      v.stopName ||
+      v.stop ||
+      "";
+
+    if (direct) return direct;
+
+    // 兜底：如果对象里面还有嵌套对象/数组，就继续往下找
+    for (const key of Object.keys(v)) {
+      const nested = displayFromObject(v[key]);
+      if (nested) return nested;
+    }
   }
+
   return "";
 }
 
