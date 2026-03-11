@@ -987,16 +987,28 @@ export default function UploadPropertyPage() {
             />
           ) : saleTypeNorm === "sale" ? (
             <SaleUploadForm
-              typeForm={typeForm}
-              setTypeForm={setTypeForm}
-              singleFormData={singleFormData}
-              setSingleFormData={setSingleFormData}
-              areaData={areaData}
-              setAreaData={setAreaData}
-              unitLayouts={unitLayouts}
-              setUnitLayouts={setUnitLayouts}
-              rentBatchMode={rentBatchMode}
-            />
+  saleType={saleType}
+  computedStatus={computedStatus}
+
+  typeForm={typeForm}
+  setTypeForm={setTypeForm}
+
+  singleFormData={singleFormData}
+  setSingleFormData={setSingleFormData}
+
+  areaData={areaData}
+  setAreaData={setAreaData}
+
+  description={description}
+  setDescription={setDescription}
+
+  propertyCategory={
+    typeForm?.propertyCategory ||
+    typeForm?.property_category ||
+    typeForm?.category ||
+    ""
+  }
+/>
           ) : null)}
       </div>
 
