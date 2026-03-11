@@ -600,6 +600,14 @@ export default function RoomRentalForm({ value, onChange, extraSection = null })
         onChange={(acceptedTenancy) => patch({ acceptedTenancy })}
       />
 
+          {/* 你的产业步行能到达公共交通吗？ */}
+      <div>
+        <TransitSelector
+          value={data.transit}
+          onChange={(transit) => patch({ transit })}
+        />
+      </div>
+
       {/* 入住日期 */}
       <div>
         <label className="block text-sm font-medium text-gray-700">几时开始可以入住？</label>
