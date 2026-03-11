@@ -19,8 +19,12 @@ import {
 } from "../resolveActiveForm";
 
 /* =========================
-   本文件专用小工具
+   helpers
 ========================= */
+function normalizeLower(s) {
+  return String(s || "").trim().toLowerCase();
+}
+
 function deepGet(obj, path) {
   if (!obj || !path) return undefined;
   const parts = path.replace(/\[(\d+)\]/g, ".$1").split(".").filter(Boolean);
@@ -32,19 +36,16 @@ function deepGet(obj, path) {
   return cur;
 }
 
-function normalizeLower(s) {
-  return String(s || "").trim().toLowerCase();
-}
+// ✅ 先读 active，再 fallback rawProperty
+function pickActiveThenRaw(rawProperty, active, candidates) {
+  const v1 = pickPreferActive(rawProperty, active, candidates);
+  if (isNonEmpty(v1)) return v1;
 
-function pickFromActiveOnly(active, candidates) {
-  const sources = [active?.shared, active?.layout0, active?.form].filter(Boolean);
-
-  for (const src of sources) {
-    for (const key of candidates) {
-      const v = key.includes(".") || key.includes("[") ? deepGet(src, key) : src?.[key];
-      if (isNonEmpty(v)) return v;
-    }
+  for (const key of candidates) {
+    const v = key.includes(".") || key.includes("[") ? deepGet(rawProperty, key) : rawProperty?.[key];
+    if (isNonEmpty(v)) return v;
   }
+
   return "";
 }
 
@@ -54,7 +55,7 @@ function looksLikeInvalidCategory(v) {
   const s = String(v).trim();
   const lower = s.toLowerCase();
 
-  // ❌ 这些明显不是 property category
+  // 这些明显不是 property category
   if (
     [
       "sale",
@@ -72,29 +73,34 @@ function looksLikeInvalidCategory(v) {
     return true;
   }
 
-  // ❌ 纯数字也不是 category（你截图里 300000 就是这种）
+  // 纯数字不是 category
   if (/^\d+(\.\d+)?$/.test(s.replace(/,/g, ""))) return true;
 
   return false;
 }
 
-function pickCategoryStrictForSubsale(active) {
+function pickCategoryForSubsale(rawProperty, active) {
   const candidates = [
+    // active / form keys
     "propertyCategory",
     "property_category",
     "category",
     "property.category",
     "listing.propertyCategory",
     "form.propertyCategory",
-    "type.propertyCategory",
+
+    // rawProperty 常见 column
+    "propertyCategory",
+    "property_category",
+    "category",
   ];
 
-  const v = pickFromActiveOnly(active, candidates);
+  const v = pickActiveThenRaw(rawProperty, active, candidates);
   if (looksLikeInvalidCategory(v)) return "";
   return String(v).trim();
 }
 
-function pickSubTypeStrictForSubsale(active) {
+function pickSubTypeForSubsale(rawProperty, active) {
   const candidates = [
     "subType",
     "sub_type",
@@ -104,15 +110,15 @@ function pickSubTypeStrictForSubsale(active) {
     "listing.subType",
   ];
 
-  const v = pickFromActiveOnly(active, candidates);
+  const v = pickActiveThenRaw(rawProperty, active, candidates);
   if (!isNonEmpty(v)) return "";
   if (/^\d+(\.\d+)?$/.test(String(v).replace(/,/g, ""))) return "";
   return String(v).trim();
 }
 
-function pickPropertyUsageStrict(active) {
+function pickPropertyUsageForSubsale(rawProperty, active) {
   return (
-    pickFromActiveOnly(active, [
+    pickActiveThenRaw(rawProperty, active, [
       "usage",
       "propertyUsage",
       "property_usage",
@@ -122,9 +128,9 @@ function pickPropertyUsageStrict(active) {
   );
 }
 
-function pickPropertyTitleStrict(active) {
+function pickPropertyTitleForSubsale(rawProperty, active) {
   return (
-    pickFromActiveOnly(active, [
+    pickActiveThenRaw(rawProperty, active, [
       "propertyTitle",
       "property_title",
       "titleType",
@@ -134,9 +140,9 @@ function pickPropertyTitleStrict(active) {
   );
 }
 
-function pickTenureStrict(active) {
+function pickTenureForSubsale(rawProperty, active) {
   return (
-    pickFromActiveOnly(active, [
+    pickActiveThenRaw(rawProperty, active, [
       "tenure",
       "tenureType",
       "tenure_type",
@@ -146,8 +152,8 @@ function pickTenureStrict(active) {
   );
 }
 
-function pickCompletedYearStrict(active) {
-  const v = pickFromActiveOnly(active, [
+function pickCompletedYearForSubsale(rawProperty, active) {
+  const v = pickActiveThenRaw(rawProperty, active, [
     "completedYear",
     "completed_year",
     "completionYear",
@@ -209,27 +215,27 @@ export function buildVM(rawProperty) {
   ]);
   const carparks = isNonEmpty(carparksRaw) ? formatCarparks(carparksRaw) : "-";
 
-  // ✅ 这些改成 strict active-only，避免读不到 / 读错
-  const usage = pickPropertyUsageStrict(active);
-  const propertyTitle = pickPropertyTitleStrict(active);
-  const tenure = pickTenureStrict(active);
+  // ✅ Subsale 改成 active + raw fallback
+  const usage = pickPropertyUsageForSubsale(rawProperty, active);
+  const propertyTitle = pickPropertyTitleForSubsale(rawProperty, active);
+  const tenure = pickTenureForSubsale(rawProperty, active);
 
   const propertyStatus =
     active?.propertyStatus ||
     pickAny(rawProperty, ["propertyStatus", "property_status", "propertystatus"]) ||
     "-";
 
-  const category = pickCategoryStrictForSubsale(active);
-  const subType = pickSubTypeStrictForSubsale(active);
+  const category = pickCategoryForSubsale(rawProperty, active);
+  const subType = pickSubTypeForSubsale(rawProperty, active);
 
-  const storeys = pickPreferActive(rawProperty, active, [
+  const storeys = pickActiveThenRaw(rawProperty, active, [
     "storeys",
     "storey",
     "floorCount",
     "property.storeys",
   ]);
 
-  const propSubtypes = pickPreferActive(rawProperty, active, [
+  const propSubtypes = pickActiveThenRaw(rawProperty, active, [
     "propertySubtypes",
     "property_subtypes",
     "propertySubtype",
@@ -247,8 +253,8 @@ export function buildVM(rawProperty) {
     isCompletedUnitStatus
   );
 
-  // ✅ Subsale 只显示完成年份，不显示预计完成年份
-  const completedYear = pickCompletedYearStrict(active);
+  // ✅ Subsale 只显示完成年份
+  const completedYear = pickCompletedYearForSubsale(rawProperty, active);
   const expectedText = "";
 
   const showStoreys = shouldShowStoreysByCategory(category);
@@ -286,5 +292,12 @@ export function buildVM(rawProperty) {
 
     isNewProject: false,
     isCompletedUnit: false,
+
+    // 给 my-profile 用
+    saleType:
+      active?.saleType ||
+      rawProperty?.saleType ||
+      rawProperty?.sale_type ||
+      "",
   };
 }
