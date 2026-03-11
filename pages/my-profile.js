@@ -185,21 +185,18 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
 
           {/* ===== Rent 整租 ===== */}
           {vm.isRentWhole && (
-            <>
-              <MetaLineDash label="Property Category" value={categoryText} />
-              {vm.showStoreys && <MetaLineDash label="Storeys" value={vm.storeys} />}
-              {vm.showSubtype && <MetaLineDash label="Property Subtype" value={vm.propSubtypes} />}
+  <>
+    <MetaLineDash label="Property Category" value={categoryText} />
+    {vm.showStoreys && <MetaLineDash label="Storeys" value={vm.storeys} />}
+    {vm.showSubtype && <MetaLineDash label="Property Subtype" value={vm.propSubtypes} />}
 
-              <MetaLineDash label="房间数量" value={vm.bedrooms} />
-              <MetaLineDash label="浴室数量" value={vm.bathrooms} />
-              <MetaLineDash label="停车位数量" value={vm.carparks} />
-              <MetaLineDash label="Build Up Area" value={vm.buildUpAreaText} />
-              <MetaLineDash label="Land Area" value={vm.landAreaText} />
-              <MetaLineDash label="PSF" value={vm.psfText} />
-              <MetaLineDash label="你的产业步行能到达公共交通吗？" value={vm.transitText} />
-            </>
-          )}
-
+    <MetaLineDash label="Build Up Area" value={vm.buildUpAreaText} />
+    <MetaLineDash label="Land Area" value={vm.landAreaText} />
+    <MetaLineDash label="PSF" value={vm.psfText} />
+    <MetaLineDash label="你的产业步行能到达公共交通吗？" value={vm.transitText} />
+    <MetaLineDash label="几时开始可以入住" value={vm.availableFromText} />
+  </>
+)}
           {/* ===== Rent 房间出租 ===== */}
           {vm.isRentRoom && (
             <>
