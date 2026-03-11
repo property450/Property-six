@@ -6,6 +6,7 @@ import { useRouter } from "next/router";
 import { supabase } from "../supabaseClient";
 import { useUser } from "@supabase/auth-helpers-react";
 import { toast } from "react-hot-toast";
+import TransitSelector from "@/components/selectors/TransitSelector";
 
 // ✅ 只引入：总入口 VM（你已经创建了）
 import { getCardVM } from "../utils/property/getCardVM";
