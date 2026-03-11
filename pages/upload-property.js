@@ -226,40 +226,106 @@ function stripSingleFormDataByMode({ saleTypeNorm }, singleFormData) {
 function stripSingleFormDataByActiveForm(activeFormKey, singleFormData) {
   const s = { ...(singleFormData || {}) };
 
-  // 这里是你(31)里原本的 allowlist/清理逻辑（保持它原来的结构）
   const base = new Set([
     "trustSection",
     "title",
     "price",
     "priceMin",
     "priceMax",
+
     "bedrooms",
+    "bedroom",
+    "bedroom_count",
+
     "bathrooms",
+    "bathroom",
+    "bathroom_count",
+
     "carparks",
+    "carpark",
+    "carparkCount",
+    "carpark_count",
+
     "storeys",
+    "storey",
+    "floorCount",
+
+    // ✅ category / subtype
     "category",
+    "propertyCategory",
+    "property_category",
+
     "subType",
+    "sub_type",
+    "propertySubType",
+    "property_sub_type",
+
     "subtype",
+    "propertySubtype",
+    "propertySubtypes",
+    "property_subtypes",
+    "subtypes",
+
+    // ✅ title / usage / tenure
     "propertyTitle",
+    "property_title",
+    "titleType",
+
     "usage",
+    "propertyUsage",
+    "property_usage",
+
     "tenure",
+    "tenureType",
+    "tenure_type",
+
+    // ✅ affordable
     "affordable",
     "affordableType",
+    "affordableHousing",
+    "affordable_housing",
+    "affordableHousingType",
+    "affordable_housing_type",
+
+    // ✅ completion year（关键修复）
     "completionYear",
+    "completion_year",
+    "completedYear",
+    "completed_year",
+    "buildYear",
+    "build_year",
+    "builtYear",
+    "built_year",
+    "yearCompleted",
+    "year_completed",
+
     "completionQuarter",
+    "completion_quarter",
+    "completedQuarter",
+    "completed_quarter",
+
+    // ✅ transit
     "nearTransit",
     "transit",
+    "selectedLines",
+    "selectedStations",
+
+    // ✅ images / desc
     "images",
     "layoutImages",
     "outsideImages",
     "description",
     "notes",
+
+    // ✅ psf / area
     "psf",
     "psfValue",
     "area",
     "buildUp",
     "landArea",
     "areaData",
+
+    // ✅ rent / room / batch
     "roomRental",
     "roomRentalMode",
     "roomCountMode",
@@ -271,12 +337,22 @@ function stripSingleFormDataByActiveForm(activeFormKey, singleFormData) {
   const keepSaleExtra = new Set([
     "saleType",
     "propertyStatus",
-    "auctionDate",
-    "propertyUsage",
     "propertyStatusLabel",
+    "propertyUsage",
+    "auctionDate",
   ]);
-  const keepRentWholeExtra = new Set(["rentPrice", "rentDeposit", "rentTerm"]);
-  const keepRentRoomExtra = new Set(["roomPrice", "roomDeposit", "roomTerm"]);
+
+  const keepRentWholeExtra = new Set([
+    "rentPrice",
+    "rentDeposit",
+    "rentTerm",
+  ]);
+
+  const keepRentRoomExtra = new Set([
+    "roomPrice",
+    "roomDeposit",
+    "roomTerm",
+  ]);
 
   const keepHomestayExtra = new Set([
     "availability",
@@ -338,17 +414,17 @@ function stripSingleFormDataByActiveForm(activeFormKey, singleFormData) {
     allow = new Set([...allow, ...keepHomestayExtra]);
   }
 
-  if (activeFormKey === "hotel") {
+  if (activeFormKey === "hotel_resort" || activeFormKey === "hotel" || activeFormKey === "hotel/resort") {
     allow = new Set([...allow, ...keepHotelExtra]);
   }
 
-  for (const k of Object.keys(s)) {
+  Object.keys(s).forEach((k) => {
     if (!allow.has(k)) delete s[k];
-  }
+  });
 
   return s;
 }
-
+    
 /** ✅✅✅ 新增：按 activeFormKey 彻底清理 typeForm（特别是 finalType 污染） */
 function stripTypeFormByActiveForm(activeFormKey, typeForm) {
   const tf = { ...(typeForm || {}) };
