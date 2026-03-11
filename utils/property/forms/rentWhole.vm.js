@@ -52,6 +52,48 @@ function pickAny(...args) {
   return "";
 }
 
+function normalizeArray(v) {
+  if (!isNonEmpty(v)) return [];
+  if (Array.isArray(v)) return v;
+  return [v];
+}
+
+function displayFromObject(v) {
+  if (!isNonEmpty(v)) return "";
+  if (typeof v === "string" || typeof v === "number") return String(v);
+  if (Array.isArray(v)) {
+    return v.map(displayFromObject).filter(Boolean).join(", ");
+  }
+  if (typeof v === "object") {
+    return (
+      v.label ||
+      v.name ||
+      v.title ||
+      v.value ||
+      v.station ||
+      v.stationName ||
+      v.line ||
+      v.lineName ||
+      v.code ||
+      ""
+    );
+  }
+  return "";
+}
+
+function formatList(v) {
+  if (!isNonEmpty(v)) return "-";
+  if (Array.isArray(v)) {
+    const arr = v.map(displayFromObject).filter(Boolean);
+    return arr.length ? arr.join(", ") : "-";
+  }
+  if (typeof v === "object") {
+    const s = displayFromObject(v);
+    return s || "-";
+  }
+  return String(v);
+}
+
 function formatMoney(v) {
   if (!isNonEmpty(v)) return "-";
   const n = Number(String(v).replace(/,/g, "").replace(/[^\d.]/g, ""));
@@ -59,16 +101,16 @@ function formatMoney(v) {
   return `RM ${n.toLocaleString()}`;
 }
 
-function formatCarparks(v) {
-  if (!isNonEmpty(v)) return "-";
-  if (Array.isArray(v)) return v.length ? v.join(", ") : "-";
-  return String(v);
+function parseNumber(v) {
+  if (!isNonEmpty(v)) return 0;
+  const n = Number(String(v).replace(/,/g, "").replace(/[^\d.]/g, ""));
+  return Number.isFinite(n) ? n : 0;
 }
 
-function formatMaybeList(v) {
+function formatAreaText(v, unit) {
   if (!isNonEmpty(v)) return "-";
-  if (Array.isArray(v)) return v.length ? v.join(", ") : "-";
-  return String(v);
+  const val = String(v);
+  return unit ? `${val} ${unit}` : val;
 }
 
 function normalizeTypeForm(rawProperty) {
@@ -97,27 +139,89 @@ function normalizeLayouts(rawProperty) {
   return Array.isArray(v) ? v : [];
 }
 
-function getPriceText(rawProperty, single, layout0) {
-  const min = pickAny(
-    { obj: single, keys: ["priceMin", "rentMin", "minRent"] },
-    { obj: rawProperty, keys: ["price_min", "rent_min"] }
-  );
-  const max = pickAny(
-    { obj: single, keys: ["priceMax", "rentMax", "maxRent"] },
-    { obj: rawProperty, keys: ["price_max", "rent_max"] }
-  );
+function normalizeArea(rawProperty, single, layout0) {
+  const area =
+    safeParseMaybeJson(single?.areaData) ||
+    safeParseMaybeJson(single?.area) ||
+    safeParseMaybeJson(layout0?.areaData) ||
+    safeParseMaybeJson(layout0?.area) ||
+    safeParseMaybeJson(rawProperty?.areaData) ||
+    safeParseMaybeJson(rawProperty?.area_data) ||
+    {};
 
-  if (isNonEmpty(min) && isNonEmpty(max)) {
-    return `${formatMoney(min)} - ${formatMoney(max)}`;
+  const values = area?.values || {};
+  const units = area?.units || {};
+
+  const buildUp =
+    values.buildUp ??
+    values.builtUp ??
+    values.build_up ??
+    values.built_up ??
+    area.buildUp ??
+    area.builtUp ??
+    "";
+
+  const land =
+    values.land ??
+    values.landArea ??
+    values.land_area ??
+    area.land ??
+    area.landArea ??
+    "";
+
+  const buildUpUnit =
+    units.buildUp ||
+    units.builtUp ||
+    units.build_up ||
+    units.built_up ||
+    "";
+
+  const landUnit =
+    units.land ||
+    units.landArea ||
+    units.land_area ||
+    "";
+
+  const buildUpNum = parseNumber(buildUp);
+  const landNum = parseNumber(land);
+
+  return {
+    buildUpText: formatAreaText(buildUp, buildUpUnit),
+    landText: formatAreaText(land, landUnit),
+    buildUpNum,
+    landNum,
+  };
+}
+
+function getPSFText(rawProperty, single, layout0, buildUpNum, landNum) {
+  const direct =
+    pickAny(
+      { obj: single, keys: ["psf", "psfValue"] },
+      { obj: layout0, keys: ["psf", "psfValue"] },
+      { obj: rawProperty, keys: ["psf", "psfValue"] }
+    ) || "";
+
+  if (isNonEmpty(direct)) {
+    const n = parseNumber(direct);
+    if (n > 0) return `RM ${n.toFixed(2)} / sq ft`;
+    return String(direct);
   }
 
-  const one = pickAny(
-    { obj: rawProperty, keys: ["rentPrice", "price", "salePrice"] },
-    { obj: single, keys: ["rentPrice", "rent", "price"] },
-    { obj: layout0, keys: ["rentPrice", "rent", "price"] }
-  );
+  const rentPrice =
+    pickAny(
+      { obj: single, keys: ["rent", "rentPrice", "price"] },
+      { obj: layout0, keys: ["rent", "rentPrice", "price"] },
+      { obj: rawProperty, keys: ["rentPrice", "price"] }
+    ) || "";
 
-  return formatMoney(one);
+  const rentNum = parseNumber(rentPrice);
+  const area = buildUpNum > 0 ? buildUpNum : landNum;
+
+  if (rentNum > 0 && area > 0) {
+    return `RM ${(rentNum / area).toFixed(2)} / sq ft`;
+  }
+
+  return "-";
 }
 
 function getTransitText(rawProperty, single, layout0) {
@@ -143,39 +247,40 @@ function getTransitText(rawProperty, single, layout0) {
       transit?.walkable ??
       transit?.enabled ??
       transit?.isNearTransit ??
-      transit?.nearTransit;
+      transit?.nearTransit ??
+      nearTransit;
 
-    const lines =
+    const rawLines =
       transit?.selectedLines ||
       transit?.lines ||
       transit?.line ||
       [];
 
-    const stations =
+    const rawStations =
       transit?.selectedStations ||
       transit?.stations ||
       transit?.station ||
       [];
 
-    const lineText = Array.isArray(lines) ? lines.join(", ") : isNonEmpty(lines) ? String(lines) : "";
-    const stationText = Array.isArray(stations)
-      ? stations.join(", ")
-      : isNonEmpty(stations)
-        ? String(stations)
-        : "";
+    const lineText = formatList(normalizeArray(rawLines));
+    const stationText = formatList(normalizeArray(rawStations));
 
-    if (isNonEmpty(lineText) || isNonEmpty(stationText)) {
+    if (lineText !== "-" || stationText !== "-") {
       return [
         yes === false || yes === "否" ? "否" : "是",
-        isNonEmpty(lineText) ? `线路: ${lineText}` : "",
-        isNonEmpty(stationText) ? `站点: ${stationText}` : "",
+        lineText !== "-" ? `线路: ${lineText}` : "",
+        stationText !== "-" ? `站点: ${stationText}` : "",
       ]
         .filter(Boolean)
         .join(" | ");
     }
+
+    if (yes === false || yes === "否") return "否";
+    if (yes === true || yes === "是") return "是";
   }
 
   if (nearTransit === false || String(nearTransit).toLowerCase() === "no") return "否";
+  if (nearTransit === true || nearTransit === "是") return "是";
   return "-";
 }
 
@@ -203,67 +308,38 @@ export function buildVM(rawProperty) {
   const layouts = normalizeLayouts(rawProperty);
   const layout0 = layouts[0] || {};
 
-  const title = pickAny(
-    { obj: rawProperty, keys: ["title"] }
-  ) || "（未命名房源）";
+  const title = pickAny({ obj: rawProperty, keys: ["title"] }) || "（未命名房源）";
+  const address = pickAny({ obj: rawProperty, keys: ["address"] }) || "-";
 
-  const address = pickAny(
-    { obj: rawProperty, keys: ["address"] }
-  ) || "-";
-
-  const priceText = getPriceText(rawProperty, single, layout0);
+  const priceText = formatMoney(
+    pickAny(
+      { obj: single, keys: ["rent", "rentPrice", "price"] },
+      { obj: layout0, keys: ["rent", "rentPrice", "price"] },
+      { obj: rawProperty, keys: ["rentPrice", "price"] }
+    )
+  );
 
   const bedrooms = pickAny(
-    { obj: single, keys: ["bedrooms", "bedroom", "bedroom_count", "room_count"] },
-    { obj: layout0, keys: ["bedrooms", "bedroom", "bedroom_count", "room_count"] },
+    { obj: single, keys: ["bedrooms", "bedroom_count", "room_count"] },
+    { obj: layout0, keys: ["bedrooms", "bedroom_count", "room_count"] },
     { obj: rawProperty, keys: ["bedrooms", "bedroom_count", "room_count"] }
   ) || "-";
 
   const bathrooms = pickAny(
-    { obj: single, keys: ["bathrooms", "bathroom", "bathroom_count"] },
-    { obj: layout0, keys: ["bathrooms", "bathroom", "bathroom_count"] },
+    { obj: single, keys: ["bathrooms", "bathroom_count"] },
+    { obj: layout0, keys: ["bathrooms", "bathroom_count"] },
     { obj: rawProperty, keys: ["bathrooms", "bathroom_count"] }
   ) || "-";
 
-  const carparksRaw = pickAny(
+  const carparks = pickAny(
     { obj: single, keys: ["carparks", "carpark", "carparkCount", "carpark_count"] },
     { obj: layout0, keys: ["carparks", "carpark", "carparkCount", "carpark_count"] },
-    { obj: rawProperty, keys: ["carparks", "carparkCount", "carpark_count"] }
-  );
-  const carparks = formatCarparks(carparksRaw);
-
-  const usage = pickAny(
-    { obj: typeForm, keys: ["propertyUsage", "property_usage", "usage"] },
-    { obj: single, keys: ["propertyUsage", "property_usage", "usage"] }
-  ) || "-";
-
-  const propertyTitle = pickAny(
-    { obj: typeForm, keys: ["propertyTitle", "property_title", "titleType"] },
-    { obj: single, keys: ["propertyTitle", "property_title", "titleType"] }
-  ) || "-";
-
-  const propertyStatus = pickAny(
-    { obj: rawProperty, keys: ["propertyStatus", "property_status", "propertystatus"] }
-  ) || "整租";
-
-  const affordableText = pickAny(
-    { obj: typeForm, keys: ["affordableHousing", "affordable_housing", "affordableHousingType", "affordableType"] },
-    { obj: single, keys: ["affordableHousing", "affordable_housing", "affordableHousingType", "affordableType"] }
-  ) || "-";
-
-  const tenure = pickAny(
-    { obj: typeForm, keys: ["tenureType", "tenure_type", "tenure"] },
-    { obj: single, keys: ["tenureType", "tenure_type", "tenure"] }
+    { obj: rawProperty, keys: ["carparks", "carpark", "carparkCount", "carpark_count"] }
   ) || "-";
 
   const category = pickAny(
     { obj: typeForm, keys: ["propertyCategory", "property_category", "category"] },
     { obj: single, keys: ["propertyCategory", "property_category", "category"] }
-  ) || "-";
-
-  const subType = pickAny(
-    { obj: typeForm, keys: ["subType", "sub_type", "propertySubType", "property_sub_type"] },
-    { obj: single, keys: ["subType", "sub_type", "propertySubType", "property_sub_type"] }
   ) || "-";
 
   const storeys = pickAny(
@@ -276,17 +352,14 @@ export function buildVM(rawProperty) {
     { obj: single, keys: ["propertySubtype", "propertySubtypes", "property_subtypes", "subtype", "subtypes"] }
   );
 
-  const completedYear = pickAny(
-    { obj: typeForm, keys: ["completedYear", "completionYear", "completed_year", "completion_year", "buildYear", "build_year"] },
-    { obj: single, keys: ["completedYear", "completionYear", "completed_year", "completion_year", "buildYear", "build_year"] }
-  ) || "-";
-
+  const { buildUpText, landText, buildUpNum, landNum } = normalizeArea(rawProperty, single, layout0);
+  const psfText = getPSFText(rawProperty, single, layout0, buildUpNum, landNum);
   const transitText = getTransitText(rawProperty, single, layout0);
 
   return {
     active: {
       saleType: rawProperty?.saleType || rawProperty?.sale_type || "Rent",
-      propertyStatus,
+      propertyStatus: "整租",
       form: typeForm,
       shared: single,
       layout0,
@@ -300,19 +373,19 @@ export function buildVM(rawProperty) {
     bathrooms,
     carparks,
 
-    usage,
-    propertyTitle,
-    propertyStatus,
-    affordableText,
-    tenure,
+    usage: "-",
+    propertyTitle: "-",
+    propertyStatus: "整租",
+    affordableText: "-",
+    tenure: "-",
 
     category,
-    subType,
+    subType: "-",
     storeys,
-    propSubtypes: formatMaybeList(propSubtypes),
+    propSubtypes: formatList(propSubtypes),
 
     transitText,
-    completedYear,
+    completedYear: "-",
     expectedText: "-",
 
     showStoreys: shouldShowStoreysByCategory(category) && isNonEmpty(storeys),
@@ -320,8 +393,14 @@ export function buildVM(rawProperty) {
 
     isNewProject: false,
     isCompletedUnit: false,
-
     saleType: rawProperty?.saleType || rawProperty?.sale_type || "Rent",
     auctionDateText: "",
+
+    isRentWhole: true,
+    isRentRoom: false,
+
+    buildUpAreaText: buildUpText,
+    landAreaText: landText,
+    psfText,
   };
-                }
+}
