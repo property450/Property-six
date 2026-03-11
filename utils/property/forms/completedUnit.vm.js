@@ -22,73 +22,84 @@ function deepGet(obj, path) {
   return cur;
 }
 
-// ✅ Completed Unit：只从 active.form（当前表单）里找完成年份
-function pickCompletedYearFromCompletedUnitForm(active) {
-  const f = active?.form || {};
+/**
+ * ✅ Completed Unit 完成年份：
+ * 只读当前 active 的 shared / layout0 / form
+ * 不读 rawProperty，避免旧数据污染
+ */
+function pickCompletedYearStrict(active) {
+  const sources = [
+    active?.shared || null,
+    active?.layout0 || null,
+    active?.form || null,
+  ].filter(Boolean);
 
-  // 你项目里常见的存法很多，我这里都覆盖（只读当前表单）
   const candidatePaths = [
-    // 最常见
+    // 常见直接字段
     "completedYear",
     "completed_year",
+    "completionYear",
+    "completion_year",
     "buildYear",
     "build_year",
     "builtYear",
     "built_year",
-    "completionYear",
-    "completion_year",
-    "year",
+    "yearCompleted",
+    "year_completed",
 
-    // 有些会包在 data / meta 里
+    // 可能包在对象里
     "data.completedYear",
     "data.completed_year",
+    "data.completionYear",
+    "data.completion_year",
     "data.buildYear",
     "data.build_year",
     "data.built_year",
-    "data.completionYear",
-    "data.year",
 
     "meta.completedYear",
     "meta.completed_year",
+    "meta.completionYear",
+    "meta.completion_year",
     "meta.buildYear",
     "meta.build_year",
-    "meta.year",
 
-    // 有些会包在 “completed” 或 “completion” 对象
-    "completed.year",
-    "completedYear.year",
     "completion.year",
-    "completionYear.year",
+    "completed.year",
+    "build.year",
+
+    // 有些 layout 里会包 unit data
+    "unit.completedYear",
+    "unit.completed_year",
+    "unit.completionYear",
+    "unit.buildYear",
   ];
 
-  for (const p of candidatePaths) {
-    const v = deepGet(f, p);
-    if (isNonEmpty(v)) return String(v);
+  for (const src of sources) {
+    for (const path of candidatePaths) {
+      const v = deepGet(src, path);
+      if (isNonEmpty(v)) return String(v);
+    }
   }
 
-  // ✅ 没填就返回空，让页面显示 "-"
   return "";
 }
 
 export function buildVM(rawProperty) {
-  // 先复用你已跑通的通用 VM（不动其它字段/逻辑/样式）
+  // 先复用已跑通的通用 VM（不动其它字段）
   const vm = buildBaseVM(rawProperty);
 
-  // 再用 Completed Unit 的严格规则覆盖关键字段
+  // 再用 Completed Unit 专属规则覆盖关键字段
   const active = resolveActiveForm(rawProperty);
 
-  // ✅ 强制：Completed Unit 卡片标记
+  vm.active = active;
   vm.isNewProject = false;
   vm.isCompletedUnit = true;
 
-  // ✅ Completed Unit：不显示预计完成年份
+  // ✅ Completed Unit 不显示预计完成年份
   vm.expectedText = "";
 
-  // ✅ 关键：只读 Completed Unit 当前表单
-  const strictYear = pickCompletedYearFromCompletedUnitForm(active);
-
-  // ✅ 有值就用；没值才显示 "-"
-  vm.completedYear = isNonEmpty(strictYear) ? strictYear : "";
+  // ✅ 关键：只读当前 active 的 shared/layout0/form
+  vm.completedYear = pickCompletedYearStrict(active);
 
   return vm;
 }
