@@ -324,8 +324,22 @@ export default function RentUploadForm({
             onChange={(val) => setSingleFormData((p) => ({ ...p, facilities: val }))}
           />
 
-          <TransitSelector value={singleFormData.transit} onChange={(val) => setSingleFormData((p) => ({ ...p, transit: val }))} />
+          <TransitSelector
+  value={singleFormData.transit}
+  onChange={(val) => setSingleFormData((p) => ({ ...p, transit: val }))}
+/>
 
+<div>
+  <label className="block text-sm font-medium text-gray-700">几时开始可以入住？</label>
+  <input
+    type="date"
+    className="border rounded w-full p-2"
+    value={singleFormData.availableFrom || ""}
+    onChange={(e) =>
+      setSingleFormData((p) => ({ ...p, availableFrom: e.target.value }))
+    }
+  />
+</div>
           <LayoutBlueprintUploader
             value={singleFormData.layoutPhotos}
             onChange={(next) => setSingleFormData((p) => ({ ...p, layoutPhotos: next }))}
