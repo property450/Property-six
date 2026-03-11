@@ -343,17 +343,56 @@ function stripSingleFormDataByActiveForm(activeFormKey, singleFormData) {
   ]);
 
   const keepRentWholeExtra = new Set([
-    "rentPrice",
-    "rentDeposit",
-    "rentTerm",
-  ]);
+  "rent",
+  "rentPrice",
+  "rentDeposit",
+  "rentTerm",
+  "transit",
+  "nearTransit",
+  "selectedLines",
+  "selectedStations",
+  "area",
+  "areaData",
+  "buildUp",
+  "landArea",
+  "psf",
+  "psfValue",
+]);
 
-  const keepRentRoomExtra = new Set([
-    "roomPrice",
-    "roomDeposit",
-    "roomTerm",
-  ]);
+const keepRentRoomExtra = new Set([
+  "rent",
+  "roomPrice",
+  "roomDeposit",
+  "roomTerm",
 
+  "roomType",
+  "bathroomType",
+  "bedTypes",
+  "roomPrivacy",
+  "genderPolicy",
+  "petAllowed",
+  "cookingAllowed",
+  "rentIncludes",
+  "cleaningService",
+  "carparkCount",
+  "carparkRentPrice",
+  "preferredRaces",
+  "acceptedTenancy",
+  "availableFrom",
+
+  "transit",
+  "nearTransit",
+  "selectedLines",
+  "selectedStations",
+
+  "area",
+  "areaData",
+  "buildUp",
+  "landArea",
+  "psf",
+  "psfValue",
+]);
+  
   const keepHomestayExtra = new Set([
     "availability",
     "availability_data",
