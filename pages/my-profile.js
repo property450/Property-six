@@ -211,15 +211,10 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
               你之后如果要“只有 New Project 才显示预计完成年份”，那一步再统一交给 VM 字段控制即可
           */}
           {vm.isNewProject ? (
-            <MetaLineDash label="预计完成年份" value={vm.expectedText} />
-          ) : vm.isCompletedUnit ? (
-            <MetaLineDash label="完成年份" value={isNonEmpty(vm.completedYear) ? vm.completedYear : "-"} />
-          ) : (
-            <>
-              <MetaLineDash label="完成年份" value={isNonEmpty(vm.completedYear) ? vm.completedYear : "-"} />
-              <MetaLineDash label="预计完成年份" value={vm.expectedText} />
-            </>
-          )}
+  <MetaLineDash label="预计完成年份" value={vm.expectedText} />
+) : (
+  <MetaLineDash label="完成年份" value={isNonEmpty(vm.completedYear) ? vm.completedYear : "-"} />
+)}
 
           {/* 以后 Auction Date 等字段你在 vm 里返回，这里自动显示 */}
           {isNonEmpty(vm.auctionDateText) && <MetaLineDash label="Auction Date" value={vm.auctionDateText} />}
