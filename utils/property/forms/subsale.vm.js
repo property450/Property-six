@@ -32,7 +32,7 @@ function deepGet(obj, path) {
   return cur;
 }
 
-// ✅ active 优先，读不到再 fallback rawProperty
+// ✅ 先读 active，再 fallback rawProperty
 function pickActiveThenRaw(rawProperty, active, candidates) {
   const v1 = pickPreferActive(rawProperty, active, candidates);
   if (isNonEmpty(v1)) return v1;
@@ -42,6 +42,7 @@ function pickActiveThenRaw(rawProperty, active, candidates) {
       key.includes(".") || key.includes("[")
         ? deepGet(rawProperty, key)
         : rawProperty?.[key];
+
     if (isNonEmpty(v)) return v;
   }
 
@@ -77,140 +78,6 @@ function looksLikeInvalidCategory(v) {
 }
 
 /* =========================
-   subsale 专属字段读取
-========================= */
-function pickUsage(rawProperty, active) {
-  return (
-    pickActiveThenRaw(rawProperty, active, [
-      "usage",
-      "propertyUsage",
-      "property_usage",
-      "property.usage",
-      "listing.usage",
-
-      // raw columns 常见
-      "usage",
-      "property_usage",
-      "propertyUsage",
-    ]) || ""
-  );
-}
-
-function pickPropertyTitle(rawProperty, active) {
-  return (
-    pickActiveThenRaw(rawProperty, active, [
-      "propertyTitle",
-      "property_title",
-      "titleType",
-      "property.title",
-      "listing.propertyTitle",
-
-      // raw columns 常见
-      "propertyTitle",
-      "property_title",
-      "title_type",
-    ]) || ""
-  );
-}
-
-function pickTenure(rawProperty, active) {
-  return (
-    pickActiveThenRaw(rawProperty, active, [
-      "tenure",
-      "tenureType",
-      "tenure_type",
-      "property.tenure",
-      "listing.tenure",
-
-      // raw columns 常见
-      "tenure",
-      "tenure_type",
-      "tenureType",
-    ]) || ""
-  );
-}
-
-function pickCategory(rawProperty, active) {
-  const v = pickActiveThenRaw(rawProperty, active, [
-    "propertyCategory",
-    "property_category",
-    "category",
-    "property.category",
-    "listing.propertyCategory",
-    "form.propertyCategory",
-
-    // raw columns 常见
-    "propertyCategory",
-    "property_category",
-    "category",
-  ]);
-
-  if (looksLikeInvalidCategory(v)) return "";
-  return String(v).trim();
-}
-
-function pickSubType(rawProperty, active) {
-  const v = pickActiveThenRaw(rawProperty, active, [
-    "subType",
-    "sub_type",
-    "propertySubType",
-    "property_sub_type",
-    "property.subType",
-    "listing.subType",
-
-    // raw columns 常见
-    "subType",
-    "sub_type",
-    "property_sub_type",
-  ]);
-
-  if (!isNonEmpty(v)) return "";
-  if (/^\d+(\.\d+)?$/.test(String(v).replace(/,/g, ""))) return "";
-  return String(v).trim();
-}
-
-function pickCompletedYear(rawProperty, active) {
-  const v = pickActiveThenRaw(rawProperty, active, [
-    "completedYear",
-    "completed_year",
-    "completionYear",
-    "completion_year",
-    "buildYear",
-    "build_year",
-    "builtYear",
-    "built_year",
-    "yearCompleted",
-    "year_completed",
-
-    "data.completedYear",
-    "data.completed_year",
-    "data.completionYear",
-    "data.completion_year",
-    "data.buildYear",
-    "data.build_year",
-
-    "meta.completedYear",
-    "meta.completed_year",
-    "meta.completionYear",
-    "meta.completion_year",
-    "meta.buildYear",
-    "meta.build_year",
-
-    // raw columns 常见
-    "completedYear",
-    "completed_year",
-    "completionYear",
-    "completion_year",
-    "buildYear",
-    "build_year",
-    "built_year",
-  ]);
-
-  if (!isNonEmpty(v)) return "";
-  return String(v).trim();
-}
-
-/* =========================
    Subsale VM
 ========================= */
 export function buildVM(rawProperty) {
@@ -243,17 +110,57 @@ export function buildVM(rawProperty) {
   ]);
   const carparks = isNonEmpty(carparksRaw) ? formatCarparks(carparksRaw) : "-";
 
-  const usage = pickUsage(rawProperty, active);
-  const propertyTitle = pickPropertyTitle(rawProperty, active);
-  const tenure = pickTenure(rawProperty, active);
+  const usage = pickActiveThenRaw(rawProperty, active, [
+    "usage",
+    "propertyUsage",
+    "property_usage",
+    "property.usage",
+    "listing.usage",
+  ]);
+
+  const propertyTitle = pickActiveThenRaw(rawProperty, active, [
+    "propertyTitle",
+    "property_title",
+    "titleType",
+    "property.title",
+    "listing.propertyTitle",
+  ]);
+
+  const tenure = pickActiveThenRaw(rawProperty, active, [
+    "tenure",
+    "tenureType",
+    "tenure_type",
+    "property.tenure",
+    "listing.tenure",
+  ]);
 
   const propertyStatus =
     active?.propertyStatus ||
     pickAny(rawProperty, ["propertyStatus", "property_status", "propertystatus"]) ||
     "-";
 
-  const category = pickCategory(rawProperty, active);
-  const subType = pickSubType(rawProperty, active);
+  const rawCategory = pickActiveThenRaw(rawProperty, active, [
+    "propertyCategory",
+    "property_category",
+    "category",
+    "property.category",
+    "listing.propertyCategory",
+    "form.propertyCategory",
+  ]);
+
+  const category = looksLikeInvalidCategory(rawCategory)
+    ? ""
+    : String(rawCategory).trim();
+
+  // ✅ 关键修复 1：Sub Type
+  const subType = pickActiveThenRaw(rawProperty, active, [
+    "subType",
+    "sub_type",
+    "propertySubType",
+    "property_sub_type",
+    "propertySubtype",
+    "subtype",
+  ]);
 
   const storeys = pickActiveThenRaw(rawProperty, active, [
     "storeys",
@@ -281,8 +188,21 @@ export function buildVM(rawProperty) {
     isCompletedUnitStatus
   );
 
-  // ✅ Subsale：只显示完成年份
-  const completedYear = pickCompletedYear(rawProperty, active);
+  // ✅ 关键修复 2：完成年份
+  const completedYear = pickActiveThenRaw(rawProperty, active, [
+    "completedYear",
+    "completed_year",
+    "completionYear",
+    "completion_year",
+    "buildYear",
+    "build_year",
+    "builtYear",
+    "built_year",
+    "yearCompleted",
+    "year_completed",
+  ]);
+
+  // ✅ Subsale 不显示预计完成年份
   const expectedText = "";
 
   const showStoreys = shouldShowStoreysByCategory(category);
