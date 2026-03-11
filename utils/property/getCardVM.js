@@ -81,21 +81,21 @@ export function getCardVM(rawProperty) {
   }
 
   // ========= RENT =========
-
   if (active?.mode === "rent") {
+  const roomMode =
+    rawProperty?.roomRentalMode ||
+    rawProperty?.room_rental_mode ||
+    rawProperty?.typeForm?.roomRentalMode ||
+    rawProperty?.type_form_v2?.roomRentalMode ||
+    "";
 
-    const roomMode =
-      rawProperty?.roomRentalMode ||
-      rawProperty?.room_rental_mode ||
-      "";
-
-    if (String(roomMode).toLowerCase() === "room") {
-      return buildRentRoomVM(rawProperty, active, helpers);
-    }
-
-    return buildRentWholeVM(rawProperty, active, helpers);
+  if (String(roomMode).toLowerCase() === "room") {
+    return buildRentRoomVM(rawProperty, active, helpers);
   }
 
+  return buildRentWholeVM(rawProperty, active, helpers);
+  }
+  
   // ========= HOMESTAY =========
 
   if (active?.mode === "homestay") {
