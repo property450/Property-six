@@ -347,6 +347,7 @@ function stripSingleFormDataByActiveForm(activeFormKey, singleFormData) {
   "rentPrice",
   "rentDeposit",
   "rentTerm",
+  "availableFrom",
   "transit",
   "nearTransit",
   "selectedLines",
