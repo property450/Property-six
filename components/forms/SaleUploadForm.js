@@ -217,12 +217,29 @@ export default function SaleUploadForm({
           "Rent-to-Own Scheme",
         ].includes(computedStatus) && (
           <BuildYearSelector
-            value={singleFormData.completedYear}
-            onChange={(val) =>
-              setSingleFormData((p) => ({ ...p, completedYear: val }))
-            }
-            label="完成年份"
-          />
+  value={
+    singleFormData.completedYear ??
+    singleFormData.completionYear ??
+    singleFormData.buildYear ??
+    ""
+  }
+  onChange={(val) =>
+    setSingleFormData((p) => ({
+      ...p,
+      completedYear: val,
+      completionYear: val,
+      buildYear: val,
+      builtYear: val,
+      completed_year: val,
+      completion_year: val,
+      build_year: val,
+      built_year: val,
+      yearCompleted: val,
+      year_completed: val,
+    }))
+  }
+  label="完成年份"
+/>
         )}
 
       <div className="space-y-2">
