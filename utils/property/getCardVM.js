@@ -27,14 +27,10 @@ import { buildVM as buildRentToOwnVM } from "./forms/rentToOwn.vm";
 import { buildVM as buildHomestayVM } from "./forms/homestay.vm";
 import { buildVM as buildHotelResortVM } from "./forms/hotelResort.vm";
 
-/**
- * ✅ 输出给 my-profile 使用的“卡片 view model”
- * 注意：逻辑完全照你当前 my-profile.js 的 SellerPropertyCard 搬
- */
 export function getCardVM(rawProperty) {
+
   const active = resolveActiveForm(rawProperty);
 
-  // === 这些 helpers 传给每个 vm 文件，保持所有逻辑一致 ===
   const helpers = {
     isNewProjectStatus,
     isCompletedUnitStatus,
@@ -52,25 +48,70 @@ export function getCardVM(rawProperty) {
     findBestCompletedYear,
   };
 
-  // ✅ 这里先根据 project 的 status 分发（保持你当前逻辑）
-  if (active?.mode === "project") {
-    if (isNewProjectStatus(active.propertyStatus)) return buildNewProjectVM(rawProperty, active, helpers);
-    if (isCompletedUnitStatus(active.propertyStatus)) return buildCompletedUnitVM(rawProperty, active, helpers);
+  // ========= PROJECT =========
 
-    // 理论上不会到这里，但为了稳：走 newProject vm
+  if (active?.mode === "project") {
+
+    if (isNewProjectStatus(active.propertyStatus)) {
+      return buildNewProjectVM(rawProperty, active, helpers);
+    }
+
+    if (isCompletedUnitStatus(active.propertyStatus)) {
+      return buildCompletedUnitVM(rawProperty, active, helpers);
+    }
+
     return buildNewProjectVM(rawProperty, active, helpers);
   }
 
-  // ✅ 其他模式：现在你原本 my-profile.js 没有分更细（auction/rent room 等）
-  // 但你希望“文件分好”，所以我这里先按 mode 分发：
+  // ========= SALE =========
+
+  if (active?.mode === "sale") {
+
+    const s = String(active?.propertyStatus || "").toLowerCase();
+
+    if (s.includes("auction")) {
+      return buildAuctionVM(rawProperty, active, helpers);
+    }
+
+    if (s.includes("rent-to-own")) {
+      return buildRentToOwnVM(rawProperty, active, helpers);
+    }
+
+    return buildSubsaleVM(rawProperty, active, helpers);
+  }
+
+  // ========= RENT =========
+
   if (active?.mode === "rent") {
-    // 暂时：先走 rentWhole（逻辑不变，不会影响你现在显示）
+
+    const roomMode =
+      rawProperty?.roomRentalMode ||
+      rawProperty?.room_rental_mode ||
+      "";
+
+    if (String(roomMode).toLowerCase() === "room") {
+      return buildRentRoomVM(rawProperty, active, helpers);
+    }
+
     return buildRentWholeVM(rawProperty, active, helpers);
   }
 
-  if (active?.mode === "homestay") return buildHomestayVM(rawProperty, active, helpers);
-  if (active?.mode === "hotel/resort") return buildHotelResortVM(rawProperty, active, helpers);
+  // ========= HOMESTAY =========
 
-  // sale / unknown：先走 subsale vm（逻辑不变）
+  if (active?.mode === "homestay") {
+    return buildHomestayVM(rawProperty, active, helpers);
+  }
+
+  // ========= HOTEL =========
+
+  if (
+    active?.mode === "hotel/resort" ||
+    active?.mode === "hotel"
+  ) {
+    return buildHotelResortVM(rawProperty, active, helpers);
+  }
+
+  // ========= fallback =========
+
   return buildSubsaleVM(rawProperty, active, helpers);
 }
