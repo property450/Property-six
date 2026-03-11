@@ -508,15 +508,29 @@ function buildCleanupPayloadByActiveForm(activeFormKey) {
 // ✅ 价格同步：尽量统一你表里可能用到的列名
 function pickPriceColumnsFromSingle(singleFormData) {
   const s = singleFormData || {};
-
   const out = {};
 
+  // sale
   if (s.price !== undefined) out.price = s.price;
   if (s.priceMin !== undefined) out.priceMin = s.priceMin;
   if (s.priceMax !== undefined) out.priceMax = s.priceMax;
-
-  if (s.rentPrice !== undefined) out.rentPrice = s.rentPrice;
   if (s.salePrice !== undefined) out.salePrice = s.salePrice;
+
+  // ✅ rent whole / rent room
+  if (s.rent !== undefined) {
+    out.rentPrice = s.rent;
+    out.price = s.rent; // 给旧卡片 / 旧逻辑兜底
+  }
+
+  if (s.rentPrice !== undefined) {
+    out.rentPrice = s.rentPrice;
+    out.price = s.rentPrice;
+  }
+
+  if (s.roomPrice !== undefined) {
+    out.rentPrice = s.roomPrice;
+    out.price = s.roomPrice;
+  }
 
   return out;
 }
