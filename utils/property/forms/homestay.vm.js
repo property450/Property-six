@@ -19,7 +19,12 @@ export function buildVM(rawProperty, active, helpers) {
     pickAny(rawProperty, ["address", "location", "fullAddress"]) ||
     "-";
 
-  const priceText = getCardPriceText(rawProperty, active);
+  const priceText = getCardPriceText(
+  rawProperty,
+  active,
+  helpers.isNewProjectStatus,
+  helpers.isCompletedUnitStatus
+);
 
   const bedrooms = pickPreferActive(active, rawProperty, [
     "bedrooms",
