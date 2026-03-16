@@ -226,45 +226,89 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
           )}
 
           {/* ===== 其它模式保留原本 ===== */}
-          {!vm.isRentWhole && !vm.isRentRoom && (
-            <>
-              <MetaLineDash label="Property Usage" value={vm.usage} />
-              <MetaLineDash label="Property Title" value={vm.propertyTitle} />
-              <MetaLineDash label="Affordable Housing" value={vm.affordableText} />
-              <MetaLineDash label="Tenure Type" value={vm.tenure} />
-              <MetaLineDash label="Property Category" value={categoryText} />
-              <MetaLineDash label="Sub Type" value={isNonEmpty(vm.subType) ? vm.subType : "-"} />
+          {/* ===== Homestay ===== */}
+{String(vm.saleType || "").toLowerCase() === "homestay" && (
+  <>
+    <MetaLineDash label="Homestay Type" value={vm.homestayTypeText} />
+    <MetaLineDash label="Property Category" value={categoryText} />
+    <MetaLineDash label="Sub Type" value={isNonEmpty(vm.subType) ? vm.subType : "-"} />
 
-              {vm.showStoreys && <MetaLineDash label="Storeys" value={isNonEmpty(vm.storeys) ? vm.storeys : "-"} />}
+    {vm.showSubtype && (
+      <MetaLineDash
+        label="Property Subtype"
+        value={
+          Array.isArray(vm.propSubtypes)
+            ? vm.propSubtypes.length
+              ? vm.propSubtypes.join(", ")
+              : "-"
+            : isNonEmpty(vm.propSubtypes)
+              ? vm.propSubtypes
+              : "-"
+        }
+      />
+    )}
 
-              {vm.showSubtype && (
-                <MetaLineDash
-                  label="Property Subtype"
-                  value={
-                    Array.isArray(vm.propSubtypes)
-                      ? vm.propSubtypes.length
-                        ? vm.propSubtypes.join(", ")
-                        : "-"
-                      : isNonEmpty(vm.propSubtypes)
-                        ? vm.propSubtypes
-                        : "-"
-                  }
-                />
-              )}
+    <MetaLineDash label="这个房型的床是什么床" value={vm.bedTypeText} />
+    <MetaLineDash label="这个房型能住几个人" value={vm.guestCountText} />
+    <MetaLineDash label="室内能否吸烟" value={vm.smokingAllowedText} />
+    <MetaLineDash label="入住服务" value={vm.checkinServiceText} />
+    <MetaLineDash label="房型是否包含早餐" value={vm.breakfastIncludedText} />
+    <MetaLineDash label="房型是否允许宠物入住" value={vm.petAllowedText} />
+    <MetaLineDash label="是否能免费取消" value={vm.freeCancelText} />
 
-              <MetaLineDash label="你的产业步行能到达公共交通吗？" value={vm.transitText} />
+    <MetaLineDash label="卧室数量" value={vm.bedrooms} />
+    <MetaLineDash label="浴室数量" value={vm.bathrooms} />
+    <MetaLineDash label="停车位数量" value={vm.carparks} />
 
-                 <MetaLineDash label="几时可以开始入住？" value={vm.availableFromText} />
-                 
-              {vm.isNewProject ? (
-                <MetaLineDash label="预计完成年份" value={vm.expectedText} />
-              ) : (
-                <MetaLineDash label="完成年份" value={isNonEmpty(vm.completedYear) ? vm.completedYear : "-"} />
-              )}
+    <MetaLineDash label="价格" value={vm.priceText} />
+    <MetaLineDash label="房型的服务费" value={vm.serviceFeeText} />
+    <MetaLineDash label="房型的清洁费" value={vm.cleaningFeeText} />
+    <MetaLineDash label="房型的押金" value={vm.depositText} />
+    <MetaLineDash label="房型的其它费用" value={vm.otherFeeText} />
+  </>
+)}
 
-              {isNonEmpty(vm.auctionDateText) && <MetaLineDash label="Auction Date" value={vm.auctionDateText} />}
-            </>
-          )}
+{/* ===== 其它模式保留原本 ===== */}
+{!vm.isRentWhole &&
+ !vm.isRentRoom &&
+ String(vm.saleType || "").toLowerCase() !== "homestay" && (
+  <>
+    <MetaLineDash label="Property Usage" value={vm.usage} />
+    <MetaLineDash label="Property Title" value={vm.propertyTitle} />
+    <MetaLineDash label="Affordable Housing" value={vm.affordableText} />
+    <MetaLineDash label="Tenure Type" value={vm.tenure} />
+    <MetaLineDash label="Property Category" value={categoryText} />
+    <MetaLineDash label="Sub Type" value={isNonEmpty(vm.subType) ? vm.subType : "-"} />
+
+    {vm.showStoreys && <MetaLineDash label="Storeys" value={isNonEmpty(vm.storeys) ? vm.storeys : "-"} />}
+
+    {vm.showSubtype && (
+      <MetaLineDash
+        label="Property Subtype"
+        value={
+          Array.isArray(vm.propSubtypes)
+            ? vm.propSubtypes.length
+              ? vm.propSubtypes.join(", ")
+              : "-"
+            : isNonEmpty(vm.propSubtypes)
+              ? vm.propSubtypes
+              : "-"
+        }
+      />
+    )}
+
+    <MetaLineDash label="你的产业步行能到达公共交通吗？" value={vm.transitText} />
+    <MetaLineDash label="几时可以开始入住？" value={vm.availableFromText} />
+
+    {vm.isNewProject ? (
+      <MetaLineDash label="预计完成年份" value={vm.expectedText} />
+    ) : (
+      <MetaLineDash label="完成年份" value={isNonEmpty(vm.completedYear) ? vm.completedYear : "-"} />
+    )}
+
+    {isNonEmpty(vm.auctionDateText) && <MetaLineDash label="Auction Date" value={vm.auctionDateText} />}
+  </>
+)}
         </div>
       </div>
 
