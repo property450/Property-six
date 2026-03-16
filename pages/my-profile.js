@@ -254,6 +254,8 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
 
               <MetaLineDash label="你的产业步行能到达公共交通吗？" value={vm.transitText} />
 
+                 <MetaLineDash label="几时可以开始入住？" value={vm.availableFromText} />
+                 
               {vm.isNewProject ? (
                 <MetaLineDash label="预计完成年份" value={vm.expectedText} />
               ) : (
