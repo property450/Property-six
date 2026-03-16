@@ -47,6 +47,29 @@ function extractNumeric(v) {
   return Number.isNaN(n) ? NaN : n;
 }
 
+function mergeFormsIntoSingle(single, homestayFormRaw, hotelFormRaw) {
+  const s = { ...(single || {}) };
+
+  const homestayForm = homestayFormRaw && typeof homestayFormRaw === "object" ? homestayFormRaw : null;
+  const hotelForm = hotelFormRaw && typeof hotelFormRaw === "object" ? hotelFormRaw : null;
+
+  if (homestayForm) {
+    s.homestay_form = homestayForm;
+    for (const k of Object.keys(homestayForm)) {
+      if (s[k] === undefined) s[k] = homestayForm[k];
+    }
+  }
+
+  if (hotelForm) {
+    s.hotel_resort_form = hotelForm;
+    for (const k of Object.keys(hotelForm)) {
+      if (s[k] === undefined) s[k] = hotelForm[k];
+    }
+  }
+
+  return s;
+}
+
 /* =========================
    ✅ 关键：显示规范化（只影响显示，不改你表单逻辑）
 ========================= */
@@ -125,42 +148,60 @@ function isPublishedProperty(p) {
 ========================= */
 function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
   const vm = useMemo(() => {
-    try {
-      return getCardVM(rawProperty);
-    } catch (e) {
-      console.error("getCardVM error:", e);
-      return {
-        title: pickAny(rawProperty, ["title"]) || "（未命名房源）",
-        address: pickAny(rawProperty, ["address"]) || "-",
-        priceText: "-",
-        bedrooms: "-",
-        bathrooms: "-",
-        carparks: "-",
-        usage: "-",
-        propertyTitle: "-",
-        propertyStatus: pickAny(rawProperty, ["propertyStatus", "property_status", "propertystatus"]) || "-",
-        affordableText: "-",
-        tenure: "-",
-        category: "-",
-        subType: "-",
-        storeys: "-",
-        propSubtypes: "-",
-        transitText: "-",
-        completedYear: "-",
-        expectedText: "-",
-        showStoreys: false,
-        showSubtype: false,
-        isNewProject: false,
-        isCompletedUnit: false,
-        saleType: pickAny(rawProperty, ["saleType", "sale_type", "saletype"]) || "-",
-        isRentWhole: false,
-        isRentRoom: false,
-        buildUpAreaText: "-",
-        landAreaText: "-",
-        psfText: "-",
-      };
-    }
-  }, [rawProperty]);
+  const mergedSingle = mergeFormsIntoSingle(
+    rawProperty?.single_form_data_v2 ||
+      rawProperty?.singleFormData ||
+      rawProperty?.single_form_data ||
+      {},
+    rawProperty?.homestay_form,
+    rawProperty?.hotel_resort_form
+  );
+
+  const normalizedProperty = {
+    ...rawProperty,
+
+    single_form_data_v2: mergedSingle,
+    singleFormData: mergedSingle,
+    single_form_data: mergedSingle,
+  };
+
+  try {
+    return getCardVM(normalizedProperty);
+  } catch (e) {
+    console.error("getCardVM error:", e);
+    return {
+      title: pickAny(normalizedProperty, ["title"]) || "（未命名房源）",
+      address: pickAny(normalizedProperty, ["address"]) || "-",
+      priceText: "-",
+      bedrooms: "-",
+      bathrooms: "-",
+      carparks: "-",
+      usage: "-",
+      propertyTitle: "-",
+      propertyStatus:
+        pickAny(normalizedProperty, ["propertyStatus", "property_status", "propertystatus"]) || "-",
+      affordableText: "-",
+      tenure: "-",
+      category: "-",
+      subType: "-",
+      storeys: "-",
+      propSubtypes: "-",
+      transitText: "-",
+      completedYear: "-",
+      expectedText: "-",
+      showStoreys: false,
+      showSubtype: false,
+      isNewProject: false,
+      isCompletedUnit: false,
+      saleType: pickAny(normalizedProperty, ["saleType", "sale_type", "saletype"]) || "-",
+      isRentWhole: false,
+      isRentRoom: false,
+      buildUpAreaText: "-",
+      landAreaText: "-",
+      psfText: "-",
+    };
+  }
+}, [rawProperty]);
 
   const saleTypeText = normalizeSaleType(vm, rawProperty);
   const categoryText = normalizeCategory(vm?.category);
