@@ -149,10 +149,17 @@ export default function HomestayUploadForm(props) {
    * - 如果外层是 formData + setFormData，就自动 merge 进去
    * - 如果外层是 onFormChange，也会回传
    */
-  const formData = props?.formData || {};
-  const setFormData = props?.setFormData;
-  const onFormChange = props?.onFormChange;
+  const formData =
+  props?.typeForm ||
+  props?.formData ||
+  {};
 
+const setFormData =
+  props?.setTypeForm ||
+  props?.setFormData;
+
+const onFormChange = props?.onFormChange;
+  
   // ✅ 新增：Homestay Type
   const [homestayType, setHomestayType] = useState(formData?.homestayType || "");
 
