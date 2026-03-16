@@ -110,7 +110,6 @@ function displayFromObject(v) {
 
     if (direct) return direct;
 
-    // 兜底：如果对象里面还有嵌套对象/数组，就继续往下找
     for (const key of Object.keys(v)) {
       const nested = displayFromObject(v[key]);
       if (nested) return nested;
@@ -262,6 +261,65 @@ function getPSFText(rawProperty, single, buildUpNum, landNum) {
   return "-";
 }
 
+/**
+ * ✅ 关键修复：
+ * 读取「几时可以开始入住？」日期
+ * 兼容多种常见 key
+ */
+function getAvailableFromText(rawProperty, single) {
+  const value = pickAny(
+    { obj: single, keys: [
+      "availableFrom",
+      "available_from",
+      "availableDate",
+      "available_date",
+      "availableStartDate",
+      "available_start_date",
+      "moveInDate",
+      "move_in_date",
+      "moveInFrom",
+      "move_in_from",
+      "dateAvailable",
+      "date_available",
+      "occupancyDate",
+      "occupancy_date",
+      "commencementDate",
+      "commencement_date",
+      "availableForMoveIn",
+      "available_for_move_in",
+      "whenCanMoveIn",
+      "when_can_move_in",
+    ]},
+    { obj: rawProperty, keys: [
+      "availableFrom",
+      "available_from",
+      "availableDate",
+      "available_date",
+      "availableStartDate",
+      "available_start_date",
+      "moveInDate",
+      "move_in_date",
+      "moveInFrom",
+      "move_in_from",
+      "dateAvailable",
+      "date_available",
+      "occupancyDate",
+      "occupancy_date",
+      "commencementDate",
+      "commencement_date",
+      "availableForMoveIn",
+      "available_for_move_in",
+      "whenCanMoveIn",
+      "when_can_move_in",
+    ]}
+  );
+
+  if (!isNonEmpty(value)) return "";
+
+  // 如果存的是日期字符串，原样显示就好
+  return String(value);
+}
+
 export function buildVM(rawProperty) {
   const typeForm = normalizeTypeForm(rawProperty);
   const single = normalizeSingleForm(rawProperty);
@@ -306,6 +364,8 @@ export function buildVM(rawProperty) {
 
   const { buildUpText, landText, buildUpNum, landNum } = getAreaInfo(rawProperty, single);
 
+  const availableFromText = getAvailableFromText(rawProperty, single);
+
   return {
     title,
     address,
@@ -321,6 +381,9 @@ export function buildVM(rawProperty) {
     propSubtypes: formatList(propSubtypes),
 
     transitText: getTransitText(rawProperty, single),
+
+    // ✅ 新增：后台卡片显示入住日期
+    availableFromText,
 
     isRentWhole: true,
     isRentRoom: false,
