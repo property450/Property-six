@@ -218,12 +218,16 @@ export function buildVM(rawProperty, active, helpers) {
     pickAny(rawProperty, ["address", "fullAddress", "full_address", "location"]) ||
     "-";
 
-  const priceText = getCardPriceText(
-    rawProperty,
-    active,
-    helpers.isNewProjectStatus,
-    helpers.isCompletedUnitStatus
-  );
+  const nestedPriceText = pickHomestayPrice(firstLayout, rawProperty);
+const priceText =
+  nestedPriceText !== "-"
+    ? nestedPriceText
+    : getCardPriceText(
+        rawProperty,
+        active,
+        helpers.isNewProjectStatus,
+        helpers.isCompletedUnitStatus
+      );
 
   const category = pickEverywhere(rawProperty, active, [
     "category",
@@ -313,7 +317,6 @@ export function buildVM(rawProperty, active, helpers) {
     ])
 );
 
-  const guestCountText = asText(
   const guestCountText =
   formatGuests(pickFrom(firstLayout, ["guests"])) !== "-"
     ? formatGuests(pickFrom(firstLayout, ["guests"]))
