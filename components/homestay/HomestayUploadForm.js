@@ -189,7 +189,7 @@ const onFormChange = props?.onFormChange;
 
   // ✅✅✅ 防止“编辑回填前”把默认值写回父层导致不记住/闪烁
   const [isHydrated, setIsHydrated] = useState(() => {
-    const fd = props?.formData;
+  const fd = formData;
     if (!fd || typeof fd !== "object") return true;
 
     const hasRelevant =
