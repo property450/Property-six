@@ -252,7 +252,8 @@ function formatMoneyValue(v) {
   return s.toUpperCase().startsWith("RM") ? s : `RM${s}`;
 }
 
-function formatCalendarPriceRange(firstLayout, rawProperty) {
+
+        function formatCalendarPriceRange(firstLayout, rawProperty) {
   const single =
     rawProperty?.single_form_data_v2 ||
     rawProperty?.singleFormData ||
@@ -262,21 +263,21 @@ function formatCalendarPriceRange(firstLayout, rawProperty) {
   const homestayForm = rawProperty?.homestay_form || {};
 
   const candidates = [
-    firstLayout?.availability,
     firstLayout?.availability?.calendar_prices,
     firstLayout?.availability?.calendarPrices,
     firstLayout?.calendar_prices,
     firstLayout?.calendarPrices,
 
-    single?.availability,
+    single?.availability?.calendar_prices,
+    single?.availability?.calendarPrices,
     single?.calendar_prices,
     single?.calendarPrices,
 
-    homestayForm?.availability,
+    homestayForm?.availability?.calendar_prices,
+    homestayForm?.availability?.calendarPrices,
     homestayForm?.calendar_prices,
     homestayForm?.calendarPrices,
 
-    rawProperty?.availability,
     rawProperty?.availability?.calendar_prices,
     rawProperty?.availability?.calendarPrices,
     rawProperty?.calendar_prices,
@@ -285,49 +286,33 @@ function formatCalendarPriceRange(firstLayout, rawProperty) {
 
   const nums = [];
 
-  const collect = (obj) => {
+  const pushNumber = (raw) => {
+    if (raw === null || raw === undefined || raw === "") return;
+    const n = Number(String(raw).replace(/[^\d.]/g, ""));
+    if (Number.isFinite(n)) nums.push(n);
+  };
+
+  const collectCalendar = (obj) => {
     if (!obj || typeof obj !== "object") return;
 
-    for (const [key, val] of Object.entries(obj)) {
-      if (val == null) continue;
-
-      // 直接是日期 => 价格
-      if (/^\d{4}-\d{2}-\d{2}$/.test(key)) {
-        if (typeof val === "number" || typeof val === "string") {
-          const n = Number(String(val).replace(/[^\d.]/g, ""));
-          if (Number.isFinite(n)) nums.push(n);
-          continue;
-        }
-
-        if (typeof val === "object") {
-          const raw = val.price ?? val.value ?? val.amount ?? null;
-          if (raw != null) {
-            const n = Number(String(raw).replace(/[^\d.]/g, ""));
-            if (Number.isFinite(n)) nums.push(n);
-            continue;
-          }
-        }
-      }
+    for (const [dateKey, val] of Object.entries(obj)) {
+      // ✅ 只认真正像日期的 key，避免把时间/年份/数量乱算进去
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) continue;
 
       if (typeof val === "number" || typeof val === "string") {
-        const n = Number(String(val).replace(/[^\d.]/g, ""));
-        if (Number.isFinite(n)) nums.push(n);
+        pushNumber(val);
         continue;
       }
 
-      if (typeof val === "object") {
-        const raw = val.price ?? val.value ?? val.amount ?? null;
-        if (raw != null) {
-          const n = Number(String(raw).replace(/[^\d.]/g, ""));
-          if (Number.isFinite(n)) nums.push(n);
-        } else {
-          collect(val);
-        }
+      if (val && typeof val === "object") {
+        pushNumber(val.price);
+        pushNumber(val.value);
+        pushNumber(val.amount);
       }
     }
   };
 
-  candidates.forEach(collect);
+  candidates.forEach(collectCalendar);
 
   if (!nums.length) return "-";
 
@@ -336,7 +321,7 @@ function formatCalendarPriceRange(firstLayout, rawProperty) {
 
   if (min === max) return `RM${min}`;
   return `RM${min}~RM${max}`;
-                         }
+        }
 
 export function buildVM(rawProperty, active, helpers) {
   const single =
