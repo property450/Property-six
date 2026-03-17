@@ -103,6 +103,99 @@ function pickEverywhere(rawProperty, active, candidates) {
   );
 }
 
+
+function formatBeds(beds) {
+  if (!Array.isArray(beds) || beds.length === 0) return "-";
+
+  const parts = beds
+    .map((b) => {
+      if (!b || typeof b !== "object") return "";
+      const label = b.label || b.name || "";
+      const count = b.count || b.qty || b.quantity || "";
+      if (label && count) return `${label} x ${count}`;
+      return label || "";
+    })
+    .filter(Boolean);
+
+  return parts.length ? parts.join(", ") : "-";
+}
+
+function formatGuests(guests) {
+  if (!guests || typeof guests !== "object") return "-";
+
+  const adults = Number(guests.adults || 0);
+  const children = Number(guests.children || 0);
+  const total = adults + children;
+
+  if (total <= 0) return "-";
+  if (adults > 0 && children > 0) return `${total}（大人 ${adults}，小孩 ${children}）`;
+  if (adults > 0) return `${adults}`;
+  return `${children}`;
+}
+
+function formatFeeObject(fee) {
+  if (!fee || typeof fee !== "object") return "-";
+
+  const mode = fee.mode || "";
+  const value = fee.value || fee.amount || "";
+  const note = fee.note || "";
+
+  let main = "";
+
+  if (mode === "free") {
+    main = "免费";
+  } else if (mode === "fixed" && value) {
+    main = `RM${value}`;
+  } else if (mode === "percent" && value) {
+    main = `${value}%`;
+  } else if (value) {
+    main = String(value);
+  }
+
+  if (main && note) return `${main}（${note}）`;
+  if (main) return main;
+  if (note) return note;
+
+  return "-";
+}
+
+function pickHomestayPrice(firstLayout, rawProperty) {
+  const layoutAvailability = firstLayout?.availability;
+
+  if (layoutAvailability && typeof layoutAvailability === "object") {
+    if (layoutAvailability.price) return String(layoutAvailability.price);
+    if (layoutAvailability.defaultPrice) return String(layoutAvailability.defaultPrice);
+    if (layoutAvailability.basePrice) return String(layoutAvailability.basePrice);
+
+    const calendarPrices = layoutAvailability.calendar_prices || layoutAvailability.calendarPrices;
+    if (calendarPrices && typeof calendarPrices === "object") {
+      const values = Object.values(calendarPrices).filter(Boolean);
+      if (values.length > 0) {
+        const first = values[0];
+        if (typeof first === "object") {
+          if (first.price) return String(first.price);
+          if (first.value) return String(first.value);
+        }
+        return String(first);
+      }
+    }
+  }
+
+  if (rawProperty?.calendar_prices && typeof rawProperty.calendar_prices === "object") {
+    const values = Object.values(rawProperty.calendar_prices).filter(Boolean);
+    if (values.length > 0) {
+      const first = values[0];
+      if (typeof first === "object") {
+        if (first.price) return String(first.price);
+        if (first.value) return String(first.value);
+      }
+      return String(first);
+    }
+  }
+
+  return "-";
+}
+
 export function buildVM(rawProperty, active, helpers) {
   const single =
     rawProperty?.single_form_data_v2 ||
@@ -207,37 +300,35 @@ export function buildVM(rawProperty, active, helpers) {
       ])
   );
 
-  const bedTypeText = asText(
-    pickFrom(firstLayout, ["beds[0]", "beds"]) ??
-      pickEverywhere(rawProperty, active, [
-        "bedType",
-        "bed_type",
-        "bed_types",
-        "roomBedType",
-        "room_bed_type",
-        "unitBedType",
-        "unit_bed_type",
-      ])
-  );
+  const bedTypeText = formatBeds(
+  pickFrom(firstLayout, ["beds"]) ??
+    pickEverywhere(rawProperty, active, [
+      "bedType",
+      "bed_type",
+      "bed_types",
+      "roomBedType",
+      "room_bed_type",
+      "unitBedType",
+      "unit_bed_type",
+    ])
+);
 
   const guestCountText = asText(
-    pickFrom(firstLayout, [
-      "guests.adults",
-      "guests.total",
-      "guests",
-    ]) ??
-      pickEverywhere(rawProperty, active, [
-        "guestCount",
-        "guest_count",
-        "maxGuests",
-        "max_guests",
-        "max_guests",
-        "pax",
-        "maxPax",
-        "max_pax",
-        "occupancy",
-      ])
-  );
+  const guestCountText =
+  formatGuests(pickFrom(firstLayout, ["guests"])) !== "-"
+    ? formatGuests(pickFrom(firstLayout, ["guests"]))
+    : asText(
+        pickEverywhere(rawProperty, active, [
+          "guestCount",
+          "guest_count",
+          "maxGuests",
+          "max_guests",
+          "pax",
+          "maxPax",
+          "max_pax",
+          "occupancy",
+        ])
+      );
 
   const smokingAllowedText = asText(
     pickFrom(firstLayout, ["smoking"]) ??
@@ -311,67 +402,59 @@ export function buildVM(rawProperty, active, helpers) {
       ])
   );
 
-  const serviceFeeText = asText(
-    pickFrom(firstLayout, [
-      "fees.serviceFee.value",
-      "fees.serviceFee.mode",
-      "fees.serviceFee",
-    ]) ??
-      pickEverywhere(rawProperty, active, [
-        "serviceFee",
-        "service_fee",
-        "unitServiceFee",
-        "unit_service_fee",
-      ])
-  );
+  const serviceFeeText =
+  formatFeeObject(pickFrom(firstLayout, ["fees.serviceFee"])) !== "-"
+    ? formatFeeObject(pickFrom(firstLayout, ["fees.serviceFee"]))
+    : asText(
+        pickEverywhere(rawProperty, active, [
+          "serviceFee",
+          "service_fee",
+          "unitServiceFee",
+          "unit_service_fee",
+        ])
+      );
 
-  const cleaningFeeText = asText(
-    pickFrom(firstLayout, [
-      "fees.cleaningFee.value",
-      "fees.cleaningFee.mode",
-      "fees.cleaningFee",
-    ]) ??
-      pickEverywhere(rawProperty, active, [
-        "cleaningFee",
-        "cleaning_fee",
-        "unitCleaningFee",
-        "unit_cleaning_fee",
-      ])
-  );
+const cleaningFeeText =
+  formatFeeObject(pickFrom(firstLayout, ["fees.cleaningFee"])) !== "-"
+    ? formatFeeObject(pickFrom(firstLayout, ["fees.cleaningFee"]))
+    : asText(
+        pickEverywhere(rawProperty, active, [
+          "cleaningFee",
+          "cleaning_fee",
+          "unitCleaningFee",
+          "unit_cleaning_fee",
+        ])
+      );
 
-  const depositText = asText(
-    pickFrom(firstLayout, [
-      "fees.deposit.value",
-      "fees.deposit.mode",
-      "fees.deposit",
-    ]) ??
-      pickEverywhere(rawProperty, active, [
-        "deposit",
-        "securityDeposit",
-        "security_deposit",
-        "unitDeposit",
-        "unit_deposit",
-      ])
-  );
+const depositText =
+  formatFeeObject(pickFrom(firstLayout, ["fees.deposit"])) !== "-"
+    ? formatFeeObject(pickFrom(firstLayout, ["fees.deposit"]))
+    : asText(
+        pickEverywhere(rawProperty, active, [
+          "deposit",
+          "securityDeposit",
+          "security_deposit",
+          "unitDeposit",
+          "unit_deposit",
+        ])
+      );
 
-  const otherFeeText = asText(
-    pickFrom(firstLayout, [
-      "fees.otherFee.amount",
-      "fees.otherFee.note",
-      "fees.otherFee",
-    ]) ??
-      pickEverywhere(rawProperty, active, [
-        "otherFee",
-        "other_fee",
-        "otherFees",
-        "other_fees",
-        "extraFee",
-        "extra_fee",
-        "extraCharges",
-        "extra_charges",
-      ])
-  );
-
+const otherFeeText =
+  formatFeeObject(pickFrom(firstLayout, ["fees.otherFee"])) !== "-"
+    ? formatFeeObject(pickFrom(firstLayout, ["fees.otherFee"]))
+    : asText(
+        pickEverywhere(rawProperty, active, [
+          "otherFee",
+          "other_fee",
+          "otherFees",
+          "other_fees",
+          "extraFee",
+          "extra_fee",
+          "extraCharges",
+          "extra_charges",
+        ])
+      );
+  
   const transitText = getTransitText(rawProperty, active);
 
   return {
