@@ -238,6 +238,69 @@ function mapYesNoText(v) {
   return String(v);
 }
 
+function formatPercentValue(v) {
+  if (v === null || v === undefined || v === "") return "-";
+  const s = String(v).trim();
+  if (!s) return "-";
+  return s.includes("%") ? s : `${s}%`;
+}
+
+function formatMoneyValue(v) {
+  if (v === null || v === undefined || v === "") return "-";
+  const s = String(v).trim();
+  if (!s) return "-";
+  return s.toUpperCase().startsWith("RM") ? s : `RM${s}`;
+}
+
+function formatCalendarPriceRange(firstLayout, rawProperty) {
+  const candidates = [
+    firstLayout?.availability?.calendar_prices,
+    firstLayout?.availability?.calendarPrices,
+    firstLayout?.calendar_prices,
+    firstLayout?.calendarPrices,
+    rawProperty?.availability?.calendar_prices,
+    rawProperty?.availability?.calendarPrices,
+    rawProperty?.calendar_prices,
+    rawProperty?.calendarPrices,
+  ].filter(Boolean);
+
+  const nums = [];
+
+  const collect = (obj) => {
+    if (!obj || typeof obj !== "object") return;
+
+    for (const val of Object.values(obj)) {
+      if (val == null) continue;
+
+      if (typeof val === "number" || typeof val === "string") {
+        const n = Number(String(val).replace(/[^\d.]/g, ""));
+        if (Number.isFinite(n)) nums.push(n);
+        continue;
+      }
+
+      if (typeof val === "object") {
+        const raw = val.price ?? val.value ?? val.amount ?? null;
+        if (raw != null) {
+          const n = Number(String(raw).replace(/[^\d.]/g, ""));
+          if (Number.isFinite(n)) nums.push(n);
+        } else {
+          collect(val);
+        }
+      }
+    }
+  };
+
+  candidates.forEach(collect);
+
+  if (!nums.length) return "-";
+
+  const min = Math.min(...nums);
+  const max = Math.max(...nums);
+
+  if (min === max) return `RM${min}`;
+  return `RM${min}~RM${max}`;
+}
+
 export function buildVM(rawProperty, active, helpers) {
   const single =
     rawProperty?.single_form_data_v2 ||
@@ -260,7 +323,8 @@ export function buildVM(rawProperty, active, helpers) {
     pickAny(rawProperty, ["address", "fullAddress", "full_address", "location"]) ||
     "-";
 
-  const nestedPriceText = pickHomestayPrice(firstLayout, rawProperty);
+  const nestedPriceText = formatCalendarPriceRange(firstLayout, rawProperty);
+
 const priceText =
   nestedPriceText !== "-"
     ? nestedPriceText
@@ -452,42 +516,50 @@ const petAllowedText = mapPetPolicyText(petAllowedRaw);
 
 const freeCancelText = mapCancelText(freeCancelRaw);
 
-  const serviceFeeText =
-  formatFeeObject(pickFrom(firstLayout, ["fees.serviceFee"])) !== "-"
-    ? formatFeeObject(pickFrom(firstLayout, ["fees.serviceFee"]))
-    : asText(
-        pickEverywhere(rawProperty, active, [
-          "serviceFee",
-          "service_fee",
-          "unitServiceFee",
-          "unit_service_fee",
-        ])
-      );
+  const serviceFeeObj = pickFrom(firstLayout, ["fees.serviceFee"]);
+const serviceFeeRaw =
+  serviceFeeObj ??
+  pickEverywhere(rawProperty, active, [
+    "serviceFee",
+    "service_fee",
+    "unitServiceFee",
+    "unit_service_fee",
+  ]);
+
+const serviceFeeText =
+  serviceFeeObj && typeof serviceFeeObj === "object"
+    ? formatFeeObject(serviceFeeObj)
+    : formatPercentValue(serviceFeeRaw);
+const cleaningFeeObj = pickFrom(firstLayout, ["fees.cleaningFee"]);
+const cleaningFeeRaw =
+  cleaningFeeObj ??
+  pickEverywhere(rawProperty, active, [
+    "cleaningFee",
+    "cleaning_fee",
+    "unitCleaningFee",
+    "unit_cleaning_fee",
+  ]);
 
 const cleaningFeeText =
-  formatFeeObject(pickFrom(firstLayout, ["fees.cleaningFee"])) !== "-"
-    ? formatFeeObject(pickFrom(firstLayout, ["fees.cleaningFee"]))
-    : asText(
-        pickEverywhere(rawProperty, active, [
-          "cleaningFee",
-          "cleaning_fee",
-          "unitCleaningFee",
-          "unit_cleaning_fee",
-        ])
-      );
+  cleaningFeeObj && typeof cleaningFeeObj === "object"
+    ? formatFeeObject(cleaningFeeObj)
+    : formatMoneyValue(cleaningFeeRaw);
+
+const depositObj = pickFrom(firstLayout, ["fees.deposit"]);
+const depositRaw =
+  depositObj ??
+  pickEverywhere(rawProperty, active, [
+    "deposit",
+    "securityDeposit",
+    "security_deposit",
+    "unitDeposit",
+    "unit_deposit",
+  ]);
 
 const depositText =
-  formatFeeObject(pickFrom(firstLayout, ["fees.deposit"])) !== "-"
-    ? formatFeeObject(pickFrom(firstLayout, ["fees.deposit"]))
-    : asText(
-        pickEverywhere(rawProperty, active, [
-          "deposit",
-          "securityDeposit",
-          "security_deposit",
-          "unitDeposit",
-          "unit_deposit",
-        ])
-      );
+  depositObj && typeof depositObj === "object"
+    ? formatFeeObject(depositObj)
+    : formatMoneyValue(depositRaw);
 
 const otherFeeText =
   formatFeeObject(pickFrom(firstLayout, ["fees.otherFee"])) !== "-"
