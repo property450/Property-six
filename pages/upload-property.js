@@ -137,23 +137,72 @@ function buildHomestayFormFromSingle(single) {
   const s = single || {};
   const out = {};
 
-  // 你表单常用字段（尽量宽松收集）
   const keys = [
     "availability",
     "availability_data",
     "calendar_prices",
     "calendarPrices",
+
     "checkInTime",
     "checkOutTime",
+    "checkinService",
+    "checkInService",
+    "checkinMethod",
+
     "minNights",
     "maxGuests",
+    "guestCount",
+    "occupancy",
+    "maxPax",
+
+    "bedType",
+    "roomBedType",
+    "unitBedType",
+
+    "smokingAllowed",
+    "allowSmoking",
+    "indoorSmoking",
+
+    "breakfastIncluded",
+    "includeBreakfast",
+    "withBreakfast",
+
+    "petAllowed",
     "petsAllowed",
+    "allowPets",
+
+    "freeCancel",
+    "freeCancellation",
+    "cancellationPolicy",
+
     "houseRules",
+
+    "serviceFee",
+    "unitServiceFee",
     "cleaningFee",
+    "unitCleaningFee",
+
+    "deposit",
     "securityDeposit",
+    "unitDeposit",
+
+    "otherFee",
+    "otherFees",
+    "extraFee",
     "extraCharges",
+
     "parkingInfo",
     "wifiInfo",
+
+    "bathrooms",
+    "bathroomCount",
+    "bathroom_count",
+
+    "carparks",
+    "carparkCount",
+    "carpark_count",
+    "parkingCount",
+    "parking_count",
   ];
 
   for (const k of keys) {
@@ -395,24 +444,75 @@ const keepRentRoomExtra = new Set([
 ]);
   
   const keepHomestayExtra = new Set([
-    "availability",
-    "availability_data",
-    "calendar_prices",
-    "calendarPrices",
-    "checkInTime",
-    "checkOutTime",
-    "minNights",
-    "maxGuests",
-    "petsAllowed",
-    "houseRules",
-    "cleaningFee",
-    "securityDeposit",
-    "extraCharges",
-    "parkingInfo",
-    "wifiInfo",
-    "homestay_form",
-  ]);
+  "availability",
+  "availability_data",
+  "calendar_prices",
+  "calendarPrices",
 
+  "checkInTime",
+  "checkOutTime",
+  "checkinService",
+  "checkInService",
+  "checkinMethod",
+
+  "minNights",
+  "maxGuests",
+  "guestCount",
+  "occupancy",
+  "maxPax",
+
+  "bedType",
+  "roomBedType",
+  "unitBedType",
+
+  "smokingAllowed",
+  "allowSmoking",
+  "indoorSmoking",
+
+  "breakfastIncluded",
+  "includeBreakfast",
+  "withBreakfast",
+
+  "petAllowed",
+  "petsAllowed",
+  "allowPets",
+
+  "freeCancel",
+  "freeCancellation",
+  "cancellationPolicy",
+
+  "houseRules",
+
+  "serviceFee",
+  "unitServiceFee",
+  "cleaningFee",
+  "unitCleaningFee",
+
+  "deposit",
+  "securityDeposit",
+  "unitDeposit",
+
+  "otherFee",
+  "otherFees",
+  "extraFee",
+  "extraCharges",
+
+  "parkingInfo",
+  "wifiInfo",
+
+  "bathrooms",
+  "bathroomCount",
+  "bathroom_count",
+
+  "carparks",
+  "carparkCount",
+  "carpark_count",
+  "parkingCount",
+  "parking_count",
+
+  "homestay_form",
+]);
+  
   const keepHotelExtra = new Set([
     "availability",
     "availability_data",
