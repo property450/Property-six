@@ -133,27 +133,27 @@ function formatGuests(guests) {
   return `${children}`;
 }
 
-function formatFeeObject(fee) {
+function formatFeeObject(fee, kind = "money") {
   if (!fee || typeof fee !== "object") return "-";
 
-  const mode = fee.mode || "";
+  const mode = String(fee.mode || "").toLowerCase().trim();
   const value = fee.value || fee.amount || "";
   const note = fee.note || "";
 
-  let main = "";
+  let main = "-";
+
+  if (!value && note) return note;
 
   if (mode === "free") {
     main = "免费";
-  } else if (mode === "fixed" && value) {
-    main = `RM${value}`;
-  } else if (mode === "percent" && value) {
-    main = `${value}%`;
-  } else if (value) {
-    main = String(value);
+  } else if (kind === "percent") {
+    main = value !== "" ? `${value}%` : "-";
+  } else {
+    main = value !== "" ? `RM${value}` : "-";
   }
 
-  if (main && note) return `${main}（${note}）`;
-  if (main) return main;
+  if (main !== "-" && note) return `${main}（${note}）`;
+  if (main !== "-") return main;
   if (note) return note;
 
   return "-";
@@ -253,11 +253,31 @@ function formatMoneyValue(v) {
 }
 
 function formatCalendarPriceRange(firstLayout, rawProperty) {
+function formatCalendarPriceRange(firstLayout, rawProperty) {
+  const single =
+    rawProperty?.single_form_data_v2 ||
+    rawProperty?.singleFormData ||
+    rawProperty?.single_form_data ||
+    {};
+
+  const homestayForm = rawProperty?.homestay_form || {};
+
   const candidates = [
+    firstLayout?.availability,
     firstLayout?.availability?.calendar_prices,
     firstLayout?.availability?.calendarPrices,
     firstLayout?.calendar_prices,
     firstLayout?.calendarPrices,
+
+    single?.availability,
+    single?.calendar_prices,
+    single?.calendarPrices,
+
+    homestayForm?.availability,
+    homestayForm?.calendar_prices,
+    homestayForm?.calendarPrices,
+
+    rawProperty?.availability,
     rawProperty?.availability?.calendar_prices,
     rawProperty?.availability?.calendarPrices,
     rawProperty?.calendar_prices,
@@ -269,8 +289,26 @@ function formatCalendarPriceRange(firstLayout, rawProperty) {
   const collect = (obj) => {
     if (!obj || typeof obj !== "object") return;
 
-    for (const val of Object.values(obj)) {
+    for (const [key, val] of Object.entries(obj)) {
       if (val == null) continue;
+
+      // 直接是日期 => 价格
+      if (/^\d{4}-\d{2}-\d{2}$/.test(key)) {
+        if (typeof val === "number" || typeof val === "string") {
+          const n = Number(String(val).replace(/[^\d.]/g, ""));
+          if (Number.isFinite(n)) nums.push(n);
+          continue;
+        }
+
+        if (typeof val === "object") {
+          const raw = val.price ?? val.value ?? val.amount ?? null;
+          if (raw != null) {
+            const n = Number(String(raw).replace(/[^\d.]/g, ""));
+            if (Number.isFinite(n)) nums.push(n);
+            continue;
+          }
+        }
+      }
 
       if (typeof val === "number" || typeof val === "string") {
         const n = Number(String(val).replace(/[^\d.]/g, ""));
@@ -299,7 +337,7 @@ function formatCalendarPriceRange(firstLayout, rawProperty) {
 
   if (min === max) return `RM${min}`;
   return `RM${min}~RM${max}`;
-}
+                         }
 
 export function buildVM(rawProperty, active, helpers) {
   const single =
@@ -528,7 +566,7 @@ const serviceFeeRaw =
 
 const serviceFeeText =
   serviceFeeObj && typeof serviceFeeObj === "object"
-    ? formatFeeObject(serviceFeeObj)
+    ? formatFeeObject(serviceFeeObj, "percent")
     : formatPercentValue(serviceFeeRaw);
 const cleaningFeeObj = pickFrom(firstLayout, ["fees.cleaningFee"]);
 const cleaningFeeRaw =
@@ -542,9 +580,8 @@ const cleaningFeeRaw =
 
 const cleaningFeeText =
   cleaningFeeObj && typeof cleaningFeeObj === "object"
-    ? formatFeeObject(cleaningFeeObj)
+    ? formatFeeObject(cleaningFeeObj, "money")
     : formatMoneyValue(cleaningFeeRaw);
-
 const depositObj = pickFrom(firstLayout, ["fees.deposit"]);
 const depositRaw =
   depositObj ??
@@ -558,12 +595,12 @@ const depositRaw =
 
 const depositText =
   depositObj && typeof depositObj === "object"
-    ? formatFeeObject(depositObj)
+    ? formatFeeObject(depositObj, "money")
     : formatMoneyValue(depositRaw);
 
 const otherFeeText =
-  formatFeeObject(pickFrom(firstLayout, ["fees.otherFee"])) !== "-"
-    ? formatFeeObject(pickFrom(firstLayout, ["fees.otherFee"]))
+  formatFeeObject(pickFrom(firstLayout, ["fees.otherFee"]), "money") !== "-"
+    ? formatFeeObject(pickFrom(firstLayout, ["fees.otherFee"]), "money")
     : asText(
         pickEverywhere(rawProperty, active, [
           "otherFee",
