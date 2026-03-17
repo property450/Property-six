@@ -319,7 +319,23 @@ const onFormChange = props?.onFormChange;
     };
 
     if (typeof setFormData === "function") {
-      setFormData((prev) => ({ ...(prev || {}), ...patch }));
+  setFormData((prev) => {
+    const next = { ...(prev || {}), ...patch };
+
+    // 如果本次 patch 还是全空，就不要覆盖已有编辑数据
+    const allEmpty =
+      !next?.homestayType &&
+      !next?.category &&
+      !next?.finalType &&
+      !next?.storeys &&
+      (!Array.isArray(next?.subtype) || next.subtype.length === 0);
+
+    if (allEmpty && prev && typeof prev === "object" && Object.keys(prev).length > 0) {
+      return prev;
+    }
+
+    return next;
+  });
     }
 
     if (typeof onFormChange === "function") {
