@@ -196,6 +196,48 @@ function pickHomestayPrice(firstLayout, rawProperty) {
   return "-";
 }
 
+function mapSmokingText(v) {
+  const s = String(v || "").toLowerCase().trim();
+  if (!s) return "-";
+  if (["yes", "allowed", "allow", "can"].includes(s)) return "能";
+  if (["no", "forbidden", "not_allowed", "not allowed"].includes(s)) return "不能";
+  return String(v);
+}
+
+function mapCheckinServiceText(v) {
+  const s = String(v || "").toLowerCase().trim();
+  if (!s) return "-";
+  if (s === "self") return "自助入住";
+  if (s === "frontdesk") return "24 小时前台服务";
+  if (s === "limited") return "入住时间限制";
+  return String(v);
+}
+
+function mapPetPolicyText(v) {
+  const s = String(v || "").toLowerCase().trim();
+  if (!s) return "-";
+  if (s === "forbidden") return "禁止携带宠物";
+  if (s === "allowed") return "允许携带宠物";
+  if (s === "care") return "提供宠物托管服务";
+  return String(v);
+}
+
+function mapCancelText(v) {
+  const s = String(v || "").toLowerCase().trim();
+  if (!s) return "-";
+  if (s === "free") return "能";
+  if (s === "no") return "不能";
+  return String(v);
+}
+
+function mapYesNoText(v) {
+  const s = String(v || "").toLowerCase().trim();
+  if (!s) return "-";
+  if (s === "yes") return "是";
+  if (s === "no") return "否";
+  return String(v);
+}
+
 export function buildVM(rawProperty, active, helpers) {
   const single =
     rawProperty?.single_form_data_v2 ||
@@ -218,8 +260,7 @@ export function buildVM(rawProperty, active, helpers) {
     pickAny(rawProperty, ["address", "fullAddress", "full_address", "location"]) ||
     "-";
 
-  const nestedPriceText = formatCalendarPriceRange(firstLayout, rawProperty);
-
+  const nestedPriceText = pickHomestayPrice(firstLayout, rawProperty);
 const priceText =
   nestedPriceText !== "-"
     ? nestedPriceText
