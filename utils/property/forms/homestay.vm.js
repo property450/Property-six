@@ -9,8 +9,53 @@ import {
 
 function asText(v) {
   if (!isNonEmpty(v)) return "-";
-  if (Array.isArray(v)) return v.length ? v.join(", ") : "-";
-  if (typeof v === "object") return JSON.stringify(v);
+
+  if (Array.isArray(v)) {
+    const parts = v
+      .map((item) => {
+        if (item == null) return "";
+
+        if (typeof item === "string" || typeof item === "number") {
+          return String(item);
+        }
+
+        if (typeof item === "object") {
+          const label = item.label || item.name || item.type || "";
+          const count = item.count || item.qty || item.quantity || "";
+
+          if (label && count) return `${label} x ${count}`;
+          if (label) return String(label);
+          if (count) return String(count);
+
+          return "";
+        }
+
+        return "";
+      })
+      .filter(Boolean);
+
+    return parts.length ? parts.join(", ") : "-";
+  }
+
+  if (typeof v === "object") {
+    // ✅ 其它费用 / fee object
+    if ("value" in v || "amount" in v || "note" in v || "mode" in v) {
+      const amount = v.value || v.amount || "";
+      const note = v.note || "";
+      if (amount && note) return `${amount}（${note}）`;
+      if (amount) return String(amount);
+      if (note) return String(note);
+      return "-";
+    }
+
+    // ✅ checkin / cancellation / pet 这类 object
+    if ("label" in v && v.label) return String(v.label);
+    if ("type" in v && v.type) return String(v.type);
+    if ("name" in v && v.name) return String(v.name);
+
+    return "-";
+  }
+
   return String(v);
 }
 
