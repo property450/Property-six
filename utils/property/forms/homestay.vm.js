@@ -10,6 +10,7 @@ import {
 function asText(v) {
   if (!isNonEmpty(v)) return "-";
   if (Array.isArray(v)) return v.length ? v.join(", ") : "-";
+  if (typeof v === "object") return JSON.stringify(v);
   return String(v);
 }
 
@@ -58,6 +59,19 @@ function pickEverywhere(rawProperty, active, candidates) {
 }
 
 export function buildVM(rawProperty, active, helpers) {
+  const single =
+    rawProperty?.single_form_data_v2 ||
+    rawProperty?.singleFormData ||
+    rawProperty?.single_form_data ||
+    {};
+
+  const firstLayout =
+    Array.isArray(single?.roomLayouts) && single.roomLayouts.length > 0
+      ? single.roomLayouts[0]
+      : Array.isArray(single?.room_layouts) && single.room_layouts.length > 0
+        ? single.room_layouts[0]
+        : null;
+
   const title =
     pickAny(rawProperty, ["title", "propertyTitle", "property_title"]) ||
     "（未命名房源）";
@@ -109,149 +123,208 @@ export function buildVM(rawProperty, active, helpers) {
     ])
   );
 
-  const bedrooms = pickEverywhere(rawProperty, active, [
-    "bedrooms",
-    "bedroomCount",
-    "bedroom_count",
-    "rooms",
-    "roomCount",
-    "room_count",
-  ]);
+  const bedrooms =
+    pickFrom(firstLayout, [
+      "roomCounts.bedrooms",
+      "roomCounts.bedroomCount",
+    ]) ??
+    pickEverywhere(rawProperty, active, [
+      "bedrooms",
+      "bedroomCount",
+      "bedroom_count",
+      "rooms",
+      "roomCount",
+      "room_count",
+    ]);
 
-  const bathrooms = pickEverywhere(rawProperty, active, [
-    "bathrooms",
-    "bathroomCount",
-    "bathroom_count",
-  ]);
+  const bathrooms =
+    pickFrom(firstLayout, [
+      "roomCounts.bathrooms",
+      "roomCounts.bathroomCount",
+    ]) ??
+    pickEverywhere(rawProperty, active, [
+      "bathrooms",
+      "bathroomCount",
+      "bathroom_count",
+    ]);
 
   const carparks = formatCarparks(
-    pickEverywhere(rawProperty, active, [
-      "carparks",
-      "carparkCount",
-      "carpark_count",
-      "parkingCount",
-      "parking_count",
-    ])
+    pickFrom(firstLayout, [
+      "roomCounts.carparks",
+      "roomCounts.carparkCount",
+    ]) ??
+      pickEverywhere(rawProperty, active, [
+        "carparks",
+        "carparkCount",
+        "carpark_count",
+        "parkingCount",
+        "parking_count",
+      ])
   );
 
   const bedTypeText = asText(
-    pickEverywhere(rawProperty, active, [
-      "bedType",
-      "bed_type",
-      "roomBedType",
-      "room_bed_type",
-      "unitBedType",
-      "unit_bed_type",
-    ])
+    pickFrom(firstLayout, ["beds[0]", "beds"]) ??
+      pickEverywhere(rawProperty, active, [
+        "bedType",
+        "bed_type",
+        "bed_types",
+        "roomBedType",
+        "room_bed_type",
+        "unitBedType",
+        "unit_bed_type",
+      ])
   );
 
   const guestCountText = asText(
-    pickEverywhere(rawProperty, active, [
-      "guestCount",
-      "guest_count",
-      "maxGuests",
-      "max_guests",
-      "pax",
-      "maxPax",
-      "max_pax",
-      "occupancy",
-    ])
+    pickFrom(firstLayout, [
+      "guests.adults",
+      "guests.total",
+      "guests",
+    ]) ??
+      pickEverywhere(rawProperty, active, [
+        "guestCount",
+        "guest_count",
+        "maxGuests",
+        "max_guests",
+        "max_guests",
+        "pax",
+        "maxPax",
+        "max_pax",
+        "occupancy",
+      ])
   );
 
   const smokingAllowedText = asText(
-    pickEverywhere(rawProperty, active, [
-      "smokingAllowed",
-      "smoking_allowed",
-      "allowSmoking",
-      "allow_smoking",
-      "indoorSmoking",
-      "indoor_smoking",
-    ])
+    pickFrom(firstLayout, ["smoking"]) ??
+      pickEverywhere(rawProperty, active, [
+        "smokingAllowed",
+        "smoking_allowed",
+        "allowSmoking",
+        "allow_smoking",
+        "indoorSmoking",
+        "indoor_smoking",
+      ])
   );
 
   const checkinServiceText = asText(
-    pickEverywhere(rawProperty, active, [
+    pickFrom(firstLayout, [
+      "checkinService.type",
+      "checkinService.method",
       "checkinService",
-      "checkin_service",
-      "checkInService",
-      "check_in_service",
-      "checkinMethod",
-      "checkin_method",
-    ])
+    ]) ??
+      pickEverywhere(rawProperty, active, [
+        "checkinService",
+        "checkin_service",
+        "checkInService",
+        "check_in_service",
+        "checkinMethod",
+        "checkin_method",
+      ])
   );
 
   const breakfastIncludedText = asText(
-    pickEverywhere(rawProperty, active, [
-      "breakfastIncluded",
-      "breakfast_included",
-      "includeBreakfast",
-      "include_breakfast",
-      "withBreakfast",
-      "with_breakfast",
-    ])
+    pickFrom(firstLayout, ["breakfast"]) ??
+      pickEverywhere(rawProperty, active, [
+        "breakfastIncluded",
+        "breakfast_included",
+        "includeBreakfast",
+        "include_breakfast",
+        "withBreakfast",
+        "with_breakfast",
+      ])
   );
 
   const petAllowedText = asText(
-    pickEverywhere(rawProperty, active, [
-      "petAllowed",
-      "pet_allowed",
-      "allowPets",
-      "allow_pets",
-      "petsAllowed",
-      "pets_allowed",
-    ])
+    pickFrom(firstLayout, [
+      "petPolicy.type",
+      "petPolicy.note",
+      "petPolicy",
+    ]) ??
+      pickEverywhere(rawProperty, active, [
+        "petAllowed",
+        "pet_allowed",
+        "allowPets",
+        "allow_pets",
+        "petsAllowed",
+        "pets_allowed",
+      ])
   );
 
   const freeCancelText = asText(
-    pickEverywhere(rawProperty, active, [
-      "freeCancel",
-      "free_cancel",
-      "freeCancellation",
-      "free_cancellation",
+    pickFrom(firstLayout, [
+      "cancellationPolicy.type",
+      "cancellationPolicy.condition",
       "cancellationPolicy",
-      "cancellation_policy",
-    ])
+    ]) ??
+      pickEverywhere(rawProperty, active, [
+        "freeCancel",
+        "free_cancel",
+        "freeCancellation",
+        "free_cancellation",
+        "cancellationPolicy",
+        "cancellation_policy",
+      ])
   );
 
   const serviceFeeText = asText(
-    pickEverywhere(rawProperty, active, [
-      "serviceFee",
-      "service_fee",
-      "unitServiceFee",
-      "unit_service_fee",
-    ])
+    pickFrom(firstLayout, [
+      "fees.serviceFee.value",
+      "fees.serviceFee.mode",
+      "fees.serviceFee",
+    ]) ??
+      pickEverywhere(rawProperty, active, [
+        "serviceFee",
+        "service_fee",
+        "unitServiceFee",
+        "unit_service_fee",
+      ])
   );
 
   const cleaningFeeText = asText(
-    pickEverywhere(rawProperty, active, [
-      "cleaningFee",
-      "cleaning_fee",
-      "unitCleaningFee",
-      "unit_cleaning_fee",
-    ])
+    pickFrom(firstLayout, [
+      "fees.cleaningFee.value",
+      "fees.cleaningFee.mode",
+      "fees.cleaningFee",
+    ]) ??
+      pickEverywhere(rawProperty, active, [
+        "cleaningFee",
+        "cleaning_fee",
+        "unitCleaningFee",
+        "unit_cleaning_fee",
+      ])
   );
 
   const depositText = asText(
-    pickEverywhere(rawProperty, active, [
-      "deposit",
-      "securityDeposit",
-      "security_deposit",
-      "unitDeposit",
-      "unit_deposit",
-    ])
+    pickFrom(firstLayout, [
+      "fees.deposit.value",
+      "fees.deposit.mode",
+      "fees.deposit",
+    ]) ??
+      pickEverywhere(rawProperty, active, [
+        "deposit",
+        "securityDeposit",
+        "security_deposit",
+        "unitDeposit",
+        "unit_deposit",
+      ])
   );
 
   const otherFeeText = asText(
-    pickEverywhere(rawProperty, active, [
-      "otherFee",
-      "other_fee",
-      "otherFees",
-      "other_fees",
-      "extraFee",
-      "extra_fee",
-      "extraCharges",
-      "extra_charges",
-    ])
+    pickFrom(firstLayout, [
+      "fees.otherFee.amount",
+      "fees.otherFee.note",
+      "fees.otherFee",
+    ]) ??
+      pickEverywhere(rawProperty, active, [
+        "otherFee",
+        "other_fee",
+        "otherFees",
+        "other_fees",
+        "extraFee",
+        "extra_fee",
+        "extraCharges",
+        "extra_charges",
+      ])
   );
 
   const transitText = getTransitText(rawProperty, active);
