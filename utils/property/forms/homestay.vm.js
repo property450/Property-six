@@ -1,8 +1,6 @@
 import {
   isNonEmpty,
   pickAny,
-  pickPreferActive,
-  findBestCategoryStrict,
   getTransitText,
   getCardPriceText,
   formatCarparks,
@@ -13,6 +11,50 @@ function asText(v) {
   if (!isNonEmpty(v)) return "-";
   if (Array.isArray(v)) return v.length ? v.join(", ") : "-";
   return String(v);
+}
+
+function deepGet(obj, path) {
+  if (!obj || !path) return undefined;
+  const parts = path.replace(/\[(\d+)\]/g, ".$1").split(".").filter(Boolean);
+  let cur = obj;
+  for (const p of parts) {
+    if (cur == null) return undefined;
+    cur = cur[p];
+  }
+  return cur;
+}
+
+function pickFrom(obj, candidates) {
+  if (!obj) return undefined;
+  for (const key of candidates) {
+    const v = key.includes(".") || key.includes("[") ? deepGet(obj, key) : obj?.[key];
+    if (isNonEmpty(v)) return v;
+  }
+  return undefined;
+}
+
+function pickEverywhere(rawProperty, active, candidates) {
+  const typeForm =
+    rawProperty?.type_form_v2 ||
+    rawProperty?.typeForm ||
+    rawProperty?.type_form ||
+    {};
+
+  const single =
+    rawProperty?.single_form_data_v2 ||
+    rawProperty?.singleFormData ||
+    rawProperty?.single_form_data ||
+    {};
+
+  const homestayForm = rawProperty?.homestay_form || {};
+
+  return (
+    pickFrom(active, candidates) ??
+    pickFrom(typeForm, candidates) ??
+    pickFrom(single, candidates) ??
+    pickFrom(homestayForm, candidates) ??
+    pickFrom(rawProperty, candidates)
+  );
 }
 
 export function buildVM(rawProperty, active, helpers) {
@@ -31,22 +73,59 @@ export function buildVM(rawProperty, active, helpers) {
     helpers.isCompletedUnitStatus
   );
 
-  const bedrooms = pickPreferActive(active, rawProperty, [
+  const category = pickEverywhere(rawProperty, active, [
+    "category",
+    "propertyCategory",
+    "property_category",
+    "homestayCategory",
+    "homestay_category",
+  ]);
+
+  const subType = pickEverywhere(rawProperty, active, [
+    "finalType",
+    "subType",
+    "sub_type",
+    "homestaySubType",
+    "homestay_sub_type",
+  ]);
+
+  const propSubtypes = pickEverywhere(rawProperty, active, [
+    "propertySubtype",
+    "property_subtype",
+    "subtype",
+    "homestaySubtype",
+    "homestay_subtype",
+    "propertySubtypes",
+    "property_subtypes",
+    "subtypes",
+  ]);
+
+  const homestayTypeText = asText(
+    pickEverywhere(rawProperty, active, [
+      "homestayType",
+      "homestay_type",
+      "stayType",
+      "stay_type",
+    ])
+  );
+
+  const bedrooms = pickEverywhere(rawProperty, active, [
     "bedrooms",
     "bedroomCount",
     "bedroom_count",
     "rooms",
     "roomCount",
+    "room_count",
   ]);
 
-  const bathrooms = pickPreferActive(active, rawProperty, [
+  const bathrooms = pickEverywhere(rawProperty, active, [
     "bathrooms",
     "bathroomCount",
     "bathroom_count",
   ]);
 
   const carparks = formatCarparks(
-    pickPreferActive(active, rawProperty, [
+    pickEverywhere(rawProperty, active, [
       "carparks",
       "carparkCount",
       "carpark_count",
@@ -55,35 +134,8 @@ export function buildVM(rawProperty, active, helpers) {
     ])
   );
 
-  const category = findBestCategoryStrict(active, rawProperty);
-
-  const subType = pickPreferActive(active, rawProperty, [
-    "subType",
-    "sub_type",
-    "finalType",
-    "homestaySubType",
-    "homestay_sub_type",
-  ]);
-
-  const propSubtypes = pickPreferActive(active, rawProperty, [
-    "propertySubtype",
-    "property_subtype",
-    "subtype",
-    "homestaySubtype",
-    "homestay_subtype",
-  ]);
-
-  const homestayTypeText = asText(
-    pickPreferActive(active, rawProperty, [
-      "homestayType",
-      "homestay_type",
-      "stayType",
-      "stay_type",
-    ])
-  );
-
   const bedTypeText = asText(
-    pickPreferActive(active, rawProperty, [
+    pickEverywhere(rawProperty, active, [
       "bedType",
       "bed_type",
       "roomBedType",
@@ -94,7 +146,7 @@ export function buildVM(rawProperty, active, helpers) {
   );
 
   const guestCountText = asText(
-    pickPreferActive(active, rawProperty, [
+    pickEverywhere(rawProperty, active, [
       "guestCount",
       "guest_count",
       "maxGuests",
@@ -107,7 +159,7 @@ export function buildVM(rawProperty, active, helpers) {
   );
 
   const smokingAllowedText = asText(
-    pickPreferActive(active, rawProperty, [
+    pickEverywhere(rawProperty, active, [
       "smokingAllowed",
       "smoking_allowed",
       "allowSmoking",
@@ -118,7 +170,7 @@ export function buildVM(rawProperty, active, helpers) {
   );
 
   const checkinServiceText = asText(
-    pickPreferActive(active, rawProperty, [
+    pickEverywhere(rawProperty, active, [
       "checkinService",
       "checkin_service",
       "checkInService",
@@ -129,7 +181,7 @@ export function buildVM(rawProperty, active, helpers) {
   );
 
   const breakfastIncludedText = asText(
-    pickPreferActive(active, rawProperty, [
+    pickEverywhere(rawProperty, active, [
       "breakfastIncluded",
       "breakfast_included",
       "includeBreakfast",
@@ -140,7 +192,7 @@ export function buildVM(rawProperty, active, helpers) {
   );
 
   const petAllowedText = asText(
-    pickPreferActive(active, rawProperty, [
+    pickEverywhere(rawProperty, active, [
       "petAllowed",
       "pet_allowed",
       "allowPets",
@@ -151,7 +203,7 @@ export function buildVM(rawProperty, active, helpers) {
   );
 
   const freeCancelText = asText(
-    pickPreferActive(active, rawProperty, [
+    pickEverywhere(rawProperty, active, [
       "freeCancel",
       "free_cancel",
       "freeCancellation",
@@ -162,7 +214,7 @@ export function buildVM(rawProperty, active, helpers) {
   );
 
   const serviceFeeText = asText(
-    pickPreferActive(active, rawProperty, [
+    pickEverywhere(rawProperty, active, [
       "serviceFee",
       "service_fee",
       "unitServiceFee",
@@ -171,7 +223,7 @@ export function buildVM(rawProperty, active, helpers) {
   );
 
   const cleaningFeeText = asText(
-    pickPreferActive(active, rawProperty, [
+    pickEverywhere(rawProperty, active, [
       "cleaningFee",
       "cleaning_fee",
       "unitCleaningFee",
@@ -180,7 +232,7 @@ export function buildVM(rawProperty, active, helpers) {
   );
 
   const depositText = asText(
-    pickPreferActive(active, rawProperty, [
+    pickEverywhere(rawProperty, active, [
       "deposit",
       "securityDeposit",
       "security_deposit",
@@ -190,13 +242,15 @@ export function buildVM(rawProperty, active, helpers) {
   );
 
   const otherFeeText = asText(
-    pickPreferActive(active, rawProperty, [
+    pickEverywhere(rawProperty, active, [
       "otherFee",
       "other_fee",
       "otherFees",
       "other_fees",
       "extraFee",
       "extra_fee",
+      "extraCharges",
+      "extra_charges",
     ])
   );
 
@@ -205,7 +259,7 @@ export function buildVM(rawProperty, active, helpers) {
   return {
     title,
     address,
-    priceText,
+    priceText: isNonEmpty(priceText) ? priceText : "-",
 
     bedrooms: isNonEmpty(bedrooms) ? bedrooms : "-",
     bathrooms: isNonEmpty(bathrooms) ? bathrooms : "-",
