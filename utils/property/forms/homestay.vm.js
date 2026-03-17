@@ -253,7 +253,6 @@ function formatMoneyValue(v) {
 }
 
 function formatCalendarPriceRange(firstLayout, rawProperty) {
-function formatCalendarPriceRange(firstLayout, rawProperty) {
   const single =
     rawProperty?.single_form_data_v2 ||
     rawProperty?.singleFormData ||
