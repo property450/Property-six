@@ -203,6 +203,9 @@ function buildHomestayFormFromSingle(single) {
     "carpark_count",
     "parkingCount",
     "parking_count",
+
+    "roomLayouts",
+    "room_layouts",
   ];
 
   for (const k of keys) {
@@ -509,6 +512,9 @@ const keepRentRoomExtra = new Set([
   "carpark_count",
   "parkingCount",
   "parking_count",
+
+  "roomLayouts",
+  "room_layouts",
 
   "homestay_form",
 ]);
