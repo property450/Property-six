@@ -263,21 +263,28 @@ function formatMoneyValue(v) {
   const homestayForm = rawProperty?.homestay_form || {};
 
   const candidates = [
+    // ✅ layout 内直接 availability 就可能已经是日期=>价格
+    firstLayout?.availability,
     firstLayout?.availability?.calendar_prices,
     firstLayout?.availability?.calendarPrices,
     firstLayout?.calendar_prices,
     firstLayout?.calendarPrices,
 
+    // ✅ single_form_data_v2 里也可能直接放 availability
+    single?.availability,
     single?.availability?.calendar_prices,
     single?.availability?.calendarPrices,
     single?.calendar_prices,
     single?.calendarPrices,
 
+    // ✅ homestay_form 里也可能直接放 availability
+    homestayForm?.availability,
     homestayForm?.availability?.calendar_prices,
     homestayForm?.availability?.calendarPrices,
     homestayForm?.calendar_prices,
     homestayForm?.calendarPrices,
 
+    rawProperty?.availability,
     rawProperty?.availability?.calendar_prices,
     rawProperty?.availability?.calendarPrices,
     rawProperty?.calendar_prices,
@@ -295,9 +302,9 @@ function formatMoneyValue(v) {
   const collectCalendar = (obj) => {
     if (!obj || typeof obj !== "object") return;
 
-    for (const [dateKey, val] of Object.entries(obj)) {
-      // ✅ 只认真正像日期的 key，避免把时间/年份/数量乱算进去
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) continue;
+    for (const [key, val] of Object.entries(obj)) {
+      // ✅ 只处理像 2026-03-13 这种真正日期 key
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) continue;
 
       if (typeof val === "number" || typeof val === "string") {
         pushNumber(val);
