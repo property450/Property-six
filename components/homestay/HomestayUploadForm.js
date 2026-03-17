@@ -212,11 +212,11 @@ const onFormChange = props?.onFormChange;
   // ✅✅✅ 编辑回填：外层 formData 可能是异步拿到的，第一次有值时要灌回本地 state
   const didHydrateRef = useRef(false);
   useEffect(() => {
-    const fd = props?.formData;
-    if (!fd || typeof fd !== "object") {
-      setIsHydrated(true);
-      return;
-    }
+  const fd = formData;
+  if (!fd || typeof fd !== "object") {
+    setIsHydrated(true);
+    return;
+  }
 
     // ✅✅✅ 关键修复：只有当 fd 真的带有 Homestay 编辑数据时才 hydrate（避免空对象时就锁死）
     const hasData =
