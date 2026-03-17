@@ -218,7 +218,8 @@ export function buildVM(rawProperty, active, helpers) {
     pickAny(rawProperty, ["address", "fullAddress", "full_address", "location"]) ||
     "-";
 
-  const nestedPriceText = pickHomestayPrice(firstLayout, rawProperty);
+  const nestedPriceText = formatCalendarPriceRange(firstLayout, rawProperty);
+
 const priceText =
   nestedPriceText !== "-"
     ? nestedPriceText
@@ -333,77 +334,82 @@ const priceText =
         ])
       );
 
-  const smokingAllowedText = asText(
-    pickFrom(firstLayout, ["smoking"]) ??
-      pickEverywhere(rawProperty, active, [
-        "smokingAllowed",
-        "smoking_allowed",
-        "allowSmoking",
-        "allow_smoking",
-        "indoorSmoking",
-        "indoor_smoking",
-      ])
-  );
+  const smokingAllowedRaw =
+  pickFrom(firstLayout, ["smoking"]) ??
+  pickEverywhere(rawProperty, active, [
+    "smokingAllowed",
+    "smoking_allowed",
+    "allowSmoking",
+    "allow_smoking",
+    "indoorSmoking",
+    "indoor_smoking",
+  ]);
 
-  const checkinServiceText = asText(
-    pickFrom(firstLayout, [
-      "checkinService.type",
-      "checkinService.method",
-      "checkinService",
-    ]) ??
-      pickEverywhere(rawProperty, active, [
-        "checkinService",
-        "checkin_service",
-        "checkInService",
-        "check_in_service",
-        "checkinMethod",
-        "checkin_method",
-      ])
-  );
+const smokingAllowedText = mapSmokingText(smokingAllowedRaw);
 
-  const breakfastIncludedText = asText(
-    pickFrom(firstLayout, ["breakfast"]) ??
-      pickEverywhere(rawProperty, active, [
-        "breakfastIncluded",
-        "breakfast_included",
-        "includeBreakfast",
-        "include_breakfast",
-        "withBreakfast",
-        "with_breakfast",
-      ])
-  );
+  const checkinServiceRaw =
+  pickFrom(firstLayout, [
+    "checkinService.type",
+    "checkinService.method",
+    "checkinService",
+  ]) ??
+  pickEverywhere(rawProperty, active, [
+    "checkinService",
+    "checkin_service",
+    "checkInService",
+    "check_in_service",
+    "checkinMethod",
+    "checkin_method",
+  ]);
 
-  const petAllowedText = asText(
-    pickFrom(firstLayout, [
-      "petPolicy.type",
-      "petPolicy.note",
-      "petPolicy",
-    ]) ??
-      pickEverywhere(rawProperty, active, [
-        "petAllowed",
-        "pet_allowed",
-        "allowPets",
-        "allow_pets",
-        "petsAllowed",
-        "pets_allowed",
-      ])
-  );
+const checkinServiceText = mapCheckinServiceText(checkinServiceRaw);
 
-  const freeCancelText = asText(
-    pickFrom(firstLayout, [
-      "cancellationPolicy.type",
-      "cancellationPolicy.condition",
-      "cancellationPolicy",
-    ]) ??
-      pickEverywhere(rawProperty, active, [
-        "freeCancel",
-        "free_cancel",
-        "freeCancellation",
-        "free_cancellation",
-        "cancellationPolicy",
-        "cancellation_policy",
-      ])
-  );
+  const breakfastRaw =
+  pickFrom(firstLayout, ["breakfast"]) ??
+  pickEverywhere(rawProperty, active, [
+    "breakfastIncluded",
+    "breakfast_included",
+    "includeBreakfast",
+    "include_breakfast",
+    "withBreakfast",
+    "with_breakfast",
+  ]);
+
+const breakfastIncludedText = mapYesNoText(breakfastRaw);
+
+  const petAllowedRaw =
+  pickFrom(firstLayout, [
+    "petPolicy.type",
+    "petPolicy.note",
+    "petPolicy",
+  ]) ??
+  pickEverywhere(rawProperty, active, [
+    "petAllowed",
+    "pet_allowed",
+    "allowPets",
+    "allow_pets",
+    "petsAllowed",
+    "pets_allowed",
+  ]);
+
+const petAllowedText = mapPetPolicyText(petAllowedRaw);
+
+  const freeCancelRaw =
+  pickFrom(firstLayout, [
+    "cancellationPolicy.type",
+    "cancellationPolicy.condition",
+    "cancellationPolicy",
+  ]) ??
+  pickEverywhere(rawProperty, active, [
+    "freeCancel",
+    "free_cancel",
+    "freeCancellation",
+    "free_cancellation",
+    "cancellationPolicy",
+    "cancellation_policy",
+  ]);
+
+const freeCancelText = mapCancelText(freeCancelRaw);
 
   const serviceFeeText =
   formatFeeObject(pickFrom(firstLayout, ["fees.serviceFee"])) !== "-"
