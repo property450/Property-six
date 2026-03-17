@@ -1105,6 +1105,7 @@ export default function UploadPropertyPage() {
               setSingleFormData={setSingleFormData}
               areaData={areaData}
               setAreaData={setAreaData}
+              isEditing={isEditMode}
             />
           ) : isProject ? (
             <>
