@@ -188,7 +188,8 @@ function formatFeeObject(fee, kind = "money") {
 }
 
 
-    function pickHomestayPrice(firstLayout, rawProperty, active) {
+    
+  function pickHomestayPrice(firstLayout, rawProperty, active) {
   const sources = [
     firstLayout?.availability,
     active?.availability,
@@ -240,60 +241,28 @@ function formatFeeObject(fee, kind = "money") {
       layoutAvailability.calendar_prices || layoutAvailability.calendarPrices;
 
     if (calendarPrices && typeof calendarPrices === "object") {
-      // 如果这里其实又包了一层 { prices, checkInTime, checkOutTime }
       const actualMap =
         calendarPrices?.prices && typeof calendarPrices.prices === "object"
           ? calendarPrices.prices
           : calendarPrices;
 
-      
-    const dateKeys = Object.keys(layoutAvailability).filter((k) =>
-      /^\d{4}-\d{2}-\d{2}$/.test(k)
-    );
-
-    for (const k of dateKeys) {
-      const val = layoutAvailability[k];
-      if (typeof val === "number" || typeof val === "string") {
-        return String(val);
-      }
-      if (val && typeof val === "object") {
-        if (val.price != null && val.price !== "") return String(val.price);
-        if (val.value != null && val.value !== "") return String(val.value);
-        if (val.amount != null && val.amount !== "") return String(val.amount);
-      }
-    }
-  }
-
-  if (active?.calendar_prices && typeof active.calendar_prices === "object") {
-    const values = Object.values(active.calendar_prices).filter(Boolean);
-    if (values.length > 0) {
-      const first = values[0];
-      if (typeof first === "object") {
-        if (first.price) return String(first.price);
-        if (first.value) return String(first.value);
-        if (first.amount) return String(first.amount);
-      } else {
-        return String(first);
-      }
-    }
-  }
-
-  if (rawProperty?.calendar_prices && typeof rawProperty.calendar_prices === "object") {
-    const values = Object.values(rawProperty.calendar_prices).filter(Boolean);
-    if (values.length > 0) {
-      const first = values[0];
-      if (typeof first === "object") {
-        if (first.price) return String(first.price);
-        if (first.value) return String(first.value);
-        if (first.amount) return String(first.amount);
-      } else {
-        return String(first);
+      const values = Object.values(actualMap).filter(Boolean);
+      if (values.length > 0) {
+        const first = values[0];
+        if (typeof first === "number" || typeof first === "string") {
+          return String(first);
+        }
+        if (first && typeof first === "object") {
+          if (first.price != null && first.price !== "") return String(first.price);
+          if (first.value != null && first.value !== "") return String(first.value);
+          if (first.amount != null && first.amount !== "") return String(first.amount);
+        }
       }
     }
   }
 
   return "-";
-}
+  }
 
 function mapSmokingText(v) {
   const s = String(v || "").toLowerCase().trim();
