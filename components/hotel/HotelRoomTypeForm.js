@@ -245,12 +245,14 @@ export default function HotelRoomTypeForm({ index, total, data, onChange }) {
           这个房型的可租日期 & 价格（日历）
         </label>
         <AdvancedAvailabilityCalendar
-  value={availability?.calendar_prices || {}}
+  value={availability?.calendar_prices || availability?.calendarPrices || {}}
   onChange={(val) =>
     updateRoom({
       availability: {
-        calendar_prices: val
-      }
+        ...(availability || {}),
+        calendar_prices: val,
+        calendarPrices: val,
+      },
     })
   }
 />
