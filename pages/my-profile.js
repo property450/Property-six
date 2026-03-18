@@ -148,14 +148,24 @@ function isPublishedProperty(p) {
 ========================= */
 function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
   const vm = useMemo(() => {
-  const mergedSingle = mergeFormsIntoSingle(
-    rawProperty?.single_form_data_v2 ||
+  const homestayRoom =
+  rawProperty?.homestay_form?.roomTypes?.[0] ||
+  rawProperty?.homestay_form?.rooms?.[0] ||
+  {};
+
+const mergedSingle = mergeFormsIntoSingle(
+  {
+    ...(rawProperty?.single_form_data_v2 ||
       rawProperty?.singleFormData ||
       rawProperty?.single_form_data ||
-      {},
-    rawProperty?.homestay_form,
-    rawProperty?.hotel_resort_form
-  );
+      {}),
+
+    // ✅ 关键：把 room 数据拉上来
+    ...homestayRoom,
+  },
+  rawProperty?.homestay_form,
+  rawProperty?.hotel_resort_form
+);
 
   const normalizedProperty = {
     ...rawProperty,
