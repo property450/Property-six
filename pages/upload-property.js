@@ -651,6 +651,61 @@ function buildCleanupPayloadByActiveForm(activeFormKey) {
   return out;
 }
 
+
+function pickHomestayPriceFallback(singleFormData) {
+  const s = singleFormData || {};
+
+  const layouts =
+    (Array.isArray(s.roomLayouts) && s.roomLayouts) ||
+    (Array.isArray(s.room_layouts) && s.room_layouts) ||
+    [];
+
+  const first = layouts[0] || {};
+  const availability = first.availability || {};
+
+  const calendar =
+    availability.calendar_prices ||
+    availability.calendarPrices ||
+    s.calendar_prices ||
+    s.calendarPrices ||
+    {};
+
+  const values = Object.values(calendar || {}).filter(Boolean);
+
+  let firstPrice = "";
+
+  if (values.length > 0) {
+    const v = values[0];
+    if (typeof v === "number" || typeof v === "string") {
+      firstPrice = String(v);
+    } else if (v && typeof v === "object") {
+      firstPrice = v.price || v.value || v.amount || "";
+    }
+  }
+
+  if (!firstPrice) {
+    const dateKeys = Object.keys(availability).filter((k) => /^\d{4}-\d{2}-\d{2}$/.test(k));
+    for (const k of dateKeys) {
+      const v = availability[k];
+      if (typeof v === "number" || typeof v === "string") {
+        firstPrice = String(v);
+        break;
+      }
+      if (v && typeof v === "object") {
+        firstPrice = v.price || v.value || v.amount || "";
+        if (firstPrice) break;
+      }
+    }
+  }
+
+  return {
+    derivedPrice: firstPrice || null,
+    derivedCalendarPrices:
+      Object.keys(calendar || {}).length > 0 ? calendar : null,
+  };
+}
+
+
 // ✅ 价格同步：尽量统一你表里可能用到的列名
 function pickPriceColumnsFromSingle(singleFormData) {
   const s = singleFormData || {};
@@ -662,10 +717,10 @@ function pickPriceColumnsFromSingle(singleFormData) {
   if (s.priceMax !== undefined) out.priceMax = s.priceMax;
   if (s.salePrice !== undefined) out.salePrice = s.salePrice;
 
-  // ✅ rent whole / rent room
+  // rent
   if (s.rent !== undefined) {
     out.rentPrice = s.rent;
-    out.price = s.rent; // 给旧卡片 / 旧逻辑兜底
+    out.price = s.rent;
   }
 
   if (s.rentPrice !== undefined) {
@@ -676,6 +731,12 @@ function pickPriceColumnsFromSingle(singleFormData) {
   if (s.roomPrice !== undefined) {
     out.rentPrice = s.roomPrice;
     out.price = s.roomPrice;
+  }
+
+  // ✅ homestay / hotel fallback
+  const { derivedPrice } = pickHomestayPriceFallback(s);
+  if ((out.price === undefined || out.price === null || out.price === "") && derivedPrice) {
+    out.price = derivedPrice;
   }
 
   return out;
@@ -869,16 +930,22 @@ export default function UploadPropertyPage() {
       const hotel_resort_form = activeFormKey === "hotel" ? buildHotelFormFromSingle(cleanedSingleFormData) : null;
 
       // ✅✅✅ 4) 日历字段：只在 Homestay / Hotel 保存（否则强制清空）
-      const availability =
-        activeFormKey === "homestay" || activeFormKey === "hotel"
-          ? cleanedSingleFormData?.availability ?? cleanedSingleFormData?.availability_data ?? null
-          : null;
+      const { derivedCalendarPrices } = pickHomestayPriceFallback(cleanedSingleFormData);
+const priceCols = pickPriceColumnsFromSingle(cleanedSingleFormData);
 
-      const calendar_prices =
-        activeFormKey === "homestay" || activeFormKey === "hotel"
-          ? cleanedSingleFormData?.calendar_prices ?? cleanedSingleFormData?.calendarPrices ?? null
-          : null;
+const availability =
+  activeFormKey === "homestay" || activeFormKey === "hotel"
+    ? cleanedSingleFormData?.availability ?? cleanedSingleFormData?.availability_data ?? null
+    : null;
 
+const calendar_prices =
+  activeFormKey === "homestay" || activeFormKey === "hotel"
+    ? cleanedSingleFormData?.calendar_prices ??
+      cleanedSingleFormData?.calendarPrices ??
+      derivedCalendarPrices ??
+      null
+    : null;
+      
       const effectiveUnitLayouts =
         activeFormKey === "sale_new_project" ||
         activeFormKey === "sale_completed_unit" ||
