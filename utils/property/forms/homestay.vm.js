@@ -116,13 +116,7 @@ function getFirstRoomLayout(rawProperty, active) {
 
   const homestayForm = rawProperty?.homestay_form || {};
 
-  const sources = [
-    active,
-    single,
-    homestayForm,
-    typeForm,
-    rawProperty,
-  ];
+  const sources = [active, single, homestayForm, typeForm, rawProperty];
 
   for (const src of sources) {
     const roomLayouts = src?.roomLayouts;
@@ -205,43 +199,42 @@ function pickHomestayPrice(firstLayout, rawProperty, active) {
   ].filter(Boolean);
 
   for (const layoutAvailability of sources) {
-    if (layoutAvailability && typeof layoutAvailability === "object") {
-      if (layoutAvailability.price) return String(layoutAvailability.price);
-      if (layoutAvailability.defaultPrice) return String(layoutAvailability.defaultPrice);
-      if (layoutAvailability.basePrice) return String(layoutAvailability.basePrice);
+    if (typeof layoutAvailability !== "object") continue;
 
-      const calendarPrices =
-        layoutAvailability.calendar_prices || layoutAvailability.calendarPrices;
+    if (layoutAvailability.price) return String(layoutAvailability.price);
+    if (layoutAvailability.defaultPrice) return String(layoutAvailability.defaultPrice);
+    if (layoutAvailability.basePrice) return String(layoutAvailability.basePrice);
 
-      if (calendarPrices && typeof calendarPrices === "object") {
-        const values = Object.values(calendarPrices).filter(Boolean);
-        if (values.length > 0) {
-          const first = values[0];
-          if (typeof first === "object") {
-            if (first.price) return String(first.price);
-            if (first.value) return String(first.value);
-            if (first.amount) return String(first.amount);
-          }
+    const calendarPrices =
+      layoutAvailability.calendar_prices || layoutAvailability.calendarPrices;
+
+    if (calendarPrices && typeof calendarPrices === "object") {
+      const values = Object.values(calendarPrices).filter(Boolean);
+      if (values.length > 0) {
+        const first = values[0];
+        if (typeof first === "object") {
+          if (first.price) return String(first.price);
+          if (first.value) return String(first.value);
+          if (first.amount) return String(first.amount);
+        } else {
           return String(first);
         }
       }
+    }
 
-      const dateKeys = Object.keys(layoutAvailability).filter((k) =>
-        /^\d{4}-\d{2}-\d{2}$/.test(k)
-      );
+    const dateKeys = Object.keys(layoutAvailability).filter((k) =>
+      /^\d{4}-\d{2}-\d{2}$/.test(k)
+    );
 
-      if (dateKeys.length > 0) {
-        for (const k of dateKeys) {
-          const val = layoutAvailability[k];
-          if (typeof val === "number" || typeof val === "string") {
-            return String(val);
-          }
-          if (val && typeof val === "object") {
-            if (val.price != null && val.price !== "") return String(val.price);
-            if (val.value != null && val.value !== "") return String(val.value);
-            if (val.amount != null && val.amount !== "") return String(val.amount);
-          }
-        }
+    for (const k of dateKeys) {
+      const val = layoutAvailability[k];
+      if (typeof val === "number" || typeof val === "string") {
+        return String(val);
+      }
+      if (val && typeof val === "object") {
+        if (val.price != null && val.price !== "") return String(val.price);
+        if (val.value != null && val.value !== "") return String(val.value);
+        if (val.amount != null && val.amount !== "") return String(val.amount);
       }
     }
   }
@@ -254,8 +247,9 @@ function pickHomestayPrice(firstLayout, rawProperty, active) {
         if (first.price) return String(first.price);
         if (first.value) return String(first.value);
         if (first.amount) return String(first.amount);
+      } else {
+        return String(first);
       }
-      return String(first);
     }
   }
 
@@ -267,57 +261,9 @@ function pickHomestayPrice(firstLayout, rawProperty, active) {
         if (first.price) return String(first.price);
         if (first.value) return String(first.value);
         if (first.amount) return String(first.amount);
+      } else {
+        return String(first);
       }
-      return String(first);
-    }
-  }
-
-  return "-";
-}
-
-      const dateKeys = Object.keys(layoutAvailability).filter((k) =>
-        /^\d{4}-\d{2}-\d{2}$/.test(k)
-      );
-
-      if (dateKeys.length > 0) {
-        for (const k of dateKeys) {
-          const val = layoutAvailability[k];
-          if (typeof val === "number" || typeof val === "string") {
-            return String(val);
-          }
-          if (val && typeof val === "object") {
-            if (val.price != null && val.price !== "") return String(val.price);
-            if (val.value != null && val.value !== "") return String(val.value);
-            if (val.amount != null && val.amount !== "") return String(val.amount);
-          }
-        }
-      }
-    }
-  }
-
-  if (active?.calendar_prices && typeof active.calendar_prices === "object") {
-    const values = Object.values(active.calendar_prices).filter(Boolean);
-    if (values.length > 0) {
-      const first = values[0];
-      if (typeof first === "object") {
-        if (first.price) return String(first.price);
-        if (first.value) return String(first.value);
-        if (first.amount) return String(first.amount);
-      }
-      return String(first);
-    }
-  }
-
-  if (rawProperty?.calendar_prices && typeof rawProperty.calendar_prices === "object") {
-    const values = Object.values(rawProperty.calendar_prices).filter(Boolean);
-    if (values.length > 0) {
-      const first = values[0];
-      if (typeof first === "object") {
-        if (first.price) return String(first.price);
-        if (first.value) return String(first.value);
-        if (first.amount) return String(first.amount);
-      }
-      return String(first);
     }
   }
 
@@ -422,44 +368,32 @@ function formatCalendarPriceRange(firstLayout, rawProperty, active) {
     }
   };
 
-    const typeForm =
-    rawProperty?.type_form_v2 ||
-    rawProperty?.typeForm ||
-    rawProperty?.type_form ||
-    {};
-
   const candidates = [
-    // 1) layout 内嵌 calendar_prices
     firstLayout?.availability?.calendar_prices,
     firstLayout?.availability?.calendarPrices,
     firstLayout?.calendar_prices,
     firstLayout?.calendarPrices,
 
-    // 2) active
     active?.availability?.calendar_prices,
     active?.availability?.calendarPrices,
     active?.calendar_prices,
     active?.calendarPrices,
 
-    // 3) single_form_data_v2
     single?.availability?.calendar_prices,
     single?.availability?.calendarPrices,
     single?.calendar_prices,
     single?.calendarPrices,
 
-    // 4) homestay_form
     homestayForm?.availability?.calendar_prices,
     homestayForm?.availability?.calendarPrices,
     homestayForm?.calendar_prices,
     homestayForm?.calendarPrices,
 
-    // 5) type_form_v2
     typeForm?.availability?.calendar_prices,
     typeForm?.availability?.calendarPrices,
     typeForm?.calendar_prices,
     typeForm?.calendarPrices,
 
-    // 6) rawProperty 顶层
     rawProperty?.availability?.calendar_prices,
     rawProperty?.availability?.calendarPrices,
     rawProperty?.calendar_prices,
@@ -469,7 +403,7 @@ function formatCalendarPriceRange(firstLayout, rawProperty, active) {
   candidates.forEach(collectDatePriceMap);
 
   if (!nums.length) {
-        const directAvailabilityCandidates = [
+    const directAvailabilityCandidates = [
       firstLayout?.availability,
       active?.availability,
       single?.availability,
@@ -508,9 +442,6 @@ export function buildVM(rawProperty, active, helpers) {
     "-";
 
   const nestedPriceText = formatCalendarPriceRange(firstLayout, rawProperty, active);
-  const fallbackHomestayPrice = pickHomestayPrice(firstLayout, rawProperty, active);
-
-    const nestedPriceText = formatCalendarPriceRange(firstLayout, rawProperty, active);
   const fallbackHomestayPrice = pickHomestayPrice(firstLayout, rawProperty, active);
 
   const priceText =
@@ -768,43 +699,6 @@ export function buildVM(rawProperty, active, helpers) {
           ])
         );
 
-  function getFirstRoomLayout(rawProperty, active) {
-  const single =
-    rawProperty?.single_form_data_v2 ||
-    rawProperty?.singleFormData ||
-    rawProperty?.single_form_data ||
-    {};
-
-  const typeForm =
-    rawProperty?.type_form_v2 ||
-    rawProperty?.typeForm ||
-    rawProperty?.type_form ||
-    {};
-
-  const homestayForm = rawProperty?.homestay_form || {};
-
-  const sources = [
-    active,
-    single,
-    homestayForm,
-    typeForm,
-    rawProperty,
-  ];
-
-  for (const src of sources) {
-    const roomLayouts = src?.roomLayouts;
-    if (Array.isArray(roomLayouts) && roomLayouts.length > 0) return roomLayouts[0];
-
-    const room_layouts = src?.room_layouts;
-    if (Array.isArray(room_layouts) && room_layouts.length > 0) return room_layouts[0];
-
-    const layouts = src?.layouts;
-    if (Array.isArray(layouts) && layouts.length > 0) return layouts[0];
-  }
-
-  return null;
-  }
-
   const transitText = getTransitText(rawProperty, active);
 
   return {
@@ -855,4 +749,4 @@ export function buildVM(rawProperty, active, helpers) {
     showStoreys: false,
     showSubtype: shouldShowPropertySubtypeByCategory(category),
   };
-}
+    }
