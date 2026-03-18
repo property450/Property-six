@@ -262,30 +262,6 @@ function formatMoneyValue(v) {
 
   const homestayForm = rawProperty?.homestay_form || {};
 
-  const candidates = [
-  // ❌ 不要再用整个 availability
-
-  firstLayout?.availability?.calendar_prices,
-  firstLayout?.availability?.calendarPrices,
-  firstLayout?.calendar_prices,
-  firstLayout?.calendarPrices,
-
-  single?.availability?.calendar_prices,
-  single?.availability?.calendarPrices,
-  single?.calendar_prices,
-  single?.calendarPrices,
-
-  homestayForm?.availability?.calendar_prices,
-  homestayForm?.availability?.calendarPrices,
-  homestayForm?.calendar_prices,
-  homestayForm?.calendarPrices,
-
-  rawProperty?.availability?.calendar_prices,
-  rawProperty?.availability?.calendarPrices,
-  rawProperty?.calendar_prices,
-  rawProperty?.calendarPrices,
-].filter(Boolean);
-
   const nums = [];
 
   const pushNumber = (raw) => {
@@ -294,11 +270,11 @@ function formatMoneyValue(v) {
     if (Number.isFinite(n)) nums.push(n);
   };
 
-  const collectCalendar = (obj) => {
+  const collectDatePriceMap = (obj) => {
     if (!obj || typeof obj !== "object") return;
 
     for (const [key, val] of Object.entries(obj)) {
-      // ✅ 只处理像 2026-03-13 这种真正日期 key
+      // 只处理像 2026-03-13 这种日期 key
       if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) continue;
 
       if (typeof val === "number" || typeof val === "string") {
@@ -314,7 +290,54 @@ function formatMoneyValue(v) {
     }
   };
 
-  candidates.forEach(collectCalendar);
+  const candidates = [
+    // 1) layout 内嵌 calendar_prices
+    firstLayout?.availability?.calendar_prices,
+    firstLayout?.availability?.calendarPrices,
+    firstLayout?.calendar_prices,
+    firstLayout?.calendarPrices,
+
+    // 2) single_form_data_v2
+    single?.availability?.calendar_prices,
+    single?.availability?.calendarPrices,
+    single?.calendar_prices,
+    single?.calendarPrices,
+
+    // 3) homestay_form
+    homestayForm?.availability?.calendar_prices,
+    homestayForm?.availability?.calendarPrices,
+    homestayForm?.calendar_prices,
+    homestayForm?.calendarPrices,
+
+    // 4) rawProperty 顶层
+    rawProperty?.availability?.calendar_prices,
+    rawProperty?.availability?.calendarPrices,
+    rawProperty?.calendar_prices,
+    rawProperty?.calendarPrices,
+  ].filter(Boolean);
+
+  // 先收集标准 calendar_prices 结构
+  candidates.forEach(collectDatePriceMap);
+
+  // 如果还没找到，再尝试“纯 availability 日期表”
+  if (!nums.length) {
+    const directAvailabilityCandidates = [
+      firstLayout?.availability,
+      single?.availability,
+      homestayForm?.availability,
+      rawProperty?.availability,
+    ].filter(Boolean);
+
+    for (const obj of directAvailabilityCandidates) {
+      const keys = Object.keys(obj || {});
+      const dateKeys = keys.filter((k) => /^\d{4}-\d{2}-\d{2}$/.test(k));
+
+      // 只要存在日期 key，就当作日期价格表来读
+      if (dateKeys.length > 0) {
+        collectDatePriceMap(obj);
+      }
+    }
+  }
 
   if (!nums.length) return "-";
 
