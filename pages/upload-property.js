@@ -1162,6 +1162,9 @@ const calendar_prices =
   formData={singleFormData}
   setFormData={setSingleFormData}
 
+  singleFormData={singleFormData}
+  setSingleFormData={setSingleFormData}
+
   areaData={areaData}
   setAreaData={setAreaData}
   isEditing={isEditMode}
