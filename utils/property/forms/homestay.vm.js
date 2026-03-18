@@ -206,8 +206,10 @@ function pickHomestayPrice(firstLayout, rawProperty, active) {
     if (layoutAvailability.basePrice) return String(layoutAvailability.basePrice);
 
     const calendarPrices =
-      layoutAvailability.calendar_prices || layoutAvailability.calendarPrices;
-
+  layoutAvailability.prices ||
+  layoutAvailability.calendar_prices ||
+  layoutAvailability.calendarPrices;
+    
     if (calendarPrices && typeof calendarPrices === "object") {
       const values = Object.values(calendarPrices).filter(Boolean);
       if (values.length > 0) {
@@ -369,37 +371,43 @@ function formatCalendarPriceRange(firstLayout, rawProperty, active) {
   };
 
   const candidates = [
-    firstLayout?.availability?.calendar_prices,
-    firstLayout?.availability?.calendarPrices,
-    firstLayout?.calendar_prices,
-    firstLayout?.calendarPrices,
+  firstLayout?.availability?.prices,
+  firstLayout?.availability?.calendar_prices,
+  firstLayout?.availability?.calendarPrices,
+  firstLayout?.calendar_prices,
+  firstLayout?.calendarPrices,
 
-    active?.availability?.calendar_prices,
-    active?.availability?.calendarPrices,
-    active?.calendar_prices,
-    active?.calendarPrices,
+  active?.availability?.prices,
+  active?.availability?.calendar_prices,
+  active?.availability?.calendarPrices,
+  active?.calendar_prices,
+  active?.calendarPrices,
 
-    single?.availability?.calendar_prices,
-    single?.availability?.calendarPrices,
-    single?.calendar_prices,
-    single?.calendarPrices,
+  single?.availability?.prices,
+  single?.availability?.calendar_prices,
+  single?.availability?.calendarPrices,
+  single?.calendar_prices,
+  single?.calendarPrices,
 
-    homestayForm?.availability?.calendar_prices,
-    homestayForm?.availability?.calendarPrices,
-    homestayForm?.calendar_prices,
-    homestayForm?.calendarPrices,
+  homestayForm?.availability?.prices,
+  homestayForm?.availability?.calendar_prices,
+  homestayForm?.availability?.calendarPrices,
+  homestayForm?.calendar_prices,
+  homestayForm?.calendarPrices,
 
-    typeForm?.availability?.calendar_prices,
-    typeForm?.availability?.calendarPrices,
-    typeForm?.calendar_prices,
-    typeForm?.calendarPrices,
+  typeForm?.availability?.prices,
+  typeForm?.availability?.calendar_prices,
+  typeForm?.availability?.calendarPrices,
+  typeForm?.calendar_prices,
+  typeForm?.calendarPrices,
 
-    rawProperty?.availability?.calendar_prices,
-    rawProperty?.availability?.calendarPrices,
-    rawProperty?.calendar_prices,
-    rawProperty?.calendarPrices,
-  ].filter(Boolean);
-
+  rawProperty?.availability?.prices,
+  rawProperty?.availability?.calendar_prices,
+  rawProperty?.availability?.calendarPrices,
+  rawProperty?.calendar_prices,
+  rawProperty?.calendarPrices,
+].filter(Boolean);
+  
   candidates.forEach(collectDatePriceMap);
 
   if (!nums.length) {
