@@ -187,7 +187,8 @@ function formatFeeObject(fee, kind = "money") {
   return "-";
 }
 
-function pickHomestayPrice(firstLayout, rawProperty, active) {
+
+    function pickHomestayPrice(firstLayout, rawProperty, active) {
   const sources = [
     firstLayout?.availability,
     active?.availability,
@@ -199,32 +200,70 @@ function pickHomestayPrice(firstLayout, rawProperty, active) {
   ].filter(Boolean);
 
   for (const layoutAvailability of sources) {
-    if (typeof layoutAvailability !== "object") continue;
+    if (!layoutAvailability || typeof layoutAvailability !== "object") continue;
 
-    if (layoutAvailability.price) return String(layoutAvailability.price);
-    if (layoutAvailability.defaultPrice) return String(layoutAvailability.defaultPrice);
-    if (layoutAvailability.basePrice) return String(layoutAvailability.basePrice);
+    // 1) 直接价格
+    if (layoutAvailability.price != null && layoutAvailability.price !== "") {
+      return String(layoutAvailability.price);
+    }
+    if (layoutAvailability.defaultPrice != null && layoutAvailability.defaultPrice !== "") {
+      return String(layoutAvailability.defaultPrice);
+    }
+    if (layoutAvailability.basePrice != null && layoutAvailability.basePrice !== "") {
+      return String(layoutAvailability.basePrice);
+    }
 
-    const calendarPrices =
-      layoutAvailability.prices ||
-      layoutAvailability.calendar_prices ||
-      layoutAvailability.calendarPrices;
+    // 2) 兼容 AdvancedAvailabilityCalendar 的 payload:
+    //    { prices, checkInTime, checkOutTime }
+    const nestedPrices =
+      layoutAvailability?.prices && typeof layoutAvailability.prices === "object"
+        ? layoutAvailability.prices
+        : null;
 
-    if (calendarPrices && typeof calendarPrices === "object") {
-      const values = Object.values(calendarPrices).filter(Boolean);
+    if (nestedPrices) {
+      const values = Object.values(nestedPrices).filter(Boolean);
       if (values.length > 0) {
         const first = values[0];
-        if (typeof first === "object") {
+        if (typeof first === "number" || typeof first === "string") {
+          return String(first);
+        }
+        if (first && typeof first === "object") {
           if (first.price != null && first.price !== "") return String(first.price);
           if (first.value != null && first.value !== "") return String(first.value);
           if (first.amount != null && first.amount !== "") return String(first.amount);
-        } else {
-          return String(first);
         }
       }
     }
 
-  
+    // 3) 旧结构：calendar_prices / calendarPrices
+    const calendarPrices =
+      layoutAvailability.calendar_prices || layoutAvailability.calendarPrices;
+
+    if (calendarPrices && typeof calendarPrices === "object") {
+      // 如果这里其实又包了一层 { prices, checkInTime, checkOutTime }
+      const actualMap =
+        calendarPrices?.prices && typeof calendarPrices.prices === "object"
+          ? calendarPrices.prices
+          : calendarPrices;
+
+      const values = Object.values(actualMap).filter(Boolean);
+      if (values.length > 0) {
+        const first = values[0];
+        if (typeof first === "number" || typeof first === "string") {
+          return String(first);
+        }
+        if (first && typeof first === "object") {
+          if (first.price != null && first.price !== "") return String(first.price);
+          if (first.value != null && first.value !== "") return String(first.value);
+          if (first.amount != null && first.amount !== "") return String(first.amount);
+        }
+      }
+    }
+  }
+
+  return "-";
+    }
+
 
     const dateKeys = Object.keys(layoutAvailability).filter((k) =>
       /^\d{4}-\d{2}-\d{2}$/.test(k)
@@ -354,23 +393,37 @@ function formatCalendarPriceRange(firstLayout, rawProperty, active) {
   };
 
   const collectDatePriceMap = (obj) => {
-    if (!obj || typeof obj !== "object") return;
+  if (!obj || typeof obj !== "object") return;
 
-    for (const [key, val] of Object.entries(obj)) {
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) continue;
-
+  // ✅ 如果是 AdvancedAvailabilityCalendar 的结构
+  // { prices, checkInTime, checkOutTime }
+  if (obj.prices && typeof obj.prices === "object") {
+    Object.values(obj.prices).forEach((val) => {
       if (typeof val === "number" || typeof val === "string") {
         pushNumber(val);
-        continue;
-      }
-
-      if (val && typeof val === "object") {
+      } else if (val && typeof val === "object") {
         pushNumber(val.price);
         pushNumber(val.value);
         pushNumber(val.amount);
       }
+    });
+    return;
+  }
+
+  // ✅ 普通 map 结构
+  for (const val of Object.values(obj)) {
+    if (typeof val === "number" || typeof val === "string") {
+      pushNumber(val);
+      continue;
     }
-  };
+
+    if (val && typeof val === "object") {
+      pushNumber(val.price);
+      pushNumber(val.value);
+      pushNumber(val.amount);
+    }
+  }
+};
 
   const candidates = [
     firstLayout?.availability?.prices,
