@@ -452,6 +452,11 @@ export function buildVM(rawProperty, active, helpers) {
   const nestedPriceText = formatCalendarPriceRange(firstLayout, rawProperty, active);
   const fallbackHomestayPrice = pickHomestayPrice(firstLayout, rawProperty, active);
 
+  console.log("HOMESTAY firstLayout availability =", firstLayout?.availability);
+console.log("HOMESTAY nestedPriceText =", nestedPriceText);
+console.log("HOMESTAY fallbackHomestayPrice =", fallbackHomestayPrice);
+console.log("HOMESTAY rawProperty.price =", rawProperty?.price);
+  
   const priceText =
     nestedPriceText !== "-"
       ? nestedPriceText
