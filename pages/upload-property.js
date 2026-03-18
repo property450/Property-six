@@ -664,7 +664,7 @@ function pickHomestayPriceFallback(singleFormData) {
   const availability = first.availability || {};
 
   const calendar =
-    availability.calendar_prices ||
+    availability?.prices ||
     availability.calendarPrices ||
     s.calendar_prices ||
     s.calendarPrices ||
