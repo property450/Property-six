@@ -1156,14 +1156,16 @@ const calendar_prices =
         {(!isEditMode || editHydrated) &&
           (isHomestay ? (
             <HomestayUploadForm
-              typeForm={typeForm}
-              setTypeForm={setTypeForm}
-              singleFormData={singleFormData}
-              setSingleFormData={setSingleFormData}
-              areaData={areaData}
-              setAreaData={setAreaData}
-              isEditing={isEditMode}
-            />
+  typeForm={typeForm}
+  setTypeForm={setTypeForm}
+
+  formData={singleFormData}
+  setFormData={setSingleFormData}
+
+  areaData={areaData}
+  setAreaData={setAreaData}
+  isEditing={isEditMode}
+/>
           ) : isHotel ? (
             <HotelUploadForm
               typeForm={typeForm}
