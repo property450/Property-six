@@ -246,25 +246,7 @@ function formatFeeObject(fee, kind = "money") {
           ? calendarPrices.prices
           : calendarPrices;
 
-      const values = Object.values(actualMap).filter(Boolean);
-      if (values.length > 0) {
-        const first = values[0];
-        if (typeof first === "number" || typeof first === "string") {
-          return String(first);
-        }
-        if (first && typeof first === "object") {
-          if (first.price != null && first.price !== "") return String(first.price);
-          if (first.value != null && first.value !== "") return String(first.value);
-          if (first.amount != null && first.amount !== "") return String(first.amount);
-        }
-      }
-    }
-  }
-
-  return "-";
-    }
-
-
+      
     const dateKeys = Object.keys(layoutAvailability).filter((k) =>
       /^\d{4}-\d{2}-\d{2}$/.test(k)
     );
