@@ -150,13 +150,15 @@ export default function HomestayUploadForm(props) {
    * - 如果外层是 onFormChange，也会回传
    */
   const formData =
-  props?.typeForm ||
   props?.formData ||
+  props?.singleFormData ||
+  props?.typeForm ||
   {};
 
 const setFormData =
-  props?.setTypeForm ||
-  props?.setFormData;
+  props?.setFormData ||
+  props?.setSingleFormData ||
+  props?.setTypeForm;
 
 const onFormChange = props?.onFormChange;
   
