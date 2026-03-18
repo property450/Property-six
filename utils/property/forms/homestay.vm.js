@@ -224,25 +224,7 @@ function pickHomestayPrice(firstLayout, rawProperty, active) {
       }
     }
 
-    const dateKeys = Object.keys(layoutAvailability).filter((k) =>
-      /^\d{4}-\d{2}-\d{2}$/.test(k)
-    );
-
-    for (const k of dateKeys) {
-      const val = layoutAvailability[k];
-      if (typeof val === "number" || typeof val === "string") {
-        return String(val);
-      }
-      if (val && typeof val === "object") {
-        if (val.price != null && val.price !== "") return String(val.price);
-        if (val.value != null && val.value !== "") return String(val.value);
-        if (val.amount != null && val.amount !== "") return String(val.amount);
-      }
-    }
-  }
-
-  return "-";
-}
+  
 
     const dateKeys = Object.keys(layoutAvailability).filter((k) =>
       /^\d{4}-\d{2}-\d{2}$/.test(k)
