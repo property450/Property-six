@@ -956,8 +956,7 @@ const calendar_prices =
           : [];
 
       // ✅ 价格同步：确保卖家后台卡片价格永远显示最新
-      const priceCols = pickPriceColumnsFromSingle(cleanedSingleFormData);
-
+      
       const payload = {
         ...cleanup,
 
