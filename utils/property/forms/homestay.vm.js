@@ -452,22 +452,24 @@ export function buildVM(rawProperty, active, helpers) {
   const nestedPriceText = formatCalendarPriceRange(firstLayout, rawProperty, active);
   const fallbackHomestayPrice = pickHomestayPrice(firstLayout, rawProperty, active);
 
-  console.log("HOMESTAY firstLayout availability =", firstLayout?.availability);
-console.log("HOMESTAY nestedPriceText =", nestedPriceText);
-console.log("HOMESTAY fallbackHomestayPrice =", fallbackHomestayPrice);
-console.log("HOMESTAY rawProperty.price =", rawProperty?.price);
+  const roomTypePrice =
+  rawProperty?.homestay_form?.roomTypes?.[0]?.price ||
+  rawProperty?.roomTypes?.[0]?.price;
   
   const priceText =
-    nestedPriceText !== "-"
-      ? nestedPriceText
-      : fallbackHomestayPrice !== "-"
-        ? formatMoneyValue(fallbackHomestayPrice)
+  nestedPriceText !== "-"
+    ? nestedPriceText
+    : fallbackHomestayPrice !== "-"
+      ? formatMoneyValue(fallbackHomestayPrice)
+      : roomTypePrice
+        ? formatMoneyValue(roomTypePrice)
         : getCardPriceText(
             rawProperty,
             active,
             helpers.isNewProjectStatus,
             helpers.isCompletedUnitStatus
           );
+            
 
   const category = pickEverywhere(rawProperty, active, [
     "category",
