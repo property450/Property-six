@@ -381,17 +381,28 @@ export default function HotelUploadForm(props) {
     }
 
     const patch = {
-      hotelResortType,
-      roomLayouts,
-      facilityImages,
-      roomCount,
+  // ✅ 原本
+  hotelResortType,
+  roomLayouts,
+  facilityImages,
+  roomCount,
 
-      // ✅ 兼容旧字段名（避免编辑回填读不到）
-      hotel_resort_type: hotelResortType,
-      room_layouts: roomLayouts,
-      facility_images: facilityImages,
-      room_count: roomCount,
-    };
+  // ✅ 关键补充（让 vm 读得到）
+  hotelType: hotelResortType,
+  stayType: hotelResortType,
+
+  roomTypes: roomLayouts,
+  rooms: roomLayouts,
+
+  // 日历价格
+  availability: roomLayouts?.[0]?.availability || {},
+
+  // ✅ snake（原本就有）
+  hotel_resort_type: hotelResortType,
+  room_layouts: roomLayouts,
+  facility_images: facilityImages,
+  room_count: roomCount,
+};
 
     const nextHash = stableJson(patch);
     if (nextHash && nextHash === lastSentRef.current) return;
