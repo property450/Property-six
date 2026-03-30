@@ -116,8 +116,20 @@ function getFirstRoomLayout(rawProperty, active) {
 
   const hotelForm = rawProperty?.hotel_resort_form || {};
 
-  const sources = [active, single, hotelForm, typeForm, rawProperty];
+  const sources = [
+  rawProperty?.hotel_resort_form, // 🔥 提前
+  active,
+  single,
+  hotelForm,
+  typeForm,
+  rawProperty
+];
 
+  // 🔥 fallback（最重要）
+if (!sources.some(src => src?.roomLayouts?.length)) {
+  return rawProperty?.hotel_resort_form?.roomLayouts?.[0] || null;
+}
+  
   for (const src of sources) {
     if (!src) continue;
 
