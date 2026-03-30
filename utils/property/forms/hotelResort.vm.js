@@ -475,6 +475,8 @@ export function buildVM(rawProperty, active, helpers) {
   console.log("=== HOTEL/RESORT DEBUG firstLayout ===", firstLayout);
   console.log("=== HOTEL/RESORT DEBUG hotel_resort_form ===", rawProperty?.hotel_resort_form);
   console.log("=== HOTEL/RESORT DEBUG firstLayout.roomData ===", firstLayout?.roomData);
+  console.log("=== HOTEL/RESORT DEBUG hotelForm keys ===", Object.keys(rawProperty?.hotel_resort_form || {}));
+  console.log("=== HOTEL/RESORT DEBUG hotelForm full ===", rawProperty?.hotel_resort_form);
   
   const title =
     pickAny(rawProperty, ["title", "propertyTitle", "property_title"]) ||
