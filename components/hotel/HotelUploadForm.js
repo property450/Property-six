@@ -1,15 +1,17 @@
+// components/hotel/HotelUploadForm.js
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import RoomCountSelector from "../RoomCountSelector";
-import ExtraSpacesSelector from "../ExtraSpacesSelector";
-import FurnitureSelector from "../FurnitureSelector";
-import FacilitiesSelector from "../FacilitiesSelector";
-import ImageUpload from "../ImageUpload";
-import AdvancedAvailabilityCalendar from "../AdvancedAvailabilityCalendar";
+import { useState, useRef, useEffect } from "react";
+import HotelRoomTypeForm from "./HotelRoomTypeForm";
+import ImageUpload from "@/components/ImageUpload";
+import { Button } from "@/components/ui/button";
 
-// 酒店 / 度假村的类型
-const HOTEL_TYPES = [
+// ✅ New Project 同款 Layout 图纸上传
+import BlueprintUploadSection from "@/components/unitlayout/BlueprintUploadSection";
+
+// ✅ 仅新增：Hotel / Resort Type 超全选项（你给的 + 我补充的）
+const HOTEL_RESORT_TYPES = [
+  // 你给的
   "Budget Hotel",
   "2-Star Hotel",
   "3-Star Hotel",
@@ -26,757 +28,620 @@ const HOTEL_TYPES = [
   "Capsule Hotel",
   "Hostel / Backpacker Hotel",
   "Airport Hotel",
+
+  // 我补充（更全）
+  "Motel",
+  "Lodge",
+  "Eco Resort",
+  "Eco Lodge",
+  "Heritage Hotel",
+  "All-Inclusive Resort",
+  "Villa Resort",
+  "Overwater / Water Villa Resort",
+  "Family Resort",
+  "Theme Resort",
+  "Beach Resort",
+  "Island Resort",
+  "Mountain Resort",
+  "Golf Resort",
+  "Ski Resort",
+  "Wellness Resort",
+  "Retreat Resort",
+  "Luxury Resort",
+  "Budget Resort",
+
+  "City Hotel",
+  "Downtown Hotel",
+  "Suburban Hotel",
+  "Roadside Hotel",
+
+  "Serviced Residence (Hotel)",
+  "Apartment Hotel",
+  "Apart-Hotel",
+  "Residence Hotel",
+
+  "Co-living Hotel",
+  "Co-living Space",
+  "Shared Hotel",
+  "Shared Accommodation",
+  "Shared Hostel",
+
+  "Youth Hostel",
+  "Youth Hotel",
+  "Backpacker Hostel",
+  "Guesthouse",
+  "Inn",
+  "Bed & Breakfast (B&B)",
+  "Boutique Guesthouse",
+  "Heritage Guesthouse",
+
+  "Homestay Lodge",
+  "Farmstay",
+  "Kampung Stay",
+  "Cultural / Heritage Stay",
+  "Glamping",
+  "Tiny House Stay",
+  "Container Stay",
+
+  "Transit Hotel",
+  "Railway Station Hotel",
+  "Port / Ferry Terminal Hotel",
+
+  "Conference Hotel",
+  "MICE Hotel",
+  "Wedding Hotel",
+  "Event Hotel",
+
+  "Medical Hotel",
+  "Hospitality Suites",
+  "Student Accommodation",
+  "Worker Dorm / Hostel",
+
+  "Ryokan (Japanese Inn)",
+  "Onsen Hotel",
+  "Shophouse Hotel",
+  "Heritage Shophouse Hotel",
+
+  "Pet-Friendly Hotel",
+  "Adults Only Hotel",
+  "Family Friendly Hotel",
 ];
 
-const CHECKIN_SERVICE_OPTIONS = [
-  { value: "", label: "请选择" },
-  { value: "self", label: "自助入住" },
-  { value: "frontdesk", label: "24 小时前台服务" },
-  { value: "limited", label: "入住时间限制" },
-];
+const createEmptyRoomLayout = () => ({
+  name: "",
+  code: "",
+  roomRange: "",
+  beds: [],
+  guests: { adults: "", children: "" },
+  smoking: "",
+  checkinService: {},
+  breakfast: "",
+  petPolicy: { type: "", note: "" },
+  cancellationPolicy: { type: "", condition: "" },
 
-const YES_NO_OPTIONS = [
-  { value: "", label: "请选择" },
-  { value: "yes", label: "是" },
-  { value: "no", label: "否" },
-];
+  roomCounts: {
+    bedrooms: "",
+    bathrooms: "",
+    kitchens: "",
+    livingRooms: "",
+    carparks: "",
+  },
+  extraSpaces: [],
 
-const FREE_CANCEL_OPTIONS = [
-  { value: "", label: "请选择" },
-  { value: "free", label: "能" },
-  { value: "no", label: "不能" },
-];
+  indoorFacilities: [],
+  bathroomFacilities: [],
+  kitchenFacilities: [],
+  otherFacilities: [],
+  views: [],
 
-const PET_POLICY_OPTIONS = [
-  { value: "", label: "请选择" },
-  { value: "allowed", label: "允许携带宠物" },
-  { value: "forbidden", label: "禁止携带宠物" },
-  { value: "care", label: "提供宠物托管服务" },
-];
+  otherServices: { tags: [], note: "" },
 
-const SMOKING_OPTIONS = [
-  { value: "", label: "请选择" },
-  { value: "yes", label: "能" },
-  { value: "no", label: "不能" },
-];
+  fees: {
+    serviceFee: { mode: "free", value: "" },
+    cleaningFee: { mode: "free", value: "" },
+    deposit: { mode: "free", value: "" },
+    otherFee: { amount: "", note: "" },
+  },
 
-const BED_TYPE_OPTIONS = [
-  "Single Bed",
-  "Super Single Bed",
-  "Queen Bed",
-  "King Bed",
-  "Twin Bed",
-  "Sofa Bed",
-  "Bunk Bed",
-];
+  availability: {},
+  photos: {},
+  layoutPhotos: [],
 
-function toNumberString(v) {
-  if (v === null || v === undefined) return "";
-  return String(v);
+  unitCount: 1,
+  unitCountInput: "1",
+});
+
+function formatWithCommas(n) {
+  if (!Number.isFinite(n) || n <= 0) return "";
+  return n.toLocaleString("en-US");
 }
 
-function normalizeRoomArray(singleFormData = {}) {
-  const roomTypes = Array.isArray(singleFormData?.roomTypes) ? singleFormData.roomTypes : null;
-  const rooms = Array.isArray(singleFormData?.rooms) ? singleFormData.rooms : null;
-  const roomLayouts = Array.isArray(singleFormData?.roomLayouts) ? singleFormData.roomLayouts : null;
-  return roomTypes || rooms || roomLayouts || [];
+function parseDigitsToInt(v) {
+  const cleaned = String(v ?? "").replace(/[^\d]/g, "");
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : 0;
 }
 
-function normalizeTopLevelHotelType(singleFormData = {}) {
-  return (
-    singleFormData?.hotelType ||
-    singleFormData?.hotelResortType ||
-    singleFormData?.stayType ||
-    ""
-  );
+function hasAnyValue(obj) {
+  if (!obj || typeof obj !== "object") return false;
+  return Object.keys(obj).length > 0;
 }
 
-function normalizeAvailability(singleFormData = {}) {
-  return singleFormData?.availability || {};
+function pickAny(obj, keys, fallback) {
+  if (!obj || typeof obj !== "object") return fallback;
+  for (const k of keys) {
+    if (obj[k] !== undefined && obj[k] !== null) return obj[k];
+  }
+  return fallback;
 }
 
-function normalizeRoom(room = {}) {
-  const roomCounts = room?.roomCounts || {};
+// ✅ 用来比较“内容有没有变化”，避免一直 setFormData 导致闪烁
+function stableJson(obj) {
+  const seen = new WeakSet();
 
-  const bedType =
-    room?.bedType ||
-    room?.roomBedType ||
-    room?.unitBedType ||
-    room?.beds?.[0]?.label ||
-    room?.beds?.[0]?.name ||
-    "";
+  const sortDeep = (v) => {
+    if (v === null || v === undefined) return v;
+    if (v instanceof Date) return v.toISOString();
+    if (Array.isArray(v)) return v.map(sortDeep);
 
-  const bedCount = room?.beds?.[0]?.count || "1";
+    if (typeof v === "object") {
+      // File / Blob 不做深比较，避免序列化炸裂
+      if (typeof File !== "undefined" && v instanceof File) return `[File:${v.name}]`;
+      if (typeof Blob !== "undefined" && v instanceof Blob) return "[Blob]";
 
-  const maxGuests =
-    room?.maxGuests ||
-    room?.guestCount ||
-    room?.guests?.adults ||
-    "";
-
-  const smoking =
-    room?.smoking ||
-    room?.smokingAllowed ||
-    room?.allowSmoking ||
-    room?.indoorSmoking ||
-    "";
-
-  const breakfast =
-    room?.breakfast ||
-    room?.breakfastIncluded ||
-    room?.includeBreakfast ||
-    room?.withBreakfast ||
-    "";
-
-  const petPolicy =
-    room?.petPolicy?.type ||
-    room?.petAllowed ||
-    room?.petsAllowed ||
-    room?.allowPets ||
-    "";
-
-  const freeCancel =
-    room?.cancellationPolicy?.type ||
-    room?.freeCancel ||
-    room?.freeCancellation ||
-    "";
-
-  const checkinService =
-    room?.checkinService?.type ||
-    room?.checkinService?.method ||
-    room?.checkinService ||
-    room?.checkInService ||
-    room?.checkinMethod ||
-    "";
-
-  const fees = room?.fees || {};
-
-  return {
-    name: room?.name || "",
-    code: room?.code || "",
-    roomRange: room?.roomRange || "",
-
-    roomCounts: {
-      bedrooms: roomCounts?.bedrooms || room?.bedrooms || "",
-      bathrooms: roomCounts?.bathrooms || room?.bathrooms || "",
-      kitchens: roomCounts?.kitchens || "",
-      livingRooms: roomCounts?.livingRooms || "",
-      carparks: roomCounts?.carparks || room?.carparks || "",
-    },
-
-    maxGuests: toNumberString(maxGuests),
-    bedType,
-    bedCount: toNumberString(bedCount),
-
-    smoking: String(smoking || ""),
-    breakfast: String(breakfast || ""),
-    petPolicy: String(petPolicy || ""),
-    freeCancel: String(freeCancel || ""),
-    checkinService: String(checkinService || ""),
-
-    serviceFee:
-      fees?.serviceFee?.value ||
-      room?.serviceFee ||
-      "",
-    cleaningFee:
-      fees?.cleaningFee?.value ||
-      room?.cleaningFee ||
-      "",
-    deposit:
-      fees?.deposit?.value ||
-      room?.deposit ||
-      "",
-    otherFee:
-      fees?.otherFee?.value ||
-      room?.otherFee ||
-      "",
-
-    extraSpaces: Array.isArray(room?.extraSpaces) ? room.extraSpaces : [],
-    furniture: Array.isArray(room?.furniture) ? room.furniture : [],
-    facilities: Array.isArray(room?.facilities) ? room.facilities : [],
-    availability: room?.availability || {},
-    photos: room?.photos || [],
-    layoutPhotos: room?.layoutPhotos || [],
-  };
-}
-
-function buildVmReadyRoom(room = {}) {
-  const roomCounts = room?.roomCounts || {};
-  const bedLabel = String(room?.bedType || "").trim();
-  const bedCountNum = Number(room?.bedCount || 1);
-
-  return {
-    name: room?.name || "",
-    code: room?.code || "",
-    roomRange: room?.roomRange || "",
-
-    roomCounts: {
-      bedrooms: roomCounts?.bedrooms || "",
-      bathrooms: roomCounts?.bathrooms || "",
-      kitchens: roomCounts?.kitchens || "",
-      livingRooms: roomCounts?.livingRooms || "",
-      carparks: roomCounts?.carparks || "",
-    },
-
-    maxGuests: room?.maxGuests || "",
-    guestCount: room?.maxGuests || "",
-
-    bedType: room?.bedType || "",
-    roomBedType: room?.bedType || "",
-    unitBedType: room?.bedType || "",
-
-    beds: bedLabel
-      ? [{ label: bedLabel, count: bedCountNum > 0 ? String(bedCountNum) : "1" }]
-      : [],
-
-    guests: {
-      adults: room?.maxGuests ? String(room.maxGuests) : "",
-      children: "0",
-    },
-
-    smoking: room?.smoking || "",
-    smokingAllowed: room?.smoking || "",
-
-    breakfast: room?.breakfast || "",
-    breakfastIncluded: room?.breakfast || "",
-
-    petPolicy: room?.petPolicy
-      ? { type: room.petPolicy }
-      : null,
-    petAllowed: room?.petPolicy || "",
-
-    cancellationPolicy: room?.freeCancel
-      ? { type: room.freeCancel }
-      : null,
-    freeCancel: room?.freeCancel || "",
-
-    checkinService: room?.checkinService
-      ? { type: room.checkinService, method: room.checkinService }
-      : null,
-
-    fees: {
-      serviceFee: room?.serviceFee
-        ? { value: room.serviceFee, mode: "percent" }
-        : null,
-      cleaningFee: room?.cleaningFee
-        ? { value: room.cleaningFee, mode: "money" }
-        : null,
-      deposit: room?.deposit
-        ? { value: room.deposit, mode: "money" }
-        : null,
-      otherFee: room?.otherFee
-        ? { value: room.otherFee, mode: "money" }
-        : null,
-    },
-
-    serviceFee: room?.serviceFee || "",
-    cleaningFee: room?.cleaningFee || "",
-    deposit: room?.deposit || "",
-    otherFee: room?.otherFee || "",
-
-    extraSpaces: Array.isArray(room?.extraSpaces) ? room.extraSpaces : [],
-    furniture: Array.isArray(room?.furniture) ? room.furniture : [],
-    facilities: Array.isArray(room?.facilities) ? room.facilities : [],
-
-    availability: room?.availability || {},
-    photos: room?.photos || [],
-    layoutPhotos: room?.layoutPhotos || [],
-  };
-}
-
-/* ================= Layout 图纸上传（仅新增，不影响其它逻辑） ================= */
-function LayoutBlueprintUpload({ value = [], onChange }) {
-  const inputRef = useRef(null);
-  const files = Array.isArray(value) ? value : [];
-
-  const addFiles = (e) => {
-    const picked = Array.from(e.target.files || []);
-    if (!picked.length) return;
-    onChange?.([...(files || []), ...picked]);
-    e.target.value = "";
+      if (seen.has(v)) return null;
+      seen.add(v);
+      const out = {};
+      Object.keys(v)
+        .sort()
+        .forEach((k) => {
+          const val = v[k];
+          if (val === undefined) return;
+          if (typeof val === "function") return;
+          out[k] = sortDeep(val);
+        });
+      return out;
+    }
+    return v;
   };
 
-  const removeAt = (idx) => {
-    const next = files.filter((_, i) => i !== idx);
-    onChange?.(next);
-  };
-
-  return (
-    <div className="border rounded-lg p-4 bg-white">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <div className="font-medium">Layout 图纸上传</div>
-          <div className="text-sm text-gray-500">支持多张图片 / PDF（可多选）</div>
-        </div>
-
-        <button
-          type="button"
-          className="px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
-          onClick={() => inputRef.current?.click()}
-        >
-          上传 Layout 图纸
-        </button>
-
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*,application/pdf"
-          multiple
-          className="hidden"
-          onChange={addFiles}
-        />
-      </div>
-
-      {files.length > 0 && (
-        <div className="mt-3 space-y-2">
-          {files.map((f, idx) => (
-            <div
-              key={idx}
-              className="flex items-center justify-between border rounded-lg px-3 py-2"
-            >
-              <div className="text-sm text-gray-800 break-all">
-                {f?.name || `文件 ${idx + 1}`}
-              </div>
-              <button
-                type="button"
-                className="text-sm text-red-600 hover:underline"
-                onClick={() => removeAt(idx)}
-              >
-                删除
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  try {
+    return JSON.stringify(sortDeep(obj ?? null));
+  } catch {
+    return "";
+  }
 }
 
-// 单个房型表单
-function HotelRoomTypeForm({ index, room, onChange }) {
-  const safeRoom = normalizeRoom(room);
-  const roomCounts = safeRoom.roomCounts || {};
-  const extraSpaces = safeRoom.extraSpaces || [];
-  const furniture = safeRoom.furniture || [];
-  const facilities = safeRoom.facilities || [];
-  const photos = safeRoom.photos || [];
-  const availability = safeRoom.availability || {};
-  const layoutPhotos = safeRoom.layoutPhotos || [];
+export default function HotelUploadForm(props) {
+  // ✅✅✅ 关键：Homestay 模式隐藏 Hotel / Resort Type（只改这一处判断，不动其它逻辑）
+  const shouldShowHotelResortType =
+    props?.mode !== "homestay" &&
+    !props?.hideHotelResortTypeSelector &&
+    !props?.hideHotelResortType;
 
-  const updateRoom = (patch) => {
-    onChange?.({ ...safeRoom, ...patch });
+  // ✅ 仅新增：Hotel / Resort 类型
+  const [hotelResortType, setHotelResortType] = useState("");
+
+  const [roomCount, setRoomCount] = useState(1);
+  const [roomLayouts, setRoomLayouts] = useState([createEmptyRoomLayout()]);
+  const [facilityImages, setFacilityImages] = useState({});
+
+  const [roomCountInput, setRoomCountInput] = useState("1");
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  // ✅ 每个房型“数量下拉”当前展开的是哪一个
+  const [openUnitCountIndex, setOpenUnitCountIndex] = useState(null);
+
+  const dropdownRef = useRef(null);
+
+  // ✅ Layout 图纸上传 refs（每个房型一个）
+  const layoutFileInputRefs = useRef([]);
+  const unitCountDropdownRefs = useRef([]);
+
+  // ✅✅✅ 修复闪烁：父层函数放 ref，避免 useEffect 依赖变化
+  const setFormDataRef = useRef(props?.setFormData);
+  const onFormChangeRef = useRef(props?.onFormChange);
+
+  useEffect(() => {
+    setFormDataRef.current = props?.setFormData;
+    onFormChangeRef.current = props?.onFormChange;
+  }, [props?.setFormData, props?.onFormChange]);
+
+  const getLayoutFileRef = (index) => {
+    if (!layoutFileInputRefs.current[index]) {
+      layoutFileInputRefs.current[index] = { current: null };
+    }
+    return layoutFileInputRefs.current[index];
   };
 
-  const handleRoomCountsChange = (patch) => {
-    updateRoom({
-      roomCounts: {
-        ...roomCounts,
-        ...patch,
-      },
+  const getUnitCountRef = (index) => {
+    if (!unitCountDropdownRefs.current[index]) {
+      unitCountDropdownRefs.current[index] = { current: null };
+    }
+    return unitCountDropdownRefs.current[index];
+  };
+
+  // ================== ✅✅✅ 关键：编辑回填 & 同步去重 ==================
+  const lastInitHashRef = useRef("");
+  const didUserEditRef = useRef(false);
+  const readyToSyncRef = useRef(false);
+  const lastSentRef = useRef("");
+
+  // ✅✅✅ 【新增】编辑模式：必须等“回填完成后”才能把 state 同步回父层
+  const hydratedFromPropsRef = useRef(false);
+  const skipNextSyncRef = useRef(false);
+
+  // ✅✅✅ 新建 vs 编辑：初始化同步开关（编辑先关，等回填）
+  useEffect(() => {
+    const editing = !!props?.isEditing;
+
+    if (editing) {
+      readyToSyncRef.current = false;
+      hydratedFromPropsRef.current = false;
+      skipNextSyncRef.current = false;
+
+      didUserEditRef.current = false;
+      lastInitHashRef.current = "";
+      lastSentRef.current = "";
+      return;
+    }
+
+    // ✅ 新建模式：允许立即同步
+    readyToSyncRef.current = true;
+    hydratedFromPropsRef.current = true;
+  }, [props?.isEditing]);
+
+  // 任何本地输入变化都标记为“用户已编辑”，防止后续 props 回填覆盖
+  useEffect(() => {
+    const current = stableJson({ hotelResortType, roomCount, roomLayouts, facilityImages, roomCountInput });
+    if (!current) return;
+    if (lastInitHashRef.current && current !== lastInitHashRef.current) {
+      didUserEditRef.current = true;
+    }
+  }, [hotelResortType, roomCount, roomLayouts, facilityImages, roomCountInput]);
+
+  // ✅✅✅ 编辑回填：同时兼容 camel + snake
+  useEffect(() => {
+    const d = props?.formData;
+    if (!hasAnyValue(d)) return;
+
+    const incomingHash = stableJson(d);
+    if (!incomingHash) return;
+
+    // ✅ 只要拿到过一次 props 数据，就算“已回填”
+    hydratedFromPropsRef.current = true;
+    // ✅ 编辑模式开始允许同步（但要跳过紧接着的那一次同步，避免默认值覆盖）
+    readyToSyncRef.current = true;
+
+    if (incomingHash === lastInitHashRef.current) return;
+    if (didUserEditRef.current) return;
+
+    // ✅✅✅ 关键：这一次回填会 setState，紧接着的同步要跳过一次
+    skipNextSyncRef.current = true;
+
+    const _hotelType = pickAny(d, ["hotelResortType", "hotel_resort_type"], "");
+    if (typeof _hotelType === "string") setHotelResortType(_hotelType);
+    else setHotelResortType("");
+
+    const _layouts = pickAny(d, ["roomLayouts", "room_layouts"], null);
+    if (Array.isArray(_layouts) && _layouts.length > 0) {
+      const normalized = _layouts.map((l) => {
+        const base = { ...createEmptyRoomLayout(), ...(l || {}) };
+        const unitCountNum = Number(base.unitCount);
+        if (
+          (!base.unitCountInput || base.unitCountInput === "") &&
+          Number.isFinite(unitCountNum) &&
+          unitCountNum > 0
+        ) {
+          base.unitCountInput = formatWithCommas(unitCountNum);
+        }
+        return base;
+      });
+
+      setRoomLayouts(normalized);
+      setRoomCount(normalized.length);
+      setRoomCountInput(String(normalized.length));
+    } else {
+      // ✅✅✅（只补齐一致性）：如果没带 layouts，至少让 input 跟 roomCount 对齐
+      setRoomCountInput((prev) => (prev && prev !== "" ? prev : String(roomCount || 1)));
+    }
+
+    const _facilityImages = pickAny(d, ["facilityImages", "facility_images"], null);
+    if (_facilityImages && typeof _facilityImages === "object") {
+      setFacilityImages(_facilityImages);
+    }
+
+    // ✅✅✅ 关键：lastInitHashRef 必须跟 current 的字段一致（否则会误判 didUserEdit）
+    const initLayouts =
+      Array.isArray(_layouts) && _layouts.length > 0 ? _layouts : [createEmptyRoomLayout()];
+    const initRoomCount = Array.isArray(_layouts) && _layouts.length ? _layouts.length : 1;
+    const initRoomCountInput = Array.isArray(_layouts) && _layouts.length ? String(_layouts.length) : String(initRoomCount);
+
+    lastInitHashRef.current = stableJson({
+      hotelResortType: typeof _hotelType === "string" ? _hotelType : "",
+      roomLayouts: initLayouts,
+      facilityImages: _facilityImages && typeof _facilityImages === "object" ? _facilityImages : {},
+      roomCount: initRoomCount,
+      roomCountInput: initRoomCountInput,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props?.formData]);
+
+  // ✅✅✅ 同步回父层（同时写 camel + snake，确保保存/回填都不丢）
+  useEffect(() => {
+    if (!readyToSyncRef.current) return;
+
+    // ✅✅✅ 编辑模式：没完成回填前禁止同步
+    if (props?.isEditing && !hydratedFromPropsRef.current) return;
+
+    // ✅✅✅ 跳过“回填 setState 后紧接着的那一次同步”，避免默认值覆盖
+    if (skipNextSyncRef.current) {
+      skipNextSyncRef.current = false;
+      return;
+    }
+
+    const patch = {
+      hotelResortType,
+      roomLayouts,
+      facilityImages,
+      roomCount,
+
+      // ✅ 兼容旧字段名（避免编辑回填读不到）
+      hotel_resort_type: hotelResortType,
+      room_layouts: roomLayouts,
+      facility_images: facilityImages,
+      room_count: roomCount,
+    };
+
+    const nextHash = stableJson(patch);
+    if (nextHash && nextHash === lastSentRef.current) return;
+    lastSentRef.current = nextHash;
+
+    const setFn = setFormDataRef.current;
+    const onFn = onFormChangeRef.current;
+
+    if (typeof setFn === "function") {
+      setFn((prev) => {
+        const merged = { ...(prev || {}), ...patch };
+        const mergedHash = stableJson(merged);
+        const prevHash = stableJson(prev || {});
+        if (mergedHash && prevHash && mergedHash === prevHash) return prev;
+        return merged;
+      });
+      return;
+    }
+    if (typeof onFn === "function") {
+      onFn(patch);
+    }
+  }, [hotelResortType, roomLayouts, facilityImages, roomCount, props?.isEditing]);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      const clickedInsideAnyUnitCount =
+        unitCountDropdownRefs.current?.some((r) => r?.current && r.current.contains(e.target)) || false;
+
+      if (!clickedInsideAnyUnitCount) {
+        setOpenUnitCountIndex(null);
+      }
+
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setShowDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // ================== UI 交互逻辑（原样保留） ==================
+  const applyRoomCount = (n) => {
+    const safeN = Math.max(1, Math.min(200, n));
+    setRoomCount(safeN);
+    setRoomCountInput(String(safeN));
+
+    setRoomLayouts((prev) => {
+      const arr = Array.isArray(prev) ? [...prev] : [];
+      if (arr.length < safeN) {
+        while (arr.length < safeN) arr.push(createEmptyRoomLayout());
+      } else if (arr.length > safeN) {
+        arr.length = safeN;
+      }
+      return arr;
     });
   };
 
-  const photoConfig = {
-    bedrooms: roomCounts.bedrooms || "",
-    bathrooms: roomCounts.bathrooms || "",
-    kitchens: roomCounts.kitchens || "",
-    livingRooms: roomCounts.livingRooms || "",
-    carpark: roomCounts.carparks || "",
-    extraSpaces,
-    facilities,
-    furniture,
-    orientation: [],
-  };
-
-  return (
-    <div className="border rounded-lg p-4 shadow-sm bg-white space-y-4 mt-4">
-      <h3 className="font-semibold">房型 {index + 1}</h3>
-
-      <div>
-        <label className="block text-sm font-medium mb-1">房型名称</label>
-        <input
-          type="text"
-          className="w-full border rounded p-2"
-          placeholder="例如：Deluxe King, Sea View Suite..."
-          value={safeRoom.name || ""}
-          onChange={(e) => updateRoom({ name: e.target.value })}
-        />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm font-medium mb-1">房型代码（可选）</label>
-          <input
-            type="text"
-            className="w-full border rounded p-2"
-            placeholder="例如：DLX-KING"
-            value={safeRoom.code || ""}
-            onChange={(e) => updateRoom({ code: e.target.value })}
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">房号范围（可选）</label>
-          <input
-            type="text"
-            className="w-full border rounded p-2"
-            placeholder="例如：101–110"
-            value={safeRoom.roomRange || ""}
-            onChange={(e) => updateRoom({ roomRange: e.target.value })}
-          />
-        </div>
-      </div>
-
-      <RoomCountSelector
-        value={{
-          bedrooms: roomCounts.bedrooms || "",
-          bathrooms: roomCounts.bathrooms || "",
-          kitchens: roomCounts.kitchens || "",
-          livingRooms: roomCounts.livingRooms || "",
-        }}
-        onChange={handleRoomCountsChange}
-      />
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm font-medium mb-1">每间最多可住人数</label>
-          <input
-            type="number"
-            min={1}
-            className="w-full border rounded p-2"
-            placeholder="例如：2 / 4 / 6"
-            value={safeRoom.maxGuests || ""}
-            onChange={(e) => updateRoom({ maxGuests: e.target.value })}
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">床型</label>
-          <select
-            className="w-full border rounded p-2"
-            value={safeRoom.bedType || ""}
-            onChange={(e) => updateRoom({ bedType: e.target.value })}
-          >
-            <option value="">请选择床型</option>
-            {BED_TYPE_OPTIONS.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium mb-1">此房型床数量</label>
-        <input
-          type="number"
-          min={1}
-          className="w-full border rounded p-2"
-          placeholder="例如：1 / 2"
-          value={safeRoom.bedCount || ""}
-          onChange={(e) => updateRoom({ bedCount: e.target.value })}
-        />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm font-medium mb-1">室内能否吸烟</label>
-          <select
-            className="w-full border rounded p-2"
-            value={safeRoom.smoking || ""}
-            onChange={(e) => updateRoom({ smoking: e.target.value })}
-          >
-            {SMOKING_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">入住服务</label>
-          <select
-            className="w-full border rounded p-2"
-            value={safeRoom.checkinService || ""}
-            onChange={(e) => updateRoom({ checkinService: e.target.value })}
-          >
-            {CHECKIN_SERVICE_OPTIONS.map((opt) => (
-              <option key={opt.value || "blank"} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div>
-          <label className="block text-sm font-medium mb-1">房型是否包含早餐</label>
-          <select
-            className="w-full border rounded p-2"
-            value={safeRoom.breakfast || ""}
-            onChange={(e) => updateRoom({ breakfast: e.target.value })}
-          >
-            {YES_NO_OPTIONS.map((opt) => (
-              <option key={opt.value || "blank"} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">房型是否允许宠物入住</label>
-          <select
-            className="w-full border rounded p-2"
-            value={safeRoom.petPolicy || ""}
-            onChange={(e) => updateRoom({ petPolicy: e.target.value })}
-          >
-            {PET_POLICY_OPTIONS.map((opt) => (
-              <option key={opt.value || "blank"} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">是否能免费取消</label>
-          <select
-            className="w-full border rounded p-2"
-            value={safeRoom.freeCancel || ""}
-            onChange={(e) => updateRoom({ freeCancel: e.target.value })}
-          >
-            {FREE_CANCEL_OPTIONS.map((opt) => (
-              <option key={opt.value || "blank"} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-        <div>
-          <label className="block text-sm font-medium mb-1">服务费（%）</label>
-          <input
-            type="number"
-            min={0}
-            className="w-full border rounded p-2"
-            placeholder="例如：10"
-            value={safeRoom.serviceFee || ""}
-            onChange={(e) => updateRoom({ serviceFee: e.target.value })}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">清洁费（RM）</label>
-          <input
-            type="number"
-            min={0}
-            className="w-full border rounded p-2"
-            placeholder="例如：80"
-            value={safeRoom.cleaningFee || ""}
-            onChange={(e) => updateRoom({ cleaningFee: e.target.value })}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">押金（RM）</label>
-          <input
-            type="number"
-            min={0}
-            className="w-full border rounded p-2"
-            placeholder="例如：200"
-            value={safeRoom.deposit || ""}
-            onChange={(e) => updateRoom({ deposit: e.target.value })}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">其它费用（RM）</label>
-          <input
-            type="number"
-            min={0}
-            className="w-full border rounded p-2"
-            placeholder="例如：50"
-            value={safeRoom.otherFee || ""}
-            onChange={(e) => updateRoom({ otherFee: e.target.value })}
-          />
-        </div>
-      </div>
-
-      <ExtraSpacesSelector
-        value={extraSpaces}
-        onChange={(val) => updateRoom({ extraSpaces: val })}
-      />
-
-      <FurnitureSelector
-        value={furniture}
-        onChange={(val) => updateRoom({ furniture: val })}
-      />
-
-      <FacilitiesSelector
-        value={facilities}
-        onChange={(val) => updateRoom({ facilities: val })}
-      />
-
-      <div>
-        <label className="block text-sm font-medium mb-1">
-          此房型可租日期 / 价格（日历）
-        </label>
-        <AdvancedAvailabilityCalendar
-          value={availability}
-          onChange={(val) => updateRoom({ availability: val })}
-        />
-      </div>
-
-      <LayoutBlueprintUpload
-        value={layoutPhotos}
-        onChange={(val) => updateRoom({ layoutPhotos: val })}
-      />
-
-      <div>
-        <label className="block text-sm font-medium mb-1">上传此房型的照片</label>
-        <ImageUpload
-          config={photoConfig}
-          images={photos}
-          setImages={(updated) => updateRoom({ photos: updated })}
-        />
-      </div>
-    </div>
-  );
-}
-
-export default function HotelUploadForm({
-  singleFormData = {},
-  setSingleFormData,
-}) {
-  const [hotelType, setHotelType] = useState(normalizeTopLevelHotelType(singleFormData));
-  const [roomTypes, setRoomTypes] = useState(
-    normalizeRoomArray(singleFormData).map(normalizeRoom)
-  );
-  const [hotelAvailability, setHotelAvailability] = useState(
-    normalizeAvailability(singleFormData)
-  );
-
-  useEffect(() => {
-    setHotelType(normalizeTopLevelHotelType(singleFormData));
-    setRoomTypes(normalizeRoomArray(singleFormData).map(normalizeRoom));
-    setHotelAvailability(normalizeAvailability(singleFormData));
-  }, [singleFormData]);
-
-  useEffect(() => {
-    if (typeof setSingleFormData !== "function") return;
-
-    const vmReadyRooms = roomTypes.map(buildVmReadyRoom);
-
-    setSingleFormData((prev) => ({
-      ...(prev || {}),
-
-      hotelType,
-      hotelResortType: hotelType,
-      stayType: hotelType,
-
-      availability: hotelAvailability,
-
-      roomTypes: vmReadyRooms,
-      rooms: vmReadyRooms,
-      roomLayouts: vmReadyRooms,
-    }));
-  }, [hotelType, roomTypes, hotelAvailability, setSingleFormData]);
-
-  const addRoomType = () => {
-    setRoomTypes((prev) => [
-      ...prev,
-      normalizeRoom({
-        name: "",
-        code: "",
-        roomRange: "",
-        roomCounts: {
-          bedrooms: "",
-          bathrooms: "",
-          kitchens: "",
-          livingRooms: "",
-          carparks: "",
-        },
-        maxGuests: "",
-        bedType: "",
-        bedCount: "1",
-        smoking: "",
-        breakfast: "",
-        petPolicy: "",
-        freeCancel: "",
-        checkinService: "",
-        serviceFee: "",
-        cleaningFee: "",
-        deposit: "",
-        otherFee: "",
-        extraSpaces: [],
-        furniture: [],
-        facilities: [],
-        availability: {},
-        photos: [],
-        layoutPhotos: [],
-      }),
-    ]);
-  };
-
-  const updateRoomType = (index, updated) => {
-    setRoomTypes((prev) => {
-      const next = [...prev];
-      next[index] = normalizeRoom(updated);
+  const handleRoomLayoutChange = (index, patch) => {
+    setRoomLayouts((prev) => {
+      const next = Array.isArray(prev) ? [...prev] : [];
+      next[index] = { ...(next[index] || createEmptyRoomLayout()), ...(patch || {}) };
       return next;
     });
   };
 
+  const handleBlueprintUpload = (index, e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    setRoomLayouts((prev) => {
+      const next = Array.isArray(prev) ? [...prev] : [];
+      const cur = next[index] || createEmptyRoomLayout();
+      next[index] = { ...cur, layoutPhotos: [...(cur.layoutPhotos || []), ...files] };
+      return next;
+    });
+  };
+
+  const handleUnitCountInput = (index, raw) => {
+    const n = parseDigitsToInt(raw);
+
+    setRoomLayouts((prev) => {
+      const next = Array.isArray(prev) ? [...prev] : [];
+      const cur = next[index] || createEmptyRoomLayout();
+
+      if (raw === "" || raw == null) {
+        next[index] = { ...cur, unitCountInput: "", unitCount: 0 };
+      } else {
+        const clamped = Math.max(1, Math.min(3000, n));
+        next[index] = { ...cur, unitCountInput: String(raw), unitCount: clamped };
+      }
+      return next;
+    });
+  };
+
+  const selectUnitCount = (index, n) => {
+    const clamped = Math.max(1, Math.min(3000, n));
+    setRoomLayouts((prev) => {
+      const next = Array.isArray(prev) ? [...prev] : [];
+      const cur = next[index] || createEmptyRoomLayout();
+      next[index] = { ...cur, unitCount: clamped, unitCountInput: formatWithCommas(clamped) };
+      return next;
+    });
+    setOpenUnitCountIndex(null);
+  };
+
+  const handleUnitCountBlur = (index) => {
+    setRoomLayouts((prev) => {
+      const next = Array.isArray(prev) ? [...prev] : [];
+      const cur = next[index] || createEmptyRoomLayout();
+      const n = Math.max(1, Math.min(3000, Number(cur.unitCount) || 1));
+      next[index] = { ...cur, unitCount: n, unitCountInput: formatWithCommas(n) };
+      return next;
+    });
+  };
+
+  const handleFacilityImagesChange = (val) => {
+    setFacilityImages(val || {});
+  };
+
+  const handleHotelResortTypeChange = (val) => {
+    setHotelResortType(val);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+  };
+
   return (
-    <div className="space-y-4 mt-6">
-      <div>
-        <label className="block text-sm font-medium mb-1">Hotel / Resort Type</label>
-        <select
-          className="w-full border rounded p-2"
-          value={hotelType}
-          onChange={(e) => setHotelType(e.target.value)}
-        >
-          <option value="">请选择 Hotel/Resort 类型</option>
-          {HOTEL_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
-      </div>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {shouldShowHotelResortType && (
+        <div className="w-full">
+          <label className="block font-medium mb-1">Hotel / Resort Type</label>
+          <select
+            className="border rounded px-3 py-2 w-full"
+            value={hotelResortType || ""}
+            onChange={(e) => handleHotelResortTypeChange(e.target.value)}
+          >
+            <option value="">请选择 Hotel/Resort 类型</option>
+            {HOTEL_RESORT_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
-      <div>
-        <label className="block text-sm font-medium mb-1">
-          整体酒店 / 度假村可租日期 & 价格（日历）
-        </label>
-        <AdvancedAvailabilityCalendar
-          value={hotelAvailability}
-          onChange={setHotelAvailability}
+      <div className="relative w-40" ref={dropdownRef}>
+        <label className="block font-medium mb-1">这个 Homestay / Hotel 有多少个房型 / layout？</label>
+
+        <input
+          type="text"
+          value={roomCountInput}
+          onChange={(e) => {
+            const cleaned = e.target.value.replace(/[^\d]/g, "");
+            setRoomCountInput(cleaned);
+            const n = Number(cleaned);
+            if (n >= 1 && n <= 200) applyRoomCount(n);
+          }}
+          onFocus={() => setShowDropdown(true)}
+          placeholder="1 ~ 200"
+          className="border rounded px-3 py-2 w-full"
         />
+
+        {showDropdown && (
+          <ul
+            className="absolute z-20 w-full max-h-60 bg-white border rounded shadow mt-1 overflow-y-auto"
+            onMouseDown={(e) => e.preventDefault()}
+          >
+            {Array.from({ length: 200 }, (_, i) => i + 1).map((n) => (
+              <li
+                key={n}
+                className="px-3 py-1 hover:bg-gray-100 cursor-pointer"
+                onClick={() => {
+                  applyRoomCount(n);
+                  setShowDropdown(false);
+                }}
+              >
+                {n}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
-      <div className="flex justify-between items-center mt-4">
-        <h2 className="font-semibold">房型设置</h2>
-        <button
-          type="button"
-          className="px-3 py-1 rounded bg-blue-600 text-white text-sm"
-          onClick={addRoomType}
-        >
-          + 添加一个房型
-        </button>
-      </div>
+      {roomLayouts.map((layout, index) => (
+        <div key={index} className="border rounded-xl p-4 space-y-4 bg-white shadow-sm">
+          <h3 className="font-semibold text-lg mb-2">
+            房型 {index + 1} / {roomLayouts.length}
+          </h3>
 
-      {roomTypes.map((room, idx) => (
-        <HotelRoomTypeForm
-          key={idx}
-          index={idx}
-          room={room}
-          onChange={(updated) => updateRoomType(idx, updated)}
-        />
+          <BlueprintUploadSection
+            fileInputRef={getLayoutFileRef(index)}
+            onUpload={(e) => handleBlueprintUpload(index, e)}
+          />
+
+          <div className="relative w-72" ref={getUnitCountRef(index)}>
+            <label className="block font-medium mb-1">请问这个房型的数量有多少？</label>
+
+            <input
+              type="text"
+              value={layout.unitCountInput != null && layout.unitCountInput !== "" ? layout.unitCountInput : ""}
+              onChange={(e) => handleUnitCountInput(index, e.target.value)}
+              onFocus={() => setOpenUnitCountIndex(index)}
+              onBlur={() => handleUnitCountBlur(index)}
+              placeholder="1 ~ 3,000"
+              className="border rounded px-3 py-2 w-full"
+            />
+
+            {openUnitCountIndex === index && (
+              <ul
+                className="absolute z-30 w-full max-h-60 bg-white border rounded shadow mt-1 overflow-y-auto"
+                onMouseDown={(e) => e.preventDefault()}
+              >
+                {Array.from({ length: 3000 }, (_, i) => i + 1).map((n) => (
+                  <li
+                    key={n}
+                    className="px-3 py-1 hover:bg-gray-100 cursor-pointer"
+                    onClick={() => selectUnitCount(index, n)}
+                  >
+                    {formatWithCommas(n)}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <HotelRoomTypeForm
+            index={index}
+            total={roomLayouts.length}
+            data={layout}
+            onChange={(val) => handleRoomLayoutChange(index, val)}
+          />
+        </div>
       ))}
-    </div>
+
+      <div className="border rounded-xl p-4 space-y-3 bg-white shadow-sm">
+        <h3 className="font-semibold text-lg">这个酒店/度假屋的设施照片</h3>
+        <ImageUpload
+          config={{
+            id: "hotel_facility_images",
+            multiple: true,
+          }}
+          images={facilityImages}
+          setImages={handleFacilityImagesChange}
+        />
+      </div>
+
+      <Button type="submit">提交酒店 / 度假屋房源</Button>
+    </form>
   );
-}
+      }
