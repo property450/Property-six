@@ -128,11 +128,14 @@ function getFirstRoomLayout(rawProperty, active) {
     const layouts = src?.layouts;
     if (Array.isArray(layouts) && layouts.length > 0) return layouts[0];
 
-    const roomTypes = src?.roomTypes;
-    if (Array.isArray(roomTypes) && roomTypes.length > 0) return roomTypes[0];
+    const roomLayouts = src?.roomLayouts;
+if (Array.isArray(roomLayouts) && roomLayouts.length > 0) return roomLayouts[0];
 
-    const rooms = src?.rooms;
-    if (Array.isArray(rooms) && rooms.length > 0) return rooms[0];
+const room_layouts = src?.room_layouts;
+if (Array.isArray(room_layouts) && room_layouts.length > 0) return room_layouts[0];
+
+const layouts = src?.layouts;
+if (Array.isArray(layouts) && layouts.length > 0) return layouts[0];
   }
 
   return null;
@@ -452,9 +455,10 @@ export function buildVM(rawProperty, active, helpers) {
   const fallbackHotelPrice = pickHotelPriceFallback(firstLayout, rawProperty, active);
 
   const roomTypePrice =
-    rawProperty?.hotel_resort_form?.roomTypes?.[0]?.price ||
-    rawProperty?.roomTypes?.[0]?.price;
-
+  rawProperty?.hotel_resort_form?.roomLayouts?.[0]?.price ||
+  rawProperty?.hotel_resort_form?.roomTypes?.[0]?.price ||
+  rawProperty?.roomTypes?.[0]?.price;
+  
   const priceText =
     nestedPriceText !== "-"
       ? nestedPriceText
