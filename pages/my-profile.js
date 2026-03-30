@@ -154,6 +154,7 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
   {};
 
 const hotelRoom =
+  rawProperty?.hotel_resort_form?.roomLayouts?.[0] ||   // ✅ 加这一行
   rawProperty?.hotel_resort_form?.roomTypes?.[0] ||
   rawProperty?.hotel_resort_form?.rooms?.[0] ||
   {};
