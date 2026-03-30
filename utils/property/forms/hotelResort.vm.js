@@ -578,11 +578,11 @@ export function buildVM(rawProperty, active, helpers) {
     pickFrom(firstLayout, [
   "guests",
   "roomData.guests"
-])) !== "-"
+]) !== "-"
       ? pickFrom(firstLayout, [
   "guests",
   "roomData.guests"
-]))
+])
       : asText(
           pickEverywhere(rawProperty, active, [
             "guestCount",
@@ -612,7 +612,7 @@ export function buildVM(rawProperty, active, helpers) {
   const checkinServiceRaw =
     pickFrom(firstLayout, [
       "checkinService.type",
-      "roomData.checkinService.type"
+      "roomData.checkinService.type",
       "checkinService.method",
       "checkinService",
     ]) ??
@@ -628,7 +628,7 @@ export function buildVM(rawProperty, active, helpers) {
   const checkinServiceText = mapCheckinServiceText(checkinServiceRaw);
 
   const breakfastRaw =
-    pickFrom(firstLayout, ["breakfast","roomData.checkinService.type"]) ??
+    pickFrom(firstLayout, ["breakfast","roomData.breakfast",]) ??
     pickEverywhere(rawProperty, active, [
       "breakfastIncluded",
       "breakfast_included",
