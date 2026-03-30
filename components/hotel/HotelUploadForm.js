@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import RoomCountSelector from "./RoomCountSelector";
-import ExtraSpacesSelector from "./ExtraSpacesSelector";
-import FurnitureSelector from "./FurnitureSelector";
-import FacilitiesSelector from "./FacilitiesSelector";
-import ImageUpload from "./ImageUpload";
-import AdvancedAvailabilityCalendar from "./AdvancedAvailabilityCalendar";
+import RoomCountSelector from "../RoomCountSelector";
+import ExtraSpacesSelector from "../ExtraSpacesSelector";
+import FurnitureSelector from "../FurnitureSelector";
+import FacilitiesSelector from "../FacilitiesSelector";
+import ImageUpload from "../ImageUpload";
+import AdvancedAvailabilityCalendar from "../AdvancedAvailabilityCalendar";
 
 // 酒店 / 度假村的类型
 const HOTEL_TYPES = [
