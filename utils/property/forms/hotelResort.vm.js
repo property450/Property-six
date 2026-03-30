@@ -559,7 +559,10 @@ export function buildVM(rawProperty, active, helpers) {
   );
 
   const bedTypeText = formatBeds(
-    pickFrom(firstLayout, ["beds"]) ??
+    pickFrom(firstLayout, [
+  "beds",
+  "roomData.beds"
+]) ??
       pickEverywhere(rawProperty, active, [
         "bedType",
         "bed_type",
@@ -572,8 +575,14 @@ export function buildVM(rawProperty, active, helpers) {
   );
 
   const guestCountText =
-    formatGuests(pickFrom(firstLayout, ["guests"])) !== "-"
-      ? formatGuests(pickFrom(firstLayout, ["guests"]))
+    pickFrom(firstLayout, [
+  "guests",
+  "roomData.guests"
+])) !== "-"
+      ? pickFrom(firstLayout, [
+  "guests",
+  "roomData.guests"
+]))
       : asText(
           pickEverywhere(rawProperty, active, [
             "guestCount",
@@ -603,6 +612,7 @@ export function buildVM(rawProperty, active, helpers) {
   const checkinServiceRaw =
     pickFrom(firstLayout, [
       "checkinService.type",
+      "roomData.checkinService.type"
       "checkinService.method",
       "checkinService",
     ]) ??
@@ -618,7 +628,7 @@ export function buildVM(rawProperty, active, helpers) {
   const checkinServiceText = mapCheckinServiceText(checkinServiceRaw);
 
   const breakfastRaw =
-    pickFrom(firstLayout, ["breakfast"]) ??
+    pickFrom(firstLayout, ["breakfast","roomData.checkinService.type"]) ??
     pickEverywhere(rawProperty, active, [
       "breakfastIncluded",
       "breakfast_included",
@@ -635,6 +645,7 @@ export function buildVM(rawProperty, active, helpers) {
       "petPolicy.type",
       "petPolicy.note",
       "petPolicy",
+      "roomData.petPolicy"
     ]) ??
     pickEverywhere(rawProperty, active, [
       "petAllowed",
@@ -652,6 +663,7 @@ export function buildVM(rawProperty, active, helpers) {
       "cancellationPolicy.type",
       "cancellationPolicy.condition",
       "cancellationPolicy",
+      "roomData.cancellationPolicy"
     ]) ??
     pickEverywhere(rawProperty, active, [
       "freeCancel",
@@ -664,7 +676,10 @@ export function buildVM(rawProperty, active, helpers) {
 
   const freeCancelText = mapCancelText(freeCancelRaw);
 
-  const serviceFeeObj = pickFrom(firstLayout, ["fees.serviceFee"]);
+  const serviceFeeObj = pickFrom(firstLayout, [
+  "fees.serviceFee",
+  "roomData.fees.serviceFee"
+]);
   const serviceFeeRaw =
     serviceFeeObj ??
     pickEverywhere(rawProperty, active, [
@@ -679,7 +694,7 @@ export function buildVM(rawProperty, active, helpers) {
       ? formatFeeObject(serviceFeeObj, "percent")
       : formatPercentValue(serviceFeeRaw);
 
-  const cleaningFeeObj = pickFrom(firstLayout, ["fees.cleaningFee"]);
+  const cleaningFeeObj = pickFrom(firstLayout, ["fees.cleaningFee","roomData.fees.cleaningFee"]);
   const cleaningFeeRaw =
     cleaningFeeObj ??
     pickEverywhere(rawProperty, active, [
@@ -694,7 +709,7 @@ export function buildVM(rawProperty, active, helpers) {
       ? formatFeeObject(cleaningFeeObj, "money")
       : formatMoneyValue(cleaningFeeRaw);
 
-  const depositObj = pickFrom(firstLayout, ["fees.deposit"]);
+  const depositObj = pickFrom(firstLayout, ["fees.deposit","roomData.fees.deposit"]);
   const depositRaw =
     depositObj ??
     pickEverywhere(rawProperty, active, [
@@ -711,7 +726,7 @@ export function buildVM(rawProperty, active, helpers) {
       : formatMoneyValue(depositRaw);
 
   const otherFeeText =
-    formatFeeObject(pickFrom(firstLayout, ["fees.otherFee"]), "money") !== "-"
+    formatFeeObject(pickFrom(firstLayout, ["fees.otherFee","roomData.fees.otherFee"]), "money") !== "-"
       ? formatFeeObject(pickFrom(firstLayout, ["fees.otherFee"]), "money")
       : asText(
           pickEverywhere(rawProperty, active, [
