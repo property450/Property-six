@@ -452,6 +452,12 @@ function formatCalendarPriceRange(firstLayout, rawProperty, active) {
 export function buildVM(rawProperty, active, helpers) {
   const firstLayout = getFirstRoomLayout(rawProperty, active);
 
+  console.log("=== HOTEL/RESORT DEBUG rawProperty ===", rawProperty);
+  console.log("=== HOTEL/RESORT DEBUG active ===", active);
+  console.log("=== HOTEL/RESORT DEBUG firstLayout ===", firstLayout);
+  console.log("=== HOTEL/RESORT DEBUG hotel_resort_form ===", rawProperty?.hotel_resort_form);
+  console.log("=== HOTEL/RESORT DEBUG firstLayout.roomData ===", firstLayout?.roomData);
+  
   const title =
     pickAny(rawProperty, ["title", "propertyTitle", "property_title"]) ||
     "（未命名房源）";
