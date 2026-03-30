@@ -153,6 +153,11 @@ function SellerPropertyCard({ rawProperty, onView, onEdit, onDelete }) {
   rawProperty?.homestay_form?.rooms?.[0] ||
   {};
 
+const hotelRoom =
+  rawProperty?.hotel_resort_form?.roomTypes?.[0] ||
+  rawProperty?.hotel_resort_form?.rooms?.[0] ||
+  {};
+
 const mergedSingle = mergeFormsIntoSingle(
   {
     ...(rawProperty?.single_form_data_v2 ||
@@ -162,6 +167,7 @@ const mergedSingle = mergeFormsIntoSingle(
 
     // ✅ 关键：把 room 数据拉上来
     ...homestayRoom,
+    ...hotelRoom,
   },
   rawProperty?.homestay_form,
   rawProperty?.hotel_resort_form
