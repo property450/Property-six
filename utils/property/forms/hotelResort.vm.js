@@ -117,29 +117,47 @@ function getFirstRoomLayout(rawProperty, active) {
   const hotelForm = rawProperty?.hotel_resort_form || {};
 
   const sources = [
-    rawProperty?.hotel_resort_form,
+    hotelForm,
     active,
     single,
-    hotelForm,
     typeForm,
     rawProperty,
   ];
 
-  if (!sources.some((src) => src?.roomLayouts?.length)) {
-    return rawProperty?.hotel_resort_form?.roomLayouts?.[0] || null;
-  }
-
   for (const src of sources) {
-    if (!src) continue;
+    if (!src || typeof src !== "object") continue;
 
-    const roomLayouts = src.roomLayouts;
-    if (Array.isArray(roomLayouts) && roomLayouts.length > 0) return roomLayouts[0];
+    if (Array.isArray(src.roomLayouts) && src.roomLayouts.length > 0) {
+      return src.roomLayouts[0];
+    }
 
-    const room_layouts = src.room_layouts;
-    if (Array.isArray(room_layouts) && room_layouts.length > 0) return room_layouts[0];
+    if (Array.isArray(src.room_layouts) && src.room_layouts.length > 0) {
+      return src.room_layouts[0];
+    }
 
-    const layouts = src.layouts;
-    if (Array.isArray(layouts) && layouts.length > 0) return layouts[0];
+    if (Array.isArray(src.layouts) && src.layouts.length > 0) {
+      return src.layouts[0];
+    }
+
+    if (Array.isArray(src.roomTypes) && src.roomTypes.length > 0) {
+      return src.roomTypes[0];
+    }
+
+    if (Array.isArray(src.room_types) && src.room_types.length > 0) {
+      return src.room_types[0];
+    }
+
+    if (Array.isArray(src.units) && src.units.length > 0) {
+      return src.units[0];
+    }
+
+    if (Array.isArray(src.unitLayouts) && src.unitLayouts.length > 0) {
+      return src.unitLayouts[0];
+    }
+
+    if (Array.isArray(src.unit_layouts) && src.unit_layouts.length > 0) {
+      return src.unit_layouts[0];
+    }
   }
 
   return null;
