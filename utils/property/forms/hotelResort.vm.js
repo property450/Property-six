@@ -117,19 +117,18 @@ function getFirstRoomLayout(rawProperty, active) {
   const hotelForm = rawProperty?.hotel_resort_form || {};
 
   const sources = [
-  rawProperty?.hotel_resort_form, // 🔥 提前
-  active,
-  single,
-  hotelForm,
-  typeForm,
-  rawProperty
-];
+    rawProperty?.hotel_resort_form,
+    active,
+    single,
+    hotelForm,
+    typeForm,
+    rawProperty,
+  ];
 
-  // 🔥 fallback（最重要）
-if (!sources.some(src => src?.roomLayouts?.length)) {
-  return rawProperty?.hotel_resort_form?.roomLayouts?.[0] || null;
-}
-  
+  if (!sources.some((src) => src?.roomLayouts?.length)) {
+    return rawProperty?.hotel_resort_form?.roomLayouts?.[0] || null;
+  }
+
   for (const src of sources) {
     if (!src) continue;
 
@@ -260,6 +259,7 @@ function formatMoneyValue(v) {
 function pickHotelPriceFallback(firstLayout, rawProperty, active) {
   const sources = [
     firstLayout?.availability,
+    firstLayout?.roomData?.availability,
     active?.availability,
     rawProperty?.hotel_resort_form?.availability,
     rawProperty?.single_form_data_v2?.availability,
@@ -385,6 +385,9 @@ function formatCalendarPriceRange(firstLayout, rawProperty, active) {
     firstLayout?.availability?.prices,
     firstLayout?.availability?.calendar_prices,
     firstLayout?.availability?.calendarPrices,
+    firstLayout?.roomData?.availability?.prices,
+    firstLayout?.roomData?.availability?.calendar_prices,
+    firstLayout?.roomData?.availability?.calendarPrices,
     firstLayout?.calendar_prices,
     firstLayout?.calendarPrices,
 
@@ -424,6 +427,7 @@ function formatCalendarPriceRange(firstLayout, rawProperty, active) {
   if (!nums.length) {
     const directAvailabilityCandidates = [
       firstLayout?.availability,
+      firstLayout?.roomData?.availability,
       active?.availability,
       single?.availability,
       hotelForm?.availability,
@@ -460,10 +464,15 @@ export function buildVM(rawProperty, active, helpers) {
   const fallbackHotelPrice = pickHotelPriceFallback(firstLayout, rawProperty, active);
 
   const roomTypePrice =
-  rawProperty?.hotel_resort_form?.roomLayouts?.[0]?.price ||
-  rawProperty?.hotel_resort_form?.roomTypes?.[0]?.price ||
-  rawProperty?.roomTypes?.[0]?.price;
-  
+    firstLayout?.price ||
+    firstLayout?.roomData?.price ||
+    firstLayout?.defaultPrice ||
+    firstLayout?.roomData?.defaultPrice ||
+    rawProperty?.hotel_resort_form?.roomLayouts?.[0]?.price ||
+    rawProperty?.hotel_resort_form?.roomLayouts?.[0]?.roomData?.price ||
+    rawProperty?.hotel_resort_form?.roomTypes?.[0]?.price ||
+    rawProperty?.roomTypes?.[0]?.price;
+
   const priceText =
     nestedPriceText !== "-"
       ? nestedPriceText
@@ -478,21 +487,47 @@ export function buildVM(rawProperty, active, helpers) {
               helpers.isCompletedUnitStatus
             );
 
-  const category = pickEverywhere(rawProperty, active, [
-    "category",
-    "propertyCategory",
-    "property_category",
-    "hotelCategory",
-    "hotel_category",
-  ]);
+  const category =
+    pickFrom(firstLayout, [
+      "category",
+      "roomData.category",
+      "propertyCategory",
+      "roomData.propertyCategory",
+      "property_category",
+      "roomData.property_category",
+      "hotelCategory",
+      "roomData.hotelCategory",
+      "hotel_category",
+      "roomData.hotel_category",
+    ]) ??
+    pickEverywhere(rawProperty, active, [
+      "category",
+      "propertyCategory",
+      "property_category",
+      "hotelCategory",
+      "hotel_category",
+    ]);
 
-  const subType = pickEverywhere(rawProperty, active, [
-    "finalType",
-    "subType",
-    "sub_type",
-    "hotelSubType",
-    "hotel_sub_type",
-  ]);
+  const subType =
+    pickFrom(firstLayout, [
+      "finalType",
+      "roomData.finalType",
+      "subType",
+      "roomData.subType",
+      "sub_type",
+      "roomData.sub_type",
+      "hotelSubType",
+      "roomData.hotelSubType",
+      "hotel_sub_type",
+      "roomData.hotel_sub_type",
+    ]) ??
+    pickEverywhere(rawProperty, active, [
+      "finalType",
+      "subType",
+      "sub_type",
+      "hotelSubType",
+      "hotel_sub_type",
+    ]);
 
   const propSubtypes = pickEverywhere(rawProperty, active, [
     "propertySubtype",
@@ -506,23 +541,53 @@ export function buildVM(rawProperty, active, helpers) {
   ]);
 
   const hotelTypeText = asText(
-    pickEverywhere(rawProperty, active, [
+    pickFrom(firstLayout, [
       "hotelType",
+      "roomData.hotelType",
       "hotel_type",
+      "roomData.hotel_type",
       "hotelResortType",
+      "roomData.hotelResortType",
       "hotel_resort_type",
+      "roomData.hotel_resort_type",
       "resortType",
+      "roomData.resortType",
       "resort_type",
+      "roomData.resort_type",
       "stayType",
+      "roomData.stayType",
       "stay_type",
+      "roomData.stay_type",
       "type",
-    ])
+      "roomData.type",
+    ]) ??
+      pickEverywhere(rawProperty, active, [
+        "hotelType",
+        "hotel_type",
+        "hotelResortType",
+        "hotel_resort_type",
+        "resortType",
+        "resort_type",
+        "stayType",
+        "stay_type",
+        "type",
+      ])
   );
 
   const bedrooms =
     pickFrom(firstLayout, [
       "roomCounts.bedrooms",
       "roomCounts.bedroomCount",
+      "roomData.roomCounts.bedrooms",
+      "roomData.roomCounts.bedroomCount",
+      "bedrooms",
+      "roomData.bedrooms",
+      "bedroomCount",
+      "roomData.bedroomCount",
+      "rooms",
+      "roomData.rooms",
+      "roomCount",
+      "roomData.roomCount",
     ]) ??
     pickEverywhere(rawProperty, active, [
       "bedrooms",
@@ -537,6 +602,12 @@ export function buildVM(rawProperty, active, helpers) {
     pickFrom(firstLayout, [
       "roomCounts.bathrooms",
       "roomCounts.bathroomCount",
+      "roomData.roomCounts.bathrooms",
+      "roomData.roomCounts.bathroomCount",
+      "bathrooms",
+      "roomData.bathrooms",
+      "bathroomCount",
+      "roomData.bathroomCount",
     ]) ??
     pickEverywhere(rawProperty, active, [
       "bathrooms",
@@ -548,6 +619,14 @@ export function buildVM(rawProperty, active, helpers) {
     pickFrom(firstLayout, [
       "roomCounts.carparks",
       "roomCounts.carparkCount",
+      "roomData.roomCounts.carparks",
+      "roomData.roomCounts.carparkCount",
+      "carparks",
+      "roomData.carparks",
+      "carparkCount",
+      "roomData.carparkCount",
+      "parkingCount",
+      "roomData.parkingCount",
     ]) ??
       pickEverywhere(rawProperty, active, [
         "carparks",
@@ -558,46 +637,65 @@ export function buildVM(rawProperty, active, helpers) {
       ])
   );
 
-  const bedTypeText = formatBeds(
+  const bedValue =
     pickFrom(firstLayout, [
-  "beds",
-  "roomData.beds"
-]) ??
-      pickEverywhere(rawProperty, active, [
-        "bedType",
-        "bed_type",
-        "bed_types",
-        "roomBedType",
-        "room_bed_type",
-        "unitBedType",
-        "unit_bed_type",
-      ])
-  );
+      "beds",
+      "roomData.beds",
+      "bedType",
+      "roomData.bedType",
+      "bed_type",
+      "roomData.bed_type",
+    ]) ??
+    pickEverywhere(rawProperty, active, [
+      "bedType",
+      "bed_type",
+      "bed_types",
+      "roomBedType",
+      "room_bed_type",
+      "unitBedType",
+      "unit_bed_type",
+    ]);
+
+  const bedTypeText = Array.isArray(bedValue) ? formatBeds(bedValue) : asText(bedValue);
+
+  const guestValue =
+    pickFrom(firstLayout, [
+      "guests",
+      "roomData.guests",
+    ]) ??
+    pickEverywhere(rawProperty, active, [
+      "guestCount",
+      "guest_count",
+      "maxGuests",
+      "max_guests",
+      "pax",
+      "maxPax",
+      "max_pax",
+      "occupancy",
+    ]);
 
   const guestCountText =
-    pickFrom(firstLayout, [
-  "guests",
-  "roomData.guests"
-]) !== "-"
-      ? pickFrom(firstLayout, [
-  "guests",
-  "roomData.guests"
-])
-      : asText(
-          pickEverywhere(rawProperty, active, [
-            "guestCount",
-            "guest_count",
-            "maxGuests",
-            "max_guests",
-            "pax",
-            "maxPax",
-            "max_pax",
-            "occupancy",
-          ])
-        );
+    guestValue && typeof guestValue === "object"
+      ? formatGuests(guestValue)
+      : asText(guestValue);
 
   const smokingAllowedRaw =
-    pickFrom(firstLayout, ["smoking"]) ??
+    pickFrom(firstLayout, [
+      "smoking",
+      "roomData.smoking",
+      "smokingAllowed",
+      "roomData.smokingAllowed",
+      "smoking_allowed",
+      "roomData.smoking_allowed",
+      "allowSmoking",
+      "roomData.allowSmoking",
+      "allow_smoking",
+      "roomData.allow_smoking",
+      "indoorSmoking",
+      "roomData.indoorSmoking",
+      "indoor_smoking",
+      "roomData.indoor_smoking",
+    ]) ??
     pickEverywhere(rawProperty, active, [
       "smokingAllowed",
       "smoking_allowed",
@@ -614,7 +712,9 @@ export function buildVM(rawProperty, active, helpers) {
       "checkinService.type",
       "roomData.checkinService.type",
       "checkinService.method",
+      "roomData.checkinService.method",
       "checkinService",
+      "roomData.checkinService",
     ]) ??
     pickEverywhere(rawProperty, active, [
       "checkinService",
@@ -628,7 +728,22 @@ export function buildVM(rawProperty, active, helpers) {
   const checkinServiceText = mapCheckinServiceText(checkinServiceRaw);
 
   const breakfastRaw =
-    pickFrom(firstLayout, ["breakfast","roomData.breakfast",]) ??
+    pickFrom(firstLayout, [
+      "breakfast",
+      "roomData.breakfast",
+      "breakfastIncluded",
+      "roomData.breakfastIncluded",
+      "breakfast_included",
+      "roomData.breakfast_included",
+      "includeBreakfast",
+      "roomData.includeBreakfast",
+      "include_breakfast",
+      "roomData.include_breakfast",
+      "withBreakfast",
+      "roomData.withBreakfast",
+      "with_breakfast",
+      "roomData.with_breakfast",
+    ]) ??
     pickEverywhere(rawProperty, active, [
       "breakfastIncluded",
       "breakfast_included",
@@ -645,7 +760,21 @@ export function buildVM(rawProperty, active, helpers) {
       "petPolicy.type",
       "petPolicy.note",
       "petPolicy",
-      "roomData.petPolicy"
+      "roomData.petPolicy.type",
+      "roomData.petPolicy.note",
+      "roomData.petPolicy",
+      "petAllowed",
+      "roomData.petAllowed",
+      "pet_allowed",
+      "roomData.pet_allowed",
+      "allowPets",
+      "roomData.allowPets",
+      "allow_pets",
+      "roomData.allow_pets",
+      "petsAllowed",
+      "roomData.petsAllowed",
+      "pets_allowed",
+      "roomData.pets_allowed",
     ]) ??
     pickEverywhere(rawProperty, active, [
       "petAllowed",
@@ -663,7 +792,17 @@ export function buildVM(rawProperty, active, helpers) {
       "cancellationPolicy.type",
       "cancellationPolicy.condition",
       "cancellationPolicy",
-      "roomData.cancellationPolicy"
+      "roomData.cancellationPolicy.type",
+      "roomData.cancellationPolicy.condition",
+      "roomData.cancellationPolicy",
+      "freeCancel",
+      "roomData.freeCancel",
+      "free_cancel",
+      "roomData.free_cancel",
+      "freeCancellation",
+      "roomData.freeCancellation",
+      "free_cancellation",
+      "roomData.free_cancellation",
     ]) ??
     pickEverywhere(rawProperty, active, [
       "freeCancel",
@@ -677,9 +816,9 @@ export function buildVM(rawProperty, active, helpers) {
   const freeCancelText = mapCancelText(freeCancelRaw);
 
   const serviceFeeObj = pickFrom(firstLayout, [
-  "fees.serviceFee",
-  "roomData.fees.serviceFee"
-]);
+    "fees.serviceFee",
+    "roomData.fees.serviceFee",
+  ]);
   const serviceFeeRaw =
     serviceFeeObj ??
     pickEverywhere(rawProperty, active, [
@@ -694,7 +833,10 @@ export function buildVM(rawProperty, active, helpers) {
       ? formatFeeObject(serviceFeeObj, "percent")
       : formatPercentValue(serviceFeeRaw);
 
-  const cleaningFeeObj = pickFrom(firstLayout, ["fees.cleaningFee","roomData.fees.cleaningFee"]);
+  const cleaningFeeObj = pickFrom(firstLayout, [
+    "fees.cleaningFee",
+    "roomData.fees.cleaningFee",
+  ]);
   const cleaningFeeRaw =
     cleaningFeeObj ??
     pickEverywhere(rawProperty, active, [
@@ -709,7 +851,10 @@ export function buildVM(rawProperty, active, helpers) {
       ? formatFeeObject(cleaningFeeObj, "money")
       : formatMoneyValue(cleaningFeeRaw);
 
-  const depositObj = pickFrom(firstLayout, ["fees.deposit","roomData.fees.deposit"]);
+  const depositObj = pickFrom(firstLayout, [
+    "fees.deposit",
+    "roomData.fees.deposit",
+  ]);
   const depositRaw =
     depositObj ??
     pickEverywhere(rawProperty, active, [
@@ -725,9 +870,14 @@ export function buildVM(rawProperty, active, helpers) {
       ? formatFeeObject(depositObj, "money")
       : formatMoneyValue(depositRaw);
 
+  const otherFeeObj = pickFrom(firstLayout, [
+    "fees.otherFee",
+    "roomData.fees.otherFee",
+  ]);
+
   const otherFeeText =
-    formatFeeObject(pickFrom(firstLayout, ["fees.otherFee","roomData.fees.otherFee"]), "money") !== "-"
-      ? formatFeeObject(pickFrom(firstLayout, ["fees.otherFee"]), "money")
+    otherFeeObj && typeof otherFeeObj === "object"
+      ? formatFeeObject(otherFeeObj, "money")
       : asText(
           pickEverywhere(rawProperty, active, [
             "otherFee",
