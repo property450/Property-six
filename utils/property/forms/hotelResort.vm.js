@@ -1,11 +1,10 @@
-// utils/property/forms/hotelResort.vm.js
-
 import {
   isNonEmpty,
   pickAny,
   getTransitText,
   getCardPriceText,
   formatCarparks,
+  shouldShowPropertySubtypeByCategory,
 } from "../pickers";
 
 function asText(v) {
@@ -145,7 +144,7 @@ function formatBeds(beds) {
   const parts = beds
     .map((b) => {
       if (!b || typeof b !== "object") return "";
-      const label = b.label || b.name || b.type || "";
+      const label = b.label || b.name || "";
       const count = b.count || b.qty || b.quantity || "";
       if (label && count) return `${label} x ${count}`;
       return label || "";
@@ -166,6 +165,32 @@ function formatGuests(guests) {
   if (adults > 0 && children > 0) return `${total}（大人 ${adults}，小孩 ${children}）`;
   if (adults > 0) return `${adults}`;
   return `${children}`;
+}
+
+function formatFeeObject(fee, kind = "money") {
+  if (!fee || typeof fee !== "object") return "-";
+
+  const mode = String(fee.mode || "").toLowerCase().trim();
+  const value = fee.value || fee.amount || "";
+  const note = fee.note || "";
+
+  let main = "-";
+
+  if (!value && note) return note;
+
+  if (mode === "free") {
+    main = "免费";
+  } else if (kind === "percent") {
+    main = value !== "" ? `${value}%` : "-";
+  } else {
+    main = value !== "" ? `RM${value}` : "-";
+  }
+
+  if (main !== "-" && note) return `${main}（${note}）`;
+  if (main !== "-") return main;
+  if (note) return note;
+
+  return "-";
 }
 
 function mapSmokingText(v) {
@@ -224,48 +249,192 @@ function formatMoneyValue(v) {
   return s.toUpperCase().startsWith("RM") ? s : `RM${s}`;
 }
 
-function formatFeeObject(fee, kind = "money") {
-  if (!fee || typeof fee !== "object") return "-";
+function pickHotelPriceFallback(firstLayout, rawProperty, active) {
+  const sources = [
+    firstLayout?.availability,
+    active?.availability,
+    rawProperty?.hotel_resort_form?.availability,
+    rawProperty?.single_form_data_v2?.availability,
+    rawProperty?.singleFormData?.availability,
+    rawProperty?.single_form_data?.availability,
+    rawProperty?.availability,
+  ].filter(Boolean);
 
-  const mode = String(fee.mode || "").toLowerCase().trim();
-  const value = fee.value || fee.amount || "";
-  const note = fee.note || "";
+  for (const layoutAvailability of sources) {
+    if (!layoutAvailability || typeof layoutAvailability !== "object") continue;
 
-  let main = "-";
+    if (layoutAvailability.price != null && layoutAvailability.price !== "") {
+      return String(layoutAvailability.price);
+    }
+    if (layoutAvailability.defaultPrice != null && layoutAvailability.defaultPrice !== "") {
+      return String(layoutAvailability.defaultPrice);
+    }
+    if (layoutAvailability.basePrice != null && layoutAvailability.basePrice !== "") {
+      return String(layoutAvailability.basePrice);
+    }
 
-  if (!value && note) return note;
+    const nestedPrices =
+      layoutAvailability?.prices && typeof layoutAvailability.prices === "object"
+        ? layoutAvailability.prices
+        : null;
 
-  if (mode === "free") {
-    main = "免费";
-  } else if (kind === "percent") {
-    main = value !== "" ? `${value}%` : "-";
-  } else {
-    main = value !== "" ? `RM${value}` : "-";
+    if (nestedPrices) {
+      const values = Object.values(nestedPrices).filter(Boolean);
+      if (values.length > 0) {
+        const first = values[0];
+        if (typeof first === "number" || typeof first === "string") {
+          return String(first);
+        }
+        if (first && typeof first === "object") {
+          if (first.price != null && first.price !== "") return String(first.price);
+          if (first.value != null && first.value !== "") return String(first.value);
+          if (first.amount != null && first.amount !== "") return String(first.amount);
+        }
+      }
+    }
+
+    const calendarPrices =
+      layoutAvailability.calendar_prices || layoutAvailability.calendarPrices;
+
+    if (calendarPrices && typeof calendarPrices === "object") {
+      const actualMap =
+        calendarPrices?.prices && typeof calendarPrices.prices === "object"
+          ? calendarPrices.prices
+          : calendarPrices;
+
+      const values = Object.values(actualMap).filter(Boolean);
+      if (values.length > 0) {
+        const first = values[0];
+        if (typeof first === "number" || typeof first === "string") {
+          return String(first);
+        }
+        if (first && typeof first === "object") {
+          if (first.price != null && first.price !== "") return String(first.price);
+          if (first.value != null && first.value !== "") return String(first.value);
+          if (first.amount != null && first.amount !== "") return String(first.amount);
+        }
+      }
+    }
   }
-
-  if (main !== "-" && note) return `${main}（${note}）`;
-  if (main !== "-") return main;
-  if (note) return note;
 
   return "-";
 }
 
-function pickHotelPrice(firstLayout, rawProperty, active, helpers) {
-  const roomTypePrice =
-    firstLayout?.price ||
-    firstLayout?.basePrice ||
-    firstLayout?.defaultPrice ||
-    rawProperty?.hotel_resort_form?.roomTypes?.[0]?.price ||
-    rawProperty?.roomTypes?.[0]?.price;
+function formatCalendarPriceRange(firstLayout, rawProperty, active) {
+  const single =
+    rawProperty?.single_form_data_v2 ||
+    rawProperty?.singleFormData ||
+    rawProperty?.single_form_data ||
+    {};
 
-  if (isNonEmpty(roomTypePrice)) return formatMoneyValue(roomTypePrice);
+  const hotelForm = rawProperty?.hotel_resort_form || {};
 
-  return getCardPriceText(
-    rawProperty,
-    active,
-    helpers.isNewProjectStatus,
-    helpers.isCompletedUnitStatus
-  );
+  const typeForm =
+    rawProperty?.type_form_v2 ||
+    rawProperty?.typeForm ||
+    rawProperty?.type_form ||
+    {};
+
+  const nums = [];
+
+  const pushNumber = (raw) => {
+    if (raw === null || raw === undefined || raw === "") return;
+    const n = Number(String(raw).replace(/[^\d.]/g, ""));
+    if (Number.isFinite(n)) nums.push(n);
+  };
+
+  const collectDatePriceMap = (obj) => {
+    if (!obj || typeof obj !== "object") return;
+
+    if (obj.prices && typeof obj.prices === "object") {
+      Object.values(obj.prices).forEach((val) => {
+        if (typeof val === "number" || typeof val === "string") {
+          pushNumber(val);
+        } else if (val && typeof val === "object") {
+          pushNumber(val.price);
+          pushNumber(val.value);
+          pushNumber(val.amount);
+        }
+      });
+      return;
+    }
+
+    for (const val of Object.values(obj)) {
+      if (typeof val === "number" || typeof val === "string") {
+        pushNumber(val);
+        continue;
+      }
+
+      if (val && typeof val === "object") {
+        pushNumber(val.price);
+        pushNumber(val.value);
+        pushNumber(val.amount);
+      }
+    }
+  };
+
+  const candidates = [
+    firstLayout?.availability?.prices,
+    firstLayout?.availability?.calendar_prices,
+    firstLayout?.availability?.calendarPrices,
+    firstLayout?.calendar_prices,
+    firstLayout?.calendarPrices,
+
+    active?.availability?.prices,
+    active?.availability?.calendar_prices,
+    active?.availability?.calendarPrices,
+    active?.calendar_prices,
+    active?.calendarPrices,
+
+    single?.availability?.prices,
+    single?.availability?.calendar_prices,
+    single?.availability?.calendarPrices,
+    single?.calendar_prices,
+    single?.calendarPrices,
+
+    hotelForm?.availability?.prices,
+    hotelForm?.availability?.calendar_prices,
+    hotelForm?.availability?.calendarPrices,
+    hotelForm?.calendar_prices,
+    hotelForm?.calendarPrices,
+
+    typeForm?.availability?.prices,
+    typeForm?.availability?.calendar_prices,
+    typeForm?.availability?.calendarPrices,
+    typeForm?.calendar_prices,
+    typeForm?.calendarPrices,
+
+    rawProperty?.availability?.prices,
+    rawProperty?.availability?.calendar_prices,
+    rawProperty?.availability?.calendarPrices,
+    rawProperty?.calendar_prices,
+    rawProperty?.calendarPrices,
+  ].filter(Boolean);
+
+  candidates.forEach(collectDatePriceMap);
+
+  if (!nums.length) {
+    const directAvailabilityCandidates = [
+      firstLayout?.availability,
+      active?.availability,
+      single?.availability,
+      hotelForm?.availability,
+      typeForm?.availability,
+      rawProperty?.availability,
+    ].filter(Boolean);
+
+    for (const obj of directAvailabilityCandidates) {
+      collectDatePriceMap(obj);
+    }
+  }
+
+  if (!nums.length) return "-";
+
+  const min = Math.min(...nums);
+  const max = Math.max(...nums);
+
+  if (min === max) return `RM${min}`;
+  return `RM${min}~RM${max}`;
 }
 
 export function buildVM(rawProperty, active, helpers) {
@@ -279,7 +448,26 @@ export function buildVM(rawProperty, active, helpers) {
     pickAny(rawProperty, ["address", "fullAddress", "full_address", "location"]) ||
     "-";
 
-  const priceText = pickHotelPrice(firstLayout, rawProperty, active, helpers);
+  const nestedPriceText = formatCalendarPriceRange(firstLayout, rawProperty, active);
+  const fallbackHotelPrice = pickHotelPriceFallback(firstLayout, rawProperty, active);
+
+  const roomTypePrice =
+    rawProperty?.hotel_resort_form?.roomTypes?.[0]?.price ||
+    rawProperty?.roomTypes?.[0]?.price;
+
+  const priceText =
+    nestedPriceText !== "-"
+      ? nestedPriceText
+      : fallbackHotelPrice !== "-"
+        ? formatMoneyValue(fallbackHotelPrice)
+        : roomTypePrice
+          ? formatMoneyValue(roomTypePrice)
+          : getCardPriceText(
+              rawProperty,
+              active,
+              helpers.isNewProjectStatus,
+              helpers.isCompletedUnitStatus
+            );
 
   const category = pickEverywhere(rawProperty, active, [
     "category",
@@ -312,6 +500,8 @@ export function buildVM(rawProperty, active, helpers) {
     pickEverywhere(rawProperty, active, [
       "hotelType",
       "hotel_type",
+      "hotelResortType",
+      "hotel_resort_type",
       "resortType",
       "resort_type",
       "stayType",
@@ -324,12 +514,6 @@ export function buildVM(rawProperty, active, helpers) {
     pickFrom(firstLayout, [
       "roomCounts.bedrooms",
       "roomCounts.bedroomCount",
-      "bedrooms",
-      "bedroomCount",
-      "bedroom_count",
-      "roomCount",
-      "room_count",
-      "rooms",
     ]) ??
     pickEverywhere(rawProperty, active, [
       "bedrooms",
@@ -344,9 +528,6 @@ export function buildVM(rawProperty, active, helpers) {
     pickFrom(firstLayout, [
       "roomCounts.bathrooms",
       "roomCounts.bathroomCount",
-      "bathrooms",
-      "bathroomCount",
-      "bathroom_count",
     ]) ??
     pickEverywhere(rawProperty, active, [
       "bathrooms",
@@ -358,11 +539,6 @@ export function buildVM(rawProperty, active, helpers) {
     pickFrom(firstLayout, [
       "roomCounts.carparks",
       "roomCounts.carparkCount",
-      "carparks",
-      "carparkCount",
-      "carpark_count",
-      "parkingCount",
-      "parking_count",
     ]) ??
       pickEverywhere(rawProperty, active, [
         "carparks",
@@ -396,180 +572,165 @@ export function buildVM(rawProperty, active, helpers) {
             "maxGuests",
             "max_guests",
             "pax",
+            "maxPax",
+            "max_pax",
             "occupancy",
           ])
         );
 
   const smokingAllowedRaw =
-  pickFrom(firstLayout, ["smoking"]) ??
-  pickEverywhere(rawProperty, active, [
-    "smokingAllowed",
-    "smoking_allowed",
-    "allowSmoking",
-    "allow_smoking",
-    "indoorSmoking",
-    "indoor_smoking",
-  ]);
+    pickFrom(firstLayout, ["smoking"]) ??
+    pickEverywhere(rawProperty, active, [
+      "smokingAllowed",
+      "smoking_allowed",
+      "allowSmoking",
+      "allow_smoking",
+      "indoorSmoking",
+      "indoor_smoking",
+    ]);
 
-const smokingAllowedText = mapSmokingText(smokingAllowedRaw);
+  const smokingAllowedText = mapSmokingText(smokingAllowedRaw);
 
-const checkinServiceRaw =
-  pickFrom(firstLayout, [
-    "checkinService.type",
-    "checkinService.method",
-    "checkinService",
-  ]) ??
-  pickEverywhere(rawProperty, active, [
-    "checkinService",
-    "checkin_service",
-    "checkInService",
-    "check_in_service",
-    "checkinMethod",
-    "checkin_method",
-  ]);
+  const checkinServiceRaw =
+    pickFrom(firstLayout, [
+      "checkinService.type",
+      "checkinService.method",
+      "checkinService",
+    ]) ??
+    pickEverywhere(rawProperty, active, [
+      "checkinService",
+      "checkin_service",
+      "checkInService",
+      "check_in_service",
+      "checkinMethod",
+      "checkin_method",
+    ]);
 
-const checkinServiceText = mapCheckinServiceText(checkinServiceRaw);
+  const checkinServiceText = mapCheckinServiceText(checkinServiceRaw);
 
-const breakfastRaw =
-  pickFrom(firstLayout, ["breakfast"]) ??
-  pickEverywhere(rawProperty, active, [
-    "breakfastIncluded",
-    "breakfast_included",
-    "includeBreakfast",
-    "include_breakfast",
-    "withBreakfast",
-    "with_breakfast",
-  ]);
+  const breakfastRaw =
+    pickFrom(firstLayout, ["breakfast"]) ??
+    pickEverywhere(rawProperty, active, [
+      "breakfastIncluded",
+      "breakfast_included",
+      "includeBreakfast",
+      "include_breakfast",
+      "withBreakfast",
+      "with_breakfast",
+    ]);
 
-const breakfastIncludedText = mapYesNoText(breakfastRaw);
+  const breakfastIncludedText = mapYesNoText(breakfastRaw);
 
-const petAllowedRaw =
-  pickFrom(firstLayout, [
-    "petPolicy.type",
-    "petPolicy.note",
-    "petPolicy",
-  ]) ??
-  pickEverywhere(rawProperty, active, [
-    "petAllowed",
-    "pet_allowed",
-    "allowPets",
-    "allow_pets",
-    "petsAllowed",
-    "pets_allowed",
-  ]);
+  const petAllowedRaw =
+    pickFrom(firstLayout, [
+      "petPolicy.type",
+      "petPolicy.note",
+      "petPolicy",
+    ]) ??
+    pickEverywhere(rawProperty, active, [
+      "petAllowed",
+      "pet_allowed",
+      "allowPets",
+      "allow_pets",
+      "petsAllowed",
+      "pets_allowed",
+    ]);
 
-const petAllowedText = mapPetPolicyText(petAllowedRaw);
+  const petAllowedText = mapPetPolicyText(petAllowedRaw);
 
-const freeCancelRaw =
-  pickFrom(firstLayout, [
-    "cancellationPolicy.type",
-    "cancellationPolicy.condition",
-    "cancellationPolicy",
-  ]) ??
-  pickEverywhere(rawProperty, active, [
-    "freeCancel",
-    "free_cancel",
-    "freeCancellation",
-    "free_cancellation",
-    "cancellationPolicy",
-    "cancellation_policy",
-  ]);
+  const freeCancelRaw =
+    pickFrom(firstLayout, [
+      "cancellationPolicy.type",
+      "cancellationPolicy.condition",
+      "cancellationPolicy",
+    ]) ??
+    pickEverywhere(rawProperty, active, [
+      "freeCancel",
+      "free_cancel",
+      "freeCancellation",
+      "free_cancellation",
+      "cancellationPolicy",
+      "cancellation_policy",
+    ]);
 
-const freeCancelText = mapCancelText(freeCancelRaw);
+  const freeCancelText = mapCancelText(freeCancelRaw);
 
-const serviceFeeObj = pickFrom(firstLayout, ["fees.serviceFee"]);
-const serviceFeeRaw =
-  serviceFeeObj ??
-  pickEverywhere(rawProperty, active, [
-    "serviceFee",
-    "service_fee",
-    "unitServiceFee",
-    "unit_service_fee",
-  ]);
+  const serviceFeeObj = pickFrom(firstLayout, ["fees.serviceFee"]);
+  const serviceFeeRaw =
+    serviceFeeObj ??
+    pickEverywhere(rawProperty, active, [
+      "serviceFee",
+      "service_fee",
+      "unitServiceFee",
+      "unit_service_fee",
+    ]);
 
-const serviceFeeText =
-  serviceFeeObj && typeof serviceFeeObj === "object"
-    ? formatFeeObject(serviceFeeObj, "percent")
-    : formatPercentValue(serviceFeeRaw);
+  const serviceFeeText =
+    serviceFeeObj && typeof serviceFeeObj === "object"
+      ? formatFeeObject(serviceFeeObj, "percent")
+      : formatPercentValue(serviceFeeRaw);
 
-const cleaningFeeObj = pickFrom(firstLayout, ["fees.cleaningFee"]);
-const cleaningFeeRaw =
-  cleaningFeeObj ??
-  pickEverywhere(rawProperty, active, [
-    "cleaningFee",
-    "cleaning_fee",
-    "unitCleaningFee",
-    "unit_cleaning_fee",
-  ]);
+  const cleaningFeeObj = pickFrom(firstLayout, ["fees.cleaningFee"]);
+  const cleaningFeeRaw =
+    cleaningFeeObj ??
+    pickEverywhere(rawProperty, active, [
+      "cleaningFee",
+      "cleaning_fee",
+      "unitCleaningFee",
+      "unit_cleaning_fee",
+    ]);
 
-const cleaningFeeText =
-  cleaningFeeObj && typeof cleaningFeeObj === "object"
-    ? formatFeeObject(cleaningFeeObj, "money")
-    : formatMoneyValue(cleaningFeeRaw);
+  const cleaningFeeText =
+    cleaningFeeObj && typeof cleaningFeeObj === "object"
+      ? formatFeeObject(cleaningFeeObj, "money")
+      : formatMoneyValue(cleaningFeeRaw);
 
-const depositObj = pickFrom(firstLayout, ["fees.deposit"]);
-const depositRaw =
-  depositObj ??
-  pickEverywhere(rawProperty, active, [
-    "deposit",
-    "securityDeposit",
-    "security_deposit",
-    "unitDeposit",
-    "unit_deposit",
-  ]);
+  const depositObj = pickFrom(firstLayout, ["fees.deposit"]);
+  const depositRaw =
+    depositObj ??
+    pickEverywhere(rawProperty, active, [
+      "deposit",
+      "securityDeposit",
+      "security_deposit",
+      "unitDeposit",
+      "unit_deposit",
+    ]);
 
-const depositText =
-  depositObj && typeof depositObj === "object"
-    ? formatFeeObject(depositObj, "money")
-    : formatMoneyValue(depositRaw);
+  const depositText =
+    depositObj && typeof depositObj === "object"
+      ? formatFeeObject(depositObj, "money")
+      : formatMoneyValue(depositRaw);
 
-const otherFeeText =
-  formatFeeObject(pickFrom(firstLayout, ["fees.otherFee"]), "money") !== "-"
-    ? formatFeeObject(pickFrom(firstLayout, ["fees.otherFee"]), "money")
-    : asText(
-        pickEverywhere(rawProperty, active, [
-          "otherFee",
-          "other_fee",
-          "otherFees",
-          "other_fees",
-          "extraFee",
-          "extra_fee",
-          "extraCharges",
-          "extra_charges",
-        ])
-      );
-      
+  const otherFeeText =
+    formatFeeObject(pickFrom(firstLayout, ["fees.otherFee"]), "money") !== "-"
+      ? formatFeeObject(pickFrom(firstLayout, ["fees.otherFee"]), "money")
+      : asText(
+          pickEverywhere(rawProperty, active, [
+            "otherFee",
+            "other_fee",
+            "otherFees",
+            "other_fees",
+            "extraFee",
+            "extra_fee",
+            "extraCharges",
+            "extra_charges",
+          ])
+        );
+
   const transitText = getTransitText(rawProperty, active);
 
   return {
     title,
     address,
-    priceText,
+    priceText: isNonEmpty(priceText) ? priceText : "-",
+
     bedrooms: isNonEmpty(bedrooms) ? bedrooms : "-",
     bathrooms: isNonEmpty(bathrooms) ? bathrooms : "-",
     carparks: isNonEmpty(carparks) ? carparks : "-",
 
-    saleType:
-      pickAny(rawProperty, ["saleType", "sale_type", "saletype"]) || "HOTEL/RESORT",
-
-    propertyStatus:
-      pickAny(rawProperty, [
-        "propertyStatus",
-        "property_status",
-        "propertystatus",
-        "saleType",
-        "sale_type",
-        "saletype",
-      ]) || "-",
-
-    usage: "-",
-    propertyTitle: "-",
-    affordableText: "-",
-    tenure: "-",
-
     category: isNonEmpty(category) ? category : "-",
     subType: isNonEmpty(subType) ? subType : "-",
-    propSubtypes: isNonEmpty(propSubtypes) ? propSubtypes : "-",
+    propSubtypes,
 
     hotelTypeText,
     bedTypeText,
@@ -583,22 +744,27 @@ const otherFeeText =
     cleaningFeeText,
     depositText,
     otherFeeText,
+
     transitText,
 
-    showStoreys: false,
-    showSubtype: isNonEmpty(propSubtypes),
-
-    isNewProject: false,
-    isCompletedUnit: false,
-    isRentWhole: false,
-    isRentRoom: false,
-
+    saleType: "hotel/resort",
+    propertyStatus: "Hotel/Resort",
+    usage: "-",
+    propertyTitle: "-",
+    affordableText: "-",
+    tenure: "-",
     storeys: "-",
     completedYear: "-",
     expectedText: "-",
     availableFromText: "-",
-    buildUpAreaText: "-",
-    landAreaText: "-",
-    psfText: "-",
+    auctionDateText: "-",
+
+    isRentWhole: false,
+    isRentRoom: false,
+    isNewProject: false,
+    isCompletedUnit: false,
+
+    showStoreys: false,
+    showSubtype: shouldShowPropertySubtypeByCategory(category),
   };
 }
