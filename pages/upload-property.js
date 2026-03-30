@@ -230,15 +230,73 @@ function buildHotelFormFromSingle(single) {
     "availability_data",
     "calendar_prices",
     "calendarPrices",
+
     "checkInTime",
     "checkOutTime",
-    "petsAllowed",
-    "hotelRules",
-    "frontDeskHours",
+    "checkinService",
+    "checkInService",
+    "checkinMethod",
+
+    "minNights",
+    "maxGuests",
+    "guestCount",
+    "occupancy",
+    "maxPax",
+
+    "bedType",
+    "roomBedType",
+    "unitBedType",
+
+    "smokingAllowed",
+    "allowSmoking",
+    "indoorSmoking",
+
     "breakfastIncluded",
+    "includeBreakfast",
+    "withBreakfast",
+
+    "petAllowed",
+    "petsAllowed",
+    "allowPets",
+
+    "freeCancel",
+    "freeCancellation",
+    "cancellationPolicy",
+
+    "hotelRules",
+    "houseRules",
+    "frontDeskHours",
+
+    "serviceFee",
+    "unitServiceFee",
+    "cleaningFee",
+    "unitCleaningFee",
+
+    "deposit",
+    "securityDeposit",
+    "unitDeposit",
+
+    "otherFee",
+    "otherFees",
+    "extraFee",
+    "extraCharges",
+
     "parkingInfo",
     "wifiInfo",
     "amenities",
+
+    "bathrooms",
+    "bathroomCount",
+    "bathroom_count",
+
+    "carparks",
+    "carparkCount",
+    "carpark_count",
+    "parkingCount",
+    "parking_count",
+
+    "roomLayouts",
+    "room_layouts",
   ];
 
   for (const k of keys) {
@@ -520,21 +578,80 @@ const keepRentRoomExtra = new Set([
 ]);
   
   const keepHotelExtra = new Set([
-    "availability",
-    "availability_data",
-    "calendar_prices",
-    "calendarPrices",
-    "checkInTime",
-    "checkOutTime",
-    "petsAllowed",
-    "hotelRules",
-    "frontDeskHours",
-    "breakfastIncluded",
-    "parkingInfo",
-    "wifiInfo",
-    "amenities",
-    "hotel_resort_form",
-  ]);
+  "availability",
+  "availability_data",
+  "calendar_prices",
+  "calendarPrices",
+
+  "checkInTime",
+  "checkOutTime",
+  "checkinService",
+  "checkInService",
+  "checkinMethod",
+
+  "minNights",
+  "maxGuests",
+  "guestCount",
+  "occupancy",
+  "maxPax",
+
+  "bedType",
+  "roomBedType",
+  "unitBedType",
+
+  "smokingAllowed",
+  "allowSmoking",
+  "indoorSmoking",
+
+  "breakfastIncluded",
+  "includeBreakfast",
+  "withBreakfast",
+
+  "petAllowed",
+  "petsAllowed",
+  "allowPets",
+
+  "freeCancel",
+  "freeCancellation",
+  "cancellationPolicy",
+
+  "hotelRules",
+  "houseRules",
+  "frontDeskHours",
+
+  "serviceFee",
+  "unitServiceFee",
+  "cleaningFee",
+  "unitCleaningFee",
+
+  "deposit",
+  "securityDeposit",
+  "unitDeposit",
+
+  "otherFee",
+  "otherFees",
+  "extraFee",
+  "extraCharges",
+
+  "parkingInfo",
+  "wifiInfo",
+  "amenities",
+
+  "bathrooms",
+  "bathroomCount",
+  "bathroom_count",
+
+  "carparks",
+  "carparkCount",
+  "carpark_count",
+  "parkingCount",
+  "parking_count",
+
+  "roomLayouts",
+  "room_layouts",
+
+  "hotel_resort_form",
+]);
 
   let allow = new Set([...base]);
 
