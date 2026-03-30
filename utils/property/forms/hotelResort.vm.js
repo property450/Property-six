@@ -224,6 +224,32 @@ function formatMoneyValue(v) {
   return s.toUpperCase().startsWith("RM") ? s : `RM${s}`;
 }
 
+function formatFeeObject(fee, kind = "money") {
+  if (!fee || typeof fee !== "object") return "-";
+
+  const mode = String(fee.mode || "").toLowerCase().trim();
+  const value = fee.value || fee.amount || "";
+  const note = fee.note || "";
+
+  let main = "-";
+
+  if (!value && note) return note;
+
+  if (mode === "free") {
+    main = "免费";
+  } else if (kind === "percent") {
+    main = value !== "" ? `${value}%` : "-";
+  } else {
+    main = value !== "" ? `RM${value}` : "-";
+  }
+
+  if (main !== "-" && note) return `${main}（${note}）`;
+  if (main !== "-") return main;
+  if (note) return note;
+
+  return "-";
+}
+
 function pickHotelPrice(firstLayout, rawProperty, active, helpers) {
   const roomTypePrice =
     firstLayout?.price ||
@@ -374,93 +400,145 @@ export function buildVM(rawProperty, active, helpers) {
           ])
         );
 
-  const smokingAllowedText = mapSmokingText(
-    pickEverywhere(rawProperty, active, [
-      "smokingAllowed",
-      "smoking_allowed",
-      "allowSmoking",
-      "allow_smoking",
-    ])
-  );
+  const smokingAllowedRaw =
+  pickFrom(firstLayout, ["smoking"]) ??
+  pickEverywhere(rawProperty, active, [
+    "smokingAllowed",
+    "smoking_allowed",
+    "allowSmoking",
+    "allow_smoking",
+    "indoorSmoking",
+    "indoor_smoking",
+  ]);
 
-  const checkinServiceText = mapCheckinServiceText(
-    pickEverywhere(rawProperty, active, [
-      "checkinService",
-      "checkin_service",
-      "checkInService",
-      "check_in_service",
-      "入住服务",
-    ])
-  );
+const smokingAllowedText = mapSmokingText(smokingAllowedRaw);
 
-  const breakfastIncludedText = mapYesNoText(
-    pickEverywhere(rawProperty, active, [
-      "breakfastIncluded",
-      "breakfast_included",
-      "includeBreakfast",
-      "include_breakfast",
-    ])
-  );
+const checkinServiceRaw =
+  pickFrom(firstLayout, [
+    "checkinService.type",
+    "checkinService.method",
+    "checkinService",
+  ]) ??
+  pickEverywhere(rawProperty, active, [
+    "checkinService",
+    "checkin_service",
+    "checkInService",
+    "check_in_service",
+    "checkinMethod",
+    "checkin_method",
+  ]);
 
-  const petAllowedText = mapPetPolicyText(
-    pickEverywhere(rawProperty, active, [
-      "petAllowed",
-      "pet_allowed",
-      "petsAllowed",
-      "pets_allowed",
-      "petPolicy",
-      "pet_policy",
-    ])
-  );
+const checkinServiceText = mapCheckinServiceText(checkinServiceRaw);
 
-  const freeCancelText = mapCancelText(
-    pickEverywhere(rawProperty, active, [
-      "freeCancel",
-      "free_cancel",
-      "freeCancellation",
-      "free_cancellation",
-      "cancelPolicy",
-      "cancel_policy",
-    ])
-  );
+const breakfastRaw =
+  pickFrom(firstLayout, ["breakfast"]) ??
+  pickEverywhere(rawProperty, active, [
+    "breakfastIncluded",
+    "breakfast_included",
+    "includeBreakfast",
+    "include_breakfast",
+    "withBreakfast",
+    "with_breakfast",
+  ]);
 
-  const serviceFeeText = formatPercentValue(
-    pickEverywhere(rawProperty, active, [
-      "serviceFee",
-      "service_fee",
-      "roomServiceFee",
-      "room_service_fee",
-    ])
-  );
+const breakfastIncludedText = mapYesNoText(breakfastRaw);
 
-  const cleaningFeeText = formatMoneyValue(
-    pickEverywhere(rawProperty, active, [
-      "cleaningFee",
-      "cleaning_fee",
-      "roomCleaningFee",
-      "room_cleaning_fee",
-    ])
-  );
+const petAllowedRaw =
+  pickFrom(firstLayout, [
+    "petPolicy.type",
+    "petPolicy.note",
+    "petPolicy",
+  ]) ??
+  pickEverywhere(rawProperty, active, [
+    "petAllowed",
+    "pet_allowed",
+    "allowPets",
+    "allow_pets",
+    "petsAllowed",
+    "pets_allowed",
+  ]);
 
-  const depositText = formatMoneyValue(
-    pickEverywhere(rawProperty, active, [
-      "deposit",
-      "securityDeposit",
-      "security_deposit",
-      "roomDeposit",
-      "room_deposit",
-    ])
-  );
+const petAllowedText = mapPetPolicyText(petAllowedRaw);
 
-  const otherFeeText = formatMoneyValue(
-    pickEverywhere(rawProperty, active, [
-      "otherFee",
-      "other_fee",
-      "extraFee",
-      "extra_fee",
-    ])
-  );
+const freeCancelRaw =
+  pickFrom(firstLayout, [
+    "cancellationPolicy.type",
+    "cancellationPolicy.condition",
+    "cancellationPolicy",
+  ]) ??
+  pickEverywhere(rawProperty, active, [
+    "freeCancel",
+    "free_cancel",
+    "freeCancellation",
+    "free_cancellation",
+    "cancellationPolicy",
+    "cancellation_policy",
+  ]);
 
+const freeCancelText = mapCancelText(freeCancelRaw);
+
+const serviceFeeObj = pickFrom(firstLayout, ["fees.serviceFee"]);
+const serviceFeeRaw =
+  serviceFeeObj ??
+  pickEverywhere(rawProperty, active, [
+    "serviceFee",
+    "service_fee",
+    "unitServiceFee",
+    "unit_service_fee",
+  ]);
+
+const serviceFeeText =
+  serviceFeeObj && typeof serviceFeeObj === "object"
+    ? formatFeeObject(serviceFeeObj, "percent")
+    : formatPercentValue(serviceFeeRaw);
+
+const cleaningFeeObj = pickFrom(firstLayout, ["fees.cleaningFee"]);
+const cleaningFeeRaw =
+  cleaningFeeObj ??
+  pickEverywhere(rawProperty, active, [
+    "cleaningFee",
+    "cleaning_fee",
+    "unitCleaningFee",
+    "unit_cleaning_fee",
+  ]);
+
+const cleaningFeeText =
+  cleaningFeeObj && typeof cleaningFeeObj === "object"
+    ? formatFeeObject(cleaningFeeObj, "money")
+    : formatMoneyValue(cleaningFeeRaw);
+
+const depositObj = pickFrom(firstLayout, ["fees.deposit"]);
+const depositRaw =
+  depositObj ??
+  pickEverywhere(rawProperty, active, [
+    "deposit",
+    "securityDeposit",
+    "security_deposit",
+    "unitDeposit",
+    "unit_deposit",
+  ]);
+
+const depositText =
+  depositObj && typeof depositObj === "object"
+    ? formatFeeObject(depositObj, "money")
+    : formatMoneyValue(depositRaw);
+
+const otherFeeText =
+  formatFeeObject(pickFrom(firstLayout, ["fees.otherFee"]), "money") !== "-"
+    ? formatFeeObject(pickFrom(firstLayout, ["fees.otherFee"]), "money")
+    : asText(
+        pickEverywhere(rawProperty, active, [
+          "otherFee",
+          "other_fee",
+          "otherFees",
+          "other_fees",
+          "extraFee",
+          "extra_fee",
+          "extraCharges",
+          "extra_charges",
+        ])
+      );
+      
   const transitText = getTransitText(rawProperty, active);
 
   return {
