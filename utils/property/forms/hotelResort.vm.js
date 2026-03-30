@@ -119,23 +119,16 @@ function getFirstRoomLayout(rawProperty, active) {
   const sources = [active, single, hotelForm, typeForm, rawProperty];
 
   for (const src of sources) {
-    const roomLayouts = src?.roomLayouts;
+    if (!src) continue;
+
+    const roomLayouts = src.roomLayouts;
     if (Array.isArray(roomLayouts) && roomLayouts.length > 0) return roomLayouts[0];
 
-    const room_layouts = src?.room_layouts;
+    const room_layouts = src.room_layouts;
     if (Array.isArray(room_layouts) && room_layouts.length > 0) return room_layouts[0];
 
-    const layouts = src?.layouts;
+    const layouts = src.layouts;
     if (Array.isArray(layouts) && layouts.length > 0) return layouts[0];
-
-    const roomLayouts = src?.roomLayouts;
-if (Array.isArray(roomLayouts) && roomLayouts.length > 0) return roomLayouts[0];
-
-const room_layouts = src?.room_layouts;
-if (Array.isArray(room_layouts) && room_layouts.length > 0) return room_layouts[0];
-
-const layouts = src?.layouts;
-if (Array.isArray(layouts) && layouts.length > 0) return layouts[0];
   }
 
   return null;
