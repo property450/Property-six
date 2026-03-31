@@ -475,6 +475,54 @@ export function buildVM(rawProperty, active, helpers) {
   const firstLayout = getFirstRoomLayout(rawProperty, active);
   const hotelForm = getHotelForm(rawProperty);
   const layoutSource = firstLayout || hotelForm;
+
+  const hotelType =
+  rawProperty?.hotel_resort_type ||
+  hotelForm?.hotel_resort_type ||
+  hotelForm?.hotelResortType ||
+  "-";
+
+const category =
+  rawProperty?.property_category ||
+  hotelForm?.property_category ||
+  hotelForm?.propertyCategory ||
+  "-";
+
+const subType =
+  rawProperty?.property_sub_type ||
+  hotelForm?.property_sub_type ||
+  hotelForm?.propertySubType ||
+  [];
+
+const maxGuests =
+  rawProperty?.max_guests ||
+  hotelForm?.max_guests ||
+  hotelForm?.maxGuests ||
+  null;
+
+const bedTypes =
+  rawProperty?.bed_types ||
+  hotelForm?.bed_types ||
+  hotelForm?.bedTypes ||
+  null;
+
+const bathroomCount =
+  rawProperty?.bathroom_count ||
+  hotelForm?.bathroom_count ||
+  hotelForm?.bathroomCount ||
+  null;
+
+const houseRules =
+  rawProperty?.house_rules ||
+  hotelForm?.house_rules ||
+  hotelForm?.houseRules ||
+  null;
+
+const checkInOut =
+  rawProperty?.check_in_out ||
+  hotelForm?.check_in_out ||
+  hotelForm?.checkInOut ||
+  null;
   
   console.log("=== HOTEL/RESORT DEBUG rawProperty ===", rawProperty);
   console.log("=== HOTEL/RESORT DEBUG active ===", active);
