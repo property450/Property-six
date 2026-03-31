@@ -637,6 +637,28 @@ const keepRentRoomExtra = new Set([
   "houseRules",
   "frontDeskHours",
 
+      "hotel_resort_type",
+  "hotelResortType",
+
+  "property_category",
+  "propertyCategory",
+
+  "property_sub_type",
+  "propertySubType",
+
+  "max_guests",
+  "maxGuests",
+
+  "bed_types",
+  "bedTypes",
+  "bedType",
+
+  "house_rules",
+  "houseRules",
+
+  "check_in_out",
+  "checkInOut",
+
   "serviceFee",
   "unitServiceFee",
   "cleaningFee",
