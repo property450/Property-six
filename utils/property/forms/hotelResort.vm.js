@@ -477,6 +477,18 @@ export function buildVM(rawProperty, active, helpers) {
   console.log("=== HOTEL/RESORT DEBUG firstLayout.roomData ===", firstLayout?.roomData);
   console.log("=== HOTEL/RESORT DEBUG hotelForm keys ===", Object.keys(rawProperty?.hotel_resort_form || {}));
   console.log("=== HOTEL/RESORT DEBUG hotelForm full ===", rawProperty?.hotel_resort_form);
+  console.log("=== HOTEL/RESORT DEBUG rawProperty keys ===", Object.keys(rawProperty || {}));
+console.log("=== HOTEL/RESORT DEBUG active keys ===", Object.keys(active || {}));
+
+console.log("=== HOTEL/RESORT DEBUG rawProperty.type_form_v2 ===", rawProperty?.type_form_v2);
+console.log("=== HOTEL/RESORT DEBUG rawProperty.single_form_data_v2 ===", rawProperty?.single_form_data_v2);
+console.log("=== HOTEL/RESORT DEBUG rawProperty.singleFormData ===", rawProperty?.singleFormData);
+console.log("=== HOTEL/RESORT DEBUG rawProperty.single_form_data ===", rawProperty?.single_form_data);
+
+console.log("=== HOTEL/RESORT DEBUG active.type_form_v2 ===", active?.type_form_v2);
+console.log("=== HOTEL/RESORT DEBUG active.single_form_data_v2 ===", active?.single_form_data_v2);
+console.log("=== HOTEL/RESORT DEBUG active.singleFormData ===", active?.singleFormData);
+console.log("=== HOTEL/RESORT DEBUG active.single_form_data ===", active?.single_form_data);
   
   const title =
     pickAny(rawProperty, ["title", "propertyTitle", "property_title"]) ||
