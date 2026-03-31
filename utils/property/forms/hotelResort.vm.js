@@ -77,6 +77,31 @@ function pickFrom(obj, candidates) {
   return undefined;
 }
 
+function getHotelForm(rawProperty) {
+  const single =
+    rawProperty?.single_form_data_v2 ||
+    rawProperty?.singleFormData ||
+    rawProperty?.single_form_data ||
+    {};
+
+  const direct = rawProperty?.hotel_resort_form;
+  const nested = single?.hotel_resort_form;
+
+  const directHasData =
+    direct &&
+    typeof direct === "object" &&
+    (
+      (Array.isArray(direct.roomLayouts) && direct.roomLayouts.length > 0) ||
+      (Array.isArray(direct.roomTypes) && direct.roomTypes.length > 0) ||
+      (Array.isArray(direct.unitLayouts) && direct.unitLayouts.length > 0) ||
+      Object.keys(direct).some((k) => k !== "roomLayouts")
+    );
+
+  if (directHasData) return direct;
+  if (nested && typeof nested === "object") return nested;
+  return direct || {};
+}
+
 function pickEverywhere(rawProperty, active, candidates) {
   const typeForm =
     rawProperty?.type_form_v2 ||
@@ -90,8 +115,8 @@ function pickEverywhere(rawProperty, active, candidates) {
     rawProperty?.single_form_data ||
     {};
 
-  const hotelForm = rawProperty?.hotel_resort_form || {};
-
+  const hotelForm = getHotelForm(rawProperty);
+  
   return (
     pickFrom(active, candidates) ??
     pickFrom(typeForm, candidates) ??
@@ -108,13 +133,11 @@ function getFirstRoomLayout(rawProperty, active) {
     rawProperty?.single_form_data ||
     {};
 
-  const hotelForm =
-    rawProperty?.hotel_resort_form ||
-    single?.hotel_resort_form ||
-    {};
+  const hotelForm = getHotelForm(rawProperty);
 
   const sources = [
     hotelForm,
+    single?.hotel_resort_form,
     single,
     active,
     rawProperty,
@@ -329,7 +352,7 @@ function formatCalendarPriceRange(firstLayout, rawProperty, active) {
     rawProperty?.single_form_data ||
     {};
 
-  const hotelForm =
+  const hotelForm = getHotelForm(rawProperty);
   rawProperty?.hotel_resort_form ||
   rawProperty?.single_form_data_v2?.hotel_resort_form ||
   rawProperty?.singleFormData?.hotel_resort_form ||
