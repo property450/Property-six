@@ -97,7 +97,10 @@ function getHotelForm(rawProperty) {
       Object.keys(direct).some((k) => k !== "roomLayouts")
     );
 
-  if (directHasData) return direct;
+  if (direct && typeof direct === "object") return direct;
+if (nested && typeof nested === "object") return nested;
+return {};
+  
   if (nested && typeof nested === "object") return nested;
   return direct || {};
 }
