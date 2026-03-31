@@ -106,9 +106,6 @@ function getHotelForm(rawProperty) {
   return {};
 }
   
-  if (nested && typeof nested === "object") return nested;
-  return direct || {};
-}
 
 function pickEverywhere(rawProperty, active, candidates) {
   const typeForm =
