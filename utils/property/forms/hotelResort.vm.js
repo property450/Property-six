@@ -490,6 +490,15 @@ console.log("=== HOTEL/RESORT DEBUG active.type_form_v2 ===", active?.type_form_
 console.log("=== HOTEL/RESORT DEBUG active.single_form_data_v2 ===", active?.single_form_data_v2);
 console.log("=== HOTEL/RESORT DEBUG active.singleFormData ===", active?.singleFormData);
 console.log("=== HOTEL/RESORT DEBUG active.single_form_data ===", active?.single_form_data);
+
+console.log("hotel_resort_type =", rawProperty?.hotel_resort_type);
+console.log("property_category =", rawProperty?.property_category);
+console.log("property_sub_type =", rawProperty?.property_sub_type);
+console.log("max_guests =", rawProperty?.max_guests);
+console.log("bed_types =", rawProperty?.bed_types);
+console.log("bathroom_count =", rawProperty?.bathroom_count);
+console.log("house_rules =", rawProperty?.house_rules);
+console.log("check_in_out =", rawProperty?.check_in_out);
   
   const title =
     pickAny(rawProperty, ["title", "propertyTitle", "property_title"]) ||
