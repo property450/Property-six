@@ -97,15 +97,11 @@ function getHotelForm(rawProperty) {
       Object.keys(obj).length > 0
     );
 
-  // ✅ 优先 direct（数据库字段）
   if (hasData(direct)) return direct;
-
-  // ✅ fallback nested（singleFormData）
   if (hasData(nested)) return nested;
 
   return {};
 }
-  
 
 function pickEverywhere(rawProperty, active, candidates) {
   const typeForm =
@@ -121,14 +117,14 @@ function pickEverywhere(rawProperty, active, candidates) {
     {};
 
   const hotelForm = getHotelForm(rawProperty);
-  
+
   return (
-  pickFrom(hotelForm, candidates) ??   // ⭐ 提前到最前
-  pickFrom(active, candidates) ??
-  pickFrom(typeForm, candidates) ??
-  pickFrom(single, candidates) ??
-  pickFrom(rawProperty, candidates)
-);
+    pickFrom(hotelForm, candidates) ??
+    pickFrom(active, candidates) ??
+    pickFrom(typeForm, candidates) ??
+    pickFrom(single, candidates) ??
+    pickFrom(rawProperty, candidates)
+  );
 }
 
 function getFirstRoomLayout(rawProperty, active) {
@@ -358,7 +354,7 @@ function formatCalendarPriceRange(firstLayout, rawProperty, active) {
     {};
 
   const hotelForm = getHotelForm(rawProperty);
-  
+
   const typeForm =
     rawProperty?.type_form_v2 ||
     rawProperty?.typeForm ||
@@ -476,83 +472,6 @@ export function buildVM(rawProperty, active, helpers) {
   const hotelForm = getHotelForm(rawProperty);
   const layoutSource = firstLayout || hotelForm;
 
-  const hotelType =
-  rawProperty?.hotel_resort_type ||
-  hotelForm?.hotel_resort_type ||
-  hotelForm?.hotelResortType ||
-  "-";
-
-const category =
-  rawProperty?.property_category ||
-  hotelForm?.property_category ||
-  hotelForm?.propertyCategory ||
-  "-";
-
-const subType =
-  rawProperty?.property_sub_type ||
-  hotelForm?.property_sub_type ||
-  hotelForm?.propertySubType ||
-  [];
-
-const maxGuests =
-  rawProperty?.max_guests ||
-  hotelForm?.max_guests ||
-  hotelForm?.maxGuests ||
-  null;
-
-const bedTypes =
-  rawProperty?.bed_types ||
-  hotelForm?.bed_types ||
-  hotelForm?.bedTypes ||
-  null;
-
-const bathroomCount =
-  rawProperty?.bathroom_count ||
-  hotelForm?.bathroom_count ||
-  hotelForm?.bathroomCount ||
-  null;
-
-const houseRules =
-  rawProperty?.house_rules ||
-  hotelForm?.house_rules ||
-  hotelForm?.houseRules ||
-  null;
-
-const checkInOut =
-  rawProperty?.check_in_out ||
-  hotelForm?.check_in_out ||
-  hotelForm?.checkInOut ||
-  null;
-  
-  console.log("=== HOTEL/RESORT DEBUG rawProperty ===", rawProperty);
-  console.log("=== HOTEL/RESORT DEBUG active ===", active);
-  console.log("=== HOTEL/RESORT DEBUG firstLayout ===", firstLayout);
-  console.log("=== HOTEL/RESORT DEBUG hotel_resort_form ===", rawProperty?.hotel_resort_form);
-  console.log("=== HOTEL/RESORT DEBUG firstLayout.roomData ===", firstLayout?.roomData);
-  console.log("=== HOTEL/RESORT DEBUG hotelForm keys ===", Object.keys(rawProperty?.hotel_resort_form || {}));
-  console.log("=== HOTEL/RESORT DEBUG hotelForm full ===", rawProperty?.hotel_resort_form);
-  console.log("=== HOTEL/RESORT DEBUG rawProperty keys ===", Object.keys(rawProperty || {}));
-console.log("=== HOTEL/RESORT DEBUG active keys ===", Object.keys(active || {}));
-
-console.log("=== HOTEL/RESORT DEBUG rawProperty.type_form_v2 ===", rawProperty?.type_form_v2);
-console.log("=== HOTEL/RESORT DEBUG rawProperty.single_form_data_v2 ===", rawProperty?.single_form_data_v2);
-console.log("=== HOTEL/RESORT DEBUG rawProperty.singleFormData ===", rawProperty?.singleFormData);
-console.log("=== HOTEL/RESORT DEBUG rawProperty.single_form_data ===", rawProperty?.single_form_data);
-
-console.log("=== HOTEL/RESORT DEBUG active.type_form_v2 ===", active?.type_form_v2);
-console.log("=== HOTEL/RESORT DEBUG active.single_form_data_v2 ===", active?.single_form_data_v2);
-console.log("=== HOTEL/RESORT DEBUG active.singleFormData ===", active?.singleFormData);
-console.log("=== HOTEL/RESORT DEBUG active.single_form_data ===", active?.single_form_data);
-
-console.log("hotel_resort_type =", rawProperty?.hotel_resort_type);
-console.log("property_category =", rawProperty?.property_category);
-console.log("property_sub_type =", rawProperty?.property_sub_type);
-console.log("max_guests =", rawProperty?.max_guests);
-console.log("bed_types =", rawProperty?.bed_types);
-console.log("bathroom_count =", rawProperty?.bathroom_count);
-console.log("house_rules =", rawProperty?.house_rules);
-console.log("check_in_out =", rawProperty?.check_in_out);
-  
   const title =
     pickAny(rawProperty, ["title", "propertyTitle", "property_title"]) ||
     "（未命名房源）";
@@ -563,17 +482,17 @@ console.log("check_in_out =", rawProperty?.check_in_out);
 
   const nestedPriceText = formatCalendarPriceRange(firstLayout, rawProperty, active);
   const fallbackHotelPrice = pickHotelPriceFallback(firstLayout, rawProperty, active);
-  
+
   const roomTypePrice =
-  layoutSource?.price ||
-  layoutSource?.roomData?.price ||
-  layoutSource?.defaultPrice ||
-  layoutSource?.roomData?.defaultPrice ||
-  hotelForm?.roomLayouts?.[0]?.price ||
-  hotelForm?.roomLayouts?.[0]?.roomData?.price ||
-  hotelForm?.roomTypes?.[0]?.price ||
-  hotelForm?.unitLayouts?.[0]?.price ||
-  rawProperty?.roomTypes?.[0]?.price;
+    layoutSource?.price ||
+    layoutSource?.roomData?.price ||
+    layoutSource?.defaultPrice ||
+    layoutSource?.roomData?.defaultPrice ||
+    hotelForm?.roomLayouts?.[0]?.price ||
+    hotelForm?.roomLayouts?.[0]?.roomData?.price ||
+    hotelForm?.roomTypes?.[0]?.price ||
+    hotelForm?.unitLayouts?.[0]?.price ||
+    rawProperty?.roomTypes?.[0]?.price;
 
   const priceText =
     nestedPriceText !== "-"
@@ -590,51 +509,54 @@ console.log("check_in_out =", rawProperty?.check_in_out);
             );
 
   const category =
-  pickFrom(layoutSource, [
-    "category",
-    "roomData.category",
-    "propertyCategory",
-    "roomData.propertyCategory",
-    "property_category",
-    "roomData.property_category",
-    "hotelCategory",
-    "roomData.hotelCategory",
-    "hotel_category",
-    "roomData.hotel_category",
-  ]) ??
-  pickEverywhere(rawProperty, active, [
-    "category",
-    "propertyCategory",
-    "property_category",
-    "property_category",
-    "hotelCategory",
-    "hotel_category",
-  ]);
+    pickFrom(layoutSource, [
+      "category",
+      "roomData.category",
+      "propertyCategory",
+      "roomData.propertyCategory",
+      "property_category",
+      "roomData.property_category",
+      "hotelCategory",
+      "roomData.hotelCategory",
+      "hotel_category",
+      "roomData.hotel_category",
+    ]) ??
+    pickEverywhere(rawProperty, active, [
+      "category",
+      "propertyCategory",
+      "property_category",
+      "property_category",
+      "hotelCategory",
+      "hotel_category",
+    ]);
 
   const subType =
-  pickFrom(layoutSource, [
-    "finalType",
-    "roomData.finalType",
-    "subType",
-    "roomData.subType",
-    "sub_type",
-    "roomData.sub_type",
-    "hotelSubType",
-    "roomData.hotelSubType",
-    "hotel_sub_type",
-    "roomData.hotel_sub_type",
-    "property_sub_type",
-    "roomData.property_sub_type",
-  ]) ??
-  pickEverywhere(rawProperty, active, [
-    "finalType",
-    "subType",
-    "sub_type",
-    "hotelSubType",
-    "hotel_sub_type",
-    "property_sub_type",
-  ]);
-  
+    pickFrom(layoutSource, [
+      "finalType",
+      "roomData.finalType",
+      "subType",
+      "roomData.subType",
+      "sub_type",
+      "roomData.sub_type",
+      "hotelSubType",
+      "roomData.hotelSubType",
+      "hotel_sub_type",
+      "roomData.hotel_sub_type",
+      "propertySubType",
+      "roomData.propertySubType",
+      "property_sub_type",
+      "roomData.property_sub_type",
+    ]) ??
+    pickEverywhere(rawProperty, active, [
+      "finalType",
+      "subType",
+      "sub_type",
+      "hotelSubType",
+      "hotel_sub_type",
+      "propertySubType",
+      "property_sub_type",
+    ]);
+
   const propSubtypes = pickEverywhere(rawProperty, active, [
     "propertySubtype",
     "property_subtype",
@@ -647,83 +569,83 @@ console.log("check_in_out =", rawProperty?.check_in_out);
   ]);
 
   const hotelTypeText = asText(
-  pickFrom(layoutSource, [
-    "hotelType",
-    "roomData.hotelType",
-    "hotel_type",
-    "roomData.hotel_type",
-    "hotelResortType",
-    "roomData.hotelResortType",
-    "hotel_resort_type",
-    "roomData.hotel_resort_type",
-    "resortType",
-    "roomData.resortType",
-    "resort_type",
-    "roomData.resort_type",
-    "stayType",
-    "roomData.stayType",
-    "stay_type",
-    "roomData.stay_type",
-    "type",
-    "roomData.type",
-  ]) ??
-    pickEverywhere(rawProperty, active, [
+    pickFrom(layoutSource, [
       "hotelType",
+      "roomData.hotelType",
       "hotel_type",
+      "roomData.hotel_type",
       "hotelResortType",
+      "roomData.hotelResortType",
       "hotel_resort_type",
+      "roomData.hotel_resort_type",
       "resortType",
+      "roomData.resortType",
       "resort_type",
+      "roomData.resort_type",
       "stayType",
+      "roomData.stayType",
       "stay_type",
+      "roomData.stay_type",
       "type",
-    ])
-);
+      "roomData.type",
+    ]) ??
+      pickEverywhere(rawProperty, active, [
+        "hotelType",
+        "hotel_type",
+        "hotelResortType",
+        "hotel_resort_type",
+        "resortType",
+        "resort_type",
+        "stayType",
+        "stay_type",
+        "type",
+      ])
+  );
 
   const bedrooms =
-  pickFrom(layoutSource, [
-    "roomCounts.bedrooms",
-    "roomCounts.bedroomCount",
-    "roomData.roomCounts.bedrooms",
-    "roomData.roomCounts.bedroomCount",
-    "bedrooms",
-    "roomData.bedrooms",
-    "bedroomCount",
-    "roomData.bedroomCount",
-    "bedroom_count",
-    "roomData.bedroom_count",
-    "rooms",
-    "roomData.rooms",
-    "roomCount",
-    "roomData.roomCount",
-  ]) ??
-  pickEverywhere(rawProperty, active, [
-    "bedrooms",
-    "bedroomCount",
-    "bedroom_count",
-    "rooms",
-    "roomCount",
-    "room_count",
-  ]);
+    pickFrom(layoutSource, [
+      "roomCounts.bedrooms",
+      "roomCounts.bedroomCount",
+      "roomData.roomCounts.bedrooms",
+      "roomData.roomCounts.bedroomCount",
+      "bedrooms",
+      "roomData.bedrooms",
+      "bedroomCount",
+      "roomData.bedroomCount",
+      "bedroom_count",
+      "roomData.bedroom_count",
+      "rooms",
+      "roomData.rooms",
+      "roomCount",
+      "roomData.roomCount",
+    ]) ??
+    pickEverywhere(rawProperty, active, [
+      "bedrooms",
+      "bedroomCount",
+      "bedroom_count",
+      "rooms",
+      "roomCount",
+      "room_count",
+    ]);
 
   const bathrooms =
-  pickFrom(layoutSource, [
-    "roomCounts.bathrooms",
-    "roomCounts.bathroomCount",
-    "roomData.roomCounts.bathrooms",
-    "roomData.roomCounts.bathroomCount",
-    "bathrooms",
-    "roomData.bathrooms",
-    "bathroomCount",
-    "roomData.bathroomCount",
-    "bathroom_count",
-    "roomData.bathroom_count",
-  ]) ??
-  pickEverywhere(rawProperty, active, [
-    "bathrooms",
-    "bathroomCount",
-    "bathroom_count",
-  ]);
+    pickFrom(layoutSource, [
+      "roomCounts.bathrooms",
+      "roomCounts.bathroomCount",
+      "roomData.roomCounts.bathrooms",
+      "roomData.roomCounts.bathroomCount",
+      "bathrooms",
+      "roomData.bathrooms",
+      "bathroomCount",
+      "roomData.bathroomCount",
+      "bathroom_count",
+      "roomData.bathroom_count",
+    ]) ??
+    pickEverywhere(rawProperty, active, [
+      "bathrooms",
+      "bathroomCount",
+      "bathroom_count",
+    ]);
 
   const carparks = formatCarparks(
     pickFrom(layoutSource, [
@@ -748,47 +670,50 @@ console.log("check_in_out =", rawProperty?.check_in_out);
   );
 
   const bedValue =
-  pickFrom(layoutSource, [
-    "beds",
-    "roomData.beds",
-    "bedType",
-    "roomData.bedType",
-    "bed_type",
-    "roomData.bed_type",
-    "bed_types",
-    "roomData.bed_types",
-  ]) ??
-  pickEverywhere(rawProperty, active, [
-    "bedType",
-    "bed_type",
-    "bed_types",
-    "roomBedType",
-    "room_bed_type",
-    "unitBedType",
-    "unit_bed_type",
-  ]);
+    pickFrom(layoutSource, [
+      "beds",
+      "roomData.beds",
+      "bedType",
+      "roomData.bedType",
+      "bedTypes",
+      "roomData.bedTypes",
+      "bed_type",
+      "roomData.bed_type",
+      "bed_types",
+      "roomData.bed_types",
+    ]) ??
+    pickEverywhere(rawProperty, active, [
+      "bedType",
+      "bedTypes",
+      "bed_type",
+      "bed_types",
+      "roomBedType",
+      "room_bed_type",
+      "unitBedType",
+      "unit_bed_type",
+    ]);
 
   const bedTypeText = Array.isArray(bedValue) ? formatBeds(bedValue) : asText(bedValue);
 
   const guestValue =
-  pickFrom(layoutSource, [
-    "guests",
-    "roomData.guests",
-    "maxGuests",
-    "roomData.maxGuests",
-    "max_guests",
-    "roomData.max_guests",
-  ]) ??
-  pickEverywhere(rawProperty, active, [
-    "guestCount",
-    "guest_count",
-    "maxGuests",
-    "max_guests",
-    "pax",
-    "maxPax",
-    "max_pax",
-    "occupancy",
-  ]);
+    pickFrom(layoutSource, [
+      "guests",
+      "roomData.guests",
+      "maxGuests",
+      "roomData.maxGuests",
+      "max_guests",
+      "roomData.max_guests",
+    ]) ??
+    pickEverywhere(rawProperty, active, [
+      "guestCount",
+      "guest_count",
+      "maxGuests",
+      "max_guests",
+      "pax",
+      "maxPax",
+      "max_pax",
+      "occupancy",
+    ]);
 
   const guestCountText =
     guestValue && typeof guestValue === "object"
@@ -1058,3 +983,4 @@ console.log("check_in_out =", rawProperty?.check_in_out);
     showSubtype: shouldShowPropertySubtypeByCategory(category),
   };
 }
+
