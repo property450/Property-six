@@ -353,8 +353,13 @@ function formatCalendarPriceRange(firstLayout, rawProperty, active) {
     rawProperty?.single_form_data ||
     {};
 
-  const hotelForm = rawProperty?.hotel_resort_form || {};
-
+  const hotelForm =
+  rawProperty?.hotel_resort_form ||
+  rawProperty?.single_form_data_v2?.hotel_resort_form ||
+  rawProperty?.singleFormData?.hotel_resort_form ||
+  rawProperty?.single_form_data?.hotel_resort_form ||
+  {};
+  
   const typeForm =
     rawProperty?.type_form_v2 ||
     rawProperty?.typeForm ||
