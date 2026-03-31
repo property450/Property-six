@@ -1001,9 +1001,6 @@ export default function UploadPropertyPage() {
           .single();
 
 
-        console.log("SUPABASE FULL ERROR =", JSON.stringify(lastError, null, 2));
-console.log("SUPABASE PAYLOAD =", payloadToWrite);
-        
         if (error) throw error;
 
         const tf = safeParseMaybeJson(pickPreferNonEmpty(data.type_form_v2, data.typeForm, {})) || {};
@@ -1222,9 +1219,7 @@ const calendar_prices =
           res = await supabase.from("properties").insert(payloadToWrite).select("*");
         }
 
-        console.log("SUPABASE FULL ERROR =", JSON.stringify(lastError, null, 2));
-console.log("SUPABASE PAYLOAD =", payloadToWrite);
-
+        
         const { error } = res || {};
         if (!error) {
           lastError = null;
