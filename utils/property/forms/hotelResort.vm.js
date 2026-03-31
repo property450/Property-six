@@ -353,11 +353,6 @@ function formatCalendarPriceRange(firstLayout, rawProperty, active) {
     {};
 
   const hotelForm = getHotelForm(rawProperty);
-  rawProperty?.hotel_resort_form ||
-  rawProperty?.single_form_data_v2?.hotel_resort_form ||
-  rawProperty?.singleFormData?.hotel_resort_form ||
-  rawProperty?.single_form_data?.hotel_resort_form ||
-  {};
   
   const typeForm =
     rawProperty?.type_form_v2 ||
@@ -473,7 +468,9 @@ function formatCalendarPriceRange(firstLayout, rawProperty, active) {
 
 export function buildVM(rawProperty, active, helpers) {
   const firstLayout = getFirstRoomLayout(rawProperty, active);
-
+  const hotelForm = getHotelForm(rawProperty);
+  const layoutSource = firstLayout || hotelForm;
+  
   console.log("=== HOTEL/RESORT DEBUG rawProperty ===", rawProperty);
   console.log("=== HOTEL/RESORT DEBUG active ===", active);
   console.log("=== HOTEL/RESORT DEBUG firstLayout ===", firstLayout);
@@ -504,16 +501,17 @@ console.log("=== HOTEL/RESORT DEBUG active.single_form_data ===", active?.single
 
   const nestedPriceText = formatCalendarPriceRange(firstLayout, rawProperty, active);
   const fallbackHotelPrice = pickHotelPriceFallback(firstLayout, rawProperty, active);
-
+  
   const roomTypePrice =
-    firstLayout?.price ||
-    firstLayout?.roomData?.price ||
-    firstLayout?.defaultPrice ||
-    firstLayout?.roomData?.defaultPrice ||
-    rawProperty?.hotel_resort_form?.roomLayouts?.[0]?.price ||
-    rawProperty?.hotel_resort_form?.roomLayouts?.[0]?.roomData?.price ||
-    rawProperty?.hotel_resort_form?.roomTypes?.[0]?.price ||
-    rawProperty?.roomTypes?.[0]?.price;
+  layoutSource?.price ||
+  layoutSource?.roomData?.price ||
+  layoutSource?.defaultPrice ||
+  layoutSource?.roomData?.defaultPrice ||
+  hotelForm?.roomLayouts?.[0]?.price ||
+  hotelForm?.roomLayouts?.[0]?.roomData?.price ||
+  hotelForm?.roomTypes?.[0]?.price ||
+  hotelForm?.unitLayouts?.[0]?.price ||
+  rawProperty?.roomTypes?.[0]?.price;
 
   const priceText =
     nestedPriceText !== "-"
@@ -583,7 +581,7 @@ console.log("=== HOTEL/RESORT DEBUG active.single_form_data ===", active?.single
   ]);
 
   const hotelTypeText = asText(
-    pickFrom(firstLayout, [
+    pickFrom(layoutSource, [
       "hotelType",
       "roomData.hotelType",
       "hotel_type",
@@ -617,7 +615,7 @@ console.log("=== HOTEL/RESORT DEBUG active.single_form_data ===", active?.single
   );
 
   const bedrooms =
-    pickFrom(firstLayout, [
+    pickFrom(layoutSource, [
       "roomCounts.bedrooms",
       "roomCounts.bedroomCount",
       "roomData.roomCounts.bedrooms",
@@ -641,7 +639,7 @@ console.log("=== HOTEL/RESORT DEBUG active.single_form_data ===", active?.single
     ]);
 
   const bathrooms =
-    pickFrom(firstLayout, [
+    pickFrom(layoutSource, [
       "roomCounts.bathrooms",
       "roomCounts.bathroomCount",
       "roomData.roomCounts.bathrooms",
@@ -658,7 +656,7 @@ console.log("=== HOTEL/RESORT DEBUG active.single_form_data ===", active?.single
     ]);
 
   const carparks = formatCarparks(
-    pickFrom(firstLayout, [
+    pickFrom(layoutSource, [
       "roomCounts.carparks",
       "roomCounts.carparkCount",
       "roomData.roomCounts.carparks",
@@ -680,7 +678,7 @@ console.log("=== HOTEL/RESORT DEBUG active.single_form_data ===", active?.single
   );
 
   const bedValue =
-    pickFrom(firstLayout, [
+    pickFrom(layoutSource, [
       "beds",
       "roomData.beds",
       "bedType",
@@ -701,7 +699,7 @@ console.log("=== HOTEL/RESORT DEBUG active.single_form_data ===", active?.single
   const bedTypeText = Array.isArray(bedValue) ? formatBeds(bedValue) : asText(bedValue);
 
   const guestValue =
-    pickFrom(firstLayout, [
+    pickFrom(layoutSource, [
       "guests",
       "roomData.guests",
     ]) ??
@@ -722,7 +720,7 @@ console.log("=== HOTEL/RESORT DEBUG active.single_form_data ===", active?.single
       : asText(guestValue);
 
   const smokingAllowedRaw =
-    pickFrom(firstLayout, [
+    pickFrom(layoutSource, [
       "smoking",
       "roomData.smoking",
       "smokingAllowed",
@@ -750,7 +748,7 @@ console.log("=== HOTEL/RESORT DEBUG active.single_form_data ===", active?.single
   const smokingAllowedText = mapSmokingText(smokingAllowedRaw);
 
   const checkinServiceRaw =
-    pickFrom(firstLayout, [
+    pickFrom(layoutSource, [
       "checkinService.type",
       "roomData.checkinService.type",
       "checkinService.method",
@@ -770,7 +768,7 @@ console.log("=== HOTEL/RESORT DEBUG active.single_form_data ===", active?.single
   const checkinServiceText = mapCheckinServiceText(checkinServiceRaw);
 
   const breakfastRaw =
-    pickFrom(firstLayout, [
+    pickFrom(layoutSource, [
       "breakfast",
       "roomData.breakfast",
       "breakfastIncluded",
@@ -798,7 +796,7 @@ console.log("=== HOTEL/RESORT DEBUG active.single_form_data ===", active?.single
   const breakfastIncludedText = mapYesNoText(breakfastRaw);
 
   const petAllowedRaw =
-    pickFrom(firstLayout, [
+    pickFrom(layoutSource, [
       "petPolicy.type",
       "petPolicy.note",
       "petPolicy",
@@ -830,7 +828,7 @@ console.log("=== HOTEL/RESORT DEBUG active.single_form_data ===", active?.single
   const petAllowedText = mapPetPolicyText(petAllowedRaw);
 
   const freeCancelRaw =
-    pickFrom(firstLayout, [
+    pickFrom(layoutSource, [
       "cancellationPolicy.type",
       "cancellationPolicy.condition",
       "cancellationPolicy",
@@ -875,7 +873,7 @@ console.log("=== HOTEL/RESORT DEBUG active.single_form_data ===", active?.single
       ? formatFeeObject(serviceFeeObj, "percent")
       : formatPercentValue(serviceFeeRaw);
 
-  const cleaningFeeObj = pickFrom(firstLayout, [
+  const cleaningFeeObj = pickFrom(layoutSource, [
     "fees.cleaningFee",
     "roomData.fees.cleaningFee",
   ]);
@@ -893,7 +891,7 @@ console.log("=== HOTEL/RESORT DEBUG active.single_form_data ===", active?.single
       ? formatFeeObject(cleaningFeeObj, "money")
       : formatMoneyValue(cleaningFeeRaw);
 
-  const depositObj = pickFrom(firstLayout, [
+  const depositObj = pickFrom(layoutSource, [
     "fees.deposit",
     "roomData.fees.deposit",
   ]);
@@ -912,7 +910,7 @@ console.log("=== HOTEL/RESORT DEBUG active.single_form_data ===", active?.single
       ? formatFeeObject(depositObj, "money")
       : formatMoneyValue(depositRaw);
 
-  const otherFeeObj = pickFrom(firstLayout, [
+  const otherFeeObj = pickFrom(layoutSource, [
     "fees.otherFee",
     "roomData.fees.otherFee",
   ]);
