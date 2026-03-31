@@ -298,6 +298,12 @@ function buildHotelFormFromSingle(single) {
     "roomLayouts",
     "room_layouts",
 
+        "roomTypes",
+    "room_types",
+    "unitLayouts",
+    "unit_layouts",
+    "rooms",
+
     "hotel_resort_type",
 "property_category",
 "property_sub_type",
