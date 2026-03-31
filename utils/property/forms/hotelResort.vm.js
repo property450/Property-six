@@ -470,6 +470,12 @@ export function buildVM(rawProperty, active, helpers) {
   const firstLayout = getFirstRoomLayout(rawProperty, active);
   const hotelForm = getHotelForm(rawProperty);
   const layoutSource = firstLayout || hotelForm;
+
+  const hotelForm =
+  rawProperty?.single_form_data_v2?.hotel_resort_form ||
+  rawProperty?.singleFormData?.hotel_resort_form ||
+  rawProperty?.single_form_data?.hotel_resort_form ||
+  {};
   
   console.log("=== HOTEL/RESORT DEBUG rawProperty ===", rawProperty);
   console.log("=== HOTEL/RESORT DEBUG active ===", active);
