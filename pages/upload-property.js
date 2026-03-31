@@ -696,6 +696,12 @@ const keepRentRoomExtra = new Set([
   "roomLayouts",
   "room_layouts",
 
+      "roomTypes",
+  "room_types",
+  "unitLayouts",
+  "unit_layouts",
+  "rooms",
+
   "hotel_resort_form",
 ]);
 
