@@ -87,19 +87,24 @@ function getHotelForm(rawProperty) {
   const direct = rawProperty?.hotel_resort_form;
   const nested = single?.hotel_resort_form;
 
-  const directHasData =
-    direct &&
-    typeof direct === "object" &&
+  const hasData = (obj) =>
+    obj &&
+    typeof obj === "object" &&
     (
-      (Array.isArray(direct.roomLayouts) && direct.roomLayouts.length > 0) ||
-      (Array.isArray(direct.roomTypes) && direct.roomTypes.length > 0) ||
-      (Array.isArray(direct.unitLayouts) && direct.unitLayouts.length > 0) ||
-      Object.keys(direct).some((k) => k !== "roomLayouts")
+      (Array.isArray(obj.roomLayouts) && obj.roomLayouts.length > 0) ||
+      (Array.isArray(obj.roomTypes) && obj.roomTypes.length > 0) ||
+      (Array.isArray(obj.unitLayouts) && obj.unitLayouts.length > 0) ||
+      Object.keys(obj).length > 0
     );
 
-  if (direct && typeof direct === "object") return direct;
-if (nested && typeof nested === "object") return nested;
-return {};
+  // ✅ 优先 direct（数据库字段）
+  if (hasData(direct)) return direct;
+
+  // ✅ fallback nested（singleFormData）
+  if (hasData(nested)) return nested;
+
+  return {};
+}
   
   if (nested && typeof nested === "object") return nested;
   return direct || {};
