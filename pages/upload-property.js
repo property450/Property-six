@@ -1074,10 +1074,15 @@ export default function UploadPropertyPage() {
       const activeFormKey = getActiveFormKey({ saleTypeNorm, computedStatus, roomRentalMode });
 
       // ✅✅✅ 1) 保存前：严格按“当前表单”清理 singleFormData（其它表单 key 全删掉）
-      const cleanedSingleFormData = stripSingleFormDataByActiveForm(
-        activeFormKey,
-        stripSingleFormDataByMode({ saleTypeNorm }, singleFormData || {})
-      );
+      const modeCleanedSingleFormData = stripSingleFormDataByMode(
+  { saleTypeNorm },
+  singleFormData || {}
+);
+
+const cleanedSingleFormData = stripSingleFormDataByActiveForm(
+  activeFormKey,
+  modeCleanedSingleFormData
+);
 
       // ✅✅✅ 1.5) 保存前：严格按“当前表单”清理 typeForm（尤其是 finalType=Hotel/Resort 这种污染）
       const cleanedTypeForm = stripTypeFormByActiveForm(activeFormKey, typeForm || {});
@@ -1089,9 +1094,16 @@ export default function UploadPropertyPage() {
       };
 
       // ✅✅✅ 3) 只在对应模式才生成对应的 form column
-      const homestay_form = activeFormKey === "homestay" ? buildHomestayFormFromSingle(cleanedSingleFormData) : null;
-      const hotel_resort_form = activeFormKey === "hotel" ? buildHotelFormFromSingle(cleanedSingleFormData) : null;
+      const homestay_form =
+  activeFormKey === "homestay"
+    ? buildHomestayFormFromSingle(modeCleanedSingleFormData)
+    : null;
 
+const hotel_resort_form =
+  activeFormKey === "hotel"
+    ? buildHotelFormFromSingle(modeCleanedSingleFormData)
+    : null;
+      
       // ✅✅✅ 4) 日历字段：只在 Homestay / Hotel 保存（否则强制清空）
       const { derivedCalendarPrices } = pickHomestayPriceFallback(cleanedSingleFormData);
 const priceCols = pickPriceColumnsFromSingle(cleanedSingleFormData);
