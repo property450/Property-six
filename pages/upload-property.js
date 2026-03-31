@@ -297,6 +297,24 @@ function buildHotelFormFromSingle(single) {
 
     "roomLayouts",
     "room_layouts",
+
+    "hotel_resort_type",
+"property_category",
+"property_sub_type",
+"max_guests",
+"bed_types",
+"bathroom_count",
+"house_rules",
+"check_in_out",
+
+    "hotelResortType",
+"propertyCategory",
+"propertySubType",
+"maxGuests",
+"bedTypes",
+"bathroomCount",
+"houseRules",
+"checkInOut",
   ];
 
   for (const k of keys) {
@@ -1128,6 +1146,66 @@ const calendar_prices =
         hotel_resort_form,
         availability,
         calendar_prices,
+
+        hotel_resort_type:
+  cleanedSingleFormData?.hotel_resort_type ??
+  cleanedSingleFormData?.hotelResortType ??
+  cleanedTypeForm?.hotel_resort_type ??
+  cleanedTypeForm?.hotelResortType ??
+  null,
+
+property_category:
+  cleanedSingleFormData?.property_category ??
+  cleanedSingleFormData?.propertyCategory ??
+  cleanedTypeForm?.property_category ??
+  cleanedTypeForm?.propertyCategory ??
+  cleanedTypeForm?.category ??
+  null,
+
+property_sub_type:
+  cleanedSingleFormData?.property_sub_type ??
+  cleanedSingleFormData?.propertySubType ??
+  cleanedTypeForm?.property_sub_type ??
+  cleanedTypeForm?.propertySubType ??
+  cleanedTypeForm?.subType ??
+  cleanedTypeForm?.subtype ??
+  null,
+
+max_guests:
+  cleanedSingleFormData?.max_guests ??
+  cleanedSingleFormData?.maxGuests ??
+  cleanedSingleFormData?.guestCount ??
+  null,
+
+bed_types:
+  cleanedSingleFormData?.bed_types ??
+  cleanedSingleFormData?.bedTypes ??
+  cleanedSingleFormData?.bedType ??
+  null,
+
+bathroom_count:
+  cleanedSingleFormData?.bathroom_count ??
+  cleanedSingleFormData?.bathroomCount ??
+  cleanedSingleFormData?.bathrooms ??
+  null,
+
+house_rules:
+  cleanedSingleFormData?.house_rules ??
+  cleanedSingleFormData?.houseRules ??
+  null,
+
+check_in_out:
+  cleanedSingleFormData?.check_in_out ??
+  cleanedSingleFormData?.checkInOut ??
+  {
+    checkInTime: cleanedSingleFormData?.checkInTime ?? null,
+    checkOutTime: cleanedSingleFormData?.checkOutTime ?? null,
+    checkinService:
+      cleanedSingleFormData?.checkinService ??
+      cleanedSingleFormData?.checkInService ??
+      cleanedSingleFormData?.checkinMethod ??
+      null,
+  },
 
         updated_at: new Date().toISOString(),
       };
