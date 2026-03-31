@@ -752,8 +752,14 @@ function buildCleanupPayloadByActiveForm(activeFormKey) {
 
   // 最终规则：只保留最后保存的那个表单，其它都清空
   if (activeFormKey !== "homestay") out.homestay_form = null;
-  if (activeFormKey !== "hotel") out.hotel_resort_form = null;
-
+  if (
+  activeFormKey !== "hotel" &&
+  activeFormKey !== "hotel_resort" &&
+  activeFormKey !== "hotel/resort"
+) {
+  out.hotel_resort_form = null;
+  }
+  
   if (activeFormKey !== "homestay" && activeFormKey !== "hotel") {
     out.availability = null;
     out.calendar_prices = null;
