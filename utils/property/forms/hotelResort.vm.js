@@ -528,7 +528,7 @@ console.log("=== HOTEL/RESORT DEBUG active.single_form_data ===", active?.single
             );
 
   const category =
-    pickFrom(firstLayout, [
+    pickFrom(layoutSource, [
       "category",
       "roomData.category",
       "propertyCategory",
@@ -549,7 +549,7 @@ console.log("=== HOTEL/RESORT DEBUG active.single_form_data ===", active?.single
     ]);
 
   const subType =
-    pickFrom(firstLayout, [
+    pickFrom(layoutSource, [
       "finalType",
       "roomData.finalType",
       "subType",
@@ -855,7 +855,7 @@ console.log("=== HOTEL/RESORT DEBUG active.single_form_data ===", active?.single
 
   const freeCancelText = mapCancelText(freeCancelRaw);
 
-  const serviceFeeObj = pickFrom(firstLayout, [
+  const serviceFeeObj = pickFrom(layoutSource, [
     "fees.serviceFee",
     "roomData.fees.serviceFee",
   ]);
