@@ -528,47 +528,51 @@ console.log("=== HOTEL/RESORT DEBUG active.single_form_data ===", active?.single
             );
 
   const category =
-    pickFrom(layoutSource, [
-      "category",
-      "roomData.category",
-      "propertyCategory",
-      "roomData.propertyCategory",
-      "property_category",
-      "roomData.property_category",
-      "hotelCategory",
-      "roomData.hotelCategory",
-      "hotel_category",
-      "roomData.hotel_category",
-    ]) ??
-    pickEverywhere(rawProperty, active, [
-      "category",
-      "propertyCategory",
-      "property_category",
-      "hotelCategory",
-      "hotel_category",
-    ]);
+  pickFrom(layoutSource, [
+    "category",
+    "roomData.category",
+    "propertyCategory",
+    "roomData.propertyCategory",
+    "property_category",
+    "roomData.property_category",
+    "hotelCategory",
+    "roomData.hotelCategory",
+    "hotel_category",
+    "roomData.hotel_category",
+  ]) ??
+  pickEverywhere(rawProperty, active, [
+    "category",
+    "propertyCategory",
+    "property_category",
+    "property_category",
+    "hotelCategory",
+    "hotel_category",
+  ]);
 
   const subType =
-    pickFrom(layoutSource, [
-      "finalType",
-      "roomData.finalType",
-      "subType",
-      "roomData.subType",
-      "sub_type",
-      "roomData.sub_type",
-      "hotelSubType",
-      "roomData.hotelSubType",
-      "hotel_sub_type",
-      "roomData.hotel_sub_type",
-    ]) ??
-    pickEverywhere(rawProperty, active, [
-      "finalType",
-      "subType",
-      "sub_type",
-      "hotelSubType",
-      "hotel_sub_type",
-    ]);
-
+  pickFrom(layoutSource, [
+    "finalType",
+    "roomData.finalType",
+    "subType",
+    "roomData.subType",
+    "sub_type",
+    "roomData.sub_type",
+    "hotelSubType",
+    "roomData.hotelSubType",
+    "hotel_sub_type",
+    "roomData.hotel_sub_type",
+    "property_sub_type",
+    "roomData.property_sub_type",
+  ]) ??
+  pickEverywhere(rawProperty, active, [
+    "finalType",
+    "subType",
+    "sub_type",
+    "hotelSubType",
+    "hotel_sub_type",
+    "property_sub_type",
+  ]);
+  
   const propSubtypes = pickEverywhere(rawProperty, active, [
     "propertySubtype",
     "property_subtype",
@@ -581,79 +585,83 @@ console.log("=== HOTEL/RESORT DEBUG active.single_form_data ===", active?.single
   ]);
 
   const hotelTypeText = asText(
-    pickFrom(layoutSource, [
+  pickFrom(layoutSource, [
+    "hotelType",
+    "roomData.hotelType",
+    "hotel_type",
+    "roomData.hotel_type",
+    "hotelResortType",
+    "roomData.hotelResortType",
+    "hotel_resort_type",
+    "roomData.hotel_resort_type",
+    "resortType",
+    "roomData.resortType",
+    "resort_type",
+    "roomData.resort_type",
+    "stayType",
+    "roomData.stayType",
+    "stay_type",
+    "roomData.stay_type",
+    "type",
+    "roomData.type",
+  ]) ??
+    pickEverywhere(rawProperty, active, [
       "hotelType",
-      "roomData.hotelType",
       "hotel_type",
-      "roomData.hotel_type",
       "hotelResortType",
-      "roomData.hotelResortType",
       "hotel_resort_type",
-      "roomData.hotel_resort_type",
       "resortType",
-      "roomData.resortType",
       "resort_type",
-      "roomData.resort_type",
       "stayType",
-      "roomData.stayType",
       "stay_type",
-      "roomData.stay_type",
       "type",
-      "roomData.type",
-    ]) ??
-      pickEverywhere(rawProperty, active, [
-        "hotelType",
-        "hotel_type",
-        "hotelResortType",
-        "hotel_resort_type",
-        "resortType",
-        "resort_type",
-        "stayType",
-        "stay_type",
-        "type",
-      ])
-  );
+    ])
+);
 
   const bedrooms =
-    pickFrom(layoutSource, [
-      "roomCounts.bedrooms",
-      "roomCounts.bedroomCount",
-      "roomData.roomCounts.bedrooms",
-      "roomData.roomCounts.bedroomCount",
-      "bedrooms",
-      "roomData.bedrooms",
-      "bedroomCount",
-      "roomData.bedroomCount",
-      "rooms",
-      "roomData.rooms",
-      "roomCount",
-      "roomData.roomCount",
-    ]) ??
-    pickEverywhere(rawProperty, active, [
-      "bedrooms",
-      "bedroomCount",
-      "bedroom_count",
-      "rooms",
-      "roomCount",
-      "room_count",
-    ]);
+  pickFrom(layoutSource, [
+    "roomCounts.bedrooms",
+    "roomCounts.bedroomCount",
+    "roomData.roomCounts.bedrooms",
+    "roomData.roomCounts.bedroomCount",
+    "bedrooms",
+    "roomData.bedrooms",
+    "bedroomCount",
+    "roomData.bedroomCount",
+    "bedroom_count",
+    "roomData.bedroom_count",
+    "rooms",
+    "roomData.rooms",
+    "roomCount",
+    "roomData.roomCount",
+  ]) ??
+  pickEverywhere(rawProperty, active, [
+    "bedrooms",
+    "bedroomCount",
+    "bedroom_count",
+    "rooms",
+    "roomCount",
+    "room_count",
+  ]);
 
   const bathrooms =
-    pickFrom(layoutSource, [
-      "roomCounts.bathrooms",
-      "roomCounts.bathroomCount",
-      "roomData.roomCounts.bathrooms",
-      "roomData.roomCounts.bathroomCount",
-      "bathrooms",
-      "roomData.bathrooms",
-      "bathroomCount",
-      "roomData.bathroomCount",
-    ]) ??
-    pickEverywhere(rawProperty, active, [
-      "bathrooms",
-      "bathroomCount",
-      "bathroom_count",
-    ]);
+  pickFrom(layoutSource, [
+    "roomCounts.bathrooms",
+    "roomCounts.bathroomCount",
+    "roomData.roomCounts.bathrooms",
+    "roomData.roomCounts.bathroomCount",
+    "bathrooms",
+    "roomData.bathrooms",
+    "bathroomCount",
+    "roomData.bathroomCount",
+    "bathroom_count",
+    "roomData.bathroom_count",
+  ]) ??
+  pickEverywhere(rawProperty, active, [
+    "bathrooms",
+    "bathroomCount",
+    "bathroom_count",
+  ]);
 
   const carparks = formatCarparks(
     pickFrom(layoutSource, [
@@ -678,41 +686,47 @@ console.log("=== HOTEL/RESORT DEBUG active.single_form_data ===", active?.single
   );
 
   const bedValue =
-    pickFrom(layoutSource, [
-      "beds",
-      "roomData.beds",
-      "bedType",
-      "roomData.bedType",
-      "bed_type",
-      "roomData.bed_type",
-    ]) ??
-    pickEverywhere(rawProperty, active, [
-      "bedType",
-      "bed_type",
-      "bed_types",
-      "roomBedType",
-      "room_bed_type",
-      "unitBedType",
-      "unit_bed_type",
-    ]);
+  pickFrom(layoutSource, [
+    "beds",
+    "roomData.beds",
+    "bedType",
+    "roomData.bedType",
+    "bed_type",
+    "roomData.bed_type",
+    "bed_types",
+    "roomData.bed_types",
+  ]) ??
+  pickEverywhere(rawProperty, active, [
+    "bedType",
+    "bed_type",
+    "bed_types",
+    "roomBedType",
+    "room_bed_type",
+    "unitBedType",
+    "unit_bed_type",
+  ]);
 
   const bedTypeText = Array.isArray(bedValue) ? formatBeds(bedValue) : asText(bedValue);
 
   const guestValue =
-    pickFrom(layoutSource, [
-      "guests",
-      "roomData.guests",
-    ]) ??
-    pickEverywhere(rawProperty, active, [
-      "guestCount",
-      "guest_count",
-      "maxGuests",
-      "max_guests",
-      "pax",
-      "maxPax",
-      "max_pax",
-      "occupancy",
-    ]);
+  pickFrom(layoutSource, [
+    "guests",
+    "roomData.guests",
+    "maxGuests",
+    "roomData.maxGuests",
+    "max_guests",
+    "roomData.max_guests",
+  ]) ??
+  pickEverywhere(rawProperty, active, [
+    "guestCount",
+    "guest_count",
+    "maxGuests",
+    "max_guests",
+    "pax",
+    "maxPax",
+    "max_pax",
+    "occupancy",
+  ]);
 
   const guestCountText =
     guestValue && typeof guestValue === "object"
