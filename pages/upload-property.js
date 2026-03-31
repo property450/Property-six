@@ -1228,6 +1228,10 @@ const calendar_prices =
 
         lastError = error;
 
+        console.log("SUPABASE FULL ERROR =", JSON.stringify(lastError, null, 2));
+console.log("SUPABASE PAYLOAD =", payloadToWrite);
+
+
         const missing = extractMissingColumnName(error);
         if (missing) {
           // 顶层删除
@@ -1254,9 +1258,7 @@ const calendar_prices =
         break;
       }
 
-      console.log("SUPABASE FULL ERROR =", JSON.stringify(lastError, null, 2));
-console.log("SUPABASE PAYLOAD =", payloadToWrite);
-
+      
       if (lastError) {
         const missing = extractMissingColumnName(lastError);
         if (missing) {
