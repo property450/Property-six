@@ -108,19 +108,15 @@ function getFirstRoomLayout(rawProperty, active) {
     rawProperty?.single_form_data ||
     {};
 
-  const typeForm =
-    rawProperty?.type_form_v2 ||
-    rawProperty?.typeForm ||
-    rawProperty?.type_form ||
+  const hotelForm =
+    rawProperty?.hotel_resort_form ||
+    single?.hotel_resort_form ||
     {};
-
-  const hotelForm = rawProperty?.hotel_resort_form || {};
 
   const sources = [
     hotelForm,
-    active,
     single,
-    typeForm,
+    active,
     rawProperty,
   ];
 
@@ -131,32 +127,12 @@ function getFirstRoomLayout(rawProperty, active) {
       return src.roomLayouts[0];
     }
 
-    if (Array.isArray(src.room_layouts) && src.room_layouts.length > 0) {
-      return src.room_layouts[0];
-    }
-
-    if (Array.isArray(src.layouts) && src.layouts.length > 0) {
-      return src.layouts[0];
-    }
-
     if (Array.isArray(src.roomTypes) && src.roomTypes.length > 0) {
       return src.roomTypes[0];
     }
 
-    if (Array.isArray(src.room_types) && src.room_types.length > 0) {
-      return src.room_types[0];
-    }
-
-    if (Array.isArray(src.units) && src.units.length > 0) {
-      return src.units[0];
-    }
-
     if (Array.isArray(src.unitLayouts) && src.unitLayouts.length > 0) {
       return src.unitLayouts[0];
-    }
-
-    if (Array.isArray(src.unit_layouts) && src.unit_layouts.length > 0) {
-      return src.unit_layouts[0];
     }
   }
 
